@@ -917,10 +917,6 @@ def fatturato_totale_clienti():
 # ROUTE PRODOTTI
 # ============================
 
-# ========================
-# --- ROUTE PRODOTTI ---
-# ========================
-
 @app.route('/prodotti')
 @login_required
 def prodotti():
@@ -933,13 +929,13 @@ def prodotti():
         categorie = [c['nome'] for c in categorie_rows]
 
         # Associa immagini (img_file) alle categorie con fallback
-        sfondi = {}
+        img_file_dict = {}
         for c in categorie_rows:
             img_file = c['immagine'] if c['immagine'] else 'no-image.png'
             img_path = os.path.join(app.static_folder, 'uploads', 'categorie', img_file)
             if not os.path.isfile(img_path):
                 img_file = 'no-image.png'
-            sfondi[c['nome']] = img_file
+            img_file_dict[c['nome']] = img_file
 
         # Recupera prodotti per categoria con eventuale filtro di ricerca
         prodotti_per_categoria = {}
@@ -961,7 +957,7 @@ def prodotti():
         '02_prodotti/01_prodotti.html',
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie,
-        img_file=sfondi  # <-- Passiamo img_file al template
+        sfondi=img_file_dict  # <-- Passiamo qui le immagini
     )
 
 
