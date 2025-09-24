@@ -13,7 +13,10 @@ from PIL import Image, ImageDraw
 # PATH STATIC E PLACEHOLDER
 # ============================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # __project_root
-STATIC_DIR = os.path.join(BASE_DIR, "static")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dentro __project_root
+
+# Static si trova in ../gestionale/static
+STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "gestionale", "static"))
 NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 
 # 🔹 Crea immagine placeholder se non esiste
@@ -28,8 +31,6 @@ if not os.path.exists(NO_IMAGE_PATH):
 # ============================
 # CONFIGURAZIONE FLASK
 # ============================
-TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dentro __project_root
-
 app = Flask(
     __name__,
     template_folder=TEMPLATES_DIR,
@@ -56,6 +57,7 @@ def allowed_file(filename):
 # DEBUG
 # ============================
 print("DEBUG - BASE_DIR:", BASE_DIR)
+print("DEBUG - STATIC_DIR:", STATIC_DIR)
 print("DEBUG - TEMPLATES_DIR:", TEMPLATES_DIR)
 print("DEBUG - app.jinja_loader searchpath:", app.jinja_loader.searchpath)
 if os.path.exists(TEMPLATES_DIR):
