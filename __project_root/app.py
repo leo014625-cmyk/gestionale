@@ -926,20 +926,30 @@ def fatturato_totale_clienti():
 def prodotti():
     q = request.args.get('q', '').strip()
     with get_db() as db:
-        categorie_rows = db.execute('SELECT id, nome, immagine FROM categorie ORDER BY nome').fetchall()
+        # Recupera tutte le categorie
+        categorie_rows = db.execute(
+            'SELECT id, nome, immagine FROM categorie ORDER BY nome'
+        ).fetchall()
         categorie = [c['nome'] for c in categorie_rows]
 
+        # Associa immagini (img_file) alle categorie con fallback
         sfondi = {}
         for c in categorie_rows:
-            img_file = c['immagine'] if c['immagine'] else 'default_categoria.jpg'
-            img_path = os.path.join(app.root_path, 'static', 'uploads', 'categorie', img_file)
+            img_file = c['immagine'] if c['immagine'] else 'no-image.png'
+            img_path = os.path.join(app.static_folder, 'uploads', 'categorie', img_file)
             if not os.path.isfile(img_path):
-                img_file = 'default_categoria.jpg'
+                img_file = 'no-image.png'
             sfondi[c['nome']] = img_file
 
+        # Recupera prodotti per categoria con eventuale filtro di ricerca
         prodotti_per_categoria = {}
         for c in categorie:
-            query = 'SELECT p.id, p.nome FROM prodotti p LEFT JOIN categorie c ON p.categoria_id = c.id WHERE c.nome = ?'
+            query = '''
+                SELECT p.id, p.nome 
+                FROM prodotti p 
+                LEFT JOIN categorie c ON p.categoria_id = c.id 
+                WHERE c.nome = ?
+            '''
             params = [c]
             if q:
                 query += ' AND p.nome LIKE ?'
@@ -951,8 +961,9 @@ def prodotti():
         '02_prodotti/01_prodotti.html',
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie,
-        sfondi=sfondi
+        img_file=sfondi  # <-- Passiamo img_file al template
     )
+
 
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
