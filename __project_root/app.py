@@ -9,13 +9,16 @@ from werkzeug.utils import secure_filename
 from dateutil.relativedelta import relativedelta
 from PIL import Image, ImageDraw
 
-# Path della cartella static e dell'immagine placeholder
-STATIC_FOLDER = os.path.join(os.path.dirname(__file__), "static")
-NO_IMAGE_PATH = os.path.join(STATIC_FOLDER, "no-image.png")
+# ============================
+# PATH STATIC E PLACEHOLDER
+# ============================
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # __project_root
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 
 # 🔹 Crea immagine placeholder se non esiste
 if not os.path.exists(NO_IMAGE_PATH):
-    os.makedirs(STATIC_FOLDER, exist_ok=True)
+    os.makedirs(STATIC_DIR, exist_ok=True)
     img = Image.new("RGB", (100, 100), color=(220, 220, 220))  # grigio chiaro
     draw = ImageDraw.Draw(img)
     draw.text((10, 40), "No Img", fill=(100, 100, 100))
@@ -23,23 +26,15 @@ if not os.path.exists(NO_IMAGE_PATH):
     print("✅ Immagine placeholder no-image.png creata automaticamente")
 
 # ============================
-# CONFIGURAZIONE BASE FLASK
+# CONFIGURAZIONE FLASK
 # ============================
-# BASE_DIR punta alla cartella del progetto principale, non a __project_root
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-# Percorso reale dei template
-TEMPLATES_DIR = os.path.join(BASE_DIR, "..", "_templates")
-
-
-STATIC_DIR = os.path.join(BASE_DIR, 'static')
+TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dentro __project_root
 
 app = Flask(
     __name__,
     template_folder=TEMPLATES_DIR,
-    static_folder=os.path.join(BASE_DIR, "static")
+    static_folder=STATIC_DIR
 )
-
 
 # Forza loader Jinja sulla cartella corretta
 app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
@@ -75,7 +70,6 @@ else:
 def inject_now():
     """Rende disponibile current_year in tutti i template"""
     return {'current_year': datetime.now().year}
-
 # ============================
 # DATABASE
 # ============================
