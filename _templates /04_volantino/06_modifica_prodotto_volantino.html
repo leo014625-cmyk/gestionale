@@ -1,0 +1,117 @@
+{% extends "01_base.html" %}
+
+{% block title %}Modifica {{ prodotto['nome'] }} - Volantino{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">✏️ Modifica Prodotto: 
+        <span class="text-primary">{{ prodotto['nome'] }}</span>
+    </h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        <!-- Nome prodotto -->
+        <div class="mb-3">
+            <label for="nome" class="form-label">Nome prodotto</label>
+            <input type="text" class="form-control" id="nome" name="nome"
+                   value="{{ prodotto['nome'] }}" required>
+        </div>
+
+        <!-- Prezzo -->
+        <div class="mb-3">
+            <label for="prezzo" class="form-label">Prezzo (€)</label>
+            <input type="number" class="form-control" id="prezzo" name="prezzo"
+                   step="0.01" min="0" value="{{ prodotto['prezzo'] }}" required>
+        </div>
+
+        <!-- Immagine -->
+        <div class="mb-3">
+            <label for="immagine" class="form-label">Immagine prodotto</label>
+            <input type="file" class="form-control" id="immagine" name="immagine" accept="image/*">
+            <div class="form-text">
+                Seleziona un file solo se vuoi sostituire l'immagine.  
+                Sul volantino sarà adattata automaticamente alla cella della griglia.
+            </div>
+        </div>
+
+        <!-- ✅ Checkbox: lascia box vuota -->
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="lascia_vuota" name="lascia_vuota"
+                   {% if prodotto['lascia_vuota']|default(0) %}checked{% endif %}>
+            <label class="form-check-label" for="lascia_vuota">
+                🚫 Lascia la box vuota (invisibile ma con spazio occupato)
+            </label>
+        </div>
+
+        <!-- 🔹 Anteprima -->
+        <div class="mb-3" id="previewWrapper">
+            <label class="form-label">Anteprima (200×230 px con nome e prezzo):</label><br>
+
+            <div style="width:200px; height:230px; border:1px solid #ccc; border-radius:8px; background:white;
+                        display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+                        overflow:hidden; padding:5px;">
+                <!-- Immagine -->
+                <div style="flex:1; display:flex; align-items:center; justify-content:center; max-height:140px;">
+                    <img id="previewImg"
+                         src="{% if prodotto['immagine'] %}{{ url_for('static', filename='uploads/volantino_prodotti/' ~ prodotto['immagine']) }}{% endif %}"
+                         alt="Anteprima prodotto"
+                         style="max-width:180px; max-height:140px; object-fit:contain;">
+                </div>
+
+                <!-- Nome -->
+                <div id="previewNome" style="text-align:center; font-size:14px; color:black; margin-top:4px; max-width:180px; word-wrap:break-word;">
+                    {{ prodotto['nome'] }}
+                </div>
+
+                <!-- Prezzo -->
+                <div id="previewPrezzo" style="text-align:center; font-size:18px; font-weight:bold; color:red; margin-top:3px;">
+                    € {{ "%.2f"|format(prodotto['prezzo']) }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Pulsanti -->
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">💾 Salva modifiche</button>
+            <a href="{{ url_for('modifica_volantino', volantino_id=prodotto['volantino_id']) }}" 
+               class="btn btn-secondary">↩️ Torna al volantino</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const inputFile = document.getElementById("immagine");
+    const inputPrezzo = document.getElementById("prezzo");
+    const inputNome = document.getElementById("nome");
+    const previewImg = document.getElementById("previewImg");
+    const previewPrezzo = document.getElementById("previewPrezzo");
+    const previewNome = document.getElementById("previewNome");
+
+    // Cambio immagine → aggiorna anteprima
+    inputFile.addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                previewImg.src = ev.target.result;
+                previewImg.alt = "Nuova immagine caricata";
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Aggiorna anteprima prezzo
+    function aggiornaPrezzo() {
+        const val = parseFloat(inputPrezzo.value);
+        previewPrezzo.textContent = "€ " + (isNaN(val) ? "0.00" : val.toFixed(2));
+    }
+    inputPrezzo.addEventListener("input", aggiornaPrezzo);
+    aggiornaPrezzo(); // iniziale
+
+    // Aggiorna anteprima nome
+    inputNome.addEventListener("input", function() {
+        previewNome.textContent = this.value || "Nome prodotto";
+    });
+});
+</script>
+{% endblock %}

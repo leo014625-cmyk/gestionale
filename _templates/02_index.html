@@ -1,0 +1,273 @@
+{% extends "01_base.html" %}
+
+{% block title %}Home - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-4 fw-bold mb-3">Bentornato Leonardo</h1>
+  <p class="lead mb-5">Gestisci i tuoi clienti, prodotti e fatturato con facilità e rapidità.</p>
+
+  <div class="row justify-content-center g-4 mb-5">
+    <div class="col-12 col-md-3">
+      <a href="{{ url_for('clienti') }}" class="btn btn-primary btn-lg w-100 shadow-sm d-flex align-items-center justify-content-center gap-2">
+        <i class="bi bi-people-fill fs-3"></i> Clienti
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{{ url_for('prodotti') }}" class="btn btn-success btn-lg w-100 shadow-sm d-flex align-items-center justify-content-center gap-2">
+        <i class="bi bi-box-seam fs-3"></i> Prodotti
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{{ url_for('fatturato') }}" class="btn btn-warning btn-lg w-100 shadow-sm text-dark d-flex align-items-center justify-content-center gap-2">
+        <i class="bi bi-cash-stack fs-3"></i> Fatturato
+      </a>
+    </div>
+  </div>
+
+  <!-- CARD METRICHE -->
+  <div class="row g-4 justify-content-center mb-5">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalFatturato">
+        <h6>Variazione Fatturato</h6>
+        {% if variazione_fatturato is not none %}
+          <div class="fs-3 fw-bold {{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
+            {{ "%.2f"|format(variazione_fatturato) }}%
+            {% if variazione_fatturato > 0 %}
+              <i class="bi bi-arrow-up"></i>
+            {% elif variazione_fatturato < 0 %}
+              <i class="bi bi-arrow-down"></i>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="fs-5 text-muted">N/D</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalClientiNuovi">
+        <h6>Clienti Nuovi (Ultimo Mese)</h6>
+        <div class="fs-3 fw-bold">{{ clienti_nuovi or 0 }}</div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalClientiBloccati">
+        <h6>Clienti Bloccati (Ultimo Mese)</h6>
+        <div class="fs-3 fw-bold text-danger">{{ clienti_bloccati or 0 }}</div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalClientiInattivi">
+        <h6>Clienti Bloccati + Inattivi</h6>
+        <div class="fs-3 fw-bold text-danger">{{ clienti_bloccati_inattivi or 0 }}</div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalProdottiTotali">
+        <h6>Prodotti Totali Inseriti (Ultimo Mese)</h6>
+        <div class="fs-3 fw-bold">{{ prodotti_totali_mese or 0 }}</div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalProdottiRimossi">
+        <h6>Prodotti Rimossi Ultimo Mese</h6>
+        <div class="fs-3 fw-bold">{{ prodotti_rimossi_mese or 0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grafico -->
+  <div class="card mb-4 bg-secondary text-white shadow-sm rounded-3">
+    <div class="card-body">
+      <h5 class="card-title mb-4">Andamento Fatturato (Ultimi 12 mesi)</h5>
+      <canvas id="fatturatoChart" height="150"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- MODALI -->
+{% macro render_lista_clienti(lista, campo_data=None, stato=None) %}
+  {% if lista %}
+    <hr>
+    <ul class="list-group text-start">
+      {% for cliente in lista %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ cliente.nome }}
+          {% if campo_data %}
+            <span class="badge bg-primary rounded-pill">{{ cliente[campo_data].strftime("%d/%m/%Y") }}</span>
+          {% elif stato %}
+            {% if cliente[stato] == 'bloccato' %}
+              <span class="badge bg-danger rounded-pill">{{ cliente[stato] }}</span>
+            {% elif cliente[stato] == 'inattivo' %}
+              <span class="badge bg-warning rounded-pill">{{ cliente[stato] }}</span>
+            {% else %}
+              <span class="badge bg-secondary rounded-pill">{{ cliente[stato] }}</span>
+            {% endif %}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted mt-3">Nessun dettaglio disponibile.</p>
+  {% endif %}
+{% endmacro %}
+
+<!-- Modal Fatturato -->
+<div class="modal fade" id="modalFatturato" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Dettaglio Variazione Fatturato</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        {% if variazione_fatturato is not none %}
+          <p>L’andamento del fatturato rispetto al mese precedente è:</p>
+          <h3 class="{{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
+            {{ "%.2f"|format(variazione_fatturato) }}%
+          </h3>
+        {% else %}
+          <p class="text-muted">Dati non disponibili</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Clienti Nuovi -->
+<div class="modal fade" id="modalClientiNuovi" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Clienti Nuovi (Ultimo Mese)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Nell’ultimo mese sono stati aggiunti: <h3 class="text-success">{{ clienti_nuovi or 0 }}</h3></p>
+        {{ render_lista_clienti(clienti_nuovi_dettaglio, campo_data='data_registrazione') }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Clienti Bloccati -->
+<div class="modal fade" id="modalClientiBloccati" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Clienti Bloccati (Ultimo Mese)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Totale bloccati: <h3 class="text-danger">{{ clienti_bloccati or 0 }}</h3></p>
+        {{ render_lista_clienti(clienti_bloccati_dettaglio, stato='stato') }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Clienti Inattivi -->
+<div class="modal fade" id="modalClientiInattivi" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Clienti Bloccati + Inattivi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Totale: <h3 class="text-danger">{{ clienti_bloccati_inattivi or 0 }}</h3></p>
+        {{ render_lista_clienti(clienti_bloccati_inattivi_dettaglio, stato='stato') }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Prodotti Totali -->
+<div class="modal fade" id="modalProdottiTotali" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Prodotti Totali Inseriti (Ultimo Mese)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Numero totale: <strong>{{ prodotti_totali_mese or 0 }}</strong></p>
+        {% if prodotti_inseriti %}
+          <ul class="list-group text-start">
+            {% for item in prodotti_inseriti %}
+              <li class="list-group-item">
+                <strong>{{ item.cliente }}</strong>  
+                <span class="text-muted">ha iniziato a lavorare:</span>  
+                <span class="badge bg-success ms-2">{{ item.prodotto }}</span>
+                <small class="text-muted ms-2">{{ item.data_operazione.strftime("%d/%m/%Y") }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mt-3">Nessun prodotto inserito disponibile.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Prodotti Rimossi -->
+<div class="modal fade" id="modalProdottiRimossi" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Prodotti Rimossi (Ultimo Mese)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Totale prodotti rimossi: <strong>{{ prodotti_rimossi_mese or 0 }}</strong></p>
+        {% if prodotti_rimossi %}
+          <ul class="list-group text-start">
+            {% for item in prodotti_rimossi %}
+              <li class="list-group-item">
+                <strong>{{ item.cliente }}</strong>  
+                <span class="text-muted">ha smesso di lavorare:</span>  
+                <span class="badge bg-danger ms-2">{{ item.prodotto }}</span>
+                <small class="text-muted ms-2">{{ item.data_operazione.strftime("%d/%m/%Y") }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mt-3">Nessun prodotto rimosso disponibile.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grafico -->
+{% if fatturato_mensile is defined %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(() => {
+    const fatturatoMensileRaw = {
+        {% for mese, valore in fatturato_mensile.items() %}
+        "{{ mese }}": {{ valore }},
+        {% endfor %}
+    };
+
+    const mesiOrdinati = Object.keys(fatturatoMensileRaw).sort((a, b) => {
+        const [annoA, meseA] = a.split('-').map(Number);
+        const [annoB, meseB] = b.split('-').map(Number);
+        return annoA !== annoB ? annoA - annoB : meseA - meseB;
+    });
+
+    const mesiNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+    const labels = mesiOrdinati.map(m => {
+        const [anno, mese] = m.split('-');
+        return mesiNomi[parseInt(mese, 10) - 1] + " '" + anno.slice(2);
+    });
+    const valori = mesiOrdinati.map(m => fatturatoMensileRaw[m]);
+
+    const ctx = document.getElementById('fatturatoChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Fatturato (€)', data: valori, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 5, borderSkipped: false }] },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', cornerRadius: 6, padding: 8, displayColors: false } },
+            scales: { x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } }, y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.2)' }, ticks: { color: '#a0a8b7' } } }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

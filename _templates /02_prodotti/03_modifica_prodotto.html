@@ -1,0 +1,82 @@
+{% extends "01_base.html" %}
+
+{% block title %}Modifica Prodotto - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mb-4">Modifica Prodotto</h1>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <div class="card shadow-sm p-4 mb-4">
+    <form method="POST" novalidate>
+      <!-- Nome prodotto -->
+      <div class="mb-3">
+        <label for="nome" class="form-label fw-bold">Nome prodotto <span class="text-danger">*</span></label>
+        <input type="text" id="nome" name="nome" class="form-control" value="{{ prodotto['nome'] }}" required placeholder="Inserisci il nome del prodotto">
+        <div class="invalid-feedback">
+          Il nome del prodotto è obbligatorio.
+        </div>
+      </div>
+
+      <!-- Categoria esistente -->
+      <div class="mb-3">
+        <label for="categoria_id" class="form-label fw-bold">Categoria</label>
+        <select id="categoria_id" name="categoria_id" class="form-select" {% if not categorie %}disabled{% endif %} required>
+          <option value="" disabled selected>-- Seleziona categoria --</option>
+          {% for categoria in categorie %}
+            <option value="{{ categoria['id'] }}" {% if categoria['id'] == prodotto['categoria_id'] %}selected{% endif %}>{{ categoria['nome'] }}</option>
+          {% endfor %}
+        </select>
+        {% if not categorie %}
+          <div class="form-text text-danger">Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.</div>
+        {% endif %}
+      </div>
+
+      <!-- Nuova categoria -->
+      <div class="mb-3">
+        <label for="nuova_categoria" class="form-label fw-bold">Oppure aggiungi nuova categoria</label>
+        <input type="text" id="nuova_categoria" name="nuova_categoria" class="form-control" placeholder="Nuova categoria">
+        <small class="form-text text-muted">Se inserisci una nuova categoria, sarà usata al posto di quella selezionata.</small>
+      </div>
+
+      <!-- Pulsanti -->
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">💾 Salva modifiche</button>
+        <a href="{{ url_for('prodotti') }}" class="btn btn-secondary btn-lg">❌ Annulla</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Form elimina prodotto -->
+  <div class="card shadow-sm p-4">
+    <form action="{{ url_for('elimina_prodotto', id=prodotto['id']) }}" method="POST" onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto? Questa operazione è irreversibile.')">
+      <button type="submit" class="btn btn-danger btn-lg w-100">🗑️ Elimina prodotto</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // Validazione form bootstrap
+  (function () {
+    'use strict'
+    const forms = document.querySelectorAll('form')
+    Array.from(forms).forEach(form => {
+      form.addEventListener('submit', event => {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+  })()
+</script>
+{% endblock %}
+
+

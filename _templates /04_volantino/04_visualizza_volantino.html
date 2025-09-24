@@ -1,0 +1,152 @@
+{% extends "01_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <h2 class="mb-4">📄 Visualizza Volantino</h2>
+
+    <!-- Pulsante -->
+    <div class="mb-3">
+        <a href="{{ url_for('editor_volantino', volantino_id=volantino['id']) }}" 
+           class="btn btn-primary">✏ Apri Editor</a>
+    </div>
+
+    <!-- Canvas SOLO visualizzazione -->
+    <div class="editor-wrapper text-center">
+        <canvas id="volantinoCanvas"></canvas>
+    </div>
+</div>
+
+<!-- Fabric.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const canvas = new fabric.Canvas("volantinoCanvas", {
+        selection: false   // 🚫 niente selezione
+    });
+
+    // Imposta dimensioni canvas
+    canvas.setWidth(1000);
+    canvas.setHeight(1400);
+
+    // --- Carica sfondo volantino ---
+    fabric.Image.fromURL("{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}", function(img) {
+        img.scaleToWidth(canvas.getWidth());
+        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+            originX: "left",
+            originY: "top"
+        });
+    });
+
+    // --- Funzione per aggiungere prodotto (200×230 px box) ---
+    function aggiungiProdotto(url, nome, prezzo, x, y, colorePrezzo="red") {
+        const elements = [];
+
+        if (url) {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = function() {
+                const fabricImg = new fabric.Image(img, { top: 0, left: 10, selectable: false, evented: false });
+                fabricImg.scaleToWidth(180);
+                elements.push(fabricImg);
+                addGroup();
+            };
+            img.src = url;
+        }
+
+        const textNome = new fabric.Text(nome || "", { 
+            fontSize: 14, 
+            fill: "black", 
+            top: 150, 
+            left: 100, 
+            originX: "center",
+            textAlign: "center",
+            selectable: false,
+            evented: false
+        });
+
+        const textPrezzo = new fabric.Text(prezzo ? "€ " + prezzo : "", { 
+            fontSize: 18, 
+            fill: colorePrezzo, 
+            fontWeight: "bold", 
+            top: 180, 
+            left: 100, 
+            originX: "center",
+            textAlign: "center",
+            selectable: false,
+            evented: false
+        });
+
+        elements.push(textNome, textPrezzo);
+
+        function addGroup() {
+            const group = new fabric.Group(elements, {
+                left: x,
+                top: y,
+                width: 200,
+                height: 230,
+                hasBorders: false,
+                hasControls: false,
+                selectable: false,
+                evented: false
+            });
+            canvas.add(group);
+        }
+
+        if (!url) addGroup();
+    }
+
+    // --- Prodotti disponibili ---
+    const prodotti = [
+        {% for p in prodotti %}
+        {
+            url: "{{ url_for('static', filename='uploads/volantino_prodotti/' ~ p['immagine']) if p['immagine'] else '' }}",
+            nome: "{{ p['nome'] }}",
+            prezzo: "{{ '%.2f'|format(p['prezzo']) }}",
+            colore: "{{ p['colore_prezzo']|default('red') }}"
+        },
+        {% endfor %}
+    ];
+
+    // --- Carica layout salvato oppure griglia fissa (4x5 = 20 slot) ---
+    const savedLayout = {{ volantino['layout_json']|safe }};
+    if (savedLayout && savedLayout.length > 0) {
+        canvas.loadFromJSON(savedLayout, function() {
+            canvas.renderAll();
+            // ❌ blocca interazione su ogni oggetto
+            canvas.getObjects().forEach(obj => {
+                obj.selectable = false;
+                obj.evented = false;
+            });
+        });
+    } else {
+        const cols = 4;
+        const rows = 5;
+        const spacingX = 240;
+        const spacingY = 260;
+        let index = 0;
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                let x = 50 + col * spacingX;
+                let y = 50 + row * spacingY;
+
+                if (prodotti[index]) {
+                    aggiungiProdotto(
+                        prodotti[index].url, 
+                        prodotti[index].nome, 
+                        prodotti[index].prezzo, 
+                        x, y, 
+                        prodotti[index].colore
+                    );
+                } else {
+                    aggiungiProdotto("", "", "", x, y);
+                }
+                index++;
+            }
+        }
+    }
+});
+</script>
+
+{% endblock %}

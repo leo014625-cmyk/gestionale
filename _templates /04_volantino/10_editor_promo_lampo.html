@@ -1,0 +1,283 @@
+{% extends "01_base.html" %}
+{% block content %}
+
+<div class="container-fluid mt-4">
+  <h2 class="mb-3">🖌 Editor Promo Lampo</h2>
+
+  <!-- 🔧 Pannello strumenti in alto -->
+  <div class="card p-3 shadow-sm mb-3">
+    <div class="d-flex flex-wrap gap-3 align-items-center">
+
+      <!-- Aggiungi immagine -->
+      <div>
+        <label class="form-label small mb-1">🖼 Immagine</label>
+        <input type="file" id="addImage" class="form-control form-control-sm" accept="image/*">
+      </div>
+
+      <!-- Aggiungi testo -->
+      <div style="min-width:220px">
+        <label class="form-label small mb-1">📝 Testo</label>
+        <textarea id="newText" class="form-control form-control-sm" rows="2" placeholder="Scrivi e aggiungi"></textarea>
+        <button id="addText" class="btn btn-primary btn-sm mt-1 w-100">➕ Aggiungi</button>
+        <div class="mt-1">
+          <label class="form-label small mb-0">🎨 Colore testo</label>
+          <input type="color" id="fontColor" class="form-control form-control-color form-control-sm" value="#000000">
+          <button id="toggleBold" class="btn btn-sm btn-outline-dark mt-1 w-100">B Grassetto</button>
+        </div>
+      </div>
+
+      <!-- Aggiungi prezzo -->
+      <div style="min-width:150px">
+        <label class="form-label small mb-1">💶 Prezzo</label>
+        <input type="text" id="priceValue" class="form-control form-control-sm" placeholder="0.00">
+        <input type="color" id="priceColor" class="form-control form-control-color form-control-sm mt-1" value="#FF6600">
+        <select id="priceShape" class="form-select form-select-sm mt-1">
+          <option value="circle">Cerchio</option>
+          <option value="roundedRect">Rettangolo arrotondato</option>
+          <option value="ellipse">Ellisse</option>
+        </select>
+        <button id="addPrice" class="btn btn-warning btn-sm mt-1 w-100">➕ Aggiungi Prezzo</button>
+      </div>
+
+      <!-- Posizione -->
+      <div>
+        <label class="form-label small mb-1">📍 X</label>
+        <input type="number" id="posX" class="form-control form-control-sm" value="0" style="width:90px">
+      </div>
+      <div>
+        <label class="form-label small mb-1">📍 Y</label>
+        <input type="number" id="posY" class="form-control form-control-sm" value="0" style="width:90px">
+      </div>
+
+      <!-- Scala -->
+      <div>
+        <label class="form-label small mb-1">🔍 Scala (%)</label>
+        <input type="number" id="scaleObj" class="form-control form-control-sm" value="100" min="10" max="300" step="5" style="width:100px">
+      </div>
+
+      <!-- Dimensione testo -->
+      <div>
+        <label class="form-label small mb-1">🔠 Font size</label>
+        <input type="number" id="fontSize" class="form-control form-control-sm" value="28" min="8" max="100" style="width:90px">
+      </div>
+
+      <!-- Larghezza testo -->
+      <div>
+        <label class="form-label small mb-1">↔️ Larghezza</label>
+        <input type="number" id="textWidth" class="form-control form-control-sm" value="300" min="50" max="800" style="width:100px">
+      </div>
+
+      <!-- Pulsanti azione -->
+      <div class="d-flex gap-2">
+        <button id="deleteObj" class="btn btn-danger btn-sm">🗑 Elimina</button>
+        <button id="resetCanvas" class="btn btn-warning btn-sm">🔄 Reset</button>
+        <button id="downloadPng" class="btn btn-info btn-sm">🖼 PNG</button>
+        <button id="downloadPdf" class="btn btn-danger btn-sm">📄 PDF</button>
+        <button id="saveLayout" class="btn btn-success btn-sm">💾 Salva Layout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Area editor -->
+  <div class="text-center position-relative">
+    <canvas id="promoCanvas"></canvas>
+    <div id="centerTip" class="position-absolute top-50 start-50 translate-middle bg-success text-white p-1 rounded d-none">Centrato!</div>
+    <div class="mt-3">
+      <a href="{{ url_for('lista_volantini_completa') }}" class="btn btn-secondary">⬅ Torna alla lista</a>
+    </div>
+  </div>
+</div>
+
+<!-- Librerie -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const canvas = new fabric.Canvas("promoCanvas", { preserveObjectStacking: true });
+  canvas.setWidth(1000);
+  canvas.setHeight(1400);
+  let selectedObj = null;
+
+  const centerX = canvas.getWidth()/2;
+  const centerY = canvas.getHeight()/2;
+  const tolerance = 5;
+
+  // --- Linee centrali ---
+  const lineH = new fabric.Line([centerX,0,centerX,canvas.getHeight()], { stroke:'rgba(0,0,0,0.3)', selectable:false, evented:false });
+  const lineV = new fabric.Line([0,centerY,canvas.getWidth(),centerY], { stroke:'rgba(0,0,0,0.3)', selectable:false, evented:false });
+  canvas.add(lineH,lineV);
+
+  const centerTip = document.getElementById("centerTip");
+
+  function checkCenter(obj){
+    const objCenterX = obj.left + (obj.width*obj.scaleX)/2;
+    const objCenterY = obj.top + (obj.height*obj.scaleY)/2;
+    let horiz = Math.abs(objCenterX - centerX) <= tolerance;
+    let vert = Math.abs(objCenterY - centerY) <= tolerance;
+
+    obj.set({ stroke:(horiz||vert)?'lime':null, strokeWidth:(horiz||vert)?2:0 });
+    canvas.renderAll();
+
+    if(horiz && vert){
+      centerTip.classList.remove("d-none");
+      setTimeout(()=>centerTip.classList.add("d-none"),1000);
+    }
+  }
+
+  // --- Carica sfondo/layout ---
+  {% if promo['layout'] %}
+    canvas.loadFromJSON(`{{ promo['layout']|safe }}`, canvas.renderAll.bind(canvas));
+  {% else %}
+    {% if promo['sfondo'] %}
+      fabric.Image.fromURL("{{ url_for('static', filename='uploads/promolampo/' ~ promo['sfondo']) }}", function(img) {
+        img.scaleToWidth(canvas.getWidth());
+        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+      });
+    {% else %}
+      canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
+    {% endif %}
+  {% endif %}
+
+  // --- Aggiungi immagine ---
+  document.getElementById("addImage").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onload = (f) => {
+        fabric.Image.fromURL(f.target.result, function(img) {
+          img.scaleToWidth(200);
+          img.set({ left:100, top:100 });
+          canvas.add(img);
+          canvas.setActiveObject(img);
+          checkCenter(img);
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // --- Aggiungi testo ---
+  document.getElementById("addText").addEventListener("click", function() {
+    const value = document.getElementById("newText").value.trim();
+    if(!value) return;
+    const width = parseInt(document.getElementById("textWidth").value)||300;
+    const text = new fabric.Textbox(value, {
+      left:100, top:100,
+      fontSize:28,
+      fill: document.getElementById("fontColor").value,
+      fontWeight: 'normal',
+      width: width,
+      editable:true
+    });
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    document.getElementById("newText").value = "";
+    checkCenter(text);
+  });
+
+  // --- Toggle grassetto ---
+  document.getElementById("toggleBold").addEventListener("click", function() {
+    if(selectedObj && selectedObj.type==="textbox"){
+      selectedObj.fontWeight = selectedObj.fontWeight==="bold"?"normal":"bold";
+      canvas.renderAll();
+    }
+  });
+
+  // --- Aggiorna colore testo ---
+  document.getElementById("fontColor").addEventListener("input", function(){
+    if(selectedObj && selectedObj.type==="textbox"){
+      selectedObj.set({ fill: this.value });
+      canvas.renderAll();
+    }
+  });
+
+  // --- Aggiungi prezzo con forme moderne ---
+  document.getElementById("addPrice").addEventListener("click", function() {
+    const value = document.getElementById("priceValue").value.trim();
+    if(!value) return;
+
+    const radius = 50;
+    const color = document.getElementById("priceColor").value;
+    const shape = document.getElementById("priceShape").value;
+    let shapeObj;
+
+    switch(shape){
+      case "circle":
+        shapeObj = new fabric.Circle({ radius, fill: color, originX:'center', originY:'center' });
+        break;
+      case "ellipse":
+        shapeObj = new fabric.Ellipse({ rx: radius, ry: radius*0.6, fill: color, originX:'center', originY:'center' });
+        break;
+      case "roundedRect":
+        shapeObj = new fabric.Rect({ width: radius*2, height: radius*1.2, rx:20, ry:20, fill: color, originX:'center', originY:'center' });
+        break;
+    }
+
+    const text = new fabric.Text(value+"€", { fontSize:33, fill:'white', fontWeight:'bold', originX:'center', originY:'center', textAlign:'center' });
+    const group = new fabric.Group([shapeObj,text], { left:150, top:150, originX:'center', originY:'center' });
+    canvas.add(group);
+    canvas.setActiveObject(group);
+    document.getElementById("priceValue").value="";
+    checkCenter(group);
+  });
+
+  // --- Aggiorna controlli selezione ---
+  canvas.on("selection:created", updateControls);
+  canvas.on("selection:updated", updateControls);
+  canvas.on("selection:cleared", ()=>{ selectedObj=null; });
+
+  function updateControls(e){
+    selectedObj = e.selected[0];
+    if(!selectedObj) return;
+    document.getElementById("posX").value = Math.round(selectedObj.left||0);
+    document.getElementById("posY").value = Math.round(selectedObj.top||0);
+    document.getElementById("scaleObj").value = Math.round((selectedObj.scaleX||1)*100);
+    if(selectedObj.type==="textbox"||selectedObj.type==="text"){
+      document.getElementById("fontSize").value = selectedObj.fontSize||28;
+      document.getElementById("textWidth").value = selectedObj.width||300;
+    }
+  }
+
+  // --- Modifica da pannello ---
+  document.getElementById("posX").addEventListener("input", function(){ if(selectedObj){ selectedObj.left=parseInt(this.value); canvas.renderAll(); checkCenter(selectedObj); }});
+  document.getElementById("posY").addEventListener("input", function(){ if(selectedObj){ selectedObj.top=parseInt(this.value); canvas.renderAll(); checkCenter(selectedObj); }});
+  document.getElementById("scaleObj").addEventListener("input", function(){ if(selectedObj){ let scale=this.value/100; selectedObj.scaleX=scale; selectedObj.scaleY=scale; canvas.renderAll(); checkCenter(selectedObj); }});
+  document.getElementById("fontSize").addEventListener("input", function(){ if(selectedObj&&selectedObj.type==="textbox"){ selectedObj.fontSize=parseInt(this.value); canvas.renderAll(); }});
+  document.getElementById("textWidth").addEventListener("input", function(){ if(selectedObj&&selectedObj.type==="textbox"){ selectedObj.set({ width:parseInt(this.value) }); canvas.renderAll(); }});
+
+  // --- Elimina ---
+  document.getElementById("deleteObj").addEventListener("click", function(){ if(selectedObj){ canvas.remove(selectedObj); selectedObj=null; canvas.renderAll(); }});
+
+  // --- Reset ---
+  document.getElementById("resetCanvas").addEventListener("click", function(){ if(confirm("Resettare il layout?")) location.reload(); });
+
+  // --- Salva layout ---
+  document.getElementById("saveLayout").addEventListener("click", function(){
+    const layoutJSON = JSON.stringify(canvas.toJSON());
+    fetch("{{ url_for('salva_layout', promo_id=promo['id']) }}", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ layout: layoutJSON }) })
+      .then(res=>{ if(res.ok) alert("Layout salvato correttamente!"); });
+  });
+
+  // --- Scarica PNG ---
+  document.getElementById("downloadPng").addEventListener("click", function(){
+    const dataURL = canvas.toDataURL({ format:"png", quality:1 });
+    const link = document.createElement("a");
+    link.href = dataURL;
+    link.download = "{{ promo['nome']|replace(' ','_') }}.png";
+    link.click();
+  });
+
+  // --- Scarica PDF ---
+  document.getElementById("downloadPdf").addEventListener("click", function(){
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p","pt",[canvas.getWidth(),canvas.getHeight()]);
+    const dataURL = canvas.toDataURL({ format:"png", quality:1 });
+    pdf.addImage(dataURL,"PNG",0,0,canvas.getWidth(),canvas.getHeight());
+    pdf.save("{{ promo['nome']|replace(' ','_') }}.pdf");
+  });
+
+});
+</script>
+
+{% endblock %}

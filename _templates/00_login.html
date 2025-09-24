@@ -1,0 +1,39 @@
+{% extends "01_base.html" %}
+
+{% block title %}Login - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+  <div class="card shadow" style="width: 100%; max-width: 400px;">
+    <div class="card-body">
+      <h4 class="card-title text-center mb-4">Accesso al Gestionale</h4>
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <div class="mb-3">
+          <label for="username" class="form-label">Username</label>
+          <input type="text" class="form-control" id="username" name="username" required autofocus>
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Accedi</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    // Nasconde sidebar, toggle e footer nella pagina login
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelector('.sidebar')?.classList.add('d-none');
+      document.querySelector('.toggle-sidebar-btn')?.classList.add('d-none');
+      document.querySelector('footer')?.classList.add('d-none');
+    });
+  </script>
+{% endblock %}

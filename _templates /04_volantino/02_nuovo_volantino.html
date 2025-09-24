@@ -1,0 +1,63 @@
+{% extends "01_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <h2 class="mb-4">➕ Crea Nuovo Volantino</h2>
+
+    <form action="{{ url_for('nuovo_volantino') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+        
+        <!-- Titolo -->
+        <div class="mb-3">
+            <label for="titolo" class="form-label">📝 Titolo Volantino</label>
+            <input type="text" class="form-control" id="titolo" name="titolo" 
+                   placeholder="Inserisci un titolo descrittivo" required>
+            <div class="invalid-feedback">Inserisci un titolo valido.</div>
+        </div>
+
+        <!-- Sfondo -->
+        <div class="mb-3">
+            <label for="sfondo" class="form-label">🖼 Sfondo Volantino</label>
+            <input type="file" class="form-control" id="sfondo" name="sfondo" accept="image/*" required>
+            <div class="form-text">Carica l'immagine di sfondo che verrà usata come base del volantino.</div>
+            <div class="invalid-feedback">Seleziona un'immagine per lo sfondo.</div>
+        </div>
+
+        <!-- Griglia visiva 3x3 -->
+        <div class="mb-3">
+            <label class="form-label">📦 Griglia Prodotti (3x3)</label>
+            <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                {% for i in range(9) %}
+                    <div style="height: 100px; border: 1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#aaa;">
+                        Box {{ i + 1 }}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="form-text">Questa griglia indica i 9 slot disponibili nell'editor.</div>
+        </div>
+
+        <!-- Pulsanti -->
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">💾 Salva Volantino</button>
+            <a href="{{ url_for('lista_volantini') }}" class="btn btn-secondary">↩ Torna alla Lista</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Bootstrap validation
+(function () {
+  'use strict'
+  const forms = document.querySelectorAll('.needs-validation')
+  Array.from(forms).forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      if (!form.checkValidity()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      form.classList.add('was-validated')
+    }, false)
+  })
+})()
+</script>
+
+{% endblock %}

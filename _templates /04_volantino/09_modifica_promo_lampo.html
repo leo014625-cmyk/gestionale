@@ -1,0 +1,58 @@
+{% extends "01_base.html" %}
+{% block content %}
+
+<div class="container mt-5">
+  <h2 class="fw-bold mb-4">⚡ Modifica Promo Lampo</h2>
+
+  <form method="POST" enctype="multipart/form-data" class="card p-4 shadow-sm rounded-4">
+    <!-- Nome -->
+    <div class="mb-3">
+      <label for="nome" class="form-label">📝 Nome Prodotto</label>
+      <textarea id="nome" name="nome" class="form-control" rows="3" required>{{ promo['nome'] }}</textarea>
+    </div>
+
+    <!-- Immagine prodotto -->
+    <div class="mb-3">
+      <label for="immagine" class="form-label">🖼 Immagine Prodotto</label>
+      {% if promo['immagine'] %}
+        <div class="mb-2">
+          <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}" 
+               alt="Immagine attuale" class="img-thumbnail" style="max-height:150px;">
+        </div>
+      {% endif %}
+      <input type="file" id="immagine" name="immagine" class="form-control" accept="image/*">
+      <div class="form-text">Lascia vuoto se non vuoi cambiare l'immagine.</div>
+    </div>
+
+    <!-- Sfondo volantino -->
+    <div class="mb-3">
+      <label for="sfondo" class="form-label">🌄 Sfondo Volantino</label>
+      {% if promo['sfondo'] %}
+        <div class="mb-2">
+          <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['sfondo']) }}" 
+               alt="Sfondo attuale" class="img-thumbnail" style="max-height:150px;">
+        </div>
+      {% endif %}
+      <input type="file" id="sfondo" name="sfondo" class="form-control" accept="image/*">
+      <div class="form-text">Lascia vuoto se non vuoi cambiare lo sfondo.</div>
+    </div>
+
+    <!-- Pulsanti -->
+    <div class="d-flex gap-2 mb-3">
+      <button type="submit" class="btn btn-success">💾 Salva Modifiche</button>
+      <a href="{{ url_for('lista_volantini_completa') }}" class="btn btn-secondary">↩ Torna Indietro</a>
+    </div>
+
+    <!-- Pulsante Apri Editor -->
+    <div class="mb-3">
+      <a href="{{ url_for('editor_promo_lampo', promo_id=promo['id']) }}" 
+         class="btn btn-primary btn-lg w-100">
+         🖌 Apri Editor Visuale
+      </a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+

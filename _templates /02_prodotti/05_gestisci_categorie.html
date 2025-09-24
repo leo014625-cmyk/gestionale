@@ -1,0 +1,35 @@
+{% extends "01_base.html" %}
+
+{% block title %}Gestione Categorie - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Gestione Categorie</h1>
+
+<!-- Form per aggiungere nuova categoria -->
+<form id="aggiungiCategoriaForm" method="POST" action="{{ url_for('aggiungi_categoria') }}" class="mb-4">
+  <div class="input-group">
+    <input type="text" name="nome_categoria" class="form-control" placeholder="Nuova categoria" required>
+    <button class="btn btn-primary" type="submit">➕ Aggiungi Categoria</button>
+  </div>
+</form>
+
+<!-- Lista categorie esistenti con pulsante elimina -->
+<div class="list-group mb-5">
+  {% if categorie %}
+    {% for categoria in categorie %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      {{ categoria }}
+      <form method="POST" action="{{ url_for('elimina_categoria', nome_categoria=categoria) }}" onsubmit="return confirm('Eliminare la categoria {{ categoria }}? Tutti i prodotti resteranno senza categoria.');">
+        <button class="btn btn-sm btn-danger">🗑️ Elimina</button>
+      </form>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="alert alert-warning text-center">
+      Nessuna categoria presente.
+    </div>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('prodotti') }}" class="btn btn-secondary mt-3">🔙 Torna ai prodotti</a>
+{% endblock %}

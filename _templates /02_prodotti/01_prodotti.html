@@ -1,0 +1,234 @@
+{% extends "01_base.html" %}
+
+{% block title %}Prodotti - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Gestione Prodotti</h1>
+
+<div class="mb-4">
+  <input type="text" id="searchGlobale" class="form-control form-control-lg" placeholder="Cerca prodotto o categoria...">
+</div>
+
+<!-- Pulsanti principali -->
+<div class="mb-4 d-flex gap-2 flex-wrap">
+  <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success">➕ Aggiungi Prodotto</a>
+  <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary">🗂️ Gestisci Categorie</a>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5" id="categorieCardContainer">
+  {% set immagini_categorie = {
+      "Alimentari": "alimentari.jpg",
+      "Carne Fresca": "carne_fresca.jpg",
+      "Carne Gelo": "carne_gelo.jpg",
+      "Ittico Gelo": "ittico_gelo.jpg",
+      "No Food": "no_food.jpg",
+      "Ittico Fresco": "ittico_fresco.jpg"
+  } %}
+  {% if categorie %}
+    {% for categoria in categorie %}
+      <div class="col">
+        <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
+             style="background-image: url('{{ url_for('static', filename='uploads/categorie/' ~ immagini_categorie.get(categoria, 'default_categoria.jpg')) }}');"
+             data-bs-toggle="modal" 
+             data-bs-target="#categoriaModal"
+             data-categoria="{{ categoria }}">
+          <div class="overlay d-flex flex-column justify-content-center align-items-center">
+            <h5 class="card-title fw-bold">{{ categoria }}</h5>
+            <p class="text-white">{{ prodotti_per_categoria.get(categoria, [])|length }} prodotti</p>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="col-12">
+      <div class="alert alert-warning text-center">
+        Nessuna categoria disponibile.
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<div class="modal fade" id="categoriaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content modal-animate">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="categoriaModalLabel">Prodotti</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="search-container p-3 bg-light border-bottom sticky-top">
+          <input type="text" id="searchProdotti" class="form-control" placeholder="Cerca prodotto in questa categoria...">
+        </div>
+        <div id="listaProdotti" class="list-group list-group-flush max-height-400 overflow-auto"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a href="{{ url_for('index') }}" class="btn btn-secondary mt-5">🏠 Torna alla home</a>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const prodottiPerCategoria = {{ prodotti_per_categoria|tojson }};
+  const modal = document.getElementById('categoriaModal');
+  const modalTitle = document.getElementById('categoriaModalLabel');
+  const listaProdotti = document.getElementById('listaProdotti');
+  const searchInput = document.getElementById('searchProdotti');
+
+  function popolaLista(prodotti) {
+    listaProdotti.innerHTML = '';
+    if (!prodotti || prodotti.length === 0) {
+      listaProdotti.innerHTML = `<p class="text-center text-muted py-3">Nessun prodotto in questa categoria.</p>`;
+      return;
+    }
+    prodotti.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap';
+      item.innerHTML = `
+        <span><i class="bi bi-box-seam me-2"></i>${p.nome}</span>
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="/prodotti/clienti/${p.id}" class="btn btn-info" title="Clienti"><i class="bi bi-people"></i></a>
+          <a href="/prodotti/modifica/${p.id}" class="btn btn-warning" title="Modifica"><i class="bi bi-pencil-square"></i></a>
+          <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto?');">
+            <button type="submit" class="btn btn-danger" title="Elimina"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      `;
+      listaProdotti.appendChild(item);
+    });
+  }
+
+  modal.addEventListener('show.bs.modal', (event) => {
+    const button = event.relatedTarget;
+    const categoria = button.getAttribute('data-categoria');
+    modalTitle.textContent = `Prodotti - ${categoria}`;
+    popolaLista(prodottiPerCategoria[categoria] || []);
+    searchInput.value = '';
+  });
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase();
+    Array.from(listaProdotti.children).forEach(item => {
+      const text = item.textContent.toLowerCase();
+      item.style.display = text.includes(query) ? '' : 'none';
+    });
+  });
+
+  const searchGlobale = document.getElementById('searchGlobale');
+  searchGlobale.addEventListener('input', () => {
+    const query = searchGlobale.value.toLowerCase();
+    document.querySelectorAll('#categorieCardContainer .col').forEach(col => {
+      const card = col.querySelector('.card');
+      const categoria = card.getAttribute('data-categoria').toLowerCase();
+      const prodotti = prodottiPerCategoria[card.getAttribute('data-categoria')] || [];
+      const matchCategoria = categoria.includes(query);
+      const matchProdotto = prodotti.some(p => p.nome.toLowerCase().includes(query));
+      col.style.display = (matchCategoria || matchProdotto) ? '' : 'none';
+    });
+  });
+});
+</script>
+
+<style>
+/* CARD CATEGORIE */
+.hover-scale {
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+.hover-scale:hover {
+  transform: scale(1.05);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+}
+
+.categoria-card {
+  border-radius: 1rem;
+  height: 300px;
+  position: relative;
+  overflow: hidden;
+  color: white;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.5s;
+}
+
+.categoria-card:hover {
+  transform: scale(1.05);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 2;
+  transition: background 0.3s ease;
+}
+
+.categoria-card:hover .overlay {
+  background: rgba(0,0,0,0.15);
+}
+
+.card-title {
+  font-size: 1.6rem;
+  transition: text-shadow 0.3s ease;
+}
+
+.categoria-card:hover .card-title {
+  text-shadow: 2px 2px 6px rgba(0,0,0,0.7);
+}
+
+/* MODAL ANIMAZIONE */
+.modal-animate {
+  transform: scale(0.95);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.modal.show .modal-animate {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* LISTA PRODOTTI MODAL */
+.max-height-400 {
+  max-height: 400px;
+}
+
+#listaProdotti .list-group-item {
+  border-radius: 0.5rem;
+  margin: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  background-color: #f8f9fa;
+  cursor: default;
+  display: flex;
+  align-items: center;
+}
+
+#listaProdotti .list-group-item i {
+  font-size: 1.2rem;
+}
+
+#listaProdotti .list-group-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background-color: #e9ecef;
+}
+
+/* SEARCH STICKY */
+.search-container.sticky-top {
+  top: 0;
+  z-index: 10;
+  background-color: #fff !important;
+}
+</style>
+{% endblock %}

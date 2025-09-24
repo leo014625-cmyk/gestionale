@@ -1,0 +1,113 @@
+{% extends "01_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <h2 class="mb-4">➕ Aggiungi Prodotto al Volantino: 
+        <span class="text-primary">{{ volantino['titolo'] }}</span>
+    </h2>
+
+    <form action="{{ url_for('aggiungi_prodotto_volantino', volantino_id=volantino['id']) }}" 
+          method="POST" enctype="multipart/form-data">
+
+        <!-- Nome Prodotto -->
+        <div class="mb-3">
+            <label for="nome" class="form-label">Nome Prodotto</label>
+            <input type="text" class="form-control" id="nome" name="nome" required>
+        </div>
+
+        <!-- Prezzo -->
+        <div class="mb-3">
+            <label for="prezzo" class="form-label">Prezzo (€)</label>
+            <input type="number" step="0.01" min="0" class="form-control" id="prezzo" name="prezzo" required>
+        </div>
+
+        <!-- Immagine -->
+        <div class="mb-3">
+            <label for="immagine" class="form-label">Immagine Prodotto</label>
+            <input type="file" class="form-control" id="immagine" name="immagine" accept="image/*">
+            <div class="form-text">
+                L’immagine verrà caricata in <code>uploads/volantino_prodotti/</code> e adattata alla cella (200×230 px).
+            </div>
+        </div>
+
+        <!-- 🔹 Anteprima dinamica -->
+        <div class="mb-3 d-none" id="previewWrapper">
+            <label class="form-label">Anteprima:</label><br>
+
+            <div style="width:200px; height:230px; border:1px solid #ccc; 
+                        display:flex; flex-direction:column; align-items:center; 
+                        justify-content:flex-start; overflow:hidden; 
+                        padding:5px; border-radius:8px; background:white;">
+
+                <!-- Immagine -->
+                <div style="flex:1; display:flex; align-items:center; 
+                            justify-content:center; max-height:120px;">
+                    <img id="previewImg" 
+                         src="https://via.placeholder.com/180x100?text=Preview" 
+                         style="max-width:180px; max-height:120px; object-fit:contain; display:block;" />
+                </div>
+
+                <!-- Nome -->
+                <div id="previewNome" style="text-align:center; font-size:14px; margin-top:6px; 
+                                             color:black; max-width:180px; white-space:nowrap; 
+                                             overflow:hidden; text-overflow:ellipsis;">
+                    Nome prodotto
+                </div>
+
+                <!-- Prezzo -->
+                <div id="previewPrezzo" style="text-align:center; font-size:18px; 
+                                               font-weight:bold; color:red; margin-top:4px;">
+                    € 0.00
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">💾 Aggiungi Prodotto</button>
+        <a href="{{ url_for('modifica_volantino', volantino_id=volantino['id']) }}" class="btn btn-secondary">⬅ Torna indietro</a>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const inputFile = document.getElementById("immagine");
+    const inputPrezzo = document.getElementById("prezzo");
+    const inputNome = document.getElementById("nome");
+
+    const previewWrapper = document.getElementById("previewWrapper");
+    const previewImg = document.getElementById("previewImg");
+    const previewPrezzo = document.getElementById("previewPrezzo");
+    const previewNome = document.getElementById("previewNome");
+
+    function showPreview() {
+        previewWrapper.classList.remove("d-none");
+    }
+
+    // Cambio immagine → aggiorna anteprima
+    inputFile.addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                previewImg.src = ev.target.result;
+                showPreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Aggiorna prezzo
+    inputPrezzo.addEventListener("input", function() {
+        const val = parseFloat(this.value);
+        previewPrezzo.textContent = "€ " + (isNaN(val) ? "0.00" : val.toFixed(2));
+        showPreview();
+    });
+
+    // Aggiorna nome
+    inputNome.addEventListener("input", function() {
+        previewNome.textContent = this.value || "Nome prodotto";
+        showPreview();
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends "01_base.html" %}
+
+{% block title %}Aggiungi Cliente - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Aggiungi Cliente</h1>
+
+<form method="POST" novalidate>
+  <!-- Nome cliente -->
+  <div class="mb-3">
+    <label for="nome" class="form-label">Nome cliente</label>
+    <input type="text" class="form-control" id="nome" name="nome" required autofocus>
+  </div>
+
+  <!-- Zona -->
+  <div class="mb-3">
+    <label for="zona" class="form-label">Zona</label>
+    <select class="form-select" id="zona" name="zona" required>
+      {% for z in zone %}
+        <option value="{{ z.nome }}">{{ z.nome }}</option>
+      {% endfor %}
+      <option disabled>──────────</option>
+      <option value="nuova_zona">+ Aggiungi nuova zona</option>
+    </select>
+    <div class="form-text">Seleziona una zona esistente o aggiungine una nuova.</div>
+  </div>
+
+  <!-- Nuova zona -->
+  <div class="mb-3 d-none" id="nuova-zona-wrapper">
+    <label for="nuova_zona" class="form-label">Nuova Zona</label>
+    <input type="text" class="form-control" id="nuova_zona" name="nuova_zona" placeholder="Inserisci nuova zona">
+  </div>
+
+  <!-- Fatturato Mensile -->
+  <fieldset class="mb-4">
+    <legend>Fatturato Mensile</legend>
+    {% set mesi = {
+      1: 'Gennaio', 2: 'Febbraio', 3: 'Marzo', 4: 'Aprile',
+      5: 'Maggio', 6: 'Giugno', 7: 'Luglio', 8: 'Agosto',
+      9: 'Settembre', 10: 'Ottobre', 11: 'Novembre', 12: 'Dicembre'
+    } %}
+    <div class="row g-3 align-items-center mb-3">
+      <div class="col-auto"><label for="mese" class="col-form-label">Mese</label></div>
+      <div class="col-auto">
+        <select id="mese" name="mese" class="form-select">
+          {% for k, v in mesi.items() %}
+            <option value="{{ k }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-auto"><label for="anno" class="col-form-label">Anno</label></div>
+      <div class="col-auto">
+        <input type="number" id="anno" name="anno" class="form-control" value="{{ current_year }}" min="2000" max="2100">
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="fatturato_mensile" class="form-label">Importo (€)</label>
+      <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile" placeholder="Inserisci fatturato mensile">
+    </div>
+  </fieldset>
+
+  <!-- Prodotti per Categoria -->
+  <div class="mb-4">
+    <h4 class="mb-3">Prodotti</h4>
+
+    {% if categorie %}
+      <ul class="nav nav-tabs" id="prodottiTabs" role="tablist">
+        {% for categoria in categorie %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ categoria.id }}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}" type="button" role="tab">{{ categoria.nome }}</button>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="tab-content border border-top-0 p-3 rounded-bottom shadow-sm">
+        {% for categoria in categorie %}
+          <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}" role="tabpanel">
+            {% set prodotti_cat = prodotti|selectattr("categoria_id", "equalto", categoria.id)|list %}
+            {% if prodotti_cat %}
+              {% for prodotto in prodotti_cat %}
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="prodotto{{ prodotto.id }}" name="prodotti[]" value="{{ prodotto.id }}">
+                  <label class="form-check-label" for="prodotto{{ prodotto.id }}">
+                    {{ prodotto.nome }}
+                  </label>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted">Nessun prodotto in questa categoria.</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted">Nessuna categoria disponibile.</p>
+    {% endif %}
+  </div>
+
+  <!-- Tabelle prodotti lavorati/non lavorati -->
+  <hr>
+  <div class="row">
+    <div class="col-md-6">
+      <h5>Prodotti Lavorati</h5>
+      <table class="table table-bordered table-striped mb-4" id="tabella-lavorati">
+        <thead class="table-success"><tr><th>Prodotto</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="col-md-6">
+      <h5>Prodotti Non Lavorati</h5>
+      <table class="table table-bordered table-striped" id="tabella-non-lavorati">
+        <thead class="table-danger"><tr><th>Prodotto</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Salva</button>
+  <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Gestione nuova zona
+  const zonaSelect = document.getElementById('zona');
+  const nuovaZonaWrapper = document.getElementById('nuova-zona-wrapper');
+  const nuovaZonaInput = document.getElementById('nuova_zona');
+
+  zonaSelect.addEventListener('change', function () {
+    if (zonaSelect.value === 'nuova_zona') {
+      nuovaZonaWrapper.classList.remove('d-none');
+      nuovaZonaInput.required = true;
+      nuovaZonaInput.focus();
+    } else {
+      nuovaZonaWrapper.classList.add('d-none');
+      nuovaZonaInput.required = false;
+      nuovaZonaInput.value = '';
+    }
+  });
+
+  // Tabelle prodotti lavorati / non lavorati
+  const prodottiCheckbox = document.querySelectorAll('input[name="prodotti[]"]');
+  const tabellaLavorati = document.querySelector('#tabella-lavorati tbody');
+  const tabellaNonLavorati = document.querySelector('#tabella-non-lavorati tbody');
+
+  const prodotti = [
+    {% for prodotto in prodotti %}
+    { id: '{{ prodotto.id }}', nome: '{{ prodotto.nome }}' },
+    {% endfor %}
+  ];
+
+  function aggiornaTabelle() {
+    tabellaLavorati.innerHTML = '';
+    tabellaNonLavorati.innerHTML = '';
+
+    prodotti.forEach(p => {
+      const checkbox = Array.from(prodottiCheckbox).find(chk => chk.value === p.id);
+      const riga = `<tr><td>${p.nome}</td></tr>`;
+      if (checkbox && checkbox.checked) {
+        tabellaLavorati.insertAdjacentHTML('beforeend', riga);
+      } else {
+        tabellaNonLavorati.insertAdjacentHTML('beforeend', riga);
+      }
+    });
+  }
+
+  aggiornaTabelle();
+  prodottiCheckbox.forEach(chk => chk.addEventListener('change', aggiornaTabelle));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends "01_base.html" %}
+
+{% block title %}Modifica Cliente - Gestionale Horeca{% endblock %}
+
+{% block content %}
+
+{% set mesi = {
+    1: 'Gennaio', 2: 'Febbraio', 3: 'Marzo', 4: 'Aprile',
+    5: 'Maggio', 6: 'Giugno', 7: 'Luglio', 8: 'Agosto',
+    9: 'Settembre', 10: 'Ottobre', 11: 'Novembre', 12: 'Dicembre'
+} %}
+
+<h1 class="mb-4">Modifica Cliente</h1>
+
+<form method="POST" novalidate>
+  <!-- Nome cliente -->
+  <div class="mb-3">
+    <label for="nome" class="form-label">Nome cliente</label>
+    <input type="text" class="form-control" id="nome" name="nome" value="{{ cliente.nome }}" required autofocus>
+  </div>
+
+  <!-- Zona -->
+  <div class="mb-3">
+    <label for="zona" class="form-label">Zona</label>
+    <select class="form-select" id="zona" name="zona" required>
+      {% for z in zone %}
+        <option value="{{ z.nome }}" {% if z.nome == cliente.zona %}selected{% endif %}>{{ z.nome }}</option>
+      {% endfor %}
+      <option disabled>──────────</option>
+      <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>+ Aggiungi nuova zona</option>
+    </select>
+    <div class="form-text">Seleziona una zona esistente o aggiungine una nuova.</div>
+  </div>
+
+  <!-- Nuova zona -->
+  <div class="mb-3 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
+    <label for="nuova_zona" class="form-label">Nuova Zona</label>
+    <input type="text" class="form-control" id="nuova_zona" name="nuova_zona" placeholder="Inserisci nuova zona" value="{{ nuova_zona_value or '' }}">
+  </div>
+
+  <!-- Fatturato -->
+  <fieldset class="mb-4">
+    <legend>Fatturato Mensile</legend>
+    <div class="row g-3 align-items-center mb-3">
+      <div class="col-auto">
+        <label for="mese" class="col-form-label">Mese</label>
+      </div>
+      <div class="col-auto">
+        <select id="mese" name="mese" class="form-select" required>
+          {% for k, v in mesi.items() %}
+            <option value="{{ k }}" {% if k == (fatturato_mese or current_month) %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <label for="anno" class="col-form-label">Anno</label>
+      </div>
+      <div class="col-auto">
+        <input type="number" id="anno" name="anno" class="form-control" value="{{ fatturato_anno or current_year }}" min="2000" max="2100" required>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="fatturato_mensile" class="form-label">Importo (€)</label>
+      <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile" placeholder="Inserisci fatturato mensile" value="{{ fatturato_importo or '' }}">
+      <div class="form-text">Lascia vuoto se non vuoi aggiungere un fatturato.</div>
+    </div>
+
+    <button type="button" class="btn btn-outline-secondary mt-2" data-bs-toggle="modal" data-bs-target="#modalFatturato">
+      Visualizza e modifica fatturati
+    </button>
+  </fieldset>
+
+  <!-- Prodotti con card moderne -->
+  <div class="mb-4">
+    <h4 class="mb-3">Prodotti</h4>
+
+    {% if categorie %}
+      <ul class="nav nav-tabs mb-3" id="prodottiTabs" role="tablist">
+        {% for categoria in categorie %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ categoria.id }}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}" type="button" role="tab">
+              {{ categoria.nome }}
+              {% if categoria.id|string in categorie_lavorate %}
+                <i class="bi bi-check-circle-fill text-success ms-1"></i>
+              {% endif %}
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="tab-content">
+        {% for categoria in categorie %}
+          <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}" role="tabpanel">
+            {% set prodotti_cat = prodotti|selectattr("categoria_id", "equalto", categoria.id)|list %}
+            {% if prodotti_cat %}
+              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                {% for prodotto in prodotti_cat %}
+                  <div class="col">
+                    <div class="card h-100 shadow-sm prodotto-card {% if prodotto.id|string in prodotti_lavorati %}bg-success bg-opacity-10{% else %}bg-white{% endif %}">
+                      <div class="card-body d-flex flex-column">
+                        <div class="form-check mb-2">
+                          <input class="form-check-input" type="checkbox" id="prodotto{{ prodotto.id }}" name="prodotti_lavorati[]" value="{{ prodotto.id }}" {% if prodotto.id|string in prodotti_lavorati %}checked{% endif %}>
+                          <label class="form-check-label fw-bold" for="prodotto{{ prodotto.id }}">
+                            {{ prodotto.nome }}
+                          </label>
+                          <span class="badge bg-secondary ms-1">{{ prodotto.categoria_nome }}</span>
+                        </div>
+                        <div class="mt-auto prezzi-wrapper {% if prodotto.id|string in prodotti_lavorati %}d-none{% endif %}" id="prezzi-{{ prodotto.id }}">
+                          <div class="mb-2">
+                            <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_attuale[{{ prodotto.id }}]" placeholder="Prezzo attuale €" value="{{ prezzi_attuali.get(prodotto.id|string, '') }}">
+                          </div>
+                          <div>
+                            <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_offerta[{{ prodotto.id }}]" placeholder="Prezzo offerta €" value="{{ prezzi_offerta.get(prodotto.id|string, '') }}">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted">Nessun prodotto in questa categoria.</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted">Nessuna categoria disponibile.</p>
+    {% endif %}
+  </div>
+
+  <!-- Tabelle Prodotti -->
+  <hr>
+  <div class="row">
+    <div class="col-md-6">
+      <h5>Prodotti Lavorati</h5>
+      <table class="table table-bordered table-striped mb-4" id="tabella-lavorati">
+        <thead class="table-success">
+          <tr><th>Prodotto</th><th>Categoria</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="col-md-6">
+      <h5>Prodotti Non Lavorati</h5>
+      <table class="table table-bordered table-striped" id="tabella-non-lavorati">
+        <thead class="table-danger">
+          <tr><th>Prodotto</th><th>Categoria</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pulsanti -->
+  <button type="submit" class="btn btn-primary">Salva modifiche</button>
+  <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
+</form>
+
+<!-- Modal Fatturato -->
+<div class="modal fade" id="modalFatturato" tabindex="-1" aria-labelledby="modalFatturatoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalFatturatoLabel">Fatturati Mensili</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-striped">
+          <thead>
+            <tr><th>Mese</th><th>Anno</th><th>Importo (€)</th></tr>
+          </thead>
+          <tbody>
+            {% for f in fatturati_cliente %}
+            <tr>
+              <td>{{ mesi[f.mese] }}</td>
+              <td>{{ f.anno }}</td>
+              <td>
+                <input type="number" class="form-control form-control-sm" value="{{ f.totale }}" data-fatt-id="{{ f.id }}">
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted">Nessun fatturato inserito</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="salvaFatturatiModal">Salva modifiche</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // --- Nuova zona ---
+  const zonaSelect = document.getElementById('zona');
+  const nuovaZonaWrapper = document.getElementById('nuova-zona-wrapper');
+  const nuovaZonaInput = document.getElementById('nuova_zona');
+
+  zonaSelect.addEventListener('change', function () {
+    const isNew = zonaSelect.value === 'nuova_zona';
+    nuovaZonaWrapper.classList.toggle('d-none', !isNew);
+    nuovaZonaInput.required = isNew;
+    if (isNew) nuovaZonaInput.focus();
+  });
+
+  // --- Prodotti ---
+  const prodotti = [
+    {% for prodotto in prodotti %}
+      { id: '{{ prodotto.id }}', nome: '{{ prodotto.nome }}', categoria: '{{ prodotto.categoria_nome }}' },
+    {% endfor %}
+  ];
+
+  const lavoratiTbody = document.querySelector('#tabella-lavorati tbody');
+  const nonLavoratiTbody = document.querySelector('#tabella-non-lavorati tbody');
+
+  function aggiornaTabelle() {
+    lavoratiTbody.innerHTML = '';
+    nonLavoratiTbody.innerHTML = '';
+
+    prodotti.forEach(p => {
+      const checkbox = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      if (checkbox && checkbox.checked) {
+        lavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td></tr>`);
+      } else {
+        const attuale = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value || '–';
+        const offerta = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value || '–';
+        nonLavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${attuale}</td><td>${offerta}</td></tr>`);
+      }
+    });
+  }
+
+  aggiornaTabelle();
+
+  document.querySelectorAll('input[name="prodotti_lavorati[]"]').forEach(chk => {
+    chk.addEventListener('change', function () {
+      const wrapper = document.getElementById('prezzi-' + this.value);
+      wrapper.classList.toggle('d-none', this.checked);
+      aggiornaTabelle();
+    });
+  });
+
+  // --- Salvataggio fatturati dal modal via fetch ---
+  document.getElementById('salvaFatturatiModal').addEventListener('click', function() {
+    const inputs = document.querySelectorAll('#modalFatturato tbody input[data-fatt-id]');
+    const data = [];
+
+    inputs.forEach(i => {
+        data.push({ id: i.dataset.fattId, importo: parseFloat(i.value) });
+    });
+
+    fetch("{{ url_for('aggiorna_fatturati') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fatturati: data, cliente_id: {{ cliente.id }} })
+    })
+    .then(res => res.json())
+    .then(resp => {
+        if (resp.success) {
+            alert("Fatturati aggiornati correttamente!");
+            location.reload();
+        } else {
+            alert("Errore nel salvataggio: " + resp.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Errore di comunicazione con il server.");
+    });
+  });
+});
+</script>
+
+<style>
+/* Card prodotti moderna */
+.prodotto-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.prodotto-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+.card .form-check { cursor: pointer; }
+.card .form-check-input { margin-top: 0.2rem; }
+.card .badge { font-size: 0.75rem; }
+.prezzi-wrapper input { width: 100%; }
+
+/* Colore più chiaro per prodotti lavorati */
+.prodotto-card.bg-success.bg-opacity-10 {
+  background-color: #d4edda !important; /* verde chiaro */
+}
+</style>
+
+{% endblock %}
+
+
+
+
