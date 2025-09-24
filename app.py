@@ -22,20 +22,24 @@ if not os.path.exists(NO_IMAGE_PATH):
     img.save(NO_IMAGE_PATH)
     print("✅ Immagine placeholder no-image.png creata automaticamente")
 
-
 # ============================
 # CONFIGURAZIONE BASE FLASK
 # ============================
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))      # __project_root
-ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))   # gestionale_horeca1
-TEMPLATES_DIR = os.path.join(BASE_DIR, '_templates')
+# BASE_DIR punta alla cartella del progetto principale, non a __project_root
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Percorso reale dei template
+TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")
+
+
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 
 app = Flask(
     __name__,
     template_folder=TEMPLATES_DIR,
-    static_folder=STATIC_DIR
+    static_folder=os.path.join(BASE_DIR, "static")
 )
+
 
 # Forza loader Jinja sulla cartella corretta
 app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
@@ -57,10 +61,12 @@ def allowed_file(filename):
 # DEBUG
 # ============================
 print("DEBUG - BASE_DIR:", BASE_DIR)
-print("DEBUG - ROOT_DIR:", ROOT_DIR)
 print("DEBUG - TEMPLATES_DIR:", TEMPLATES_DIR)
 print("DEBUG - app.jinja_loader searchpath:", app.jinja_loader.searchpath)
-print("DEBUG - os.listdir(TEMPLATES_DIR):", os.listdir(TEMPLATES_DIR))
+if os.path.exists(TEMPLATES_DIR):
+    print("DEBUG - os.listdir(TEMPLATES_DIR):", os.listdir(TEMPLATES_DIR))
+else:
+    print("⚠️ DEBUG - TEMPLATES_DIR non trovato:", TEMPLATES_DIR)
 
 # ============================
 # CONTEXT PROCESSOR
@@ -2196,5 +2202,7 @@ def debug_template():
 # AVVIO APP
 # ============================
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5050, debug=True)
+
+
 
