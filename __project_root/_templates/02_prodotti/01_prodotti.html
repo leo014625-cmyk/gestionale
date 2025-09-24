@@ -26,9 +26,10 @@
   } %}
   {% if categorie %}
     {% for categoria in categorie %}
+      {% set img_file = immagini_categorie.get(categoria, 'no-image.png') %}
       <div class="col">
         <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
-             style="background-image: url('{{ url_for('static', filename='uploads/categorie/' ~ immagini_categorie.get(categoria, 'default_categoria.jpg')) }}');"
+             style="background-image: url('{{ url_for('static', filename='uploads/categorie/' ~ img_file) }}');"
              data-bs-toggle="modal" 
              data-bs-target="#categoriaModal"
              data-categoria="{{ categoria }}">
@@ -232,3 +233,4 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 </style>
 {% endblock %}
+
