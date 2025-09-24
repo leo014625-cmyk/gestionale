@@ -28,7 +28,7 @@ if not os.path.exists(NO_IMAGE_PATH):
 # ============================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))      # __project_root
 ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))   # gestionale_horeca1
-TEMPLATES_DIR = os.path.join(ROOT_DIR, '_templates')
+TEMPLATES_DIR = os.path.join(BASE_DIR, '_templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 
 app = Flask(
