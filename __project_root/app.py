@@ -920,7 +920,7 @@ def fatturato_totale_clienti():
 @app.route('/prodotti')
 @login_required
 def prodotti():
-   q = request.args.get('q', '').strip()
+    q = request.args.get('q', '').strip()
     with get_db() as db:
         # Recupera tutte le categorie
         categorie_rows = db.execute(
@@ -953,7 +953,7 @@ def prodotti():
             prodotti_rows = db.execute(query, params).fetchall()
             prodotti_per_categoria[c] = [dict(p) for p in prodotti_rows]
 
-   return render_template(
+    return render_template(
     '02_prodotti/01_prodotti.html',
     prodotti_per_categoria=prodotti_per_categoria,
     categorie=categorie,
