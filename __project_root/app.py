@@ -953,12 +953,13 @@ def prodotti():
             prodotti_rows = db.execute(query, params).fetchall()
             prodotti_per_categoria[c] = [dict(p) for p in prodotti_rows]
 
-    return render_template(
-        '02_prodotti/01_prodotti.html',
-        prodotti_per_categoria=prodotti_per_categoria,
-        categorie=categorie,
-        sfondi=img_file_dict  # <-- Passiamo qui le immagini
-    )
+return render_template(
+    '02_prodotti/01_prodotti.html',
+    prodotti_per_categoria=prodotti_per_categoria,
+    categorie=categorie,
+    sfondi=img_file_dict  # <-- immagini reali dal DB o fallback
+)
+
 
 
 
