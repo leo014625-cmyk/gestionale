@@ -9,7 +9,6 @@
   <input type="text" id="searchGlobale" class="form-control form-control-lg" placeholder="Cerca prodotto o categoria...">
 </div>
 
-<!-- Pulsanti principali -->
 <div class="mb-4 d-flex gap-2 flex-wrap">
   <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success">➕ Aggiungi Prodotto</a>
   <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary">🗂️ Gestisci Categorie</a>
@@ -23,7 +22,8 @@
              style="background-image: url('{{ categoria.url_immagine }}');"
              data-bs-toggle="modal" 
              data-bs-target="#categoriaModal"
-             data-categoria="{{ categoria.nome }}">
+             data-categoria="{{ categoria.nome }}"
+             onerror="console.warn('Immagine non trovata:', '{{ categoria.url_immagine }}')">
           <div class="overlay d-flex flex-column justify-content-center align-items-center">
             <h5 class="card-title fw-bold">{{ categoria.nome }}</h5>
             <p class="text-white">{{ prodotti_per_categoria.get(categoria.nome, [])|length }} prodotti</p>
@@ -131,30 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
 .hover-scale { transition: transform 0.3s, box-shadow 0.3s; }
 .hover-scale:hover { transform: scale(1.05); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
 
-.categoria-card {
-  border-radius: 1rem;
-  height: 300px;
-  position: relative;
-  overflow: hidden;
-  color: white;
-  background-size: cover;
-  background-position: center;
-  transition: transform 0.5s;
-}
+.categoria-card { border-radius: 1rem; height: 300px; position: relative; overflow: hidden; color: white; background-size: cover; background-position: center; transition: transform 0.5s; }
 .categoria-card:hover { transform: scale(1.05); }
 
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.35);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  z-index: 2;
-  transition: background 0.3s ease;
-}
+.overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 2; transition: background 0.3s ease; }
 .categoria-card:hover .overlay { background: rgba(0,0,0,0.15); }
 
 .card-title { font-size: 1.6rem; transition: text-shadow 0.3s ease; }
