@@ -72,19 +72,25 @@ else:
 def inject_now():
     """Rende disponibile current_year in tutti i template"""
     return {'current_year': datetime.now().year}
-# ============================
-# DATABASE
-# ============================
-DB_PATH = os.path.join(BASE_DIR, 'gestionale.db')
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+# Legge la URL del database da variabile d'ambiente (Render)
+DATABASE_URL = os.environ.get('DATABASE_URL')  # es. postgres://user:pass@host:port/dbname
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """
+    Restituisce una connessione al database PostgreSQL.
+    Usa RealDictCursor per ottenere risultati come dizionari (simile a sqlite3.Row)
+    """
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def get_db():
+    """
+    Restituisce una connessione per l'uso nelle query.
+    """
     return get_db_connection()
-
 # ============================
 # LOGIN WRAPPER
 # ============================
