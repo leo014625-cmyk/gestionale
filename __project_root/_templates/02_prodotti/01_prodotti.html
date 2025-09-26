@@ -18,23 +18,29 @@
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5" id="categorieCardContainer">
   {% if categorie %}
     {% for categoria in categorie %}
-      {% set immagine = sfondi.get(categoria, 'no-image.png') %}
-      {% set url_immagine = url_for('static', filename='uploads/categorie/' ~ immagine) %}
+      {# Determina URL immagine #}
+      {% if categoria.url_immagine is defined %}
+        {% set url_img = categoria.url_immagine %}
+      {% else %}
+        {% set img_file = sfondi.get(categoria.nome, 'no-image.png') %}
+        {% set url_img = url_for('static', filename='uploads/categorie/' ~ img_file) %}
+      {% endif %}
+      
       <div class="col">
         <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
-             style="background-image: url('{{ url_immagine }}');"
+             style="background-image: url('{{ url_img }}');"
              data-bs-toggle="modal" 
              data-bs-target="#categoriaModal"
-             data-categoria="{{ categoria }}">
+             data-categoria="{{ categoria.nome }}">
           <div class="overlay d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title fw-bold">{{ categoria }}</h5>
-            <p class="text-white">{{ prodotti_per_categoria.get(categoria, [])|length }} prodotti</p>
-            <!-- DEBUG: mostra URL generato -->
-            <small class="text-warning">DEBUG URL: {{ url_immagine }}</small>
+            <h5 class="card-title fw-bold">{{ categoria.nome }}</h5>
+            <p class="text-white">{{ prodotti_per_categoria.get(categoria.nome, [])|length }} prodotti</p>
+            <!-- DEBUG: mostra URL immagine -->
+            <small class="text-warning">DEBUG URL: {{ url_img }}</small>
           </div>
         </div>
-        <!-- DEBUG: fallback immagine reale per controllare se il file esiste -->
-        <img src="{{ url_immagine }}" alt="{{ categoria }}" style="max-width:100%; margin-top:0.5rem;">
+        <!-- Fallback visibile per debug -->
+        <img src="{{ url_img }}" alt="{{ categoria.nome }}" style="max-width:100%; margin-top:0.5rem;">
       </div>
     {% endfor %}
   {% else %}
@@ -67,4 +73,119 @@
 </div>
 
 <a href="{{ url_for('index') }}" class="btn btn-secondary mt-5">🏠 Torna alla home</a>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const prodottiPerCategoria = {{ prodotti_per_categoria|tojson }};
+  const modal = document.getElementById('categoriaModal');
+  const modalTitle = document.getElementById('categoriaModalLabel');
+  const listaProdotti = document.getElementById('listaProdotti');
+  const searchInput = document.getElementById('searchProdotti');
+
+  function popolaLista(prodotti) {
+    listaProdotti.innerHTML = '';
+    if (!prodotti || prodotti.length === 0) {
+      listaProdotti.innerHTML = `<p class="text-center text-muted py-3">Nessun prodotto in questa categoria.</p>`;
+      return;
+    }
+    prodotti.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap';
+      item.innerHTML = `
+        <span><i class="bi bi-box-seam me-2"></i>${p.nome}</span>
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="/prodotti/clienti/${p.id}" class="btn btn-info" title="Clienti"><i class="bi bi-people"></i></a>
+          <a href="/prodotti/modifica/${p.id}" class="btn btn-warning" title="Modifica"><i class="bi bi-pencil-square"></i></a>
+          <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto?');">
+            <button type="submit" class="btn btn-danger" title="Elimina"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      `;
+      listaProdotti.appendChild(item);
+    });
+  }
+
+  modal.addEventListener('show.bs.modal', (event) => {
+    const button = event.relatedTarget;
+    const categoria = button.getAttribute('data-categoria');
+    modalTitle.textContent = `Prodotti - ${categoria}`;
+    popolaLista(prodottiPerCategoria[categoria] || []);
+    searchInput.value = '';
+  });
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase();
+    Array.from(listaProdotti.children).forEach(item => {
+      const text = item.textContent.toLowerCase();
+      item.style.display = text.includes(query) ? '' : 'none';
+    });
+  });
+
+  const searchGlobale = document.getElementById('searchGlobale');
+  searchGlobale.addEventListener('input', () => {
+    const query = searchGlobale.value.toLowerCase();
+    document.querySelectorAll('#categorieCardContainer .col').forEach(col => {
+      const card = col.querySelector('.card');
+      const categoria = card.getAttribute('data-categoria').toLowerCase();
+      const prodotti = prodottiPerCategoria[card.getAttribute('data-categoria')] || [];
+      const matchCategoria = categoria.includes(query);
+      const matchProdotto = prodotti.some(p => p.nome.toLowerCase().includes(query));
+      col.style.display = (matchCategoria || matchProdotto) ? '' : 'none';
+    });
+  });
+});
+</script>
+
+<style>
+/* CARD CATEGORIE */
+.hover-scale { transition: transform 0.3s, box-shadow 0.3s; }
+.hover-scale:hover { transform: scale(1.05); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+
+.categoria-card {
+  border-radius: 1rem;
+  height: 300px;
+  position: relative;
+  overflow: hidden;
+  color: white;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.5s;
+}
+
+.categoria-card:hover { transform: scale(1.05); }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 2;
+  transition: background 0.3s ease;
+}
+
+.categoria-card:hover .overlay { background: rgba(0,0,0,0.15); }
+
+.card-title { font-size: 1.6rem; transition: text-shadow 0.3s ease; }
+.categoria-card:hover .card-title { text-shadow: 2px 2px 6px rgba(0,0,0,0.7); }
+
+/* MODAL ANIMAZIONE */
+.modal-animate { transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
+.modal.show .modal-animate { transform: scale(1); opacity: 1; }
+
+/* LISTA PRODOTTI MODAL */
+.max-height-400 { max-height: 400px; }
+#listaProdotti .list-group-item { border-radius: 0.5rem; margin: 0.5rem 1rem; padding: 0.75rem 1rem; transition: transform 0.2s, box-shadow 0.2s, background 0.2s; background-color: #f8f9fa; cursor: default; display: flex; align-items: center; }
+#listaProdotti .list-group-item i { font-size: 1.2rem; }
+#listaProdotti .list-group-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); background-color: #e9ecef; }
+
+/* SEARCH STICKY */
+.search-container.sticky-top { top: 0; z-index: 10; background-color: #fff !important; }
+</style>
 {% endblock %}
