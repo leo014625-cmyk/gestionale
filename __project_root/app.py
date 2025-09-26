@@ -1,13 +1,15 @@
 import os
 import sqlite3
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify
 from datetime import datetime, timedelta
 from jinja2 import FileSystemLoader
 from collections import defaultdict
 from werkzeug.utils import secure_filename
 from dateutil.relativedelta import relativedelta
 from PIL import Image, ImageDraw
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # ============================
 # PATH STATIC E PLACEHOLDER
@@ -72,9 +74,10 @@ else:
 def inject_now():
     """Rende disponibile current_year in tutti i template"""
     return {'current_year': datetime.now().year}
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
+# ============================
+# DATABASE POSTGRESQL
+# ============================
 # Legge la URL del database da variabile d'ambiente (Render)
 DATABASE_URL = os.environ.get('DATABASE_URL')  # es. postgres://user:pass@host:port/dbname
 
@@ -83,6 +86,8 @@ def get_db_connection():
     Restituisce una connessione al database PostgreSQL.
     Usa RealDictCursor per ottenere risultati come dizionari (simile a sqlite3.Row)
     """
+    if not DATABASE_URL:
+        raise ValueError("❌ Variabile d'ambiente DATABASE_URL non settata")
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
@@ -91,6 +96,7 @@ def get_db():
     Restituisce una connessione per l'uso nelle query.
     """
     return get_db_connection()
+
 # ============================
 # LOGIN WRAPPER
 # ============================
