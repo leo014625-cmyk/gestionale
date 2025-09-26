@@ -923,20 +923,29 @@ def prodotti():
     q = request.args.get('q', '').strip()
 
     with get_db() as db:
-        # Recupera tutte le categorie con nome e immagine
+        # Recupera tutte le categorie
         categorie_rows = db.execute(
             'SELECT id, nome, immagine FROM categorie ORDER BY nome'
         ).fetchall()
 
-        # Prepara lista categorie {nome, immagine}
         categorie = []
         for c in categorie_rows:
-            categorie.append({
-                'nome': c['nome'],
-                'immagine': c['immagine'] if c['immagine'] else None
-            })
+            img = c['immagine']
+            
+            # Se l'immagine è un link esterno, usalo direttamente
+            if img and (img.startswith('http://') or img.startswith('https://')):
+                url_img = img
+            else:
+                # fallback a file locale
+                img_file = img if img else 'no-image.png'
+                img_path = os.path.join(app.static_folder, 'uploads', 'categorie', img_file)
+                if not os.path.isfile(img_path):
+                    img_file = 'no-image.png'
+                url_img = url_for('static', filename=f'uploads/categorie/{img_file}')
 
-        # Recupera prodotti per categoria con eventuale filtro di ricerca
+            categorie.append({'nome': c['nome'], 'url_immagine': url_img})
+
+        # Recupera prodotti per categoria
         prodotti_per_categoria = {}
         for c in categorie:
             query = '''
@@ -957,6 +966,7 @@ def prodotti():
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie
     )
+
 
 
 
