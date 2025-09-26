@@ -959,7 +959,6 @@ def prodotti():
 
 
 
-
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
 @login_required
 def aggiungi_prodotto():
