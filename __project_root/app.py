@@ -923,28 +923,18 @@ def prodotti():
     q = request.args.get('q', '').strip()
 
     with get_db() as db:
-        # Recupera tutte le categorie
+        # Recupera tutte le categorie con nome e immagine
         categorie_rows = db.execute(
             'SELECT id, nome, immagine FROM categorie ORDER BY nome'
         ).fetchall()
 
-        # Prepara lista categorie con struttura {nome, url_immagine}
+        # Prepara lista categorie {nome, immagine}
         categorie = []
         for c in categorie_rows:
-            # Controllo speciale per "Alimentari"
-            if c['nome'].lower() == 'alimentari':
-                img_file = 'alimentari.jpg'
-            else:
-                img_file = c['immagine'] if c['immagine'] else 'no-image.png'
-
-            # Verifica esistenza file locale
-            img_path = os.path.join(app.static_folder, 'uploads', 'categorie', img_file)
-            if not os.path.isfile(img_path):
-                img_file = 'no-image.png'
-
-            # URL per il template
-            url_img = url_for('static', filename=f'uploads/categorie/{img_file}')
-            categorie.append({'nome': c['nome'], 'url_immagine': url_img})
+            categorie.append({
+                'nome': c['nome'],
+                'immagine': c['immagine'] if c['immagine'] else None
+            })
 
         # Recupera prodotti per categoria con eventuale filtro di ricerca
         prodotti_per_categoria = {}
@@ -965,9 +955,9 @@ def prodotti():
     return render_template(
         '02_prodotti/01_prodotti.html',
         prodotti_per_categoria=prodotti_per_categoria,
-        categorie=categorie,
-        sfondi={}  # il template ora usa categoria.url_immagine
+        categorie=categorie
     )
+
 
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
