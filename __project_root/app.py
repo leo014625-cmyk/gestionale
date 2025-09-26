@@ -1084,44 +1084,80 @@ def clienti_prodotto(id):
     conn.close()
     return render_template('/02_prodotti/04_prodotto_clienti.html', prodotto=prodotto, clienti=clienti)
 
+from flask import request, redirect, url_for, render_template, flash
+
 @app.route('/categorie')
 def gestisci_categorie():
-    # Percorso al database
     db_path = os.path.join(BASE_DIR, 'gestionale.db')
-    
-    # Connessione al database
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Prendi tutte le categorie
-    cur.execute("SELECT * FROM categorie")
-    categorie = [row["nome"] for row in cur.fetchall()]
-
-
+    # Prendi tutte le categorie con nome + immagine
+    cur.execute("SELECT nome, immagine FROM categorie ORDER BY nome")
+    categorie = cur.fetchall()
     conn.close()
 
-    # Passa le categorie al template
-    return render_template('/02_prodotti/05_gestisci_categorie.html', categorie=categorie)
+    return render_template(
+        '/02_prodotti/05_gestisci_categorie.html',
+        categorie=categorie
+    )
+
 
 @app.route('/categorie/aggiungi', methods=['POST'])
 def aggiungi_categoria():
-    nome = request.form.get('nome_categoria')
-    if nome:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("INSERT OR IGNORE INTO categorie (nome) VALUES (?)", (nome,))
-        conn.commit()
-        conn.close()
+    nome = request.form.get('nome_categoria', '').strip()
+    immagine = request.form.get('link_immagine', '').strip() or None
+
+    if not nome:
+        flash("⚠️ Devi inserire un nome per la categoria.", "warning")
+        return redirect(url_for('gestisci_categorie'))
+
+    db_path = os.path.join(BASE_DIR, 'gestionale.db')
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("INSERT OR IGNORE INTO categorie (nome, immagine) VALUES (?, ?)", (nome, immagine))
+    conn.commit()
+    conn.close()
+
+    flash(f"✅ Categoria '{nome}' aggiunta.", "success")
     return redirect(url_for('gestisci_categorie'))
+
+
+@app.route('/categorie/modifica', methods=['POST'])
+def modifica_categoria():
+    vecchio_nome = request.form.get('vecchio_nome')
+    nuovo_nome = request.form.get('nome_categoria', '').strip()
+    immagine = request.form.get('link_immagine', '').strip() or None
+
+    if not nuovo_nome:
+        flash("⚠️ Il nome non può essere vuoto.", "warning")
+        return redirect(url_for('gestisci_categorie'))
+
+    db_path = os.path.join(BASE_DIR, 'gestionale.db')
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE categorie SET nome = ?, immagine = ? WHERE nome = ?",
+        (nuovo_nome, immagine, vecchio_nome)
+    )
+    conn.commit()
+    conn.close()
+
+    flash(f"✏️ Categoria '{vecchio_nome}' modificata in '{nuovo_nome}'.", "info")
+    return redirect(url_for('gestisci_categorie'))
+
 
 @app.route('/categorie/elimina/<nome_categoria>', methods=['POST'])
 def elimina_categoria(nome_categoria):
+    db_path = os.path.join(BASE_DIR, 'gestionale.db')
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("DELETE FROM categorie WHERE nome = ?", (nome_categoria,))
     conn.commit()
     conn.close()
+
+    flash(f"🗑️ Categoria '{nome_categoria}' eliminata.", "danger")
     return redirect(url_for('gestisci_categorie'))
 
 @app.route('/fatturato')
