@@ -19,11 +19,14 @@
     {% for categoria in categorie %}
       <div class="col">
         <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
-             style="background-image: url('{{ categoria.url_immagine }}');"
+             {% if categoria.immagine %}
+               style="background-image: url('{{ categoria.immagine }}');"
+             {% else %}
+               style="background: linear-gradient(135deg, #6c757d, #343a40);"
+             {% endif %}
              data-bs-toggle="modal" 
              data-bs-target="#categoriaModal"
-             data-categoria="{{ categoria.nome }}"
-             onerror="console.warn('Immagine non trovata:', '{{ categoria.url_immagine }}')">
+             data-categoria="{{ categoria.nome }}">
           <div class="overlay d-flex flex-column justify-content-center align-items-center">
             <h5 class="card-title fw-bold">{{ categoria.nome }}</h5>
             <p class="text-white">{{ prodotti_per_categoria.get(categoria.nome, [])|length }} prodotti</p>
@@ -40,6 +43,7 @@
   {% endif %}
 </div>
 
+<!-- Modal prodotti -->
 <div class="modal fade" id="categoriaModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content modal-animate">
