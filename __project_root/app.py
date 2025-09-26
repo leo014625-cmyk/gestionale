@@ -930,7 +930,7 @@ def prodotti():
 
         # Usa direttamente il link presente in db (o None se vuoto)
         categorie = [
-            {'nome': c['nome'], 'url_immagine': c['immagine'] or None}
+            {'nome': c['nome'], 'immagine': c['immagine'] or None}
             for c in categorie_rows
         ]
 
@@ -955,8 +955,6 @@ def prodotti():
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie
     )
-
-
 
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
