@@ -928,22 +928,11 @@ def prodotti():
             'SELECT id, nome, immagine FROM categorie ORDER BY nome'
         ).fetchall()
 
-        categorie = []
-        for c in categorie_rows:
-            img = c['immagine']
-            
-            # Se l'immagine è un link esterno, usalo direttamente
-            if img and (img.startswith('http://') or img.startswith('https://')):
-                url_img = img
-            else:
-                # fallback a file locale
-                img_file = img if img else 'no-image.png'
-                img_path = os.path.join(app.static_folder, 'uploads', 'categorie', img_file)
-                if not os.path.isfile(img_path):
-                    img_file = 'no-image.png'
-                url_img = url_for('static', filename=f'uploads/categorie/{img_file}')
-
-            categorie.append({'nome': c['nome'], 'url_immagine': url_img})
+        # Usa direttamente il link presente in db (o None se vuoto)
+        categorie = [
+            {'nome': c['nome'], 'url_immagine': c['immagine'] or None}
+            for c in categorie_rows
+        ]
 
         # Recupera prodotti per categoria
         prodotti_per_categoria = {}
@@ -966,6 +955,7 @@ def prodotti():
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie
     )
+
 
 
 
