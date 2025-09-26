@@ -7,21 +7,46 @@
 
 <!-- Form per aggiungere nuova categoria -->
 <form id="aggiungiCategoriaForm" method="POST" action="{{ url_for('aggiungi_categoria') }}" class="mb-4">
-  <div class="input-group">
-    <input type="text" name="nome_categoria" class="form-control" placeholder="Nuova categoria" required>
-    <button class="btn btn-primary" type="submit">➕ Aggiungi Categoria</button>
+  <div class="row g-2">
+    <div class="col-md-5">
+      <input type="text" name="nome_categoria" class="form-control" placeholder="Nuova categoria" required>
+    </div>
+    <div class="col-md-5">
+      <input type="url" name="link_immagine" class="form-control" placeholder="Link immagine (opzionale)">
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100" type="submit">➕ Aggiungi</button>
+    </div>
   </div>
 </form>
 
-<!-- Lista categorie esistenti con pulsante elimina -->
+<!-- Lista categorie esistenti con pulsanti modifica ed elimina -->
 <div class="list-group mb-5">
   {% if categorie %}
     {% for categoria in categorie %}
     <div class="list-group-item d-flex justify-content-between align-items-center">
-      {{ categoria }}
-      <form method="POST" action="{{ url_for('elimina_categoria', nome_categoria=categoria) }}" onsubmit="return confirm('Eliminare la categoria {{ categoria }}? Tutti i prodotti resteranno senza categoria.');">
-        <button class="btn btn-sm btn-danger">🗑️ Elimina</button>
-      </form>
+      <div>
+        <strong>{{ categoria.nome }}</strong>
+        {% if categoria.immagine %}
+          <small class="text-muted d-block">📷 {{ categoria.immagine }}</small>
+        {% endif %}
+      </div>
+      <div class="d-flex gap-2">
+        <!-- Bottone modifica -->
+        <button class="btn btn-sm btn-warning" 
+                data-bs-toggle="modal" 
+                data-bs-target="#modificaCategoriaModal"
+                data-nome="{{ categoria.nome }}"
+                data-immagine="{{ categoria.immagine or '' }}">
+          ✏️ Modifica
+        </button>
+
+        <!-- Bottone elimina -->
+        <form method="POST" action="{{ url_for('elimina_categoria', nome_categoria=categoria.nome) }}" 
+              onsubmit="return confirm('Eliminare la categoria {{ categoria.nome }}? Tutti i prodotti resteranno senza categoria.');">
+          <button class="btn btn-sm btn-danger">🗑️ Elimina</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   {% else %}
@@ -32,4 +57,51 @@
 </div>
 
 <a href="{{ url_for('prodotti') }}" class="btn btn-secondary mt-3">🔙 Torna ai prodotti</a>
+
+<!-- Modal modifica categoria -->
+<div class="modal fade" id="modificaCategoriaModal" tabindex="-1" aria-labelledby="modificaCategoriaLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('modifica_categoria') }}">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title" id="modificaCategoriaLabel">Modifica Categoria</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="vecchio_nome" id="vecchioNomeCategoria">
+          <div class="mb-3">
+            <label for="nomeCategoria" class="form-label">Nome Categoria</label>
+            <input type="text" class="form-control" id="nomeCategoria" name="nome_categoria" required>
+          </div>
+          <div class="mb-3">
+            <label for="linkImmagine" class="form-label">Link immagine</label>
+            <input type="url" class="form-control" id="linkImmagine" name="link_immagine" placeholder="https://...">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="submit" class="btn btn-warning">💾 Salva modifiche</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('modificaCategoriaModal');
+  modal.addEventListener('show.bs.modal', (event) => {
+    const button = event.relatedTarget;
+    const nome = button.getAttribute('data-nome');
+    const immagine = button.getAttribute('data-immagine');
+
+    document.getElementById('vecchioNomeCategoria').value = nome;
+    document.getElementById('nomeCategoria').value = nome;
+    document.getElementById('linkImmagine').value = immagine;
+  });
+});
+</script>
 {% endblock %}
