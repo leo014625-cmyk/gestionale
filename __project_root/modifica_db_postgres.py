@@ -107,15 +107,15 @@ def aggiorna_db():
         CREATE TABLE IF NOT EXISTS volantino_prodotti (
             id SERIAL PRIMARY KEY,
             id_prodotto INTEGER REFERENCES prodotti(id),
+            volantino_id INTEGER REFERENCES volantini(id),
+            nome TEXT,
+            prezzo NUMERIC,
+            immagine TEXT,
             in_volantino BOOLEAN DEFAULT TRUE,
             eliminato BOOLEAN DEFAULT FALSE,
             lascia_vuota BOOLEAN DEFAULT FALSE
         )
     """)
-    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS volantino_id INTEGER REFERENCES volantini(id)")
-    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS nome TEXT")
-    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS prezzo NUMERIC")
-    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS immagine TEXT")
 
     # ============================
     # PROMO_LAMPO
@@ -125,12 +125,12 @@ def aggiorna_db():
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL,
             prezzo NUMERIC NOT NULL,
+            immagine TEXT,
+            sfondo TEXT,
+            layout TEXT,
             data_creazione TIMESTAMP DEFAULT NOW()
         )
     """)
-    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS immagine TEXT")
-    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS sfondo TEXT")
-    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS layout TEXT")
 
     # ============================
     # INDICI UTILI
