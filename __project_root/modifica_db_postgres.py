@@ -15,31 +15,21 @@ def aggiorna_db():
     # CLIENTI_PRODOTTI
     # ============================
     cur.execute("""
-        ALTER TABLE clienti_prodotti
-        ADD COLUMN IF NOT EXISTS prezzo_attuale NUMERIC,
-        ADD COLUMN IF NOT EXISTS prezzo_offerta NUMERIC,
-        ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)
+        CREATE TABLE IF NOT EXISTS clienti_prodotti (
+            id SERIAL PRIMARY KEY
+        )
     """)
-
-    # ============================
-    # VOLANTINO_PRODOTTI
-    # ============================
-    cur.execute("""
-        ALTER TABLE volantino_prodotti
-        ADD COLUMN IF NOT EXISTS in_volantino INTEGER DEFAULT 1,
-        ADD COLUMN IF NOT EXISTS eliminato INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS lascia_vuota INTEGER DEFAULT 0
-    """)
+    # Aggiungi colonne se mancanti
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)")
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS prodotto_id INTEGER REFERENCES prodotti(id)")
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS data_operazione DATE")
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS prezzo_attuale NUMERIC")
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS prezzo_offerta NUMERIC")
 
     # ============================
     # CLIENTI
     # ============================
     cur.execute("ALTER TABLE clienti ADD COLUMN IF NOT EXISTS data_registrazione DATE")
-
-    # ============================
-    # PROMO_LAMPO
-    # ============================
-    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS layout TEXT")
 
     # ============================
     # VOLANTINI
@@ -55,48 +45,48 @@ def aggiorna_db():
     """)
 
     # ============================
-    # VOLANTINO_PRODOTTI (già aggiunto sopra, ma assicuriamo la tabella)
+    # VOLANTINO_PRODOTTI
     # ============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS volantino_prodotti (
             id SERIAL PRIMARY KEY,
-            volantino_id INTEGER REFERENCES volantini(id),
-            nome TEXT,
-            prezzo NUMERIC,
-            immagine TEXT,
-            in_volantino INTEGER DEFAULT 1,
-            eliminato INTEGER DEFAULT 0,
-            lascia_vuota INTEGER DEFAULT 0
+            volantino_id INTEGER REFERENCES volantini(id)
         )
     """)
+    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS nome TEXT")
+    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS prezzo NUMERIC")
+    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS immagine TEXT")
+    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS in_volantino INTEGER DEFAULT 1")
+    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS eliminato INTEGER DEFAULT 0")
+    cur.execute("ALTER TABLE volantino_prodotti ADD COLUMN IF NOT EXISTS lascia_vuota INTEGER DEFAULT 0")
 
     # ============================
-    # PROMO_LAMPO (già aggiunto sopra, ma assicuriamo la tabella)
+    # PROMO_LAMPO
     # ============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS promo_lampo (
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL,
             prezzo NUMERIC NOT NULL,
-            immagine TEXT,
-            sfondo TEXT,
-            layout TEXT,
             data_creazione TIMESTAMP DEFAULT NOW()
         )
     """)
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS immagine TEXT")
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS sfondo TEXT")
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS layout TEXT")
 
     # ============================
     # FATTURATO
     # ============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS fatturato (
-            id SERIAL PRIMARY KEY,
-            cliente_id INTEGER REFERENCES clienti(id),
-            totale NUMERIC DEFAULT 0,
-            mese INTEGER NOT NULL,
-            anno INTEGER NOT NULL
+            id SERIAL PRIMARY KEY
         )
     """)
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)")
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS totale NUMERIC DEFAULT 0")
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS mese INTEGER NOT NULL")
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS anno INTEGER NOT NULL")
 
     conn.commit()
     conn.close()
