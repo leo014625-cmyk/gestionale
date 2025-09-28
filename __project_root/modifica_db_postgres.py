@@ -42,8 +42,18 @@ def aggiorna_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS prodotti (
             id SERIAL PRIMARY KEY,
-            nome TEXT NOT NULL,
-            categoria_id INTEGER REFERENCES categorie(id)
+            nome TEXT NOT NULL
+        )
+    """)
+    cur.execute("ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS categoria_id INTEGER REFERENCES categorie(id)")
+
+    # ============================
+    # ZONE
+    # ============================
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS zone (
+            id SERIAL PRIMARY KEY,
+            nome TEXT UNIQUE NOT NULL
         )
     """)
 
@@ -127,7 +137,7 @@ def aggiorna_db():
             data_creazione TIMESTAMP DEFAULT NOW()
         )
     """)
-    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS prezzo NUMERIC NOT NULL")
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS prezzo NUMERIC NOT NULL DEFAULT 0")
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS immagine TEXT")
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS sfondo TEXT")
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS layout TEXT")
