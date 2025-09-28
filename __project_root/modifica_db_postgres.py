@@ -89,7 +89,6 @@ def aggiungi_colonna(conn, table, column, tipo):
 def aggiorna_db():
     """Crea/aggiorna il DB PostgreSQL su Render senza cancellare dati."""
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-
     try:
         crea_tabelle(conn)
 
