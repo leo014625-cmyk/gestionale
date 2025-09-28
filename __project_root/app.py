@@ -328,7 +328,7 @@ def index():
             FROM clienti_prodotti cp
             JOIN clienti c ON cp.cliente_id = c.id
             JOIN prodotti p ON cp.prodotto_id = p.id
-            WHERE cp.lavorato = 1
+            WHERE cp.lavorato = TRUE
               AND cp.data_operazione >= %s AND cp.data_operazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_inseriti_rows = cur.fetchall()
