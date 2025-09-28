@@ -124,13 +124,13 @@ def aggiorna_db():
         CREATE TABLE IF NOT EXISTS promo_lampo (
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL,
-            prezzo NUMERIC NOT NULL,
-            immagine TEXT,
-            sfondo TEXT,
-            layout TEXT,
             data_creazione TIMESTAMP DEFAULT NOW()
         )
     """)
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS prezzo NUMERIC NOT NULL")
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS immagine TEXT")
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS sfondo TEXT")
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS layout TEXT")
 
     # ============================
     # INDICI UTILI
