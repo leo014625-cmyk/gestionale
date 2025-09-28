@@ -12,6 +12,42 @@ def aggiorna_db():
     cur = conn.cursor()
 
     # ============================
+    # CLIENTI
+    # ============================
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS clienti (
+            id SERIAL PRIMARY KEY,
+            nome TEXT NOT NULL,
+            zona TEXT,
+            telefono TEXT,
+            email TEXT
+        )
+    """)
+    cur.execute("ALTER TABLE clienti ADD COLUMN IF NOT EXISTS data_registrazione DATE")
+
+    # ============================
+    # CATEGORIE
+    # ============================
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS categorie (
+            id SERIAL PRIMARY KEY,
+            nome TEXT UNIQUE NOT NULL,
+            immagine TEXT
+        )
+    """)
+
+    # ============================
+    # PRODOTTI
+    # ============================
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS prodotti (
+            id SERIAL PRIMARY KEY,
+            nome TEXT NOT NULL,
+            categoria_id INTEGER REFERENCES categorie(id)
+        )
+    """)
+
+    # ============================
     # CLIENTI_PRODOTTI
     # ============================
     cur.execute("""
@@ -19,17 +55,37 @@ def aggiorna_db():
             id SERIAL PRIMARY KEY
         )
     """)
-    # Aggiungi colonne se mancanti
     cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)")
     cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS prodotto_id INTEGER REFERENCES prodotti(id)")
-    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS data_operazione DATE")
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS lavorato BOOLEAN DEFAULT FALSE")
     cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS prezzo_attuale NUMERIC")
     cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS prezzo_offerta NUMERIC")
+    cur.execute("ALTER TABLE clienti_prodotti ADD COLUMN IF NOT EXISTS data_operazione TIMESTAMP DEFAULT NOW()")
 
     # ============================
-    # CLIENTI
+    # PRODOTTI_RIMOSSI
     # ============================
-    cur.execute("ALTER TABLE clienti ADD COLUMN IF NOT EXISTS data_registrazione DATE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS prodotti_rimossi (
+            id SERIAL PRIMARY KEY,
+            cliente_id INTEGER REFERENCES clienti(id),
+            prodotto_id INTEGER REFERENCES prodotti(id),
+            data_rimozione TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
+    # ============================
+    # FATTURATO
+    # ============================
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS fatturato (
+            id SERIAL PRIMARY KEY
+        )
+    """)
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)")
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS totale NUMERIC DEFAULT 0")
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS mese INTEGER NOT NULL")
+    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS anno INTEGER NOT NULL")
 
     # ============================
     # VOLANTINI
@@ -76,17 +132,12 @@ def aggiorna_db():
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS layout TEXT")
 
     # ============================
-    # FATTURATO
+    # INDICI UTILI
     # ============================
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS fatturato (
-            id SERIAL PRIMARY KEY
-        )
-    """)
-    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)")
-    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS totale NUMERIC DEFAULT 0")
-    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS mese INTEGER NOT NULL")
-    cur.execute("ALTER TABLE fatturato ADD COLUMN IF NOT EXISTS anno INTEGER NOT NULL")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_cliente ON clienti_prodotti(cliente_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_prodotto ON clienti_prodotti(prodotto_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno ON fatturato(cliente_id, mese, anno)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino ON volantino_prodotti(volantino_id)")
 
     conn.commit()
     conn.close()
