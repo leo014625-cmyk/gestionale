@@ -1851,19 +1851,27 @@ def nuova_promo_lampo():
             flash("❌ Prezzo non valido", "danger")
             return redirect(url_for("nuova_promo_lampo"))
 
-        # 🔹 Salva i file in modo sicuro
+        # 🔹 Assicurati che la cartella esista
+        os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
+
         immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
         immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
 
         sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
         sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
 
-        # 🔹 Inserisci nel DB
-        with get_db() as db:
-            db.execute(
-                "INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione) VALUES (?, ?, ?, ?, ?)",
-                (nome, prezzo, immagine_nome, sfondo_nome, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # 🔹 Salva nel DB con psycopg2
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione) VALUES (%s, %s, %s, %s, NOW())",
+                (nome, prezzo, immagine_nome, sfondo_nome)
             )
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
 
         flash("✅ Promo Lampo creata con successo!", "success")
         return redirect(url_for("lista_volantini_completa"))
@@ -1877,52 +1885,57 @@ def nuova_promo_lampo():
 @app.route("/promo-lampo/modifica/<int:promo_id>", methods=["GET", "POST"])
 @login_required
 def modifica_promo_lampo(promo_id):
-    # 🔹 Recupera promo dal DB
-    with get_db() as db:
-        promo = db.execute("SELECT * FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM promo_lampo WHERE id=%s", (promo_id,))
+        promo = cur.fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-    if request.method == "POST":
-        nome = request.form.get("nome", "").strip()
-        prezzo_raw = request.form.get("prezzo", "").strip()
-        immagine_file = request.files.get("immagine")
-        sfondo_file = request.files.get("sfondo")
+        if request.method == "POST":
+            nome = request.form.get("nome", "").strip()
+            prezzo_raw = request.form.get("prezzo", "").strip()
+            immagine_file = request.files.get("immagine")
+            sfondo_file = request.files.get("sfondo")
 
-        try:
-            prezzo = float(prezzo_raw)
-        except ValueError:
-            flash("❌ Prezzo non valido", "danger")
-            return redirect(url_for("modifica_promo_lampo", promo_id=promo_id))
+            try:
+                prezzo = float(prezzo_raw)
+            except ValueError:
+                flash("❌ Prezzo non valido", "danger")
+                return redirect(url_for("modifica_promo_lampo", promo_id=promo_id))
 
-        # 🔹 Aggiorna immagine se caricata
-        immagine_nome = promo["immagine"]
-        if immagine_file and immagine_file.filename.strip():
-            old_path = os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome)
-            if os.path.exists(old_path):
-                os.remove(old_path)
-            immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
-            immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
+            # Aggiorna immagine se caricata
+            immagine_nome = promo["immagine"]
+            if immagine_file and immagine_file.filename.strip():
+                old_path = os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+                immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
+                immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
 
-        # 🔹 Aggiorna sfondo se caricato
-        sfondo_nome = promo.get("sfondo")
-        if sfondo_file and sfondo_file.filename.strip():
-            old_sfondo_path = os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome) if sfondo_nome else None
-            if old_sfondo_path and os.path.exists(old_sfondo_path):
-                os.remove(old_sfondo_path)
-            sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
-            sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
+            # Aggiorna sfondo se caricato
+            sfondo_nome = promo.get("sfondo")
+            if sfondo_file and sfondo_file.filename.strip():
+                old_sfondo_path = os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome) if sfondo_nome else None
+                if old_sfondo_path and os.path.exists(old_sfondo_path):
+                    os.remove(old_sfondo_path)
+                sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
+                sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
 
-        # 🔹 Aggiorna DB
-        with get_db() as db:
-            db.execute(
-                "UPDATE promo_lampo SET nome=?, prezzo=?, immagine=?, sfondo=? WHERE id=?",
+            # Aggiorna DB
+            cur.execute(
+                "UPDATE promo_lampo SET nome=%s, prezzo=%s, immagine=%s, sfondo=%s WHERE id=%s",
                 (nome, prezzo, immagine_nome, sfondo_nome, promo_id)
             )
+            conn.commit()
+            flash("✅ Promo Lampo aggiornata con successo!", "success")
+            return redirect(url_for("lista_volantini_completa"))
 
-        flash("✅ Promo Lampo aggiornata con successo!", "success")
-        return redirect(url_for("lista_volantini_completa"))
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template("04_volantino/09_modifica_promo_lampo.html", promo=promo)
 
@@ -1933,53 +1946,61 @@ def modifica_promo_lampo(promo_id):
 @app.route("/promo-lampo/elimina/<int:promo_id>", methods=["POST"])
 @login_required
 def elimina_promo_lampo(promo_id):
-    with get_db() as db:
-        promo = db.execute(
-            "SELECT immagine, sfondo FROM promo_lampo WHERE id=?",
-            (promo_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT immagine, sfondo FROM promo_lampo WHERE id=%s", (promo_id,))
+        promo = cur.fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-        # 🔹 elimina immagini dalla cartella
+        # elimina immagini dalla cartella
         for file_attr in ["immagine", "sfondo"]:
             if promo[file_attr]:
                 path = os.path.join(UPLOAD_FOLDER_PROMO, promo[file_attr])
                 if os.path.exists(path):
                     os.remove(path)
 
-        # 🔹 elimina dal DB
-        db.execute("DELETE FROM promo_lampo WHERE id=?", (promo_id,))
-
-    flash("✅ Promo Lampo eliminata con successo!", "success")
-    return redirect(url_for("lista_volantini_completa"))
+        # elimina dal DB
+        cur.execute("DELETE FROM promo_lampo WHERE id=%s", (promo_id,))
+        conn.commit()
+        flash("✅ Promo Lampo eliminata con successo!", "success")
+        return redirect(url_for("lista_volantini_completa"))
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
 # EDITOR PROMO LAMPO
 # ============================
-@app.route("/promo-lampo/<int:promo_id>/editor", methods=["GET", "POST"])
+@app.route("/promo-lampo/<int:promo_id>/editor", methods=["GET"])
 @login_required
 def editor_promo_lampo(promo_id):
-    with get_db() as db:
-        promo = db.execute("SELECT * FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM promo_lampo WHERE id=%s", (promo_id,))
+        promo = cur.fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-    # 🔹 Crea oggetto prodotto per editor
-    promo_prodotti = [{
-        "url": url_for("static", filename=f"uploads/promo/{promo['immagine']}") if promo.get("immagine") else "",
-        "nome": promo["nome"],
-        "prezzo": promo["prezzo"]
-    }]
+        promo_prodotti = [{
+            "url": url_for("static", filename=f"uploads/promo/{promo['immagine']}") if promo.get("immagine") else "",
+            "nome": promo["nome"],
+            "prezzo": promo["prezzo"]
+        }]
 
-    return render_template(
-        "04_volantino/10_editor_promo_lampo.html",
-        promo=promo,
-        promo_prodotti=promo_prodotti
-    )
+        return render_template(
+            "04_volantino/10_editor_promo_lampo.html",
+            promo=promo,
+            promo_prodotti=promo_prodotti
+        )
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1996,8 +2017,14 @@ def salva_layout_promo_lampo(promo_id):
 
     try:
         layout_json = json.dumps(layout, ensure_ascii=False)
-        with get_db() as db:
-            db.execute("UPDATE promo_lampo SET layout=? WHERE id=?", (layout_json, promo_id))
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            cur = conn.cursor()
+            cur.execute("UPDATE promo_lampo SET layout=%s WHERE id=%s", (layout_json, promo_id))
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
