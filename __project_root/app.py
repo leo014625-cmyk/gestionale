@@ -48,9 +48,6 @@ app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"] = UPLOAD_FOLDER_VOLANTINI_PRODOTT
 app.config["UPLOAD_FOLDER_PROMO"] = UPLOAD_FOLDER_PROMO
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
 
-# Forza loader Jinja sulla cartella corretta
-app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
-
 # Secret key per session
 app.secret_key = 'la_tua_chiave_segreta_sicura'
 
