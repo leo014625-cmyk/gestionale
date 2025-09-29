@@ -1225,8 +1225,10 @@ def aggiorna_fatturati():
 @app.route('/volantini')
 @login_required
 def lista_volantini():
-    with get_db() as db:
-        cur = db.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+
         # Volantini
         cur.execute('SELECT id, titolo, sfondo, data_creazione FROM volantini ORDER BY data_creazione DESC')
         volantini = cur.fetchall()
@@ -1234,6 +1236,10 @@ def lista_volantini():
         # Promo lampo
         cur.execute('SELECT id, nome, prezzo, immagine, sfondo, data_creazione FROM promo_lampo ORDER BY data_creazione DESC')
         promo_lampo = cur.fetchall()
+
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "04_volantino/01_lista_volantini.html",
@@ -1257,16 +1263,19 @@ def nuovo_volantino():
 
         # 🔹 Salva sfondo
         filename = secure_filename(sfondo_file.filename)
+        UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "volantini")
         os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
         sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, filename))
 
         # 🔹 Inserisci volantino in DB
-        with get_db() as db:
-            cur = db.execute(
-                "INSERT INTO volantini (titolo, sfondo, data_creazione) VALUES (?, ?, datetime('now'))",
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO volantini (titolo, sfondo, data_creazione) VALUES (%s, %s, NOW()) RETURNING id",
                 (titolo, filename)
             )
-            volantino_id = cur.lastrowid
+            volantino_id = cur.fetchone()["id"]
 
             # 🔹 Inizializza griglia 3x3 con slot vuoti
             layout_json = {"objects": []}
@@ -1286,28 +1295,34 @@ def nuovo_volantino():
                 })
 
             # 🔹 Salva layout nel DB
-            db.execute(
-                "UPDATE volantini SET layout_json=? WHERE id=?",
+            cur.execute(
+                "UPDATE volantini SET layout_json=%s WHERE id=%s",
                 (json.dumps(layout_json, ensure_ascii=False), volantino_id)
             )
-            db.commit()
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
 
         flash("✅ Volantino creato con successo!", "success")
         return redirect(url_for("lista_volantini"))
 
     return render_template("04_volantino/02_nuovo_volantino.html")
 
-
+# ============================
+# ELIMINA VOLANTINO
+# ============================
 # ============================
 # ELIMINA VOLANTINO
 # ============================
 @app.route("/volantini/elimina/<int:volantino_id>", methods=["POST"])
 @login_required
 def elimina_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute(
-            "SELECT sfondo FROM volantini WHERE id = ?", (volantino_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT sfondo FROM volantini WHERE id = %s", (volantino_id,))
+        volantino = cur.fetchone()
 
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
@@ -1320,9 +1335,8 @@ def elimina_volantino(volantino_id):
                 os.remove(sfondo_path)
 
         # 🔹 Elimina immagini prodotti collegati
-        prodotti = db.execute(
-            "SELECT immagine FROM volantino_prodotti WHERE volantino_id = ?", (volantino_id,)
-        ).fetchall()
+        cur.execute("SELECT immagine FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
+        prodotti = cur.fetchall()
         for prod in prodotti:
             if prod["immagine"]:
                 img_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, prod["immagine"])
@@ -1330,11 +1344,13 @@ def elimina_volantino(volantino_id):
                     os.remove(img_path)
 
         # 🔹 Elimina volantino e prodotti dal DB
-        db.execute("DELETE FROM volantini WHERE id = ?", (volantino_id,))
-        db.execute("DELETE FROM volantino_prodotti WHERE volantino_id = ?", (volantino_id,))
-        db.commit()
-
+        cur.execute("DELETE FROM volantini WHERE id = %s", (volantino_id,))
+        cur.execute("DELETE FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
+        conn.commit()
         flash("✅ Volantino eliminato con successo!", "success")
+    finally:
+        cur.close()
+        conn.close()
 
     return redirect(url_for("lista_volantini"))
 
@@ -1345,10 +1361,11 @@ def elimina_volantino(volantino_id):
 @app.route("/volantini/modifica/<int:volantino_id>", methods=["GET", "POST"])
 @login_required
 def modifica_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute(
-            "SELECT * FROM volantini WHERE id = ?", (volantino_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id = %s", (volantino_id,))
+        volantino = cur.fetchone()
 
         if not volantino:
             flash("❌ Volantino non trovato", "danger")
@@ -1365,32 +1382,32 @@ def modifica_volantino(volantino_id):
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
                 sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome))
 
-            db.execute(
-                "UPDATE volantini SET titolo=?, sfondo=? WHERE id=?",
+            cur.execute(
+                "UPDATE volantini SET titolo=%s, sfondo=%s WHERE id=%s",
                 (titolo, sfondo_nome, volantino_id)
             )
-            db.commit()
+            conn.commit()
             flash("✅ Volantino aggiornato con successo", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
 
         # 🔹 Prodotti attivi del volantino
-        prodotti_raw = db.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=? AND eliminato=0 ORDER BY id ASC",
-            (volantino_id,)
-        ).fetchall()
+        cur.execute("SELECT * FROM volantino_prodotti WHERE volantino_id=%s AND eliminato=FALSE ORDER BY id ASC", (volantino_id,))
+        prodotti_raw = cur.fetchall()
         prodotti = [dict(p) for p in prodotti_raw]
 
         # 🔹 Prodotti consigliati
-        prodotti_precedenti_raw = db.execute(
-            """
+        cur.execute("""
             SELECT id, nome, prezzo AS prezzo_default,
                    COALESCE(immagine, 'no-image.png') AS immagine
             FROM volantino_prodotti
-            WHERE eliminato=0 AND immagine IS NOT NULL
+            WHERE eliminato=FALSE AND immagine IS NOT NULL
             ORDER BY id DESC LIMIT 15
-            """
-        ).fetchall()
+        """)
+        prodotti_precedenti_raw = cur.fetchall()
         prodotti_precedenti = [dict(p) for p in prodotti_precedenti_raw]
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "04_volantino/03_modifica_volantino.html",
@@ -1400,14 +1417,18 @@ def modifica_volantino(volantino_id):
     )
 
 
+
 # ============================
 # AGGIUNGI PRODOTTO AL VOLANTINO
 # ============================
 @app.route('/volantini/<int:volantino_id>/aggiungi_prodotto', methods=['GET', 'POST'])
 @login_required
 def aggiungi_prodotto_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute("SELECT * FROM volantini WHERE id = ?", (volantino_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id = %s", (volantino_id,))
+        volantino = cur.fetchone()
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
@@ -1436,13 +1457,17 @@ def aggiungi_prodotto_volantino(volantino_id):
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
                 immagine_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, immagine_filename))
 
-            db.execute(
-                "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (?, ?, ?, ?, 0)",
+            cur.execute(
+                "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (%s, %s, %s, %s, FALSE) RETURNING id",
                 (volantino_id, nome, prezzo, immagine_filename)
             )
-            db.commit()
+            new_id = cur.fetchone()["id"]
+            conn.commit()
             flash("✅ Prodotto aggiunto al volantino con successo!", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template("04_volantino/05_aggiungi_prodotto_volantino.html", volantino=dict(volantino))
 
@@ -1453,19 +1478,22 @@ def aggiungi_prodotto_volantino(volantino_id):
 @app.route('/volantini/prodotto/modifica/<int:prodotto_id>', methods=['GET', 'POST'])
 @login_required
 def modifica_prodotto_volantino(prodotto_id):
-    with get_db() as db:
-        prodotto = db.execute("SELECT * FROM volantino_prodotti WHERE id = ?", (prodotto_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantino_prodotti WHERE id = %s", (prodotto_id,))
+        prodotto = cur.fetchone()
         if not prodotto:
             flash("❌ Prodotto non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
         if request.method == "POST":
             if "lascia_vuota" in request.form:
-                db.execute(
-                    "UPDATE volantino_prodotti SET nome='', prezzo=0, immagine=NULL, lascia_vuota=1, eliminato=0 WHERE id=?",
+                cur.execute(
+                    "UPDATE volantino_prodotti SET nome='', prezzo=0, immagine=NULL, lascia_vuota=TRUE, eliminato=FALSE WHERE id=%s",
                     (prodotto_id,)
                 )
-                db.commit()
+                conn.commit()
                 flash("✅ Box lasciata vuota.", "success")
                 return redirect(url_for("modifica_volantino", volantino_id=prodotto["volantino_id"]))
 
@@ -1493,15 +1521,19 @@ def modifica_prodotto_volantino(prodotto_id):
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
                 file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, filename))
 
-            db.execute(
-                "UPDATE volantino_prodotti SET nome=?, prezzo=?, immagine=?, lascia_vuota=0, eliminato=0 WHERE id=?",
+            cur.execute(
+                "UPDATE volantino_prodotti SET nome=%s, prezzo=%s, immagine=%s, lascia_vuota=FALSE, eliminato=FALSE WHERE id=%s",
                 (nome, prezzo, filename, prodotto_id)
             )
-            db.commit()
+            conn.commit()
             flash("✅ Prodotto aggiornato con successo!", "success")
             return redirect(url_for("modifica_volantino", volantino_id=prodotto["volantino_id"]))
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template("04_volantino/06_modifica_prodotto_volantino.html", prodotto=dict(prodotto))
+
 
 # ============================
 # AGGIUNGI PRODOTTO CONSIGLIATO
@@ -1521,35 +1553,39 @@ def aggiungi_consigliato(volantino_id):
     except (ValueError, TypeError):
         return jsonify({"status": "error", "msg": "Prezzo non valido"}), 400
 
-    with get_db() as db:
-        prodotto = db.execute(
-            "SELECT nome, immagine FROM volantino_prodotti WHERE id=?",
-            (prodotto_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT nome, immagine FROM volantino_prodotti WHERE id=%s", (prodotto_id,))
+        prodotto = cur.fetchone()
         if not prodotto:
             return jsonify({"status": "error", "msg": "Prodotto non trovato"}), 404
 
         # Riattiva prodotto già eliminato
-        esistente = db.execute(
-            "SELECT id FROM volantino_prodotti WHERE volantino_id=? AND nome=? AND eliminato=1",
+        cur.execute(
+            "SELECT id FROM volantino_prodotti WHERE volantino_id=%s AND nome=%s AND eliminato=TRUE",
             (volantino_id, prodotto["nome"])
-        ).fetchone()
-
+        )
+        esistente = cur.fetchone()
         if esistente:
-            db.execute(
-                "UPDATE volantino_prodotti SET prezzo=?, eliminato=0 WHERE id=?",
+            cur.execute(
+                "UPDATE volantino_prodotti SET prezzo=%s, eliminato=FALSE WHERE id=%s",
                 (prezzo, esistente["id"])
             )
-            db.commit()
+            conn.commit()
             return jsonify({"status": "ok", "id": esistente["id"], "riattivato": True})
 
         # Inserimento nuovo prodotto
-        cursor = db.execute(
-            "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (?, ?, ?, ?, 0)",
+        cur.execute(
+            "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (%s, %s, %s, %s, FALSE) RETURNING id",
             (volantino_id, prodotto["nome"], prezzo, prodotto["immagine"])
         )
-        db.commit()
-        return jsonify({"status": "ok", "id": cursor.lastrowid, "riattivato": False})
+        new_id = cur.fetchone()["id"]
+        conn.commit()
+        return jsonify({"status": "ok", "id": new_id, "riattivato": False})
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1558,51 +1594,62 @@ def aggiungi_consigliato(volantino_id):
 @app.route("/volantini/prodotto/elimina/<int:prodotto_id>", methods=["POST"])
 @login_required
 def elimina_prodotto_volantino(prodotto_id):
-    with get_db() as db:
-        row = db.execute(
-            "SELECT volantino_id FROM volantino_prodotti WHERE id=?", (prodotto_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT volantino_id FROM volantino_prodotti WHERE id=%s", (prodotto_id,))
+        row = cur.fetchone()
         if not row:
             return jsonify({"status": "error", "msg": "Prodotto non trovato"}), 404
 
-        db.execute(
-            "UPDATE volantino_prodotti SET eliminato=1 WHERE id=?", (prodotto_id,)
-        )
-        db.commit()
+        cur.execute("UPDATE volantino_prodotti SET eliminato=TRUE WHERE id=%s", (prodotto_id,))
+        conn.commit()
         return jsonify({"status": "ok"})
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
 # VISUALIZZA VOLANTINO
 # ============================
 @app.route("/volantino/<int:volantino_id>")
+@login_required
 def visualizza_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute("SELECT * FROM volantini WHERE id=?", (volantino_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id=%s", (volantino_id,))
+        volantino = cur.fetchone()
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        prodotti = db.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=? ORDER BY id ASC", (volantino_id,)
-        ).fetchall()
+        cur.execute(
+            "SELECT * FROM volantino_prodotti WHERE volantino_id=%s ORDER BY id ASC",
+            (volantino_id,)
+        )
+        prodotti = cur.fetchall()
 
-    volantino_dict = dict(volantino)
-    try:
-        layout = json.loads(volantino_dict.get("layout_json") or "{}")
-        if isinstance(layout, list):
-            layout = {"objects": layout}
-        elif not isinstance(layout, dict):
+        volantino_dict = dict(volantino)
+        try:
+            layout = json.loads(volantino_dict.get("layout_json") or "{}")
+            if isinstance(layout, list):
+                layout = {"objects": layout}
+            elif not isinstance(layout, dict):
+                layout = {"objects": []}
+        except Exception:
             layout = {"objects": []}
-    except Exception:
-        layout = {"objects": []}
-    volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
+        volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
 
-    return render_template(
-        "04_volantino/04_visualizza_volantino.html",
-        volantino=volantino_dict,
-        prodotti=[dict(p) for p in prodotti]
-    )
+        return render_template(
+            "04_volantino/04_visualizza_volantino.html",
+            volantino=volantino_dict,
+            prodotti=[dict(p) for p in prodotti]
+        )
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1611,59 +1658,66 @@ def visualizza_volantino(volantino_id):
 @app.route('/volantini/<int:volantino_id>/editor')
 @login_required
 def editor_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute("SELECT * FROM volantini WHERE id=?", (volantino_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id=%s", (volantino_id,))
+        volantino = cur.fetchone()
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        prodotti_raw = db.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=? AND eliminato=0 ORDER BY id ASC",
+        cur.execute(
+            "SELECT * FROM volantino_prodotti WHERE volantino_id=%s AND eliminato=FALSE ORDER BY id ASC",
             (volantino_id,)
-        ).fetchall()
+        )
+        prodotti_raw = cur.fetchall()
 
-    volantino_dict = dict(volantino)
-    cols, rows = 3, 3
-    max_slots = cols * rows
+        volantino_dict = dict(volantino)
+        cols, rows = 3, 3
+        max_slots = cols * rows
 
-    if not volantino_dict.get("layout_json"):
-        grid = []
-        for i in range(max_slots):
-            col = i % cols
-            row = i // cols
-            x = 50 + col * 250
-            y = 50 + row * 280
-            prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
-            grid.append({
-                "type": "group",
-                "objects": [
-                    {"type": "rect", "left":0, "top":0, "width":200, "height":240, "fill":"#ffffff", "stroke":"#cccccc", "strokeWidth":1},
-                    {"type": "text", "text": prodotto.get("nome",""), "left":100, "top":190, "fontSize":14, "originX":"center", "textAlign":"center"},
-                    {"type": "text", "text": f"€ {prodotto.get('prezzo','')}" if prodotto.get('prezzo') else "", "left":100, "top":215, "fontSize":18, "fill":"red", "originX":"center", "textAlign":"center"}
-                ],
-                "left": x, "top": y, "width":200, "height":240,
-                "metadata": {
-                    "id": prodotto.get("id"), "nome": prodotto.get("nome"), "prezzo": prodotto.get("prezzo"),
-                    "url": url_for("static", filename=f"uploads/volantino_prodotti/{prodotto.get('immagine')}") if prodotto.get("immagine") else "",
-                    "lascia_vuota": prodotto.get("lascia_vuota", 0)
-                }
-            })
-        volantino_dict["layout_json"] = json.dumps({"objects": grid}, ensure_ascii=False)
-    else:
-        try:
-            layout = json.loads(volantino_dict["layout_json"])
-            if isinstance(layout, list):
-                layout = {"objects": layout}
-            volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
-        except Exception:
-            volantino_dict["layout_json"] = json.dumps({"objects": []}, ensure_ascii=False)
+        if not volantino_dict.get("layout_json"):
+            grid = []
+            for i in range(max_slots):
+                col = i % cols
+                row = i // cols
+                x = 50 + col * 250
+                y = 50 + row * 280
+                prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
+                grid.append({
+                    "type": "group",
+                    "objects": [
+                        {"type": "rect", "left":0, "top":0, "width":200, "height":240, "fill":"#ffffff", "stroke":"#cccccc", "strokeWidth":1},
+                        {"type": "text", "text": prodotto.get("nome",""), "left":100, "top":190, "fontSize":14, "originX":"center", "textAlign":"center"},
+                        {"type": "text", "text": f"€ {prodotto.get('prezzo','')}" if prodotto.get('prezzo') else "", "left":100, "top":215, "fontSize":18, "fill":"red", "originX":"center", "textAlign":"center"}
+                    ],
+                    "left": x, "top": y, "width":200, "height":240,
+                    "metadata": {
+                        "id": prodotto.get("id"), "nome": prodotto.get("nome"), "prezzo": prodotto.get("prezzo"),
+                        "url": url_for("static", filename=f"uploads/volantino_prodotti/{prodotto.get('immagine')}") if prodotto.get("immagine") else "",
+                        "lascia_vuota": prodotto.get("lascia_vuota", False)
+                    }
+                })
+            volantino_dict["layout_json"] = json.dumps({"objects": grid}, ensure_ascii=False)
+        else:
+            try:
+                layout = json.loads(volantino_dict["layout_json"])
+                if isinstance(layout, list):
+                    layout = {"objects": layout}
+                volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
+            except Exception:
+                volantino_dict["layout_json"] = json.dumps({"objects": []}, ensure_ascii=False)
 
-    return render_template(
-        "04_volantino/07_editor_volantino.html",
-        volantino=volantino_dict,
-        volantino_prodotti=[dict(p) for p in prodotti_raw],
-        num_prodotti=max_slots
-    )
+        return render_template(
+            "04_volantino/07_editor_volantino.html",
+            volantino=volantino_dict,
+            volantino_prodotti=[dict(p) for p in prodotti_raw],
+            num_prodotti=max_slots
+        )
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1687,20 +1741,25 @@ def salva_layout_volantino(volantino_id):
     except Exception as e:
         return jsonify({"success": False, "message": f"❌ Errore JSON: {e}"}), 500
 
-    with get_db() as db:
-        cursor = db.execute("UPDATE volantini SET layout_json=? WHERE id=?", (layout_json, volantino_id))
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE volantini SET layout_json=%s WHERE id=%s RETURNING id", (layout_json, volantino_id))
+        updated_row = cur.fetchone()
+        if not updated_row:
+            return jsonify({"success": False, "message": "❌ Volantino non trovato"}), 404
+
         for obj in layout["objects"]:
             metadata = obj.get("metadata", {})
             prod_id = metadata.get("id")
             if prod_id:
-                db.execute("UPDATE volantino_prodotti SET eliminato=0 WHERE id=? AND eliminato=1", (prod_id,))
-        db.commit()
-        updated = cursor.rowcount
+                cur.execute("UPDATE volantino_prodotti SET eliminato=FALSE WHERE id=%s AND eliminato=TRUE", (prod_id,))
 
-    if updated == 0:
-        return jsonify({"success": False, "message": "❌ Volantino non trovato"}), 404
-
-    return jsonify({"success": True, "message": "✅ Layout salvato correttamente"})
+        conn.commit()
+        return jsonify({"success": True, "message": "✅ Layout salvato correttamente"})
+    finally:
+        cur.close()
+        conn.close()
 
 # ============================
 # LISTA VOLANTINI + PROMO LAMPO
