@@ -71,6 +71,9 @@ os.makedirs(CATEGORIE_UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "promo_lampo")
+os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
+
 # ============================
 # DEBUG
 # ============================
@@ -1826,7 +1829,6 @@ def lista_volantini_completa():
         promo_lampo=promo_lampo,
     )
 
-
 # ============================
 # NUOVA PROMO LAMPO
 # ============================
@@ -1849,14 +1851,14 @@ def nuova_promo_lampo():
             flash("❌ Prezzo non valido", "danger")
             return redirect(url_for("nuova_promo_lampo"))
 
-        os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
-
+        # 🔹 Salva i file in modo sicuro
         immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
         immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
 
         sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
         sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
 
+        # 🔹 Inserisci nel DB
         with get_db() as db:
             db.execute(
                 "INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione) VALUES (?, ?, ?, ?, ?)",
@@ -1875,6 +1877,7 @@ def nuova_promo_lampo():
 @app.route("/promo-lampo/modifica/<int:promo_id>", methods=["GET", "POST"])
 @login_required
 def modifica_promo_lampo(promo_id):
+    # 🔹 Recupera promo dal DB
     with get_db() as db:
         promo = db.execute("SELECT * FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
         if not promo:
@@ -1885,6 +1888,7 @@ def modifica_promo_lampo(promo_id):
         nome = request.form.get("nome", "").strip()
         prezzo_raw = request.form.get("prezzo", "").strip()
         immagine_file = request.files.get("immagine")
+        sfondo_file = request.files.get("sfondo")
 
         try:
             prezzo = float(prezzo_raw)
@@ -1892,19 +1896,29 @@ def modifica_promo_lampo(promo_id):
             flash("❌ Prezzo non valido", "danger")
             return redirect(url_for("modifica_promo_lampo", promo_id=promo_id))
 
+        # 🔹 Aggiorna immagine se caricata
         immagine_nome = promo["immagine"]
         if immagine_file and immagine_file.filename.strip():
             old_path = os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome)
             if os.path.exists(old_path):
                 os.remove(old_path)
-
             immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
             immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
 
+        # 🔹 Aggiorna sfondo se caricato
+        sfondo_nome = promo.get("sfondo")
+        if sfondo_file and sfondo_file.filename.strip():
+            old_sfondo_path = os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome) if sfondo_nome else None
+            if old_sfondo_path and os.path.exists(old_sfondo_path):
+                os.remove(old_sfondo_path)
+            sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
+            sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
+
+        # 🔹 Aggiorna DB
         with get_db() as db:
             db.execute(
-                "UPDATE promo_lampo SET nome=?, prezzo=?, immagine=? WHERE id=?",
-                (nome, prezzo, immagine_nome, promo_id)
+                "UPDATE promo_lampo SET nome=?, prezzo=?, immagine=?, sfondo=? WHERE id=?",
+                (nome, prezzo, immagine_nome, sfondo_nome, promo_id)
             )
 
         flash("✅ Promo Lampo aggiornata con successo!", "success")
@@ -1920,18 +1934,22 @@ def modifica_promo_lampo(promo_id):
 @login_required
 def elimina_promo_lampo(promo_id):
     with get_db() as db:
-        promo = db.execute("SELECT immagine, sfondo FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
+        promo = db.execute(
+            "SELECT immagine, sfondo FROM promo_lampo WHERE id=?",
+            (promo_id,)
+        ).fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-        # elimina immagini
+        # 🔹 elimina immagini dalla cartella
         for file_attr in ["immagine", "sfondo"]:
             if promo[file_attr]:
                 path = os.path.join(UPLOAD_FOLDER_PROMO, promo[file_attr])
                 if os.path.exists(path):
                     os.remove(path)
 
+        # 🔹 elimina dal DB
         db.execute("DELETE FROM promo_lampo WHERE id=?", (promo_id,))
 
     flash("✅ Promo Lampo eliminata con successo!", "success")
@@ -1950,8 +1968,9 @@ def editor_promo_lampo(promo_id):
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
+    # 🔹 Crea oggetto prodotto per editor
     promo_prodotti = [{
-        "url": promo["immagine"],
+        "url": url_for("static", filename=f"uploads/promo/{promo['immagine']}") if promo.get("immagine") else "",
         "nome": promo["nome"],
         "prezzo": promo["prezzo"]
     }]
