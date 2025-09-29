@@ -98,16 +98,13 @@ document.addEventListener("DOMContentLoaded", function() {
   canvas.setWidth(1000);
   canvas.setHeight(1400);
   let selectedObj = null;
-
   const centerX = canvas.getWidth()/2;
   const centerY = canvas.getHeight()/2;
   const tolerance = 5;
 
-  // --- Linee centrali ---
   const lineH = new fabric.Line([centerX,0,centerX,canvas.getHeight()], { stroke:'rgba(0,0,0,0.3)', selectable:false, evented:false });
   const lineV = new fabric.Line([0,centerY,canvas.getWidth(),centerY], { stroke:'rgba(0,0,0,0.3)', selectable:false, evented:false });
   canvas.add(lineH,lineV);
-
   const centerTip = document.getElementById("centerTip");
 
   function checkCenter(obj){
@@ -115,28 +112,20 @@ document.addEventListener("DOMContentLoaded", function() {
     const objCenterY = obj.top + (obj.height*obj.scaleY)/2;
     let horiz = Math.abs(objCenterX - centerX) <= tolerance;
     let vert = Math.abs(objCenterY - centerY) <= tolerance;
-
     obj.set({ stroke:(horiz||vert)?'lime':null, strokeWidth:(horiz||vert)?2:0 });
     canvas.renderAll();
-
-    if(horiz && vert){
-      centerTip.classList.remove("d-none");
-      setTimeout(()=>centerTip.classList.add("d-none"),1000);
-    }
+    if(horiz && vert){ centerTip.classList.remove("d-none"); setTimeout(()=>centerTip.classList.add("d-none"),1000); }
   }
 
-  // --- Carica sfondo/layout ---
+  // Carica sfondo/layout con fallback
   {% if promo['layout'] %}
     canvas.loadFromJSON(`{{ promo['layout']|safe }}`, canvas.renderAll.bind(canvas));
   {% else %}
-    {% if promo['sfondo'] %}
-      fabric.Image.fromURL("{{ url_for('static', filename='uploads/promolampo/' ~ promo['sfondo']) }}", function(img) {
-        img.scaleToWidth(canvas.getWidth());
-        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
-      });
-    {% else %}
-      canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
-    {% endif %}
+    {% set bg_image = promo['sfondo'] if promo['sfondo'] else 'no-image.png' %}
+    fabric.Image.fromURL("{{ url_for('static', filename='uploads/promolampo/' ~ bg_image) }}", function(img) {
+      img.scaleToWidth(canvas.getWidth());
+      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+    });
   {% endif %}
 
   // --- Aggiungi immagine ---
@@ -176,7 +165,6 @@ document.addEventListener("DOMContentLoaded", function() {
     checkCenter(text);
   });
 
-  // --- Toggle grassetto ---
   document.getElementById("toggleBold").addEventListener("click", function() {
     if(selectedObj && selectedObj.type==="textbox"){
       selectedObj.fontWeight = selectedObj.fontWeight==="bold"?"normal":"bold";
@@ -184,7 +172,6 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // --- Aggiorna colore testo ---
   document.getElementById("fontColor").addEventListener("input", function(){
     if(selectedObj && selectedObj.type==="textbox"){
       selectedObj.set({ fill: this.value });
@@ -192,28 +179,19 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // --- Aggiungi prezzo con forme moderne ---
+  // --- Aggiungi prezzo ---
   document.getElementById("addPrice").addEventListener("click", function() {
     const value = document.getElementById("priceValue").value.trim();
     if(!value) return;
-
     const radius = 50;
     const color = document.getElementById("priceColor").value;
     const shape = document.getElementById("priceShape").value;
     let shapeObj;
-
     switch(shape){
-      case "circle":
-        shapeObj = new fabric.Circle({ radius, fill: color, originX:'center', originY:'center' });
-        break;
-      case "ellipse":
-        shapeObj = new fabric.Ellipse({ rx: radius, ry: radius*0.6, fill: color, originX:'center', originY:'center' });
-        break;
-      case "roundedRect":
-        shapeObj = new fabric.Rect({ width: radius*2, height: radius*1.2, rx:20, ry:20, fill: color, originX:'center', originY:'center' });
-        break;
+      case "circle": shapeObj = new fabric.Circle({ radius, fill: color, originX:'center', originY:'center' }); break;
+      case "ellipse": shapeObj = new fabric.Ellipse({ rx: radius, ry: radius*0.6, fill: color, originX:'center', originY:'center' }); break;
+      case "roundedRect": shapeObj = new fabric.Rect({ width: radius*2, height: radius*1.2, rx:20, ry:20, fill: color, originX:'center', originY:'center' }); break;
     }
-
     const text = new fabric.Text(value+"€", { fontSize:33, fill:'white', fontWeight:'bold', originX:'center', originY:'center', textAlign:'center' });
     const group = new fabric.Group([shapeObj,text], { left:150, top:150, originX:'center', originY:'center' });
     canvas.add(group);
