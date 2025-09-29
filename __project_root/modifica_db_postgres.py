@@ -133,10 +133,10 @@ def aggiorna_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS promo_lampo (
             id SERIAL PRIMARY KEY,
-            nome TEXT NOT NULL,
-            data_creazione TIMESTAMP DEFAULT NOW()
+            nome TEXT NOT NULL
         )
     """)
+    cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS data_creazione TIMESTAMP DEFAULT NOW()")
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS prezzo NUMERIC NOT NULL DEFAULT 0")
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS immagine TEXT")
     cur.execute("ALTER TABLE promo_lampo ADD COLUMN IF NOT EXISTS sfondo TEXT")
