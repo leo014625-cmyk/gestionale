@@ -26,6 +26,10 @@ NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "uploads", "volantini")
 UPLOAD_FOLDER_VOLANTINI_PRODOTTI = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti")
 
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promolampo")
+os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
+
+
 # Creazione cartelle se non esistono
 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
@@ -2006,7 +2010,7 @@ def editor_promo_lampo(promo_id):
 # ============================
 # SALVA LAYOUT PROMO LAMPO
 # ============================
-@app.route("/promo-lampo/<int:promo_id>/salva_layout", methods=["POST"])
+@app.route("/promo-lampo/<int:promo_id>/salva_layout", methods=["POST"], endpoint="salva_layout")
 @login_required
 def salva_layout_promo_lampo(promo_id):
     data = request.get_json(silent=True)
