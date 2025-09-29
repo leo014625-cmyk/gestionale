@@ -21,6 +21,10 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dent
 STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "gestionale", "static"))
 NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 
+# Cartella upload volantini
+UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "volantini")
+os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)  # crea la cartella se non esiste
+
 # 🔹 Crea immagine placeholder se non esiste
 if not os.path.exists(NO_IMAGE_PATH):
     os.makedirs(STATIC_DIR, exist_ok=True)
@@ -44,6 +48,7 @@ app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
 
 # Secret key per session
 app.secret_key = 'la_tua_chiave_segreta_sicura'
+
 
 # ============================
 # UPLOAD CATEGORIE
