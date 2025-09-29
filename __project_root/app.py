@@ -13,21 +13,21 @@ from psycopg2.extras import RealDictCursor
 # ============================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")
-STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "gestionale", "static"))
+STATIC_DIR = os.path.join(BASE_DIR, "static")  # STATIC dentro il progetto
 
 NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 
 # Cartelle upload
 UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "uploads", "volantini")
 UPLOAD_FOLDER_VOLANTINI_PRODOTTI = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti")
-UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promo")
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promolampo")
 
 # Creazione cartelle se non esistono
 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
 
-# Placeholder immagine
+# 🔹 Crea immagine placeholder se non esiste
 if not os.path.exists(NO_IMAGE_PATH):
     img = Image.new("RGB", (100, 100), color=(220, 220, 220))
     draw = ImageDraw.Draw(img)
@@ -43,10 +43,13 @@ app = Flask(
     template_folder=TEMPLATES_DIR,
     static_folder=STATIC_DIR
 )
+
+# Config upload
 app.config["UPLOAD_FOLDER_VOLANTINI"] = UPLOAD_FOLDER_VOLANTINI
 app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"] = UPLOAD_FOLDER_VOLANTINI_PRODOTTI
 app.config["UPLOAD_FOLDER_PROMO"] = UPLOAD_FOLDER_PROMO
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # limite upload 16MB
+
 
 # Secret key per session
 app.secret_key = 'la_tua_chiave_segreta_sicura'
