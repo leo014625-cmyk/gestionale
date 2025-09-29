@@ -1,13 +1,9 @@
 import os
-import sqlite3
 import json
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify
-from datetime import datetime, timedelta
-from jinja2 import FileSystemLoader
-from collections import defaultdict
+from datetime import datetime
 from werkzeug.utils import secure_filename
-from dateutil.relativedelta import relativedelta
 from PIL import Image, ImageDraw
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -15,29 +11,25 @@ from psycopg2.extras import RealDictCursor
 # ============================
 # PATH STATIC E PLACEHOLDER
 # ============================
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # __project_root
-TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dentro __project_root
-
-# Static si trova in ../gestionale/static
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")
 STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "gestionale", "static"))
+
 NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 
 # Cartelle upload
 UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "uploads", "volantini")
 UPLOAD_FOLDER_VOLANTINI_PRODOTTI = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti")
-
-UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promolampo")
-os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
-
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promo")
 
 # Creazione cartelle se non esistono
 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
-os.makedirs(STATIC_DIR, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
 
-# 🔹 Crea immagine placeholder se non esiste
+# Placeholder immagine
 if not os.path.exists(NO_IMAGE_PATH):
-    img = Image.new("RGB", (100, 100), color=(220, 220, 220))  # grigio chiaro
+    img = Image.new("RGB", (100, 100), color=(220, 220, 220))
     draw = ImageDraw.Draw(img)
     draw.text((10, 40), "No Img", fill=(100, 100, 100))
     img.save(NO_IMAGE_PATH)
@@ -51,12 +43,10 @@ app = Flask(
     template_folder=TEMPLATES_DIR,
     static_folder=STATIC_DIR
 )
-
-# Config upload
 app.config["UPLOAD_FOLDER_VOLANTINI"] = UPLOAD_FOLDER_VOLANTINI
 app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"] = UPLOAD_FOLDER_VOLANTINI_PRODOTTI
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # limite upload 16MB
-
+app.config["UPLOAD_FOLDER_PROMO"] = UPLOAD_FOLDER_PROMO
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
 
 # Forza loader Jinja sulla cartella corretta
 app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
