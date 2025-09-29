@@ -20,13 +20,15 @@
     <!-- Immagine Prodotto -->
     <div class="mb-3">
       <label for="immagine" class="form-label">🖼 Immagine Prodotto</label>
-      <input type="file" id="immagine" name="immagine" class="form-control" accept="image/*" required>
+      <input type="file" id="immagine" name="immagine" class="form-control" accept="image/*" required onchange="previewImage(this, 'preview-immagine')">
+      <img id="preview-immagine" src="{{ url_for('static', filename='no-image.png') }}" alt="Anteprima Immagine" class="img-fluid mt-2" style="max-height: 200px;">
     </div>
 
     <!-- Sfondo Volantino -->
     <div class="mb-3">
       <label for="sfondo" class="form-label">🖼 Sfondo Volantino</label>
-      <input type="file" id="sfondo" name="sfondo" class="form-control" accept="image/*" required>
+      <input type="file" id="sfondo" name="sfondo" class="form-control" accept="image/*" required onchange="previewImage(this, 'preview-sfondo')">
+      <img id="preview-sfondo" src="{{ url_for('static', filename='no-image.png') }}" alt="Anteprima Sfondo" class="img-fluid mt-2" style="max-height: 200px;">
     </div>
 
     <!-- Pulsanti -->
@@ -36,5 +38,21 @@
     </div>
   </form>
 </div>
+
+<!-- Anteprima immagini -->
+<script>
+function previewImage(input, previewId) {
+  const preview = document.getElementById(previewId);
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+    }
+    reader.readAsDataURL(input.files[0]);
+  } else {
+    preview.src = "{{ url_for('static', filename='no-image.png') }}";
+  }
+}
+</script>
 
 {% endblock %}
