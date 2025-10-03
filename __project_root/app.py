@@ -1821,15 +1821,29 @@ def lista_volantini_completa():
         volantini = db.execute(
             "SELECT id, titolo, sfondo, data_creazione FROM volantini ORDER BY data_creazione DESC"
         ).fetchall()
+
         promo_lampo = db.execute(
             "SELECT id, nome, prezzo, immagine, sfondo, data_creazione FROM promo_lampo ORDER BY data_creazione DESC"
         ).fetchall()
 
+    # 🔹 Prepara i percorsi completi per le immagini promo lampo
+    promo_lampo_lista = []
+    for p in promo_lampo:
+        promo_lampo_lista.append({
+            "id": p["id"],
+            "nome": p["nome"],
+            "prezzo": p["prezzo"],
+            "immagine": url_for("static", filename=f"uploads/promolampo/{p['immagine']}") if p["immagine"] else url_for("static", filename="no-image.png"),
+            "sfondo": url_for("static", filename=f"uploads/promolampo/{p['sfondo']}") if p["sfondo"] else url_for("static", filename="no-image.png"),
+            "data_creazione": p["data_creazione"]
+        })
+
     return render_template(
         "04_volantino/01_lista_volantini.html",
         volantini=volantini,
-        promo_lampo=promo_lampo,
+        promo_lampo=promo_lampo_lista,
     )
+
 
 # ============================
 # NUOVA PROMO LAMPO
@@ -1853,21 +1867,26 @@ def nuova_promo_lampo():
             flash("❌ Prezzo non valido", "danger")
             return redirect(url_for("nuova_promo_lampo"))
 
-        # 🔹 Assicurati che la cartella esista
-        os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
+        # 🔹 Assicurati che la cartella corretta esista
+        os.makedirs(UPLOAD_FOLDER_PROMOLAMPO, exist_ok=True)
 
+        # 🔹 Salva immagine prodotto
         immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
-        immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
+        immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMOLAMPO, immagine_nome))
 
+        # 🔹 Salva sfondo promo
         sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
-        sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
+        sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMOLAMPO, sfondo_nome))
 
         # 🔹 Salva nel DB con psycopg2
         conn = psycopg2.connect(DATABASE_URL)
         try:
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione) VALUES (%s, %s, %s, %s, NOW())",
+                """
+                INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione)
+                VALUES (%s, %s, %s, %s, NOW())
+                """,
                 (nome, prezzo, immagine_nome, sfondo_nome)
             )
             conn.commit()
