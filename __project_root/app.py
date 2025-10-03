@@ -23,13 +23,17 @@ NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
 # Cartelle upload
 UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "uploads", "volantini")
 UPLOAD_FOLDER_VOLANTINI_PRODOTTI = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti")
-UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promolampo")
-
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promo")
+UPLOAD_FOLDER_PROMOLAMPO = os.path.join(STATIC_DIR, "uploads", "promolampo")
 
 # Creazione cartelle se non esistono
-os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
+for folder in [
+    UPLOAD_FOLDER_VOLANTINI,
+    UPLOAD_FOLDER_VOLANTINI_PRODOTTI,
+    UPLOAD_FOLDER_PROMO,
+    UPLOAD_FOLDER_PROMOLAMPO,
+]:
+    os.makedirs(folder, exist_ok=True)
 
 # 🔹 Crea immagine placeholder se non esiste
 if not os.path.exists(NO_IMAGE_PATH):
