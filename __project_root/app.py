@@ -7,6 +7,9 @@ from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from dateutil.relativedelta import relativedelta
+from collections import defaultdict
+
 
 # ============================
 # PATH STATIC E PLACEHOLDER
