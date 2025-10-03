@@ -2008,8 +2008,10 @@ def editor_promo_lampo(promo_id):
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
+        # 🔹 Prepara i percorsi completi per immagine e sfondo
         promo_prodotti = [{
-            "url": url_for("static", filename=f"uploads/promo/{promo['immagine']}") if promo.get("immagine") else "",
+            "url": url_for("static", filename=f"uploads/promolampo/{promo['immagine']}") if promo.get("immagine") else url_for("static", filename="no-image.png"),
+            "sfondo": url_for("static", filename=f"uploads/promolampo/{promo['sfondo']}") if promo.get("sfondo") else url_for("static", filename="no-image.png"),
             "nome": promo["nome"],
             "prezzo": promo["prezzo"]
         }]
