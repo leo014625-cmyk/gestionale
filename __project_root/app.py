@@ -25,6 +25,7 @@ UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "uploads", "volantini")
 UPLOAD_FOLDER_VOLANTINI_PRODOTTI = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti")
 UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promolampo")
 
+
 # Creazione cartelle se non esistono
 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
