@@ -735,6 +735,7 @@ def cliente_scheda(id):
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
+        # Prodotti
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, COALESCE(c.nome,'–') AS categoria_nome
             FROM prodotti p
@@ -743,6 +744,7 @@ def cliente_scheda(id):
         ''')
         prodotti = cur.fetchall()
 
+        # Prodotti associati
         cur.execute('''
             SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione
             FROM clienti_prodotti
@@ -760,33 +762,43 @@ def cliente_scheda(id):
                 prezzo_offerta = assoc_dict[pid]['prezzo_offerta']
                 data_op = assoc_dict[pid]['data_operazione']
             else:
-                lavorato = 0
+                lavorato = False
                 prezzo_attuale = None
                 prezzo_offerta = None
                 data_op = None
 
-            prodotti_lavorati.append(str(pid)) if lavorato == 1 else None
+            if lavorato:
+                prodotti_lavorati.append(str(pid))
             prezzi_attuali[str(pid)] = prezzo_attuale
             prezzi_offerta[str(pid)] = prezzo_offerta
             prodotti_data[str(pid)] = data_op
 
+        # Categorie
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = [dict(c) for c in cur.fetchall()]
 
+        # Fatturato totale
         cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (id,))
         fatturato_totale = cur.fetchone()['totale']
 
-        cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+        # Fatturato corrente
+        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                     (id, current_month, current_year))
-        totale_corrente = cur.fetchone()['coalesce']
+        totale_corrente = cur.fetchone()['totale']
 
-        cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+        # Fatturato precedente
+        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                     (id, prev_month, prev_year))
-        totale_prec = cur.fetchone()['coalesce']
+        totale_prec = cur.fetchone()['totale']
 
         variazione_fatturato_cliente = ((totale_corrente - totale_prec) / totale_prec * 100) if totale_prec else None
-        stato_cliente = ('attivo' if totale_corrente > 0 else 'inattivo' if totale_corrente == 0 and totale_prec == 0 else 'bloccato')
+        stato_cliente = (
+            'attivo' if totale_corrente > 0
+            else 'inattivo' if totale_corrente == 0 and totale_prec == 0
+            else 'bloccato'
+        )
 
+        # Fatturato mensile
         cur.execute('''
             SELECT anno, mese, SUM(totale) AS totale
             FROM fatturato
@@ -796,18 +808,19 @@ def cliente_scheda(id):
         ''', (id,))
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02d}": r['totale'] for r in cur.fetchall()}
 
+        # Log cliente (con fix su lavorato=TRUE e make_date)
         cur.execute('''
             SELECT descrizione, data
             FROM (
                 SELECT 'Aggiunto prodotto: ' || p.nome AS descrizione, cp.data_operazione AS data
                 FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
-                WHERE cp.cliente_id=%s AND cp.lavorato=1
+                WHERE cp.cliente_id=%s AND cp.lavorato=TRUE
                 UNION ALL
                 SELECT 'Rimosso prodotto: ' || p.nome, pr.data_rimozione
                 FROM prodotti_rimossi pr JOIN prodotti p ON pr.prodotto_id=p.id
                 WHERE pr.cliente_id=%s
                 UNION ALL
-                SELECT 'Fatturato aggiornato: ' || totale || ' €', datetime(anno || '-' || mese || '-01')
+                SELECT 'Fatturato aggiornato: ' || totale || ' €', make_date(anno, mese, 1)
                 FROM fatturato
                 WHERE cliente_id=%s
                 UNION ALL
@@ -822,14 +835,6 @@ def cliente_scheda(id):
             log_dict = dict(l)
             if not log_dict['data']:
                 log_dict['data'] = datetime.min
-            elif isinstance(log_dict['data'], str):
-                try:
-                    log_dict['data'] = datetime.fromisoformat(log_dict['data'])
-                except ValueError:
-                    try:
-                        log_dict['data'] = datetime.strptime(log_dict['data'], '%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        log_dict['data'] = datetime.min
             log_cliente.append(log_dict)
 
     return render_template(
@@ -847,6 +852,7 @@ def cliente_scheda(id):
         prodotti_data=prodotti_data,
         stato_cliente=stato_cliente
     )
+
 
 
 @app.route('/clienti/rimuovi/<int:id>', methods=['POST'])
@@ -2036,21 +2042,37 @@ def salva_layout_promo_lampo(promo_id):
     layout = data.get("layout") if data else None
 
     if not layout:
-        return jsonify({"status": "error", "message": "Layout mancante"}), 400
+        return jsonify({"status": "error", "message": "⚠️ Layout mancante"}), 400
 
     try:
         layout_json = json.dumps(layout, ensure_ascii=False)
-        conn = psycopg2.connect(DATABASE_URL)
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         try:
             cur = conn.cursor()
+
+            # Verifica che la promo esista
+            cur.execute("SELECT id FROM promo_lampo WHERE id=%s", (promo_id,))
+            promo = cur.fetchone()
+            if not promo:
+                return jsonify({"status": "error", "message": "❌ Promo Lampo non trovata"}), 404
+
+            # Aggiorna layout
             cur.execute("UPDATE promo_lampo SET layout=%s WHERE id=%s", (layout_json, promo_id))
             conn.commit()
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"status": "error", "message": f"Errore DB: {str(e)}"}), 500
         finally:
             cur.close()
             conn.close()
-        return jsonify({"status": "ok"})
+
+        return jsonify({"status": "ok", "message": "✅ Layout salvato con successo"})
+    
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
+
 
 # ============================
 # ROUTE DI TEST TEMPLATE
