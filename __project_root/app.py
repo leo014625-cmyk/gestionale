@@ -571,7 +571,7 @@ def nuovo_cliente():
 def modifica_cliente(id):
     current_datetime = datetime.now()
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor(cursor_factory=RealDictCursor)  # dict per comodità
 
         # Recupera cliente
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
@@ -603,8 +603,9 @@ def modifica_cliente(id):
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
-        prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato'] == 1]
-        prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato'] == 0]
+        # Correzione boolean
+        prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato'] is True]
+        prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if not p['lavorato']]
         prezzi_attuali = {str(p['prodotto_id']): p['prezzo_attuale'] for p in prodotti_assoc}
         prezzi_offerta = {str(p['prodotto_id']): p['prezzo_offerta'] for p in prodotti_assoc}
 
@@ -637,7 +638,7 @@ def modifica_cliente(id):
             prodotti_selezionati = request.form.getlist('prodotti_lavorati[]')
             for prodotto in prodotti:
                 pid = str(prodotto['id'])
-                lavorato = 1 if pid in prodotti_selezionati else 0
+                lavorato = pid in prodotti_selezionati  # True/False
                 prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]') or None
                 prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]') or None
 
@@ -648,13 +649,13 @@ def modifica_cliente(id):
                         UPDATE clienti_prodotti
                         SET lavorato=%s, prezzo_attuale=%s, prezzo_offerta=%s, data_operazione=%s
                         WHERE cliente_id=%s AND prodotto_id=%s
-                    ''', (lavorato, prezzo_attuale, prezzo_offerta, datetime.now(), id, pid))
+                    ''', (lavorato, prezzo_attuale, prezzo_offerta, current_datetime, id, pid))
                 else:
                     cur.execute('''
                         INSERT INTO clienti_prodotti
                         (cliente_id, prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione)
                         VALUES (%s,%s,%s,%s,%s,%s)
-                    ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, datetime.now()))
+                    ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, current_datetime))
 
             # Aggiorna fatturato
             mese = request.form.get('mese')
@@ -716,6 +717,7 @@ def modifica_cliente(id):
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
+
 
 
 @app.route('/clienti/<int:id>')
@@ -1026,23 +1028,33 @@ def elimina_prodotto(id):
 
 
 @app.route('/prodotti/clienti/<int:id>')
+@login_required
 def clienti_prodotto(id):
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor(cursor_factory=RealDictCursor)  # ritorna dict invece di tuple
+
+        # Recupera il prodotto
         cur.execute('SELECT * FROM prodotti WHERE id=%s', (id,))
         prodotto = cur.fetchone()
         if not prodotto:
-            return "Prodotto non trovato", 404
+            flash("❌ Prodotto non trovato", "danger")
+            return redirect(url_for("prodotti"))  # oppure 404
 
+        # Recupera i clienti associati con lavorato=True
         cur.execute('''
             SELECT c.*
             FROM clienti c
-            JOIN clienti_prodotti cp ON c.id=cp.cliente_id
-            WHERE cp.prodotto_id=%s AND cp.lavorato=1
+            JOIN clienti_prodotti cp ON c.id = cp.cliente_id
+            WHERE cp.prodotto_id=%s AND cp.lavorato IS TRUE
+            ORDER BY c.nome
         ''', (id,))
         clienti = cur.fetchall()
 
-    return render_template('/02_prodotti/04_prodotto_clienti.html', prodotto=prodotto, clienti=clienti)
+    return render_template(
+        '/02_prodotti/04_prodotto_clienti.html',
+        prodotto=prodotto,
+        clienti=clienti
+    )
 
 
 @app.route('/categorie')
