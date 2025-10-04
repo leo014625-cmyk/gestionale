@@ -571,7 +571,7 @@ def nuovo_cliente():
 def modifica_cliente(id):
     current_datetime = datetime.now()
     with get_db() as db:
-        cur = db.cursor(cursor_factory=RealDictCursor)  # dict per comodità
+        cur = db.cursor(cursor_factory=RealDictCursor)
 
         # Recupera cliente
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
@@ -603,8 +603,8 @@ def modifica_cliente(id):
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
-        # Correzione boolean
-        prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato'] is True]
+        # Preparazione liste e dizionari per il template
+        prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato']]
         prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if not p['lavorato']]
         prezzi_attuali = {str(p['prodotto_id']): p['prezzo_attuale'] for p in prodotti_assoc}
         prezzi_offerta = {str(p['prodotto_id']): p['prezzo_offerta'] for p in prodotti_assoc}
@@ -619,26 +619,29 @@ def modifica_cliente(id):
         fatturati_cliente = cur.fetchall()
 
         if request.method == 'POST':
-            # Aggiorna cliente
+            # Aggiorna dati cliente
             nome = request.form.get('nome', '').strip()
             zona = request.form.get('zona', '').strip()
             nuova_zona = request.form.get('nuova_zona', '').strip()
+
             if zona == 'nuova_zona' and nuova_zona:
                 zona = nuova_zona
                 try:
                     cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
                 except:
                     pass
+
             if not nome:
                 flash('Il nome del cliente è obbligatorio.', 'warning')
                 return redirect(request.url)
+
             cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s', (nome, zona, id))
 
-            # Aggiorna prodotti
+            # Aggiorna prodotti associati
             prodotti_selezionati = request.form.getlist('prodotti_lavorati[]')
             for prodotto in prodotti:
                 pid = str(prodotto['id'])
-                lavorato = pid in prodotti_selezionati  # True/False
+                lavorato = pid in prodotti_selezionati
                 prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]') or None
                 prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]') or None
 
@@ -657,7 +660,7 @@ def modifica_cliente(id):
                         VALUES (%s,%s,%s,%s,%s,%s)
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, current_datetime))
 
-            # Aggiorna fatturato
+            # Aggiorna fatturato mensile
             mese = request.form.get('mese')
             anno = request.form.get('anno')
             importo = request.form.get('fatturato_mensile')
@@ -678,7 +681,6 @@ def modifica_cliente(id):
                     flash('Importo fatturato non valido.', 'warning')
 
             db.commit()
-            aggiorna_fatturato_totale(id)
             flash('Cliente modificato con successo.', 'success')
             return redirect(url_for('clienti'))
 
@@ -717,6 +719,7 @@ def modifica_cliente(id):
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
+
 
 
 
