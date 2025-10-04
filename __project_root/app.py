@@ -1688,15 +1688,19 @@ def visualizza_volantino(volantino_id):
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
+        # Prodotti collegati
         cur.execute("SELECT * FROM volantino_prodotti WHERE volantino_id=%s ORDER BY id ASC", (volantino_id,))
         prodotti_raw = cur.fetchall()
 
         volantino_dict = dict(volantino)
-        sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino_dict.get("sfondo") or "")
-        if not os.path.exists(sfondo_path):
-            volantino_dict["sfondo"] = os.path.basename(NO_IMAGE_PATH)
 
-        # Layout JSON
+        # 🔹 Sfondo: usa route Flask se esiste, altrimenti placeholder
+        if volantino_dict.get("sfondo"):
+            volantino_dict["sfondo_url"] = url_for("serve_volantino_file", filename=volantino_dict["sfondo"])
+        else:
+            volantino_dict["sfondo_url"] = url_for("static", filename="no-image.png")
+
+        # 🔹 Layout JSON
         try:
             layout = json.loads(volantino_dict.get("layout_json") or "{}")
             if isinstance(layout, list):
@@ -1707,14 +1711,14 @@ def visualizza_volantino(volantino_id):
             layout = {"objects": []}
         volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
 
-        # Prodotti con placeholder
+        # 🔹 Prodotti con URL immagine
         prodotti = []
         for p in prodotti_raw:
             prod = dict(p)
-            immagine_filename = prod.get("immagine")
-            immagine_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, immagine_filename or "")
-            if not immagine_filename or not os.path.exists(immagine_path):
-                prod["immagine"] = os.path.basename(NO_IMAGE_PATH)
+            if prod.get("immagine"):
+                prod["immagine_url"] = url_for("serve_prodotto_file", filename=prod["immagine"])
+            else:
+                prod["immagine_url"] = url_for("static", filename="no-image.png")
             prodotti.append(prod)
 
         return render_template("04_volantino/04_visualizza_volantino.html",
@@ -1723,7 +1727,6 @@ def visualizza_volantino(volantino_id):
     finally:
         cur.close()
         conn.close()
-
 
 # ============================
 # EDITOR VOLANTINO
@@ -1740,17 +1743,24 @@ def editor_volantino(volantino_id):
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        cur.execute("SELECT * FROM volantino_prodotti WHERE volantino_id=%s AND eliminato=FALSE ORDER BY id ASC", (volantino_id,))
+        cur.execute("""
+            SELECT * FROM volantino_prodotti 
+            WHERE volantino_id=%s AND eliminato=FALSE 
+            ORDER BY id ASC
+        """, (volantino_id,))
         prodotti_raw = cur.fetchall()
 
         volantino_dict = dict(volantino)
         cols, rows = 3, 3
         max_slots = cols * rows
 
-        sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino_dict.get("sfondo") or "")
-        if not os.path.exists(sfondo_path):
-            volantino_dict["sfondo"] = os.path.basename(NO_IMAGE_PATH)
+        # 🔹 Sfondo: usa route Flask
+        if volantino_dict.get("sfondo"):
+            volantino_dict["sfondo_url"] = url_for("serve_volantino_file", filename=volantino_dict["sfondo"])
+        else:
+            volantino_dict["sfondo_url"] = url_for("static", filename="no-image.png")
 
+        # 🔹 Se non ha un layout, crea griglia base
         if not volantino_dict.get("layout_json"):
             grid = []
             for i in range(max_slots):
@@ -1758,30 +1768,37 @@ def editor_volantino(volantino_id):
                 row = i // cols
                 x = 50 + col * 250
                 y = 50 + row * 280
-                prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
 
-                immagine_filename = prodotto.get("immagine")
-                immagine_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, immagine_filename or "")
-                if not immagine_filename or not os.path.exists(immagine_path):
-                    immagine_file = os.path.basename(NO_IMAGE_PATH)
+                prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
+                if prodotto.get("immagine"):
+                    immagine_url = url_for("serve_prodotto_file", filename=prodotto["immagine"])
                 else:
-                    immagine_file = immagine_filename
+                    immagine_url = url_for("static", filename="no-image.png")
 
                 grid.append({
                     "type": "group",
                     "objects": [
-                        {"type": "rect", "left":0, "top":0, "width":200, "height":240, "fill":"#ffffff", "stroke":"#cccccc", "strokeWidth":1},
-                        {"type": "text", "text": prodotto.get("nome",""), "left":100, "top":190, "fontSize":14, "originX":"center", "textAlign":"center"},
-                        {"type": "text", "text": f"€ {prodotto.get('prezzo','')}" if prodotto.get('prezzo') else "", "left":100, "top":215, "fontSize":18, "fill":"red", "originX":"center", "textAlign":"center"}
+                        {"type": "rect", "left": 0, "top": 0, "width": 200, "height": 240,
+                         "fill": "#ffffff", "stroke": "#cccccc", "strokeWidth": 1},
+                        {"type": "text", "text": prodotto.get("nome", ""), "left": 100, "top": 190,
+                         "fontSize": 14, "originX": "center", "textAlign": "center"},
+                        {"type": "text",
+                         "text": f"€ {prodotto.get('prezzo', '')}" if prodotto.get("prezzo") else "",
+                         "left": 100, "top": 215, "fontSize": 18, "fill": "red",
+                         "originX": "center", "textAlign": "center"}
                     ],
-                    "left": x, "top": y, "width":200, "height":240,
+                    "left": x, "top": y, "width": 200, "height": 240,
                     "metadata": {
-                        "id": prodotto.get("id"), "nome": prodotto.get("nome"), "prezzo": prodotto.get("prezzo"),
-                        "url": url_for("static", filename=f"uploads/volantino_prodotti/{immagine_file}"),
+                        "id": prodotto.get("id"),
+                        "nome": prodotto.get("nome"),
+                        "prezzo": prodotto.get("prezzo"),
+                        "url": immagine_url,
                         "lascia_vuota": prodotto.get("lascia_vuota", False)
                     }
                 })
+
             volantino_dict["layout_json"] = json.dumps({"objects": grid}, ensure_ascii=False)
+
         else:
             try:
                 layout = json.loads(volantino_dict["layout_json"])
@@ -1791,10 +1808,12 @@ def editor_volantino(volantino_id):
             except Exception:
                 volantino_dict["layout_json"] = json.dumps({"objects": []}, ensure_ascii=False)
 
-        return render_template("04_volantino/07_editor_volantino.html",
-                               volantino=volantino_dict,
-                               volantino_prodotti=[dict(p) for p in prodotti_raw],
-                               num_prodotti=max_slots)
+        return render_template(
+            "04_volantino/07_editor_volantino.html",
+            volantino=volantino_dict,
+            volantino_prodotti=[dict(p) for p in prodotti_raw],
+            num_prodotti=max_slots
+        )
     finally:
         cur.close()
         conn.close()
@@ -1841,6 +1860,32 @@ def salva_layout_volantino(volantino_id):
     finally:
         cur.close()
         conn.close()
+
+from flask import send_from_directory
+
+# ============================
+# SERVE FILE DA /mnt
+# ============================
+
+@app.route('/uploads/volantini/<path:filename>')
+@login_required
+def serve_volantino_file(filename):
+    return send_from_directory("/mnt/volantini", filename)
+
+@app.route('/uploads/volantino_prodotti/<path:filename>')
+@login_required
+def serve_prodotto_file(filename):
+    return send_from_directory("/mnt/volantini_prodotti", filename)
+
+@app.route('/uploads/promo/<path:filename>')
+@login_required
+def serve_promo_file(filename):
+    return send_from_directory("/mnt/promo", filename)
+
+@app.route('/uploads/promolampo/<path:filename>')
+@login_required
+def serve_promolampo_file(filename):
+    return send_from_directory("/mnt/promolampo", filename)
 
 # ============================
 # LISTA VOLANTINI + PROMO LAMPO
