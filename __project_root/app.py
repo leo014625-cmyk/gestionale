@@ -1270,26 +1270,31 @@ def lista_volantini():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     try:
         cur = conn.cursor()
+        
         # 🔹 Volantini
         cur.execute('SELECT id, titolo, sfondo, data_creazione FROM volantini ORDER BY data_creazione DESC')
         volantini = cur.fetchall()
         for volantino in volantini:
             sfondo_file = volantino['sfondo'] or os.path.basename(NO_IMAGE_PATH)
-            volantino['sfondo_path'] = os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_file)
+            # usa route per servire il file se esiste, altrimenti placeholder
+            volantino['sfondo_url'] = url_for('serve_volantino_file', filename=sfondo_file)
 
         # 🔹 Promo lampo
         cur.execute('SELECT id, nome, prezzo, immagine, sfondo, data_creazione FROM promo_lampo ORDER BY data_creazione DESC')
         promo_lampo = cur.fetchall()
         for promo in promo_lampo:
-            promo['immagine_path'] = os.path.join(UPLOAD_FOLDER_PROMOLAMPO, promo['immagine'] or os.path.basename(NO_IMAGE_PATH))
+            immagine_file = promo['immagine'] or os.path.basename(NO_IMAGE_PATH)
+            promo['immagine_url'] = url_for('serve_promo_file', filename=immagine_file)
 
     finally:
         cur.close()
         conn.close()
 
-    return render_template("04_volantino/01_lista_volantini.html",
-                           volantini=volantini, promo_lampo=promo_lampo)
-
+    return render_template(
+        "04_volantino/01_lista_volantini.html",
+        volantini=volantini,
+        promo_lampo=promo_lampo
+    )
 
 # ============================
 # NUOVO VOLANTINO
@@ -1300,54 +1305,81 @@ def nuovo_volantino():
     if request.method == "POST":
         titolo = request.form.get("titolo", "").strip()
         sfondo_file = request.files.get("sfondo")
-        if not titolo or not sfondo_file:
+
+        if not titolo or not sfondo_file or not sfondo_file.filename:
             flash("⚠️ Titolo e immagine sfondo sono obbligatori.", "danger")
             return redirect(url_for("nuovo_volantino"))
 
+        # Salva sfondo
         os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
         filename = secure_filename(sfondo_file.filename)
-        sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, filename)
+        timestamped_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+        sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, timestamped_filename)
         sfondo_file.save(sfondo_path)
 
+        # Inserisci volantino nel DB
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         try:
             cur = conn.cursor()
-            cur.execute("INSERT INTO volantini (titolo, sfondo, data_creazione) VALUES (%s, %s, NOW()) RETURNING id",
-                        (titolo, filename))
+            cur.execute(
+                "INSERT INTO volantini (titolo, sfondo, data_creazione) VALUES (%s, %s, NOW()) RETURNING id",
+                (titolo, timestamped_filename)
+            )
             volantino_id = cur.fetchone()["id"]
 
             # Inizializza layout 3x3 vuoto
             layout_json = {"objects": []}
-            for i in range(9):
-                col = i % 3
-                row = i // 3
+            cols, rows = 3, 3
+            for i in range(cols * rows):
+                col = i % cols
+                row = i // cols
                 x = 50 + col * 250
                 y = 50 + row * 280
                 layout_json["objects"].append({
                     "type": "group",
                     "objects": [
-                        {"type": "rect", "left":0, "top":0, "width":200, "height":240,
-                         "fill":"#ffffff", "stroke":"#cccccc", "strokeWidth":1},
-                        {"type": "text", "text":"", "left":100, "top":190, "fontSize":14,
-                         "originX":"center", "textAlign":"center"},
-                        {"type": "text", "text":"", "left":100, "top":215, "fontSize":18,
-                         "fill":"red", "originX":"center", "textAlign":"center"}
+                        {"type": "rect", "left": 0, "top": 0, "width": 200, "height": 240,
+                         "fill": "#ffffff", "stroke": "#cccccc", "strokeWidth": 1},
+                        {"type": "text", "text": "", "left": 100, "top": 190, "fontSize": 14,
+                         "originX": "center", "textAlign": "center"},
+                        {"type": "text", "text": "", "left": 100, "top": 215, "fontSize": 18,
+                         "fill": "red", "originX": "center", "textAlign": "center"}
                     ],
-                    "left": x, "top": y, "width":200, "height":240,
+                    "left": x, "top": y, "width": 200, "height": 240,
                     "metadata": {}
                 })
 
-            cur.execute("UPDATE volantini SET layout_json=%s WHERE id=%s",
-                        (json.dumps(layout_json, ensure_ascii=False), volantino_id))
+            cur.execute(
+                "UPDATE volantini SET layout_json=%s WHERE id=%s",
+                (json.dumps(layout_json, ensure_ascii=False), volantino_id)
+            )
             conn.commit()
+
+            # 🔹 Costruisci volantino_dict con URL pronto
+            volantino_dict = {
+                "id": volantino_id,
+                "titolo": titolo,
+                "sfondo": timestamped_filename,
+                "sfondo_url": url_for("serve_volantino_file", filename=timestamped_filename),
+                "layout_json": json.dumps(layout_json, ensure_ascii=False)
+            }
+
+            # 🔹 Volantino prodotti inizialmente vuoto
+            volantino_prodotti = []
+
         finally:
             cur.close()
             conn.close()
 
         flash("✅ Volantino creato con successo!", "success")
-        return redirect(url_for("lista_volantini"))
+        return render_template(
+            "04_volantino/04_visualizza_volantino.html",
+            volantino=volantino_dict,
+            prodotti=volantino_prodotti
+        )
 
     return render_template("04_volantino/02_nuovo_volantino.html")
+
 
 # ============================
 # ELIMINA VOLANTINO
@@ -1355,7 +1387,7 @@ def nuovo_volantino():
 @app.route("/volantini/elimina/<int:volantino_id>", methods=["POST"])
 @login_required
 def elimina_volantino(volantino_id):
-    # 🔹 Percorsi persistenti su Render
+    # Percorsi persistenti su Render
     UPLOAD_FOLDER_VOLANTINI = "/mnt/volantini"
     UPLOAD_FOLDER_VOLANTINI_PRODOTTI = "/mnt/volantini_prodotti"
 
@@ -1371,8 +1403,9 @@ def elimina_volantino(volantino_id):
             return redirect(url_for("lista_volantini"))
 
         # 🔹 Elimina sfondo volantino
-        if volantino["sfondo"]:
-            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
+        sfondo_file = volantino.get("sfondo")
+        if sfondo_file:
+            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_file)
             if os.path.exists(sfondo_path):
                 os.remove(sfondo_path)
 
@@ -1380,8 +1413,9 @@ def elimina_volantino(volantino_id):
         cur.execute("SELECT immagine FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
         prodotti = cur.fetchall()
         for prod in prodotti:
-            if prod["immagine"]:
-                img_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, prod["immagine"])
+            immagine_file = prod.get("immagine")
+            if immagine_file:
+                img_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, immagine_file)
                 if os.path.exists(img_path):
                     os.remove(img_path)
 
@@ -1424,17 +1458,32 @@ def modifica_volantino(volantino_id):
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
                 sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome))
 
-            cur.execute("UPDATE volantini SET titolo=%s, sfondo=%s WHERE id=%s",
-                        (titolo, sfondo_nome, volantino_id))
+            cur.execute(
+                "UPDATE volantini SET titolo=%s, sfondo=%s WHERE id=%s",
+                (titolo, sfondo_nome, volantino_id)
+            )
             conn.commit()
             flash("✅ Volantino aggiornato con successo", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
 
-        # Prodotti attivi
-        cur.execute("SELECT * FROM volantino_prodotti WHERE volantino_id=%s AND eliminato=FALSE ORDER BY id ASC", (volantino_id,))
-        prodotti = [dict(p) for p in cur.fetchall()]
+        # 🔹 Prodotti attivi
+        cur.execute("""
+            SELECT * FROM volantino_prodotti 
+            WHERE volantino_id=%s AND eliminato=FALSE 
+            ORDER BY id ASC
+        """, (volantino_id,))
+        prodotti_raw = cur.fetchall()
 
-        # Prodotti consigliati (ultimi 15)
+        prodotti = []
+        for p in prodotti_raw:
+            prod = dict(p)
+            if prod.get("immagine"):
+                prod["immagine_url"] = url_for("serve_prodotto_file", filename=prod["immagine"])
+            else:
+                prod["immagine_url"] = url_for("static", filename="no-image.png")
+            prodotti.append(prod)
+
+        # 🔹 Prodotti consigliati (ultimi 15)
         cur.execute("""
             SELECT id, nome, prezzo AS prezzo_default,
                    COALESCE(immagine, 'no-image.png') AS immagine
@@ -1442,21 +1491,34 @@ def modifica_volantino(volantino_id):
             WHERE eliminato=FALSE
             ORDER BY id DESC LIMIT 15
         """)
-        prodotti_precedenti = [dict(p) for p in cur.fetchall()]
+        prodotti_precedenti_raw = cur.fetchall()
 
-        # Sfondo placeholder
-        sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"] or "")
-        if not os.path.exists(sfondo_path):
-            volantino["sfondo"] = os.path.basename(NO_IMAGE_PATH)
+        prodotti_precedenti = []
+        for p in prodotti_precedenti_raw:
+            prod = dict(p)
+            if prod.get("immagine"):
+                prod["immagine_url"] = url_for("serve_prodotto_file", filename=prod["immagine"])
+            else:
+                prod["immagine_url"] = url_for("static", filename="no-image.png")
+            prodotti_precedenti.append(prod)
+
+        # 🔹 Sfondo: URL pronto
+        volantino_dict = dict(volantino)
+        if volantino_dict.get("sfondo"):
+            volantino_dict["sfondo_url"] = url_for("serve_volantino_file", filename=volantino_dict["sfondo"])
+        else:
+            volantino_dict["sfondo_url"] = url_for("static", filename="no-image.png")
 
     finally:
         cur.close()
         conn.close()
 
-    return render_template("04_volantino/03_modifica_volantino.html",
-                           volantino=dict(volantino),
-                           prodotti=prodotti,
-                           prodotti_precedenti=prodotti_precedenti)
+    return render_template(
+        "04_volantino/03_modifica_volantino.html",
+        volantino=volantino_dict,
+        prodotti=prodotti,
+        prodotti_precedenti=prodotti_precedenti
+    )
 
 
 # ============================
@@ -1676,6 +1738,7 @@ def elimina_prodotto_volantino(prodotto_id):
 # ============================
 # VISUALIZZA VOLANTINO
 # ============================
+
 @app.route("/volantino/<int:volantino_id>")
 @login_required
 def visualizza_volantino(volantino_id):
@@ -1688,13 +1751,13 @@ def visualizza_volantino(volantino_id):
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        # Prodotti collegati
+        # 🔹 Prodotti collegati
         cur.execute("SELECT * FROM volantino_prodotti WHERE volantino_id=%s ORDER BY id ASC", (volantino_id,))
         prodotti_raw = cur.fetchall()
 
         volantino_dict = dict(volantino)
 
-        # 🔹 Sfondo: usa route Flask se esiste, altrimenti placeholder
+        # 🔹 Sfondo: se manca usa placeholder
         if volantino_dict.get("sfondo"):
             volantino_dict["sfondo_url"] = url_for("serve_volantino_file", filename=volantino_dict["sfondo"])
         else:
@@ -1712,21 +1775,24 @@ def visualizza_volantino(volantino_id):
         volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
 
         # 🔹 Prodotti con URL immagine
-        prodotti = []
+        volantino_prodotti = []
         for p in prodotti_raw:
             prod = dict(p)
             if prod.get("immagine"):
                 prod["immagine_url"] = url_for("serve_prodotto_file", filename=prod["immagine"])
             else:
                 prod["immagine_url"] = url_for("static", filename="no-image.png")
-            prodotti.append(prod)
+            volantino_prodotti.append(prod)
 
-        return render_template("04_volantino/04_visualizza_volantino.html",
-                               volantino=volantino_dict,
-                               prodotti=prodotti)
+        return render_template(
+            "04_volantino/04_visualizza_volantino.html",
+            volantino=volantino_dict,
+            volantino_prodotti=volantino_prodotti  # 👈 solo questo passa al template
+        )
     finally:
         cur.close()
         conn.close()
+
 
 # ============================
 # EDITOR VOLANTINO
