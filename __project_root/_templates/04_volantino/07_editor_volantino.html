@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
   canvas.setWidth(1000);
   canvas.setHeight(1400);
 
-  // --- Sfondo volantino ---
+  // --- Sfondo ---
   {% if volantino['sfondo_url'] %}
   fabric.Image.fromURL("{{ volantino['sfondo_url'] }}", function(img) {
     img.scaleToWidth(canvas.getWidth());
@@ -64,51 +64,18 @@ document.addEventListener("DOMContentLoaded", function () {
   canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
   {% endif %}
 
-  // --- Prodotti dal DB ---
-  const volantinoProdotti = [
-    {% for p in volantino_prodotti %}
-    {
-      url: "{{ p['immagine_url'] }}",
-      nome: "{{ p['nome']|e }}",
-      prezzo: "{{ '%.2f'|format(p['prezzo']) if p['prezzo'] is not none else '' }}",
-      lasciaVuota: {{ 1 if p['lascia_vuota'] else 0 }}
-    },
-    {% endfor %}
-  ];
+  // --- Prodotti e layout ---
+  const volantinoProdotti = JSON.parse('{{ volantino["layout_json"]|tojson|safe }}').objects || [];
 
-  function creaProdotto(p, x, y, scale=1) {
-    fabric.Image.fromURL(p.url, function(img) {
-      img.set({ left: x, top: y, width: 200*scale, height: 240*scale });
-      const nomeText = new fabric.Text(p.nome, {
-        left: x + 100*scale,
-        top: y + 190*scale,
-        fontSize: 14*scale,
-        originX: "center",
-        textAlign: "center"
-      });
-      const prezzoText = new fabric.Text(p.prezzo ? `€ ${p.prezzo}` : "", {
-        left: x + 100*scale,
-        top: y + 215*scale,
-        fontSize: 18*scale,
-        fill: "red",
-        originX: "center",
-        textAlign: "center"
-      });
-      const group = new fabric.Group([img, nomeText, prezzoText], { left: x, top: y });
-      canvas.add(group);
-    }, { crossOrigin: "anonymous" });
-  }
-
-  // --- Costruisci griglia prodotti ---
-  let cols = 3, rows = 3;
+  let gridScale = parseInt(document.getElementById("zoomGrid").value)/100;
+  let boxScale = parseInt(document.getElementById("zoomBox").value)/100;
   let startX = parseInt(document.getElementById("gridPosX").value);
   let startY = parseInt(document.getElementById("gridPosY").value);
-  let gapX = 250, gapY = 280;
-  let boxScale = parseInt(document.getElementById("zoomBox").value)/100;
-  let gridScale = parseInt(document.getElementById("zoomGrid").value)/100;
 
   function buildGrid() {
     canvas.clear();
+
+    // Sfondo
     {% if volantino['sfondo_url'] %}
     fabric.Image.fromURL("{{ volantino['sfondo_url'] }}", function(img) {
       img.scaleToWidth(canvas.getWidth());
@@ -118,32 +85,52 @@ document.addEventListener("DOMContentLoaded", function () {
     canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
     {% endif %}
 
-    for (let i = 0; i < cols*rows; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x = startX + col * gapX * gridScale;
-      const y = startY + row * gapY * gridScale;
-      if (volantinoProdotti[i]) {
-        creaProdotto(volantinoProdotti[i], x, y, boxScale);
-      }
-    }
+    volantinoProdotti.forEach(obj => {
+      const metadata = obj.metadata || {};
+      const url = metadata.url || "{{ url_for('static', filename='no-image.png') }}";
+
+      fabric.Image.fromURL(url, function(img) {
+        img.set({ left: 0, top: 0, width: 200*boxScale, height: 240*boxScale });
+        const nomeText = new fabric.Text(metadata.nome || "", {
+          left: 100*boxScale,
+          top: 190*boxScale,
+          fontSize: 14*boxScale,
+          originX: "center",
+          textAlign: "center"
+        });
+        const prezzoText = new fabric.Text(metadata.prezzo ? `€ ${metadata.prezzo}` : "", {
+          left: 100*boxScale,
+          top: 215*boxScale,
+          fontSize: 18*boxScale,
+          fill: "red",
+          originX: "center",
+          textAlign: "center"
+        });
+
+        const group = new fabric.Group([img, nomeText, prezzoText], {
+          left: (obj.left || startX) * gridScale,
+          top: (obj.top || startY) * gridScale,
+          width: 200*boxScale,
+          height: 240*boxScale
+        });
+        canvas.add(group);
+      }, { crossOrigin: "anonymous" });
+    });
   }
 
   buildGrid();
 
-  // --- Gestione zoom ---
+  // --- Gestione input ---
   document.getElementById("zoomGrid").addEventListener("input", function() {
     gridScale = this.value/100;
     document.getElementById("zoomGridValue").innerText = this.value + "%";
     buildGrid();
   });
-
   document.getElementById("zoomBox").addEventListener("input", function() {
     boxScale = this.value/100;
     document.getElementById("zoomBoxValue").innerText = this.value + "%";
     buildGrid();
   });
-
   document.getElementById("gridPosX").addEventListener("input", function() {
     startX = parseInt(this.value);
     buildGrid();
@@ -153,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function () {
     buildGrid();
   });
 
-  // --- Reset canvas ---
+  // --- Reset ---
   document.getElementById("resetCanvas").addEventListener("click", function() {
     document.getElementById("zoomGrid").value = 75;
     document.getElementById("zoomBox").value = 109;
@@ -168,10 +155,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // --- Salva layout ---
   document.getElementById("salvaCanvas").addEventListener("click", function() {
-    const layout = [];
-    canvas.getObjects().forEach(group => {
+    const layout = canvas.getObjects().map(group => {
       if (group.type === "group") {
-        layout.push({
+        return {
           left: group.left,
           top: group.top,
           width: group.width * group.scaleX,
@@ -183,10 +169,11 @@ document.addEventListener("DOMContentLoaded", function () {
             top: obj.top,
             fontSize: obj.fontSize,
             fill: obj.fill || "#000"
-          }))
-        });
+          })),
+          metadata: volantinoProdotti.find(vp => vp.metadata && vp.metadata.nome === group._objects[1].text)?.metadata || {}
+        };
       }
-    });
+    }).filter(x => x);
 
     fetch("/volantini/{{ volantino['id'] }}/salva_layout", {
       method: "POST",
@@ -194,13 +181,10 @@ document.addEventListener("DOMContentLoaded", function () {
       body: JSON.stringify({ layout: layout })
     })
     .then(res => res.json())
-    .then(data => {
-      if (data.success) alert(data.message);
-      else alert("Errore: " + data.message);
-    });
+    .then(data => alert(data.success ? data.message : "Errore: " + data.message));
   });
 
-  // --- Download PNG ---
+  // --- Download ---
   document.getElementById("downloadPng").addEventListener("click", function() {
     const dataURL = canvas.toDataURL({ format: "png" });
     const link = document.createElement("a");
@@ -208,15 +192,13 @@ document.addEventListener("DOMContentLoaded", function () {
     link.download = "volantino.png";
     link.click();
   });
-
-  // --- Download PDF ---
   document.getElementById("downloadPdf").addEventListener("click", function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
     pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, canvas.width, canvas.height);
     pdf.save("volantino.pdf");
   });
-
 });
 </script>
+
 {% endblock %}
