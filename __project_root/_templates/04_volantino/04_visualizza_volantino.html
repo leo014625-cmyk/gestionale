@@ -21,12 +21,15 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const canvas = new fabric.Canvas("volantinoCanvas", { selection: false });
+    const canvas = new fabric.Canvas("volantinoCanvas", {
+        selection: false   // 🚫 niente selezione
+    });
+
+    // Imposta dimensioni canvas
     canvas.setWidth(1000);
     canvas.setHeight(1400);
 
     // --- Carica sfondo volantino ---
-    {% if volantino['sfondo'] and volantino['sfondo'] != "no-image.png" %}
     fabric.Image.fromURL("{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}", function(img) {
         img.scaleToWidth(canvas.getWidth());
         canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
@@ -34,11 +37,8 @@ document.addEventListener("DOMContentLoaded", function () {
             originY: "top"
         });
     });
-    {% else %}
-    canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
-    {% endif %}
 
-    // --- Funzione per aggiungere un prodotto ---
+    // --- Funzione per aggiungere prodotto (200×230 px box) ---
     function aggiungiProdotto(url, nome, prezzo, x, y, colorePrezzo="red") {
         const elements = [];
 
@@ -96,23 +96,24 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!url) addGroup();
     }
 
-    // --- Prodotti del volantino ---
-    const volantinoProdotti = [
-        {% for p in volantino_prodotti %}
+    // --- Prodotti disponibili ---
+    const prodotti = [
+        {% for p in prodotti %}
         {
             url: "{{ url_for('static', filename='uploads/volantino_prodotti/' ~ p['immagine']) if p['immagine'] else '' }}",
-            nome: "{{ p['nome']|e }}",
-            prezzo: "{{ '%.2f'|format(p['prezzo']) if p['prezzo'] is not none else '' }}",
+            nome: "{{ p['nome'] }}",
+            prezzo: "{{ '%.2f'|format(p['prezzo']) }}",
             colore: "{{ p['colore_prezzo']|default('red') }}"
         },
         {% endfor %}
     ];
 
-    // --- Carica layout salvato o fallback griglia ---
+    // --- Carica layout salvato oppure griglia fissa (4x5 = 20 slot) ---
     const savedLayout = {{ volantino['layout_json']|safe }};
-    if (savedLayout && savedLayout.objects && savedLayout.objects.length > 0) {
+    if (savedLayout && savedLayout.length > 0) {
         canvas.loadFromJSON(savedLayout, function() {
             canvas.renderAll();
+            // ❌ blocca interazione su ogni oggetto
             canvas.getObjects().forEach(obj => {
                 obj.selectable = false;
                 obj.evented = false;
@@ -130,13 +131,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 let x = 50 + col * spacingX;
                 let y = 50 + row * spacingY;
 
-                if (volantinoProdotti[index]) {
+                if (prodotti[index]) {
                     aggiungiProdotto(
-                        volantinoProdotti[index].url, 
-                        volantinoProdotti[index].nome, 
-                        volantinoProdotti[index].prezzo, 
+                        prodotti[index].url, 
+                        prodotti[index].nome, 
+                        prodotti[index].prezzo, 
                         x, y, 
-                        volantinoProdotti[index].colore
+                        prodotti[index].colore
                     );
                 } else {
                     aggiungiProdotto("", "", "", x, y);
