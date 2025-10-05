@@ -10,7 +10,6 @@
             <a href="{{ url_for('nuovo_volantino') }}" class="btn btn-primary btn-lg d-flex align-items-center gap-2">
                 ➕ Crea Nuovo Volantino
             </a>
-            </a>
             <a href="{{ url_for('nuova_promo_lampo') }}" class="btn btn-danger btn-lg d-flex align-items-center gap-2">
                 ⚡ Crea Promo Lampo
             </a>
@@ -23,11 +22,11 @@
         <div class="masonry-grid mb-5">
             {% for volantino in volantini %}
                 <div class="card shadow-sm rounded-4 overflow-hidden hover-shadow">
-                    <img src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}" 
+                    <img src="{{ volantino['sfondo_url'] }}" 
                          class="card-img-top img-fluid volantino-thumb"
                          data-bs-toggle="modal"
                          data-bs-target="#lightboxModal"
-                         data-src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}"
+                         data-src="{{ volantino['sfondo_url'] }}"
                          alt="Anteprima Volantino">
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title fw-semibold">{{ volantino['titolo'] }}</h5>
@@ -74,11 +73,11 @@
         <div class="masonry-grid">
             {% for promo in promo_lampo %}
                 <div class="card shadow-sm rounded-4 overflow-hidden hover-shadow">
-                    <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}" 
+                    <img src="{{ promo['immagine_url'] }}" 
                          class="card-img-top img-fluid volantino-thumb"
                          data-bs-toggle="modal"
                          data-bs-target="#lightboxModal"
-                         data-src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}"
+                         data-src="{{ promo['immagine_url'] }}"
                          alt="{{ promo['nome'] }}">
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title fw-semibold">{{ promo['nome'] }}</h5>
@@ -167,6 +166,3 @@
     </script>
 </div>
 {% endblock %}
-
-
-
