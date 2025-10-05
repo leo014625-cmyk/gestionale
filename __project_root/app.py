@@ -278,15 +278,19 @@ def index():
         primo_giorno_prossimo_mese = primo_giorno_mese_corrente + relativedelta(months=1)
 
         # Fatturato totale corrente
-        cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-                    (mese_corrente, anno_corrente))
+        cur.execute(
+            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
+            (mese_corrente, anno_corrente)
+        )
         fatturato_corrente = cur.fetchone()['totale']
 
         # Fatturato precedente
         mese_prec = 12 if mese_corrente == 1 else mese_corrente - 1
         anno_prec = anno_corrente - 1 if mese_corrente == 1 else anno_corrente
-        cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-                    (mese_prec, anno_prec))
+        cur.execute(
+            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
+            (mese_prec, anno_prec)
+        )
         fatturato_precedente = cur.fetchone()['totale']
 
         variazione_fatturato = None
@@ -312,18 +316,24 @@ def index():
         clienti_inattivi_dettaglio = []
 
         for cliente in clienti_rows:
-            cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_corrente, anno_corrente))
+            cur.execute(
+                'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                (cliente['id'], mese_corrente, anno_corrente)
+            )
             totale_corrente = cur.fetchone()['totale']
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_prec, anno_prec))
+            cur.execute(
+                'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                (cliente['id'], mese_prec, anno_prec)
+            )
             totale_prec = cur.fetchone()['totale']
 
             mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
             anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
-            cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_due_fa, anno_due_fa))
+            cur.execute(
+                'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                (cliente['id'], mese_due_fa, anno_due_fa)
+            )
             totale_due_mesi_fa = cur.fetchone()['totale']
 
             # Determina stato cliente
@@ -382,36 +392,30 @@ def index():
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": r['totale'] for r in reversed(fatturato_mensile_rows)}
 
         # 🔔 Notifiche dinamiche basate su stato clienti
+        # Solo notifiche non lette
+        cur.execute('SELECT * FROM notifiche WHERE letto = FALSE ORDER BY data DESC')
+        notifiche_rows = cur.fetchall()
         notifiche = []
-
-        # Notifiche per clienti attivi o bloccati
-        if clienti_attivi_dettaglio or clienti_bloccati_dettaglio:
-            notifiche.append({
-                'titolo': "Aggiorna Fatturato",
-                'descrizione': "Ricorda di aggiornare il fatturato di ogni cliente attivo o bloccato questo mese.",
-                'data': datetime.now(),
-                'tipo': "warning",
-                'clienti_attivi': clienti_attivi_dettaglio,
-                'clienti_bloccati': clienti_bloccati_dettaglio
-            })
-            notifiche.append({
-                'titolo': "Controlla Prodotti",
-                'descrizione': "Verifica i prodotti dei clienti attivi o bloccati.",
-                'data': datetime.now(),
-                'tipo': "info",
-                'clienti_attivi': clienti_attivi_dettaglio,
-                'clienti_bloccati': clienti_bloccati_dettaglio
-            })
-
-        # Notifica per clienti inattivi
-        if clienti_inattivi_dettaglio:
-            notifiche.append({
-                'titolo': "Clienti inattivi",
-                'descrizione': "Se ci sono novità riguardo ai clienti inattivi, prendine nota.",
-                'data': datetime.now(),
-                'tipo': "secondary",
-                'clienti': clienti_inattivi_dettaglio
-            })
+        for n in notifiche_rows:
+            if n['tipo'] == 'secondary':
+                notifiche.append({
+                    'id': n['id'],
+                    'titolo': n['titolo'],
+                    'descrizione': n['descrizione'],
+                    'data': n['data'],
+                    'tipo': n['tipo'],
+                    'clienti': clienti_inattivi_dettaglio
+                })
+            else:
+                notifiche.append({
+                    'id': n['id'],
+                    'titolo': n['titolo'],
+                    'descrizione': n['descrizione'],
+                    'data': n['data'],
+                    'tipo': n['tipo'],
+                    'clienti_attivi': clienti_attivi_dettaglio,
+                    'clienti_bloccati': clienti_bloccati_dettaglio
+                })
 
     return render_template(
         '02_index.html',
@@ -431,7 +435,6 @@ def index():
         fatturato_mensile=fatturato_mensile,
         notifiche=notifiche
     )
-
 
 
 
