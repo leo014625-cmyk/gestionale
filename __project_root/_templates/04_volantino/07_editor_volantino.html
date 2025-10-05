@@ -59,12 +59,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const objects = {{ volantino["layout_json"]|safe }}.objects || [];
   const sfondoURL = "{{ url_for('serve_volantino_file', filename=volantino['sfondo_filename']) if volantino['sfondo_filename'] else '' }}";
 
+  console.log("Editor inizializzato");
+  console.log("Sfondo URL:", sfondoURL);
+  console.log("Prodotti caricati:", objects);
+
   function addProduct(obj) {
     return new Promise((resolve) => {
       const metadata = obj.metadata || {};
       const url = metadata.filename
         ? "{{ url_for('serve_prodotto_file', filename='') }}" + metadata.filename
         : "{{ url_for('static', filename='no-image.png') }}";
+
+      console.log("Caricando prodotto:", metadata.nome, "URL:", url);
 
       fabric.Image.fromURL(url, function(img) {
         img.set({ left: 0, top: 0, width: 200*boxScale, height: 240*boxScale });
@@ -98,20 +104,22 @@ document.addEventListener("DOMContentLoaded", function () {
   async function buildGrid() {
     canvas.clear();
 
-    // Sfondo
     if (sfondoURL) {
+      console.log("Caricando sfondo...");
       fabric.Image.fromURL(sfondoURL, async function(img) {
         img.scaleToWidth(canvas.getWidth());
         canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+        console.log("Sfondo caricato");
 
-        // Aggiungi prodotti dopo che lo sfondo è caricato
         for (const obj of objects) await addProduct(obj);
         canvas.renderAll();
+        console.log("Prodotti aggiunti");
       }, { crossOrigin: "anonymous" });
     } else {
       canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
       for (const obj of objects) await addProduct(obj);
       canvas.renderAll();
+      console.log("Sfondo assente, prodotti aggiunti");
     }
   }
 
