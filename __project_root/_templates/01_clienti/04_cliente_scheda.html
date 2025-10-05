@@ -129,10 +129,28 @@
       </div>
       <div class="card-body">
         <canvas id="fatturatoMensileChart" height="220"></canvas>
-        {% if variazione_fatturato_cliente is not none %}
-          <p class="mt-3 mb-0 text-center">
-            Andamento rispetto al mese precedente: 
-            <strong>{{ "%.2f"|format(variazione_fatturato_cliente) }}%</strong>
+        {% if variazione_mese_precedente is not none %}
+          <p class="mt-3 mb-1 text-center">
+            Rispetto al mese precedente: 
+            <strong class="{{ 'text-success' if variazione_mese_precedente >= 0 else 'text-danger' }}">
+              {{ "%.2f"|format(variazione_mese_precedente) }}%
+            </strong>
+          </p>
+        {% endif %}
+        {% if variazione_stesso_mese is not none %}
+          <p class="mb-1 text-center">
+            Rispetto allo stesso mese dell'anno scorso: 
+            <strong class="{{ 'text-success' if variazione_stesso_mese >= 0 else 'text-danger' }}">
+              {{ "%.2f"|format(variazione_stesso_mese) }}%
+            </strong>
+          </p>
+        {% endif %}
+        {% if variazione_annuale is not none %}
+          <p class="mb-0 text-center">
+            Andamento totale vs anno precedente: 
+            <strong class="{{ 'text-success' if variazione_annuale >= 0 else 'text-danger' }}">
+              {{ "%.2f"|format(variazione_annuale) }}%
+            </strong>
           </p>
         {% endif %}
       </div>
@@ -291,4 +309,3 @@ function filtraProdotti(input, catId) {
 }
 </script>
 {% endblock %}
-
