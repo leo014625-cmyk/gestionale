@@ -1300,34 +1300,43 @@ from flask import send_from_directory, abort
 import os
 
 def safe_send_file(folder, filename):
+    """
+    Serve un file in modo sicuro dalla cartella specificata.
+    Genera 404 se il file non esiste o non è leggibile.
+    """
     file_path = os.path.join(folder, filename)
-    if not os.path.exists(file_path):
+    if not os.path.isfile(file_path):
         abort(404, description=f"File '{filename}' non trovato")
-    return send_from_directory(folder, filename, conditional=True)
+    # as_attachment=False serve per visualizzare immagini direttamente
+    return send_from_directory(folder, filename, as_attachment=False)
 
 @app.route('/uploads/volantini/<path:filename>')
 @login_required
 def serve_volantino_file(filename):
     """Serve immagini dei volantini"""
-    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI"], filename)
+    folder = app.config.get("UPLOAD_FOLDER_VOLANTINI")
+    return safe_send_file(folder, filename)
 
 @app.route('/uploads/volantino_prodotti/<path:filename>')
 @login_required
 def serve_prodotto_file(filename):
     """Serve immagini dei prodotti dei volantini"""
-    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"], filename)
+    folder = app.config.get("UPLOAD_FOLDER_VOLANTINI_PRODOTTI")
+    return safe_send_file(folder, filename)
 
 @app.route('/uploads/promo/<path:filename>')
 @login_required
 def serve_promo_file(filename):
     """Serve immagini promo standard"""
-    return safe_send_file(app.config["UPLOAD_FOLDER_PROMO"], filename)
+    folder = app.config.get("UPLOAD_FOLDER_PROMO")
+    return safe_send_file(folder, filename)
 
 @app.route('/uploads/promolampo/<path:filename>')
 @login_required
 def serve_promolampo_file(filename):
     """Serve immagini promo lampo"""
-    return safe_send_file(app.config["UPLOAD_FOLDER_PROMOLAMPO"], filename)
+    folder = app.config.get("UPLOAD_FOLDER_PROMOLAMPO")
+    return safe_send_file(folder, filename)
 
 # ============================
 # LISTA VOLANTINI
