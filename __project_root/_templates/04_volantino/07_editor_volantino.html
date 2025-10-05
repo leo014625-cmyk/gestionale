@@ -64,8 +64,9 @@ document.addEventListener("DOMContentLoaded", function () {
   canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
   {% endif %}
 
-  // --- Prodotti e layout ---
-  const volantinoProdotti = JSON.parse('{{ volantino["layout_json"]|tojson|safe }}').objects || [];
+  // --- Layout salvato ---
+  const volantinoLayout = {{ volantino["layout_json"]|safe }};
+  const objects = volantinoLayout.objects || [];
 
   let gridScale = parseInt(document.getElementById("zoomGrid").value)/100;
   let boxScale = parseInt(document.getElementById("zoomBox").value)/100;
@@ -85,7 +86,8 @@ document.addEventListener("DOMContentLoaded", function () {
     canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
     {% endif %}
 
-    volantinoProdotti.forEach(obj => {
+    // --- Disegna prodotti ---
+    objects.forEach(obj => {
       const metadata = obj.metadata || {};
       const url = metadata.url || "{{ url_for('static', filename='no-image.png') }}";
 
@@ -170,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function () {
             fontSize: obj.fontSize,
             fill: obj.fill || "#000"
           })),
-          metadata: volantinoProdotti.find(vp => vp.metadata && vp.metadata.nome === group._objects[1].text)?.metadata || {}
+          metadata: objects.find(vp => vp.metadata && vp.metadata.nome === group._objects[1].text)?.metadata || {}
         };
       }
     }).filter(x => x);
