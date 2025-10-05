@@ -24,7 +24,7 @@
     <input type="range" id="zoomBox" class="form-range" min="50" max="200" value="109">
   </div>
 
-  <!-- 🔹 Controlli posizione griglia -->
+  <!-- Controlli posizione griglia -->
   <div class="mb-4 d-flex gap-3 align-items-center flex-wrap">
     <div>
       <label for="gridPosX" class="form-label">📍 Posizione X:</label>
@@ -76,7 +76,15 @@ document.addEventListener("DOMContentLoaded", function () {
     {% endfor %}
   ];
 
-  // 🔹 (tutto il resto del JS rimane uguale: creaProdotto, buildGrid, zoom, reset, salva, download ecc.)
+  // 🔹 Funzioni principali da implementare:
+  // 1. creaProdotto(url, nome, prezzo, x, y)
+  // 2. buildGrid()
+  // 3. gestione zoom griglia e box
+  // 4. reset canvas
+  // 5. salva layout via fetch POST
+  // 6. download PNG e PDF
+
+  // Nota: Puoi importare il codice già esistente per creare e posizionare prodotti
 });
 </script>
 {% endblock %}
