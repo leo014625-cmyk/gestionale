@@ -1265,6 +1265,69 @@ def aggiorna_fatturati():
         except Exception as e:
             return jsonify(success=False, message=str(e)), 500
 
+from flask import send_from_directory
+
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/volantini/carica", methods=["POST"])
+def carica_volantino():
+    if "file" not in request.files:
+        return jsonify({"success": False, "message": "Nessun file selezionato"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"success": False, "message": "File senza nome"}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        save_path = os.path.join(app.config["UPLOAD_FOLDER_VOLANTINI"], filename)
+        file.save(save_path)
+        print(f"✅ Volantino salvato in: {save_path}")
+
+        # Genera l'URL accessibile dal browser
+        file_url = url_for("serve_volantino", filename=filename)
+        return jsonify({"success": True, "url": file_url})
+    else:
+        return jsonify({"success": False, "message": "Formato file non consentito"}), 400
+
+# ============================
+# SERVE FILE DALL'INSTANCE (persistente)
+# ============================
+from flask import send_from_directory, abort
+import os
+
+def safe_send_file(folder, filename):
+    file_path = os.path.join(folder, filename)
+    if not os.path.exists(file_path):
+        abort(404, description=f"File '{filename}' non trovato")
+    return send_from_directory(folder, filename, conditional=True)
+
+@app.route('/uploads/volantini/<path:filename>')
+@login_required
+def serve_volantino_file(filename):
+    """Serve immagini dei volantini"""
+    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI"], filename)
+
+@app.route('/uploads/volantino_prodotti/<path:filename>')
+@login_required
+def serve_prodotto_file(filename):
+    """Serve immagini dei prodotti dei volantini"""
+    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"], filename)
+
+@app.route('/uploads/promo/<path:filename>')
+@login_required
+def serve_promo_file(filename):
+    """Serve immagini promo standard"""
+    return safe_send_file(app.config["UPLOAD_FOLDER_PROMO"], filename)
+
+@app.route('/uploads/promolampo/<path:filename>')
+@login_required
+def serve_promolampo_file(filename):
+    """Serve immagini promo lampo"""
+    return safe_send_file(app.config["UPLOAD_FOLDER_PROMOLAMPO"], filename)
 
 # ============================
 # LISTA VOLANTINI
@@ -2130,38 +2193,6 @@ def salva_layout_volantino(volantino_id):
         cur.close()
         conn.close()
 
-
-# ============================
-# SERVE FILE DALL'INSTANCE (persistente)
-# ============================
-from flask import send_from_directory, abort
-import os
-
-def safe_send_file(folder, filename):
-    file_path = os.path.join(folder, filename)
-    if not os.path.exists(file_path):
-        abort(404, description="File non trovato")
-    return send_from_directory(folder, filename, conditional=True)
-
-@app.route('/uploads/volantini/<path:filename>')
-@login_required
-def serve_volantino_file(filename):
-    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI"], filename)
-
-@app.route('/uploads/volantino_prodotti/<path:filename>')
-@login_required
-def serve_prodotto_file(filename):
-    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"], filename)
-
-@app.route('/uploads/promo/<path:filename>')
-@login_required
-def serve_promo_file(filename):
-    return safe_send_file(app.config["UPLOAD_FOLDER_PROMO"], filename)
-
-@app.route('/uploads/promolampo/<path:filename>')
-@login_required
-def serve_promolampo_file(filename):
-    return safe_send_file(app.config["UPLOAD_FOLDER_PROMOLAMPO"], filename)
 
 
 # ============================
