@@ -43,7 +43,6 @@
     <!-- Gestione prodotti -->
     <h4>🛒 Prodotti nel Volantino</h4>
 
-    <!-- Aggiunta manuale + prodotti consigliati -->
     <div class="mb-3 d-flex gap-2">
         <a href="{{ url_for('aggiungi_prodotto_volantino', volantino_id=volantino['id']) }}" 
            class="btn btn-success">➕ Aggiungi Prodotto Manualmente</a>
@@ -53,16 +52,13 @@
         </button>
     </div>
 
-    <!-- Griglia prodotti: 3x3, 9 slot fissi -->
+    <!-- Griglia prodotti 3x3 -->
     <div id="grigliaProdotti" class="row row-cols-3 g-3">
         {% set max_slots = 9 %}
         {% for i in range(max_slots) %}
             {% set prodotto = prodotti[i] if i < prodotti|length else None %}
             <div class="col">
-                <div class="card shadow-sm text-center h-100"
-                     style="padding:3px; border:1px solid #ddd;">
-
-                    <!-- Immagine -->
+                <div class="card shadow-sm text-center h-100" style="padding:3px; border:1px solid #ddd;">
                     <div style="flex:1; display:flex; align-items:center; justify-content:center; height:100px; overflow:hidden;">
                         {% if prodotto and prodotto['immagine'] %}
                             <img src="{{ url_for('static', filename='uploads/volantino_prodotti/' ~ prodotto['immagine']) }}"
@@ -74,23 +70,16 @@
                                  style="max-width:130px; max-height:100px; object-fit:contain; opacity:0.4;">
                         {% endif %}
                     </div>
-
-                    <!-- Nome -->
                     <div style="text-align:center; font-size:12px; margin-top:3px; color:black; min-height:18px;">
                         {% if prodotto %}{{ prodotto['nome'] }}{% else %}<em>Vuoto</em>{% endif %}
                     </div>
-
-                    <!-- Prezzo -->
                     <div style="text-align:center; font-size:14px; font-weight:bold; color:{% if prodotto %}{{ prodotto['colore_prezzo']|default('red') }}{% else %}gray{% endif %}; margin-top:2px;">
                         {% if prodotto %}€ {{ "%.2f"|format(prodotto['prezzo']) }}{% endif %}
                     </div>
-
-                    <!-- Pulsanti azione -->
                     <div class="d-flex justify-content-center gap-2 mt-1">
                         {% if prodotto %}
                         <a href="{{ url_for('modifica_prodotto_volantino', prodotto_id=prodotto['id']) }}"
                            class="btn btn-warning btn-sm" title="Modifica">✏️</a>
-
                         <button type="button" class="btn btn-danger btn-sm rimuoviProdotto" title="Rimuovi">🗑</button>
                         {% endif %}
                     </div>
@@ -109,8 +98,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
-
-        <!-- 🔍 Barra di ricerca -->
         <div class="mb-3">
           <input type="text" id="searchProdottiConsigliati" class="form-control"
                  placeholder="🔍 Cerca prodotto per nome...">
@@ -148,31 +135,26 @@
   </div>
 </div>
 
-<!-- SCRIPT -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchProdottiConsigliati');
     const prodottiCards = document.querySelectorAll('.prodotto-consigliato');
 
     // Ricerca
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.toLowerCase().trim();
-            prodottiCards.forEach(card => {
-                const nome = card.getAttribute('data-nome');
-                card.style.display = nome.includes(query) ? '' : 'none';
-            });
+    searchInput?.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase().trim();
+        prodottiCards.forEach(card => {
+            card.style.display = card.dataset.nome.includes(query) ? '' : 'none';
         });
-    }
+    });
 
-    // Aggiungi consigliato
+    // Aggiungi prodotto consigliato
     document.querySelectorAll('.aggiungiConsigliato').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
             const nome = btn.dataset.nome;
             const img = btn.dataset.immagine;
-            const prezzoInput = btn.previousElementSibling;
-            const prezzo = parseFloat(prezzoInput.value).toFixed(2);
+            const prezzo = parseFloat(btn.previousElementSibling.value).toFixed(2);
 
             const res = await fetch(`/volantini/{{ volantino['id'] }}/aggiungi_consigliato`, {
                 method: "POST",
@@ -180,61 +162,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ id, prezzo })
             });
             const data = await res.json();
-            if (data.status !== "ok") {
-                alert("❌ Errore: " + data.msg);
-                return;
-            }
+            if (data.status !== "ok") { alert("❌ " + data.msg); return; }
 
-            // Trova slot vuoto
             const slots = Array.from(document.querySelectorAll('#grigliaProdotti .col'));
-            const slot = slots.find((c, index) => index < 9 && c.querySelector('img[alt="Vuoto"]'));
-            if (!slot) { alert('❌ Tutti i 9 slot sono già occupati!'); return; }
+            const slot = slots.find(c => c.querySelector('img[alt="Vuoto"]'));
+            if (!slot) { alert('❌ Tutti i 9 slot sono occupati!'); return; }
 
-            // Aggiorna visivamente
             slot.querySelector('img').src = `/static/uploads/volantino_prodotti/${img}`;
             slot.querySelector('img').alt = nome;
             slot.querySelector('div:nth-child(2)').textContent = nome;
             slot.querySelector('div:nth-child(3)').textContent = `€ ${prezzo}`;
-
-            let actionsDiv = slot.querySelector('.d-flex');
-            if (!actionsDiv) {
-                actionsDiv = document.createElement('div');
-                actionsDiv.className = 'd-flex justify-content-center gap-2 mt-1';
-                slot.querySelector('.card').appendChild(actionsDiv);
-            }
+            const actionsDiv = slot.querySelector('.d-flex');
             actionsDiv.innerHTML = `
-                <a href="/volantini/prodotto/modifica/${data.id}" 
-                   class="btn btn-warning btn-sm" title="Modifica">✏️</a>
+                <a href="/volantini/prodotto/modifica/${data.id}" class="btn btn-warning btn-sm" title="Modifica">✏️</a>
                 <button type="button" class="btn btn-danger btn-sm rimuoviProdotto" title="Rimuovi">🗑</button>
             `;
-
-            actionsDiv.querySelector('button').addEventListener('click', async () => {
-                if (!confirm('Vuoi rimuovere questo prodotto dal volantino?')) return;
-                const res = await fetch(`/volantini/prodotto/elimina/${data.id}`, { method: 'POST' });
-                const result = await res.json();
-                if (result.status === "ok") {
-                    // reset slot
-                    slot.querySelector('img').src = `/static/no-image.png`;
-                    slot.querySelector('img').alt = 'Vuoto';
-                    slot.querySelector('div:nth-child(2)').innerHTML = '<em>Vuoto</em>';
-                    slot.querySelector('div:nth-child(3)').textContent = '';
-                    actionsDiv.innerHTML = '';
-                } else {
-                    alert('Errore: ' + result.msg);
-                }
-            });
+            actionsDiv.querySelector('button').addEventListener('click', () => location.reload());
         });
     });
 
-    // Elimina manuale slot esistente
+    // Rimuovi prodotto manuale
     document.querySelectorAll('.rimuoviProdotto').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const slot = e.target.closest('.col');
             const link = slot.querySelector('a');
             if (!link) return;
             const id = link.href.split('/').pop();
+            if (!confirm('Vuoi rimuovere questo prodotto?')) return;
 
-            if (!confirm('Vuoi rimuovere questo prodotto dal volantino?')) return;
             const res = await fetch(`/volantini/prodotto/elimina/${id}`, { method: 'POST' });
             const result = await res.json();
             if (result.status === "ok") {
@@ -243,14 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 slot.querySelector('div:nth-child(2)').innerHTML = '<em>Vuoto</em>';
                 slot.querySelector('div:nth-child(3)').textContent = '';
                 slot.querySelector('.d-flex').innerHTML = '';
-            } else {
-                alert('Errore: ' + result.msg);
-            }
+            } else alert('Errore: ' + result.msg);
         });
     });
-
 });
 </script>
 
 {% endblock %}
-
