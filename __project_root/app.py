@@ -311,7 +311,6 @@ def index():
         cur.execute('SELECT id, nome FROM clienti')
         clienti_rows = cur.fetchall()
         clienti_bloccati_dettaglio = []
-        clienti_bloccati_inattivi_dettaglio = []
         clienti_attivi_dettaglio = []
         clienti_inattivi_dettaglio = []
 
@@ -338,20 +337,15 @@ def index():
 
             # Determina stato cliente
             if totale_corrente > 0:
-                stato = 'attivo'
                 clienti_attivi_dettaglio.append({'nome': cliente['nome']})
             elif totale_prec == 0 and totale_due_mesi_fa == 0:
-                stato = 'inattivo'
                 clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
             else:
-                stato = 'bloccato'
                 clienti_bloccati_dettaglio.append({'nome': cliente['nome']})
 
-            if stato in ('bloccato', 'inattivo'):
-                clienti_bloccati_inattivi_dettaglio.append({'nome': cliente['nome'], 'stato': stato})
-
         clienti_bloccati = len(clienti_bloccati_dettaglio)
-        clienti_bloccati_inattivi = len(clienti_bloccati_inattivi_dettaglio)
+        clienti_inattivi = len(clienti_inattivi_dettaglio)
+        clienti_attivi = len(clienti_attivi_dettaglio)
 
         # Prodotti inseriti
         cur.execute('''
@@ -391,31 +385,35 @@ def index():
         fatturato_mensile_rows = cur.fetchall()
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": r['totale'] for r in reversed(fatturato_mensile_rows)}
 
-        # 🔔 Notifiche dinamiche basate su stato clienti
-        # Solo notifiche non lette
-        cur.execute('SELECT * FROM notifiche WHERE letto = FALSE ORDER BY data DESC')
-        notifiche_rows = cur.fetchall()
+        # 🔔 Notifiche dinamiche generate senza tabella "notifiche"
         notifiche = []
-        for n in notifiche_rows:
-            if n['tipo'] == 'secondary':
-                notifiche.append({
-                    'id': n['id'],
-                    'titolo': n['titolo'],
-                    'descrizione': n['descrizione'],
-                    'data': n['data'],
-                    'tipo': n['tipo'],
-                    'clienti': clienti_inattivi_dettaglio
-                })
-            else:
-                notifiche.append({
-                    'id': n['id'],
-                    'titolo': n['titolo'],
-                    'descrizione': n['descrizione'],
-                    'data': n['data'],
-                    'tipo': n['tipo'],
-                    'clienti_attivi': clienti_attivi_dettaglio,
-                    'clienti_bloccati': clienti_bloccati_dettaglio
-                })
+
+        if clienti_attivi_dettaglio or clienti_bloccati_dettaglio:
+            notifiche.append({
+                'titolo': "Aggiorna Fatturato",
+                'descrizione': "Ricorda di aggiornare il fatturato dei clienti attivi o bloccati questo mese.",
+                'data': datetime.now(),
+                'tipo': "warning",
+                'clienti_attivi': clienti_attivi_dettaglio,
+                'clienti_bloccati': clienti_bloccati_dettaglio
+            })
+            notifiche.append({
+                'titolo': "Controlla Prodotti",
+                'descrizione': "Verifica i prodotti dei clienti attivi o bloccati.",
+                'data': datetime.now(),
+                'tipo': "info",
+                'clienti_attivi': clienti_attivi_dettaglio,
+                'clienti_bloccati': clienti_bloccati_dettaglio
+            })
+
+        if clienti_inattivi_dettaglio:
+            notifiche.append({
+                'titolo': "Clienti inattivi",
+                'descrizione': "Verifica eventuali aggiornamenti sui clienti inattivi.",
+                'data': datetime.now(),
+                'tipo': "secondary",
+                'clienti': clienti_inattivi_dettaglio
+            })
 
     return render_template(
         '02_index.html',
@@ -424,8 +422,6 @@ def index():
         clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
         clienti_bloccati=clienti_bloccati,
         clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
-        clienti_bloccati_inattivi=clienti_bloccati_inattivi,
-        clienti_bloccati_inattivi_dettaglio=clienti_bloccati_inattivi_dettaglio,
         clienti_attivi_dettaglio=clienti_attivi_dettaglio,
         clienti_inattivi_dettaglio=clienti_inattivi_dettaglio,
         prodotti_totali_mese=prodotti_totali_mese,
