@@ -18,7 +18,7 @@
         <div class="mb-3">
             <label for="sfondo" class="form-label">🖼 Sfondo Volantino</label><br>
             {% if volantino['sfondo'] %}
-                <img src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}"
+                <img src="{{ url_for('serve_volantino_file', filename=volantino['sfondo']) }}"
                      alt="Sfondo attuale"
                      class="img-thumbnail mb-2"
                      style="max-height: 200px;">
@@ -61,7 +61,7 @@
                 <div class="card shadow-sm text-center h-100" style="padding:3px; border:1px solid #ddd;">
                     <div style="flex:1; display:flex; align-items:center; justify-content:center; height:100px; overflow:hidden;">
                         {% if prodotto and prodotto['immagine'] %}
-                            <img src="{{ url_for('static', filename='uploads/volantino_prodotti/' ~ prodotto['immagine']) }}"
+                            <img src="{{ url_for('serve_prodotto_file', filename=prodotto['immagine']) }}"
                                  alt="{{ prodotto['nome'] }}"
                                  style="max-width:130px; max-height:100px; object-fit:contain;">
                         {% else %}
@@ -108,7 +108,7 @@
                 {% for p in prodotti_precedenti %}
                     <div class="col prodotto-consigliato" data-nome="{{ p['nome']|lower }}">
                         <div class="card h-100 text-center p-2 shadow-sm">
-                            <img src="{{ url_for('static', filename='uploads/volantino_prodotti/' ~ p['immagine']) }}"
+                            <img src="{{ url_for('serve_prodotto_file', filename=p['immagine']) }}"
                                  class="img-fluid mb-2"
                                  style="max-height:100px; object-fit:contain;">
                             <div class="fw-bold">{{ p['nome'] }}</div>
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const slot = slots.find(c => c.querySelector('img[alt="Vuoto"]'));
             if (!slot) { alert('❌ Tutti i 9 slot sono occupati!'); return; }
 
-            slot.querySelector('img').src = `/static/uploads/volantino_prodotti/${img}`;
+            slot.querySelector('img').src = `/uploads/volantino_prodotti/${img}`;
             slot.querySelector('img').alt = nome;
             slot.querySelector('div:nth-child(2)').textContent = nome;
             slot.querySelector('div:nth-child(3)').textContent = `€ ${prezzo}`;
