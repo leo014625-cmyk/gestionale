@@ -3,7 +3,21 @@
 {% block title %}Home - Gestionale Horeca{% endblock %}
 
 {% block content %}
-<div class="text-center py-5">
+<div class="text-center py-5 position-relative">
+
+  <!-- Centro Notifiche -->
+  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+    <button type="button" class="btn btn-outline-primary position-relative" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche" aria-controls="offcanvasNotifiche">
+      <i class="bi bi-bell-fill fs-4"></i>
+      {% if notifiche|length > 0 %}
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger blink">
+        {{ notifiche|length }}
+        <span class="visually-hidden">nuove notifiche</span>
+      </span>
+      {% endif %}
+    </button>
+  </div>
+
   <h1 class="display-4 fw-bold mb-3">Bentornato Leonardo</h1>
   <p class="lead mb-5">Gestisci i tuoi clienti, prodotti e fatturato con facilità e rapidità.</p>
 
@@ -90,148 +104,41 @@
   </div>
 </div>
 
-<!-- MODALI -->
-{% macro render_lista_clienti(lista, campo_data=None, stato=None) %}
-  {% if lista %}
-    <hr>
-    <ul class="list-group text-start">
-      {% for cliente in lista %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          {{ cliente.nome }}
-          {% if campo_data %}
-            <span class="badge bg-primary rounded-pill">{{ cliente[campo_data].strftime("%d/%m/%Y") }}</span>
-          {% elif stato %}
-            {% if cliente[stato] == 'bloccato' %}
-              <span class="badge bg-danger rounded-pill">{{ cliente[stato] }}</span>
-            {% elif cliente[stato] == 'inattivo' %}
-              <span class="badge bg-warning rounded-pill">{{ cliente[stato] }}</span>
-            {% else %}
-              <span class="badge bg-secondary rounded-pill">{{ cliente[stato] }}</span>
-            {% endif %}
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="text-muted mt-3">Nessun dettaglio disponibile.</p>
-  {% endif %}
-{% endmacro %}
-
-<!-- Modal Fatturato -->
-<div class="modal fade" id="modalFatturato" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Dettaglio Variazione Fatturato</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        {% if variazione_fatturato is not none %}
-          <p>L’andamento del fatturato rispetto al mese precedente è:</p>
-          <h3 class="{{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
-            {{ "%.2f"|format(variazione_fatturato) }}%
-          </h3>
-        {% else %}
-          <p class="text-muted">Dati non disponibili</p>
-        {% endif %}
-      </div>
-    </div>
+<!-- Offcanvas Notifiche -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNotifiche" aria-labelledby="offcanvasNotificheLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="offcanvasNotificheLabel">Centro Notifiche</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    {% if notifiche %}
+      <ul class="list-group list-group-flush">
+        {% for notifica in notifiche %}
+          <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto">
+              <div class="fw-bold">{{ notifica.titolo }}</div>
+              <small class="text-muted">{{ notifica.descrizione }}</small>
+            </div>
+            <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">{{ notifica.data.strftime("%d/%m/%Y") }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">Nessuna notifica disponibile.</p>
+    {% endif %}
   </div>
 </div>
 
-<!-- Modal Clienti Nuovi -->
-<div class="modal fade" id="modalClientiNuovi" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Clienti Nuovi (Ultimo Mese)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p>Nell’ultimo mese sono stati aggiunti: <h3 class="text-success">{{ clienti_nuovi or 0 }}</h3></p>
-        {{ render_lista_clienti(clienti_nuovi_dettaglio, campo_data='data_registrazione') }}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Clienti Bloccati -->
-<div class="modal fade" id="modalClientiBloccati" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Clienti Bloccati (Ultimo Mese)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p>Totale bloccati: <h3 class="text-danger">{{ clienti_bloccati or 0 }}</h3></p>
-        {{ render_lista_clienti(clienti_bloccati_dettaglio, stato='stato') }}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Clienti Inattivi -->
-<div class="modal fade" id="modalClientiInattivi" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Clienti Bloccati + Inattivi</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p>Totale: <h3 class="text-danger">{{ clienti_bloccati_inattivi or 0 }}</h3></p>
-        {{ render_lista_clienti(clienti_bloccati_inattivi_dettaglio, stato='stato') }}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Prodotti Totali -->
-<div class="modal fade" id="modalProdottiTotali" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Prodotti Totali Inseriti (Ultimo Mese)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p>Numero totale: <strong>{{ prodotti_totali_mese or 0 }}</strong></p>
-        {% if prodotti_inseriti %}
-          <ul class="list-group text-start">
-            {% for item in prodotti_inseriti %}
-              <li class="list-group-item">
-                <strong>{{ item.cliente }}</strong>  
-                <span class="text-muted">ha iniziato a lavorare:</span>  
-                <span class="badge bg-success ms-2">{{ item.prodotto }}</span>
-                <small class="text-muted ms-2">{{ item.data_operazione.strftime("%d/%m/%Y") }}</small>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mt-3">Nessun prodotto inserito disponibile.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Prodotti Rimossi -->
-<div class="modal fade" id="modalProdottiRimossi" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Prodotti Rimossi (Ultimo Mese)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p>Totale prodotti rimossi: <strong>{{ prodotti_rimossi_mese or 0 }}</strong></p>
-        {% if prodotti_rimossi %}
-          <ul class="list-group text-start">
-            {% for item in prodotti_rimossi %}
-              <li class="list-group-item">
-                <strong>{{ item.cliente }}</strong>  
-                <span class="text-muted">ha smesso di lavorare:</span>  
-                <span class="badge bg-danger ms-2">{{ item.prodotto }}</span>
-                <small class="text-muted ms-2">{{ item.data_operazione.strftime("%d/%m/%Y") }}</small>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mt-3">Nessun prodotto rimosso disponibile.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Stile badge lampeggiante -->
+<style>
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+.blink {
+  animation: blink 1.2s infinite;
+}
+</style>
 
 <!-- Grafico -->
 {% if fatturato_mensile is defined %}
