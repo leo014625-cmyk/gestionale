@@ -1363,13 +1363,7 @@ def elimina_volantino(volantino_id):
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        # 🔹 Elimina sfondo
-        if volantino["sfondo"]:
-            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
-            if os.path.exists(sfondo_path):
-                os.remove(sfondo_path)
-
-        # 🔹 Elimina immagini prodotti collegati
+        # 🔹 Elimina immagini prodotti collegati dal filesystem
         cur.execute("SELECT immagine FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
         prodotti = cur.fetchall()
         for prod in prodotti:
@@ -1378,9 +1372,17 @@ def elimina_volantino(volantino_id):
                 if os.path.exists(img_path):
                     os.remove(img_path)
 
-        # 🔹 Elimina volantino e prodotti dal DB
-        cur.execute("DELETE FROM volantini WHERE id = %s", (volantino_id,))
+        # 🔹 Elimina prodotti dal DB prima del volantino
         cur.execute("DELETE FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
+
+        # 🔹 Elimina sfondo del volantino dal filesystem
+        if volantino["sfondo"]:
+            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
+            if os.path.exists(sfondo_path):
+                os.remove(sfondo_path)
+
+        # 🔹 Elimina volantino dal DB
+        cur.execute("DELETE FROM volantini WHERE id = %s", (volantino_id,))
         conn.commit()
         flash("✅ Volantino eliminato con successo!", "success")
     finally:
@@ -1388,7 +1390,6 @@ def elimina_volantino(volantino_id):
         conn.close()
 
     return redirect(url_for("lista_volantini"))
-
 
 # ============================
 # MODIFICA VOLANTINO
