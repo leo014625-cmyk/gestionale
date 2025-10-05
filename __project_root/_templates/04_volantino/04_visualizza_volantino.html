@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", function () {
     canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
     {% endif %}
 
-    // --- Funzione per aggiungere un prodotto (200×230 box) ---
+    // --- Funzione per aggiungere un prodotto ---
     function aggiungiProdotto(url, nome, prezzo, x, y, colorePrezzo="red") {
         const elements = [];
 
@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", function () {
         {% endfor %}
     ];
 
-    // --- Carica layout salvato oppure fallback griglia ---
+    // --- Carica layout salvato o fallback griglia ---
     const savedLayout = {{ volantino['layout_json']|safe }};
     if (savedLayout && savedLayout.objects && savedLayout.objects.length > 0) {
         canvas.loadFromJSON(savedLayout, function() {
