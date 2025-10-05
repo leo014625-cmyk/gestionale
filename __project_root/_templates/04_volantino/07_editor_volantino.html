@@ -76,7 +76,6 @@ document.addEventListener("DOMContentLoaded", function () {
     {% endfor %}
   ];
 
-  // --- Funzione crea prodotto ---
   function creaProdotto(p, x, y, scale=1) {
     fabric.Image.fromURL(p.url, function(img) {
       img.set({ left: x, top: y, width: 200*scale, height: 240*scale });
@@ -110,7 +109,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function buildGrid() {
     canvas.clear();
-    // Sfondo
     {% if volantino['sfondo_url'] %}
     fabric.Image.fromURL("{{ volantino['sfondo_url'] }}", function(img) {
       img.scaleToWidth(canvas.getWidth());
@@ -133,7 +131,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   buildGrid();
 
-  // --- Gestione zoom griglia ---
+  // --- Gestione zoom ---
   document.getElementById("zoomGrid").addEventListener("input", function() {
     gridScale = this.value/100;
     document.getElementById("zoomGridValue").innerText = this.value + "%";
@@ -146,7 +144,6 @@ document.addEventListener("DOMContentLoaded", function () {
     buildGrid();
   });
 
-  // --- Gestione posizione griglia ---
   document.getElementById("gridPosX").addEventListener("input", function() {
     startX = parseInt(this.value);
     buildGrid();
