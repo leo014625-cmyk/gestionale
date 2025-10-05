@@ -28,11 +28,11 @@
   <div class="mb-4 d-flex gap-3 align-items-center flex-wrap">
     <div>
       <label for="gridPosX" class="form-label">📍 Posizione X:</label>
-      <input type="number" id="gridPosX" class="form-control" value="180" step="5">
+      <input type="number" id="gridPosX" class="form-control" value="50" step="5">
     </div>
     <div>
       <label for="gridPosY" class="form-label">📍 Posizione Y:</label>
-      <input type="number" id="gridPosY" class="form-control" value="390" step="5">
+      <input type="number" id="gridPosY" class="form-control" value="50" step="5">
     </div>
   </div>
 
@@ -76,31 +76,150 @@ document.addEventListener("DOMContentLoaded", function () {
     {% endfor %}
   ];
 
-  // 🔹 Funzione di creazione prodotto su canvas
-  function creaProdotto(p, x, y) {
+  // --- Funzione crea prodotto ---
+  function creaProdotto(p, x, y, scale=1) {
     fabric.Image.fromURL(p.url, function(img) {
-      img.set({ left: x, top: y, width: 200, height: 240 });
-      const nomeText = new fabric.Text(p.nome, { left: x+100, top: y+190, fontSize: 14, originX: "center", textAlign: "center" });
-      const prezzoText = new fabric.Text(p.prezzo ? `€ ${p.prezzo}` : "", { left: x+100, top: y+215, fontSize: 18, fill: "red", originX: "center", textAlign: "center" });
+      img.set({ left: x, top: y, width: 200*scale, height: 240*scale });
+      const nomeText = new fabric.Text(p.nome, {
+        left: x + 100*scale,
+        top: y + 190*scale,
+        fontSize: 14*scale,
+        originX: "center",
+        textAlign: "center"
+      });
+      const prezzoText = new fabric.Text(p.prezzo ? `€ ${p.prezzo}` : "", {
+        left: x + 100*scale,
+        top: y + 215*scale,
+        fontSize: 18*scale,
+        fill: "red",
+        originX: "center",
+        textAlign: "center"
+      });
       const group = new fabric.Group([img, nomeText, prezzoText], { left: x, top: y });
       canvas.add(group);
     }, { crossOrigin: "anonymous" });
   }
 
   // --- Costruisci griglia prodotti ---
-  const cols = 3, rows = 3;
-  const startX = 50, startY = 50, gapX = 250, gapY = 280;
-  for (let i = 0; i < cols*rows; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = startX + col * gapX;
-    const y = startY + row * gapY;
-    if (volantinoProdotti[i]) {
-      creaProdotto(volantinoProdotti[i], x, y);
+  let cols = 3, rows = 3;
+  let startX = parseInt(document.getElementById("gridPosX").value);
+  let startY = parseInt(document.getElementById("gridPosY").value);
+  let gapX = 250, gapY = 280;
+  let boxScale = parseInt(document.getElementById("zoomBox").value)/100;
+  let gridScale = parseInt(document.getElementById("zoomGrid").value)/100;
+
+  function buildGrid() {
+    canvas.clear();
+    // Sfondo
+    {% if volantino['sfondo_url'] %}
+    fabric.Image.fromURL("{{ volantino['sfondo_url'] }}", function(img) {
+      img.scaleToWidth(canvas.getWidth());
+      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+    }, { crossOrigin: "anonymous" });
+    {% else %}
+    canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
+    {% endif %}
+
+    for (let i = 0; i < cols*rows; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * gapX * gridScale;
+      const y = startY + row * gapY * gridScale;
+      if (volantinoProdotti[i]) {
+        creaProdotto(volantinoProdotti[i], x, y, boxScale);
+      }
     }
   }
 
-  // 🔹 TODO: gestione zoom griglia e box, reset canvas, salva layout via fetch, download PNG/PDF
+  buildGrid();
+
+  // --- Gestione zoom griglia ---
+  document.getElementById("zoomGrid").addEventListener("input", function() {
+    gridScale = this.value/100;
+    document.getElementById("zoomGridValue").innerText = this.value + "%";
+    buildGrid();
+  });
+
+  document.getElementById("zoomBox").addEventListener("input", function() {
+    boxScale = this.value/100;
+    document.getElementById("zoomBoxValue").innerText = this.value + "%";
+    buildGrid();
+  });
+
+  // --- Gestione posizione griglia ---
+  document.getElementById("gridPosX").addEventListener("input", function() {
+    startX = parseInt(this.value);
+    buildGrid();
+  });
+  document.getElementById("gridPosY").addEventListener("input", function() {
+    startY = parseInt(this.value);
+    buildGrid();
+  });
+
+  // --- Reset canvas ---
+  document.getElementById("resetCanvas").addEventListener("click", function() {
+    document.getElementById("zoomGrid").value = 75;
+    document.getElementById("zoomBox").value = 109;
+    document.getElementById("gridPosX").value = 50;
+    document.getElementById("gridPosY").value = 50;
+    gridScale = 0.75;
+    boxScale = 1.09;
+    startX = 50;
+    startY = 50;
+    buildGrid();
+  });
+
+  // --- Salva layout ---
+  document.getElementById("salvaCanvas").addEventListener("click", function() {
+    const layout = [];
+    canvas.getObjects().forEach(group => {
+      if (group.type === "group") {
+        layout.push({
+          left: group.left,
+          top: group.top,
+          width: group.width * group.scaleX,
+          height: group.height * group.scaleY,
+          objects: group._objects.map(obj => ({
+            type: obj.type,
+            text: obj.text || "",
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill || "#000"
+          }))
+        });
+      }
+    });
+
+    fetch("/volantini/{{ volantino['id'] }}/salva_layout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout: layout })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) alert(data.message);
+      else alert("Errore: " + data.message);
+    });
+  });
+
+  // --- Download PNG ---
+  document.getElementById("downloadPng").addEventListener("click", function() {
+    const dataURL = canvas.toDataURL({ format: "png" });
+    const link = document.createElement("a");
+    link.href = dataURL;
+    link.download = "volantino.png";
+    link.click();
+  });
+
+  // --- Download PDF ---
+  document.getElementById("downloadPdf").addEventListener("click", function() {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save("volantino.pdf");
+  });
+
 });
 </script>
 {% endblock %}
