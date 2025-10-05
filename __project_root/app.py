@@ -1935,7 +1935,6 @@ def visualizza_volantino(volantino_id):
         cur.close()
         conn.close()
 
-
 # ============================
 # EDITOR VOLANTINO
 # ============================
@@ -1986,7 +1985,7 @@ def editor_volantino(volantino_id):
 
                 prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
 
-                # Usa route corretta per immagine prodotto
+                # 🔹 Usa route corretta per immagine prodotto
                 if prodotto.get("immagine"):
                     immagine_url = url_for(
                         "serve_prodotto_file", filename=prodotto["immagine"]
@@ -1997,10 +1996,9 @@ def editor_volantino(volantino_id):
                 grid.append({
                     "type": "group",
                     "objects": [
-                        {"type": "rect", "left": 0, "top": 0,
-                         "width": 200, "height": 240,
-                         "fill": "#ffffff", "stroke": "#cccccc",
-                         "strokeWidth": 1},
+                        {"type": "image", "src": immagine_url,
+                         "left": 0, "top": 0,
+                         "width": 200, "height": 240},
                         {"type": "text", "text": prodotto.get("nome", ""),
                          "left": 100, "top": 190,
                          "fontSize": 14, "originX": "center",
@@ -2033,6 +2031,21 @@ def editor_volantino(volantino_id):
                 layout = json.loads(volantino_dict["layout_json"])
                 if isinstance(layout, list):
                     layout = {"objects": layout}
+                # Aggiorna URL immagini prodotti presenti nel layout
+                for obj in layout.get("objects", []):
+                    metadata = obj.get("metadata", {})
+                    if metadata.get("id"):
+                        cur.execute("""
+                            SELECT immagine FROM volantino_prodotti 
+                            WHERE id=%s
+                        """, (metadata["id"],))
+                        img_row = cur.fetchone()
+                        if img_row and img_row.get("immagine"):
+                            metadata["url"] = url_for(
+                                "serve_prodotto_file", filename=img_row["immagine"]
+                            )
+                        else:
+                            metadata["url"] = url_for("static", filename="no-image.png")
                 volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
             except Exception:
                 volantino_dict["layout_json"] = json.dumps({"objects": []}, ensure_ascii=False)
@@ -2047,6 +2060,7 @@ def editor_volantino(volantino_id):
     finally:
         cur.close()
         conn.close()
+
 
 # ============================
 # SALVA LAYOUT VOLANTINO
