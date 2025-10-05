@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const volantinoProdotti = [
     {% for p in volantino_prodotti %}
     {
-      url: "{% if p['immagine'] %}{{ url_for('serve_prodotto_file', filename=p['immagine']) }}{% else %}{{ url_for('static', filename='no-image.png') }}{% endif %}",
+      url: "{{ p['immagine_url'] }}",
       nome: "{{ p['nome']|e }}",
       prezzo: "{{ '%.2f'|format(p['prezzo']) if p['prezzo'] is not none else '' }}",
       lasciaVuota: {{ 1 if p['lascia_vuota'] else 0 }}
@@ -76,15 +76,31 @@ document.addEventListener("DOMContentLoaded", function () {
     {% endfor %}
   ];
 
-  // 🔹 Funzioni principali da implementare:
-  // 1. creaProdotto(url, nome, prezzo, x, y)
-  // 2. buildGrid()
-  // 3. gestione zoom griglia e box
-  // 4. reset canvas
-  // 5. salva layout via fetch POST
-  // 6. download PNG e PDF
+  // 🔹 Funzione di creazione prodotto su canvas
+  function creaProdotto(p, x, y) {
+    fabric.Image.fromURL(p.url, function(img) {
+      img.set({ left: x, top: y, width: 200, height: 240 });
+      const nomeText = new fabric.Text(p.nome, { left: x+100, top: y+190, fontSize: 14, originX: "center", textAlign: "center" });
+      const prezzoText = new fabric.Text(p.prezzo ? `€ ${p.prezzo}` : "", { left: x+100, top: y+215, fontSize: 18, fill: "red", originX: "center", textAlign: "center" });
+      const group = new fabric.Group([img, nomeText, prezzoText], { left: x, top: y });
+      canvas.add(group);
+    }, { crossOrigin: "anonymous" });
+  }
 
-  // Nota: Puoi importare il codice già esistente per creare e posizionare prodotti
+  // --- Costruisci griglia prodotti ---
+  const cols = 3, rows = 3;
+  const startX = 50, startY = 50, gapX = 250, gapY = 280;
+  for (let i = 0; i < cols*rows; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * gapX;
+    const y = startY + row * gapY;
+    if (volantinoProdotti[i]) {
+      creaProdotto(volantinoProdotti[i], x, y);
+    }
+  }
+
+  // 🔹 TODO: gestione zoom griglia e box, reset canvas, salva layout via fetch, download PNG/PDF
 });
 </script>
 {% endblock %}
