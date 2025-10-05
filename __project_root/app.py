@@ -303,11 +303,13 @@ def index():
         clienti_nuovi_dettaglio = [{'nome': c['nome'], 'data_registrazione': c['data_registrazione']} for c in clienti_nuovi_rows]
         clienti_nuovi = len(clienti_nuovi_rows)
 
-        # Clienti bloccati / inattivi
+        # Clienti bloccati / inattivi / attivi
         cur.execute('SELECT id, nome FROM clienti')
         clienti_rows = cur.fetchall()
         clienti_bloccati_dettaglio = []
         clienti_bloccati_inattivi_dettaglio = []
+        clienti_attivi_dettaglio = []
+        clienti_inattivi_dettaglio = []
 
         for cliente in clienti_rows:
             cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
@@ -324,15 +326,17 @@ def index():
                         (cliente['id'], mese_due_fa, anno_due_fa))
             totale_due_mesi_fa = cur.fetchone()['coalesce']
 
+            # Determina stato cliente
             if totale_corrente > 0:
                 stato = 'attivo'
+                clienti_attivi_dettaglio.append({'nome': cliente['nome']})
             elif totale_prec == 0 and totale_due_mesi_fa == 0:
                 stato = 'inattivo'
+                clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
             else:
                 stato = 'bloccato'
-
-            if stato == 'bloccato':
                 clienti_bloccati_dettaglio.append({'nome': cliente['nome']})
+
             if stato in ('bloccato', 'inattivo'):
                 clienti_bloccati_inattivi_dettaglio.append({'nome': cliente['nome'], 'stato': stato})
 
@@ -377,21 +381,31 @@ def index():
         fatturato_mensile_rows = cur.fetchall()
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": r['totale'] for r in reversed(fatturato_mensile_rows)}
 
-        # 🔔 Notifiche dinamiche
+        # 🔔 Notifiche dinamiche basate su stato clienti
         notifiche = []
-        if clienti_bloccati_inattivi > 0:
+
+        # Clienti attivi o bloccati
+        if clienti_attivi_dettaglio or clienti_bloccati_dettaglio:
             notifiche.append({
                 'titolo': "Aggiorna Fatturato",
-                'descrizione': "Ricorda di aggiornare il fatturato di ogni cliente questo mese.",
+                'descrizione': "Ricorda di aggiornare il fatturato di ogni cliente attivo o bloccato questo mese.",
                 'data': datetime.now(),
                 'tipo': "warning"
             })
-        if prodotti_totali_mese == 0:
             notifiche.append({
                 'titolo': "Controlla Prodotti",
-                'descrizione': "Verifica i prodotti attivi dei clienti.",
+                'descrizione': "Verifica i prodotti dei clienti attivi o bloccati.",
                 'data': datetime.now(),
                 'tipo': "info"
+            })
+
+        # Clienti inattivi
+        if clienti_inattivi_dettaglio:
+            notifiche.append({
+                'titolo': "Clienti inattivi",
+                'descrizione': "Se ci sono novità riguardo ai clienti inattivi, prendine nota.",
+                'data': datetime.now(),
+                'tipo': "secondary"
             })
 
     return render_template(
@@ -403,6 +417,8 @@ def index():
         clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
         clienti_bloccati_inattivi=clienti_bloccati_inattivi,
         clienti_bloccati_inattivi_dettaglio=clienti_bloccati_inattivi_dettaglio,
+        clienti_attivi_dettaglio=clienti_attivi_dettaglio,
+        clienti_inattivi_dettaglio=clienti_inattivi_dettaglio,
         prodotti_totali_mese=prodotti_totali_mese,
         prodotti_rimossi_mese=prodotti_rimossi_mese,
         prodotti_inseriti=prodotti_inseriti,
@@ -410,6 +426,7 @@ def index():
         fatturato_mensile=fatturato_mensile,
         notifiche=notifiche
     )
+
 
 
 
