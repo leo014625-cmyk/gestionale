@@ -300,11 +300,7 @@ def index():
             WHERE data_registrazione >= %s AND data_registrazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         clienti_nuovi_rows = cur.fetchall()
-
-        clienti_nuovi_dettaglio = [
-            {'nome': c['nome'], 'data_registrazione': c['data_registrazione']}
-            for c in clienti_nuovi_rows
-        ]
+        clienti_nuovi_dettaglio = [{'nome': c['nome'], 'data_registrazione': c['data_registrazione']} for c in clienti_nuovi_rows]
         clienti_nuovi = len(clienti_nuovi_rows)
 
         # Clienti bloccati / inattivi
@@ -353,10 +349,7 @@ def index():
               AND cp.data_operazione >= %s AND cp.data_operazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_inseriti_rows = cur.fetchall()
-        prodotti_inseriti = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']}
-            for r in prodotti_inseriti_rows
-        ]
+        prodotti_inseriti = [{'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']} for r in prodotti_inseriti_rows]
 
         # Prodotti rimossi
         cur.execute('''
@@ -368,10 +361,7 @@ def index():
             WHERE pr.data_rimozione >= %s AND pr.data_rimozione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_rimossi_rows = cur.fetchall()
-        prodotti_rimossi = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']}
-            for r in prodotti_rimossi_rows
-        ]
+        prodotti_rimossi = [{'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']} for r in prodotti_rimossi_rows]
 
         prodotti_totali_mese = len(prodotti_inseriti)
         prodotti_rimossi_mese = len(prodotti_rimossi)
@@ -387,6 +377,23 @@ def index():
         fatturato_mensile_rows = cur.fetchall()
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": r['totale'] for r in reversed(fatturato_mensile_rows)}
 
+        # 🔔 Notifiche dinamiche
+        notifiche = []
+        if clienti_bloccati_inattivi > 0:
+            notifiche.append({
+                'titolo': "Aggiorna Fatturato",
+                'descrizione': "Ricorda di aggiornare il fatturato di ogni cliente questo mese.",
+                'data': datetime.now(),
+                'tipo': "warning"
+            })
+        if prodotti_totali_mese == 0:
+            notifiche.append({
+                'titolo': "Controlla Prodotti",
+                'descrizione': "Verifica i prodotti attivi dei clienti.",
+                'data': datetime.now(),
+                'tipo': "info"
+            })
+
     return render_template(
         '02_index.html',
         variazione_fatturato=variazione_fatturato,
@@ -400,8 +407,10 @@ def index():
         prodotti_rimossi_mese=prodotti_rimossi_mese,
         prodotti_inseriti=prodotti_inseriti,
         prodotti_rimossi=prodotti_rimossi,
-        fatturato_mensile=fatturato_mensile
+        fatturato_mensile=fatturato_mensile,
+        notifiche=notifiche
     )
+
 
 
 # ============================
