@@ -76,11 +76,11 @@
                   <td class="text-center fs-5">
                     {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
                     {% if stato == 'attivo' %}
-                      <span title="Attivo - Fatturato presente questo mese" class="text-success fw-bold text-decoration-underline">Attivo</span>
+                      <span title="Attivo - Fatturato presente questo mese" class="px-2 py-1 bg-success text-white rounded">Attivo</span>
                     {% elif stato == 'bloccato' %}
-                      <span title="Bloccato - Nessun fatturato questo mese" class="text-danger fw-bold text-decoration-underline">Bloccato</span>
+                      <span title="Bloccato - Nessun fatturato questo mese" class="px-2 py-1 bg-danger text-white rounded">Bloccato</span>
                     {% else %}
-                      <span title="Inattivo - Nessun fatturato negli ultimi 2 mesi" class="text-dark fw-bold text-decoration-underline">Inattivo</span>
+                      <span title="Inattivo - Nessun fatturato negli ultimi 2 mesi" class="px-2 py-1 bg-secondary text-white rounded">Inattivo</span>
                     {% endif %}
                   </td>
                   <td>{{ cliente.nome }}</td>
