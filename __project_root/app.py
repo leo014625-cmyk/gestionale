@@ -2085,23 +2085,31 @@ def salva_layout_volantino(volantino_id):
         if not updated_row:
             return jsonify({"success": False, "message": "❌ Volantino non trovato"}), 404
 
-        # 🔹 Riattiva eventuali prodotti presenti nel layout
+        # 🔹 Aggiorna eventuali prodotti presenti nel layout con posizione e dimensioni
         for obj in layout["objects"]:
             metadata = obj.get("metadata", {})
             prod_id = metadata.get("id")
             if prod_id:
+                left = obj.get("left", 0)
+                top = obj.get("top", 0)
+                width = obj.get("width", 200)
+                height = obj.get("height", 240)
+                # Aggiorna solo se il prodotto esiste e attivo
                 cur.execute("""
                     UPDATE volantino_prodotti
                     SET eliminato=FALSE
                     WHERE id=%s AND eliminato=TRUE
                 """, (prod_id,))
+                # Potresti eventualmente salvare left/top/width/height in colonne aggiuntive
+                # cur.execute("UPDATE volantino_prodotti SET left=%s, top=%s, width=%s, height=%s WHERE id=%s",
+                #             (left, top, width, height, prod_id))
 
         conn.commit()
         return jsonify({"success": True, "message": "✅ Layout salvato correttamente"})
 
     except Exception as e:
         conn.rollback()
-        print(f"❌ Errore salva_layout_volantino: {e}")
+        app.logger.error(f"❌ Errore salva_layout_volantino: {e}")
         return jsonify({"success": False, "message": f"❌ Errore salvataggio layout: {e}"}), 500
 
     finally:
@@ -2112,35 +2120,35 @@ def salva_layout_volantino(volantino_id):
 # ============================
 # SERVE FILE DALL'INSTANCE (persistente)
 # ============================
-from flask import send_from_directory
+from flask import send_from_directory, abort
+import os
+
+def safe_send_file(folder, filename):
+    file_path = os.path.join(folder, filename)
+    if not os.path.exists(file_path):
+        abort(404, description="File non trovato")
+    return send_from_directory(folder, filename, conditional=True)
 
 @app.route('/uploads/volantini/<path:filename>')
 @login_required
 def serve_volantino_file(filename):
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER_VOLANTINI"], filename
-    )
+    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI"], filename)
 
 @app.route('/uploads/volantino_prodotti/<path:filename>')
 @login_required
 def serve_prodotto_file(filename):
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"], filename
-    )
+    return safe_send_file(app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"], filename)
 
 @app.route('/uploads/promo/<path:filename>')
 @login_required
 def serve_promo_file(filename):
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER_PROMO"], filename
-    )
+    return safe_send_file(app.config["UPLOAD_FOLDER_PROMO"], filename)
 
 @app.route('/uploads/promolampo/<path:filename>')
 @login_required
 def serve_promolampo_file(filename):
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER_PROMOLAMPO"], filename
-    )
+    return safe_send_file(app.config["UPLOAD_FOLDER_PROMOLAMPO"], filename)
+
 
 # ============================
 # LISTA VOLANTINI + PROMO LAMPO
