@@ -10,7 +10,7 @@
     <button type="button" class="btn btn-outline-primary position-relative" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche" aria-controls="offcanvasNotifiche">
       <i class="bi bi-bell-fill fs-4"></i>
       {% if notifiche|length > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger blink">
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
         {{ notifiche|length }}
         <span class="visually-hidden">nuove notifiche</span>
       </span>
@@ -114,13 +114,51 @@
     {% if notifiche %}
       <ul class="list-group list-group-flush">
         {% for notifica in notifiche %}
-          <li class="list-group-item d-flex justify-content-between align-items-start">
+          <li id="notifica-{{ loop.index }}" class="list-group-item d-flex justify-content-between align-items-start">
             <div class="ms-2 me-auto">
-              <div class="fw-bold">{{ notifica.titolo }}</div>
-              <small class="text-muted">{{ notifica.descrizione }}</small>
+              <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalNotifica{{ loop.index }}">
+                <div class="fw-bold">{{ notifica.titolo }}</div>
+                <small class="text-muted">{{ notifica.descrizione }}</small>
+              </a>
             </div>
             <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">{{ notifica.data.strftime("%d/%m/%Y") }}</span>
+            <button type="button" class="btn-close ms-2" aria-label="Rimuovi" onclick="document.getElementById('notifica-{{ loop.index }}').remove();"></button>
           </li>
+
+          <!-- Modal Dettaglio Notifica -->
+          <div class="modal fade" id="modalNotifica{{ loop.index }}" tabindex="-1" aria-labelledby="modalNotificaLabel{{ loop.index }}">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="modalNotificaLabel{{ loop.index }}">{{ notifica.titolo }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-start">
+                  <p>{{ notifica.descrizione }}</p>
+
+                  {% if notifica.tipo == 'inattivi' %}
+                    <h6>Clienti Inattivi</h6>
+                    <ul class="list-group">
+                      {% for cliente in notifica.clienti %}
+                        <li class="list-group-item">{{ cliente.nome }}</li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <h6>Clienti da Aggiornare</h6>
+                    <ul class="list-group">
+                      {% for cliente in notifica.clienti_attivi %}
+                        <li class="list-group-item"><strong>{{ cliente.nome }}</strong> - Attivo</li>
+                      {% endfor %}
+                      {% for cliente in notifica.clienti_bloccati %}
+                        <li class="list-group-item text-danger"><strong>{{ cliente.nome }}</strong> - Bloccato</li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
         {% endfor %}
       </ul>
     {% else %}
@@ -129,18 +167,7 @@
   </div>
 </div>
 
-<!-- Stile badge lampeggiante -->
-<style>
-@keyframes blink {
-  0%, 50%, 100% { opacity: 1; }
-  25%, 75% { opacity: 0; }
-}
-.blink {
-  animation: blink 1.2s infinite;
-}
-</style>
-
-<!-- Grafico -->
+<!-- Grafico Chart.js rimane invariato -->
 {% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
