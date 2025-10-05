@@ -1309,7 +1309,6 @@ def lista_volantini():
         promo_lampo=promo_lampo
     )
 
-
 # ============================
 # NUOVO VOLANTINO
 # ============================
@@ -1324,8 +1323,7 @@ def nuovo_volantino():
             flash("⚠️ Titolo e immagine sfondo sono obbligatori.", "danger")
             return redirect(url_for("nuovo_volantino"))
 
-        # 🔹 Percorso persistente su Render
-        UPLOAD_FOLDER_VOLANTINI = "/mnt/volantini"
+        # 🔹 Percorso persistente corretto
         os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
 
         # Salva il file con timestamp
@@ -1399,10 +1397,6 @@ def nuovo_volantino():
 @app.route("/volantini/elimina/<int:volantino_id>", methods=["POST"])
 @login_required
 def elimina_volantino(volantino_id):
-    # Percorsi persistenti su Render
-    UPLOAD_FOLDER_VOLANTINI = "/mnt/volantini"
-    UPLOAD_FOLDER_VOLANTINI_PRODOTTI = "/mnt/volantini_prodotti"
-
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     try:
         cur = conn.cursor()
@@ -1417,7 +1411,7 @@ def elimina_volantino(volantino_id):
         # 🔹 Elimina sfondo volantino
         sfondo_file = volantino.get("sfondo")
         if sfondo_file:
-            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_file)
+            sfondo_path = os.path.join(app.config["UPLOAD_FOLDER_VOLANTINI"], sfondo_file)
             if os.path.exists(sfondo_path):
                 try:
                     os.remove(sfondo_path)
@@ -1430,7 +1424,7 @@ def elimina_volantino(volantino_id):
         for prod in prodotti:
             immagine_file = prod.get("immagine")
             if immagine_file:
-                img_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, immagine_file)
+                img_path = os.path.join(app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"], immagine_file)
                 if os.path.exists(img_path):
                     try:
                         os.remove(img_path)
@@ -1448,7 +1442,6 @@ def elimina_volantino(volantino_id):
         conn.close()
 
     return redirect(url_for("lista_volantini"))
-
 
 # ============================
 # MODIFICA VOLANTINO
@@ -1476,8 +1469,8 @@ def modifica_volantino(volantino_id):
                 try:
                     filename = secure_filename(sfondo_file.filename)
                     sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
-                    os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
-                    sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome))
+                    os.makedirs(app.config["UPLOAD_FOLDER_VOLANTINI"], exist_ok=True)
+                    sfondo_file.save(os.path.join(app.config["UPLOAD_FOLDER_VOLANTINI"], sfondo_nome))
                 except Exception as e:
                     app.logger.error(f"❌ Errore caricamento sfondo: {e}")
                     flash("⚠️ Errore durante il caricamento dello sfondo.", "warning")
