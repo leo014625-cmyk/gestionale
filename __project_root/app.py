@@ -312,19 +312,19 @@ def index():
         clienti_inattivi_dettaglio = []
 
         for cliente in clienti_rows:
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+            cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                         (cliente['id'], mese_corrente, anno_corrente))
-            totale_corrente = cur.fetchone()['coalesce']
+            totale_corrente = cur.fetchone()['totale']
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+            cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                         (cliente['id'], mese_prec, anno_prec))
-            totale_prec = cur.fetchone()['coalesce']
+            totale_prec = cur.fetchone()['totale']
 
             mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
             anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+            cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                         (cliente['id'], mese_due_fa, anno_due_fa))
-            totale_due_mesi_fa = cur.fetchone()['coalesce']
+            totale_due_mesi_fa = cur.fetchone()['totale']
 
             # Determina stato cliente
             if totale_corrente > 0:
@@ -384,28 +384,33 @@ def index():
         # 🔔 Notifiche dinamiche basate su stato clienti
         notifiche = []
 
-        # Clienti attivi o bloccati
+        # Notifiche per clienti attivi o bloccati
         if clienti_attivi_dettaglio or clienti_bloccati_dettaglio:
             notifiche.append({
                 'titolo': "Aggiorna Fatturato",
                 'descrizione': "Ricorda di aggiornare il fatturato di ogni cliente attivo o bloccato questo mese.",
                 'data': datetime.now(),
-                'tipo': "warning"
+                'tipo': "warning",
+                'clienti_attivi': clienti_attivi_dettaglio,
+                'clienti_bloccati': clienti_bloccati_dettaglio
             })
             notifiche.append({
                 'titolo': "Controlla Prodotti",
                 'descrizione': "Verifica i prodotti dei clienti attivi o bloccati.",
                 'data': datetime.now(),
-                'tipo': "info"
+                'tipo': "info",
+                'clienti_attivi': clienti_attivi_dettaglio,
+                'clienti_bloccati': clienti_bloccati_dettaglio
             })
 
-        # Clienti inattivi
+        # Notifica per clienti inattivi
         if clienti_inattivi_dettaglio:
             notifiche.append({
                 'titolo': "Clienti inattivi",
                 'descrizione': "Se ci sono novità riguardo ai clienti inattivi, prendine nota.",
                 'data': datetime.now(),
-                'tipo': "secondary"
+                'tipo': "secondary",
+                'clienti': clienti_inattivi_dettaglio
             })
 
     return render_template(
