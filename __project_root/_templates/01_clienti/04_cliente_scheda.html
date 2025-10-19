@@ -148,9 +148,10 @@
 
         <h6 class="mt-4 mb-2">Ultimi 5 Log</h6>
         {% if log_cliente %}
+          {% set ultimi_log = log_cliente|sort(attribute='data', reverse=true) %}
           <div class="log-container">
             <ul class="list-unstyled mb-0">
-              {% for log in log_cliente|sort(attribute='data', reverse=true)[:5] %}
+              {% for log in ultimi_log[:5] %}
                 <li class="d-flex justify-content-between align-items-center border-bottom py-1">
                   <div>
                     {% if 'Aggiunto prodotto' in log.descrizione %}
