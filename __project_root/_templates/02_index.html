@@ -21,16 +21,6 @@
     font-weight: 700;
   }
 
-  .quick-links a {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: none;
-  }
-
-  .quick-links a:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-  }
-
   .metric-card {
     border: none;
     transition: all 0.25s ease;
@@ -70,9 +60,49 @@
   .bi {
     vertical-align: middle;
   }
+
+  /* --- Quick Links Moderni --- */
+  .link-card {
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  }
+
+  .link-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+  }
+
+  /* Clienti (blu) */
+  .link-clienti:hover {
+    background-color: #0d6efd;
+    color: #fff !important;
+    border-color: #0d6efd;
+  }
+
+  /* Prodotti (verde) */
+  .link-prodotti:hover {
+    background-color: #198754;
+    color: #fff !important;
+    border-color: #198754;
+  }
+
+  /* Fatturato (giallo) */
+  .link-fatturato:hover {
+    background-color: #ffc107;
+    color: #212529 !important;
+    border-color: #ffc107;
+  }
+
+  /* Icone animate */
+  .link-card i {
+    transition: transform 0.2s ease;
+  }
+
+  .link-card:hover i {
+    transform: scale(1.15);
+  }
 </style>
 {% endblock %}
-
 
 {% block content %}
 <div class="container py-5">
@@ -90,24 +120,30 @@
     </button>
 
     <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
-    <p class="lead mb-0">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
+    <p class="lead mb-0">Gestisci in un colpo d’occhio clienti, prodotti e <span class="text-warning fw-semibold">fatturato</span>.</p>
   </div>
 
   <!-- Quick links -->
   <div class="row quick-links justify-content-center g-4 mb-5">
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4">
-        <i class="bi bi-people-fill fs-3"></i> <span>Clienti</span>
+      <a href="{{ url_for('clienti') }}" 
+         class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-clienti">
+        <i class="bi bi-people-fill fs-3"></i> 
+        <span class="fw-semibold">Clienti</span>
       </a>
     </div>
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('prodotti') }}" class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4">
-        <i class="bi bi-box-seam fs-3"></i> <span>Prodotti</span>
+      <a href="{{ url_for('prodotti') }}" 
+         class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-prodotti">
+        <i class="bi bi-box-seam fs-3"></i> 
+        <span class="fw-semibold">Prodotti</span>
       </a>
     </div>
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('fatturato') }}" class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 text-dark">
-        <i class="bi bi-cash-stack fs-3"></i> <span>Fatturato</span>
+      <a href="{{ url_for('fatturato') }}" 
+         class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-fatturato text-warning fw-semibold">
+        <i class="bi bi-cash-stack fs-3 text-warning"></i> 
+        <span>Fatturato</span>
       </a>
     </div>
   </div>
@@ -172,7 +208,7 @@
   <div class="card chart-card mb-4">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
+        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento <span class="text-warning">Fatturato</span> (12 mesi)</h5>
       </div>
       <canvas id="fatturatoChart" height="150"></canvas>
     </div>
