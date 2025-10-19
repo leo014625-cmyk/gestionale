@@ -27,28 +27,30 @@
       <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
         <div class="card-body text-center">
           <h6 class="text-uppercase text-muted mb-2">Clienti Totali</h6>
-          <h2 class="fw-bold display-6">{{ clienti|length }}</h2>
+          <h2 class="fw-bold display-6 text-primary">{{ clienti|length }}</h2>
           <i class="bi bi-people fs-2 text-primary"></i>
         </div>
       </div>
     </div>
+
     <div class="col-md-4">
       <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
         <div class="card-body text-center">
           <h6 class="text-uppercase text-muted mb-2">Fatturato Totale</h6>
-          <h2 class="fw-bold display-6">
+          <h2 class="fw-bold display-6 text-success">
             € {{ clienti|map(attribute='fatturato_totale')|sum|default(0)|float|round(2) }}
           </h2>
           <i class="bi bi-cash-coin fs-2 text-success"></i>
         </div>
       </div>
     </div>
+
     <div class="col-md-4">
       <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
         <div class="card-body text-center">
           <h6 class="text-uppercase text-muted mb-2">Media per Cliente</h6>
           {% set totale = clienti|map(attribute='fatturato_totale')|sum %}
-          <h2 class="fw-bold display-6">
+          <h2 class="fw-bold display-6 text-info">
             € {{ (totale / (clienti|length) if clienti|length > 0 else 0) | round(2) }}
           </h2>
           <i class="bi bi-graph-up-arrow fs-2 text-info"></i>
