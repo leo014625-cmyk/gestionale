@@ -1,52 +1,124 @@
 {% extends "01_base.html" %}
 
-{% block title %}Home - Gestionale Horeca{% endblock %}
+{% block title %}Dashboard - Gestionale Horeca{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  body {
+    background: #f6f8fa;
+  }
+
+  .dashboard-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
+    color: #fff;
+    border-radius: 1rem;
+    padding: 3rem 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+
+  .dashboard-header h1 {
+    font-weight: 700;
+  }
+
+  .quick-links a {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: none;
+  }
+
+  .quick-links a:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  }
+
+  .metric-card {
+    border: none;
+    transition: all 0.25s ease;
+    background: #fff;
+    border-radius: 1rem !important;
+  }
+
+  .metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  }
+
+  .metric-card h6 {
+    font-size: 0.95rem;
+    color: #6c757d;
+  }
+
+  .offcanvas {
+    border-left: 2px solid #0d6efd;
+  }
+
+  .chart-card {
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+
+  .chart-card h5 {
+    font-weight: 600;
+  }
+
+  .notification-badge {
+    background: #ff3b3b;
+    font-size: 0.75rem;
+  }
+
+  .bi {
+    vertical-align: middle;
+  }
+</style>
+{% endblock %}
+
 
 {% block content %}
-<div class="text-center py-5 position-relative">
+<div class="container py-5">
 
-  <!-- Centro Notifiche -->
-  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
-    <button type="button" class="btn btn-outline-primary position-relative" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche" aria-controls="offcanvasNotifiche">
-      <i class="bi bi-bell-fill fs-4"></i>
+  <!-- Header -->
+  <div class="dashboard-header text-center mb-5 position-relative">
+    <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
+      <i class="bi bi-bell-fill fs-4 text-primary"></i>
       {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
       {% if not_unread|length > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill notification-badge" id="notifica-badge">
         {{ not_unread|length }}
-        <span class="visually-hidden">nuove notifiche</span>
       </span>
       {% endif %}
     </button>
+
+    <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
+    <p class="lead mb-0">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
   </div>
 
-  <h1 class="display-4 fw-bold mb-3">Bentornato Leonardo</h1>
-  <p class="lead mb-5">Gestisci i tuoi clienti, prodotti e fatturato con facilità e rapidità.</p>
-
-  <div class="row justify-content-center g-4 mb-5">
+  <!-- Quick links -->
+  <div class="row quick-links justify-content-center g-4 mb-5">
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('clienti') }}" class="btn btn-primary btn-lg w-100 shadow-sm d-flex align-items-center justify-content-center gap-2">
-        <i class="bi bi-people-fill fs-3"></i> Clienti
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4">
+        <i class="bi bi-people-fill fs-3"></i> <span>Clienti</span>
       </a>
     </div>
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('prodotti') }}" class="btn btn-success btn-lg w-100 shadow-sm d-flex align-items-center justify-content-center gap-2">
-        <i class="bi bi-box-seam fs-3"></i> Prodotti
+      <a href="{{ url_for('prodotti') }}" class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4">
+        <i class="bi bi-box-seam fs-3"></i> <span>Prodotti</span>
       </a>
     </div>
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('fatturato') }}" class="btn btn-warning btn-lg w-100 shadow-sm text-dark d-flex align-items-center justify-content-center gap-2">
-        <i class="bi bi-cash-stack fs-3"></i> Fatturato
+      <a href="{{ url_for('fatturato') }}" class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 text-dark">
+        <i class="bi bi-cash-stack fs-3"></i> <span>Fatturato</span>
       </a>
     </div>
   </div>
 
-  <!-- CARD METRICHE -->
-  <div class="row g-4 justify-content-center mb-5">
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalFatturato">
+  <!-- Metriche -->
+  <div class="row g-4 mb-5">
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card metric-card p-3 text-center">
         <h6>Variazione Fatturato</h6>
         {% if variazione_fatturato is not none %}
-          <div class="fs-3 fw-bold {{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
+          <div class="fs-4 fw-bold {{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
             {{ "%.2f"|format(variazione_fatturato) }}%
             {% if variazione_fatturato > 0 %}
               <i class="bi bi-arrow-up"></i>
@@ -60,104 +132,72 @@
       </div>
     </div>
 
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalClientiNuovi">
-        <h6>Clienti Nuovi (Ultimo Mese)</h6>
-        <div class="fs-3 fw-bold">{{ clienti_nuovi or 0 }}</div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card metric-card p-3 text-center">
+        <h6>Clienti Nuovi</h6>
+        <div class="fs-4 fw-bold text-success">{{ clienti_nuovi or 0 }}</div>
       </div>
     </div>
 
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalClientiBloccati">
-        <h6>Clienti Bloccati (Ultimo Mese)</h6>
-        <div class="fs-3 fw-bold text-danger">{{ clienti_bloccati or 0 }}</div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card metric-card p-3 text-center">
+        <h6>Clienti Bloccati</h6>
+        <div class="fs-4 fw-bold text-danger">{{ clienti_bloccati or 0 }}</div>
       </div>
     </div>
 
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalClientiInattivi">
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card metric-card p-3 text-center">
         <h6>Clienti Inattivi</h6>
-        <div class="fs-3 fw-bold text-secondary">{{ clienti_inattivi_dettaglio|length or 0 }}</div>
+        <div class="fs-4 fw-bold text-secondary">{{ clienti_inattivi_dettaglio|length or 0 }}</div>
       </div>
     </div>
 
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalProdottiTotali">
-        <h6>Prodotti Totali Inseriti (Ultimo Mese)</h6>
-        <div class="fs-3 fw-bold">{{ prodotti_totali_mese or 0 }}</div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card metric-card p-3 text-center">
+        <h6>Prodotti Inseriti</h6>
+        <div class="fs-4 fw-bold text-primary">{{ prodotti_totali_mese or 0 }}</div>
       </div>
     </div>
 
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm rounded-3 text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#modalProdottiRimossi">
-        <h6>Prodotti Rimossi Ultimo Mese</h6>
-        <div class="fs-3 fw-bold">{{ prodotti_rimossi_mese or 0 }}</div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card metric-card p-3 text-center">
+        <h6>Prodotti Rimossi</h6>
+        <div class="fs-4 fw-bold text-danger">{{ prodotti_rimossi_mese or 0 }}</div>
       </div>
     </div>
   </div>
 
   <!-- Grafico -->
-  <div class="card mb-4 bg-secondary text-white shadow-sm rounded-3">
+  <div class="card chart-card mb-4">
     <div class="card-body">
-      <h5 class="card-title mb-4">Andamento Fatturato (Ultimi 12 mesi)</h5>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
+      </div>
       <canvas id="fatturatoChart" height="150"></canvas>
     </div>
   </div>
+
 </div>
 
 <!-- Offcanvas Notifiche -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNotifiche" aria-labelledby="offcanvasNotificheLabel">
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNotifiche">
   <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="offcanvasNotificheLabel">Centro Notifiche</h5>
-    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+    <h5 class="offcanvas-title">Centro Notifiche</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
   </div>
   <div class="offcanvas-body">
     {% if notifiche %}
       <ul class="list-group list-group-flush">
         {% for notifica in notifiche %}
           <li class="list-group-item d-flex justify-content-between align-items-start" id="notifica-{{ notifica.id }}">
-            <div class="ms-2 me-auto">
-              <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalNotifica{{ notifica.id }}">
-                <div class="fw-bold">{{ notifica.titolo }}</div>
-                <small class="text-muted">{{ notifica.descrizione }}</small>
-              </a>
+            <div class="me-auto">
+              <strong>{{ notifica.titolo }}</strong>
+              <div class="small text-muted">{{ notifica.descrizione }}</div>
             </div>
             <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">{{ notifica.data.strftime("%d/%m/%Y") }}</span>
-            <button type="button" class="btn-close ms-2" aria-label="Rimuovi" onclick="chiudiNotifica({{ notifica.id }});"></button>
+            <button type="button" class="btn-close ms-2" onclick="chiudiNotifica({{ notifica.id }});"></button>
           </li>
-
-          <!-- Modal Dettaglio Notifica -->
-          <div class="modal fade" id="modalNotifica{{ notifica.id }}" tabindex="-1" aria-labelledby="modalNotificaLabel{{ notifica.id }}">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="modalNotificaLabel{{ notifica.id }}">{{ notifica.titolo }}</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-                </div>
-                <div class="modal-body text-start">
-                  <p>{{ notifica.descrizione }}</p>
-                  {% if notifica.tipo == 'secondary' %}
-                    <h6>Clienti Inattivi</h6>
-                    <ul class="list-group">
-                      {% for cliente in notifica.clienti %}
-                        <li class="list-group-item">{{ cliente.nome }}</li>
-                      {% endfor %}
-                    </ul>
-                  {% else %}
-                    <h6>Clienti da Aggiornare</h6>
-                    <ul class="list-group">
-                      {% for cliente in notifica.clienti_attivi %}
-                        <li class="list-group-item"><strong>{{ cliente.nome }}</strong> - Attivo</li>
-                      {% endfor %}
-                      {% for cliente in notifica.clienti_bloccati %}
-                        <li class="list-group-item text-danger"><strong>{{ cliente.nome }}</strong> - Bloccato</li>
-                      {% endfor %}
-                    </ul>
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-          </div>
         {% endfor %}
       </ul>
     {% else %}
@@ -166,61 +206,57 @@
   </div>
 </div>
 
-<!-- Funzioni JS per badge e chiusura notifiche -->
+<!-- JS -->
 <script>
 function chiudiNotifica(id) {
-    // Rimuove la notifica dal DOM
-    const elem = document.getElementById('notifica-' + id);
-    if(elem) elem.remove();
-
-    // Aggiorna il badge
-    const badge = document.getElementById('notifica-badge');
-    if(badge) {
-        let count = parseInt(badge.textContent);
-        count--;
-        if(count > 0) badge.textContent = count;
-        else badge.remove();
-    }
-
-    // TODO: Aggiungere chiamata AJAX per aggiornare il server che la notifica è stata letta
-    // fetch(`/notifica/chiudi/${id}`, { method: 'POST' });
+  const el = document.getElementById('notifica-' + id);
+  if (el) el.remove();
+  const badge = document.getElementById('notifica-badge');
+  if (badge) {
+    let c = parseInt(badge.textContent);
+    if (--c > 0) badge.textContent = c; else badge.remove();
+  }
 }
 </script>
 
-<!-- Grafico Chart.js -->
 {% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-    const fatturatoMensileRaw = {
-        {% for mese, valore in fatturato_mensile.items() %}
-        "{{ mese }}": {{ valore }},
-        {% endfor %}
-    };
+  const dati = {
+    {% for mese, valore in fatturato_mensile.items() %}
+      "{{ mese }}": {{ valore }},
+    {% endfor %}
+  };
+  const mesi = Object.keys(dati).sort((a,b)=>a.localeCompare(b));
+  const labels = mesi.map(m => {
+    const [anno, mese] = m.split('-');
+    const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+  });
+  const valori = mesi.map(m=>dati[m]);
 
-    const mesiOrdinati = Object.keys(fatturatoMensileRaw).sort((a, b) => {
-        const [annoA, meseA] = a.split('-').map(Number);
-        const [annoB, meseB] = b.split('-').map(Number);
-        return annoA !== annoB ? annoA - annoB : meseA - meseB;
-    });
-
-    const mesiNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-    const labels = mesiOrdinati.map(m => {
-        const [anno, mese] = m.split('-');
-        return mesiNomi[parseInt(mese, 10) - 1] + " '" + anno.slice(2);
-    });
-    const valori = mesiOrdinati.map(m => fatturatoMensileRaw[m]);
-
-    const ctx = document.getElementById('fatturatoChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Fatturato (€)', data: valori, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 5, borderSkipped: false }] },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', cornerRadius: 6, padding: 8, displayColors: false } },
-            scales: { x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } }, y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.2)' }, ticks: { color: '#a0a8b7' } } }
-        }
-    });
+  const ctx = document.getElementById('fatturatoChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ 
+      label: 'Fatturato (€)',
+      data: valori,
+      fill: true,
+      borderColor: '#0d6efd',
+      backgroundColor: 'rgba(13,110,253,0.15)',
+      tension: 0.4,
+      pointRadius: 4,
+      pointBackgroundColor: '#0d6efd'
+    }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { 
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
 })();
 </script>
 {% endif %}
