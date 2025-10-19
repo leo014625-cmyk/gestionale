@@ -3,85 +3,125 @@
 {% block title %}Fatturato Clienti{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 text-white">Fatturato Clienti</h1>
+<div class="container-fluid py-4">
 
-<!-- Filtro zona e mesi -->
-<form method="get" class="mb-4 d-flex align-items-center gap-3 flex-wrap">
-  <label for="zona" class="text-white mb-0 fw-semibold">Filtra per zona:</label>
-  <select id="zona" name="zona" onchange="this.form.submit()" class="form-select w-auto">
-    <option value="tutte" {% if zona_filtro == 'tutte' %}selected{% endif %}>Tutte le zone</option>
-    {% for z in zone %}
-      <option value="{{ z.zona }}" {% if zona_filtro == z.zona %}selected{% endif %}>{{ z.zona }}</option>
-    {% endfor %}
-  </select>
-</form>
+  <!-- Titolo e filtro -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <h1 class="text-white fw-bold mb-0">
+      <i class="bi bi-bar-chart-line me-2 text-primary"></i> Fatturato Clienti
+    </h1>
+    <form method="get" class="d-flex align-items-center gap-2">
+      <label for="zona" class="text-white fw-semibold mb-0">Zona:</label>
+      <select id="zona" name="zona" onchange="this.form.submit()" class="form-select form-select-sm bg-dark text-white border-secondary">
+        <option value="tutte" {% if zona_filtro == 'tutte' %}selected{% endif %}>Tutte</option>
+        {% for z in zone %}
+          <option value="{{ z.zona }}" {% if zona_filtro == z.zona %}selected{% endif %}>{{ z.zona }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
 
-<!-- Cards riepilogo -->
-<div class="row mb-4">
-  <div class="col-md-4 mb-3">
-    <div class="card bg-secondary text-white shadow-sm rounded-3">
-      <div class="card-body">
-        <h5 class="card-title">Clienti Totali</h5>
-        <p class="card-text fs-3 fw-bold">{{ clienti|length }}</p>
+  <!-- Cards riepilogo -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
+        <div class="card-body text-center">
+          <h6 class="text-uppercase text-muted mb-2">Clienti Totali</h6>
+          <h2 class="fw-bold display-6">{{ clienti|length }}</h2>
+          <i class="bi bi-people fs-2 text-primary"></i>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="col-md-4 mb-3">
-    <div class="card bg-secondary text-white shadow-sm rounded-3">
-      <div class="card-body">
-        <h5 class="card-title">Fatturato Totale (€)</h5>
-        <p class="card-text fs-3 fw-bold">
-          € {{ clienti|map(attribute='fatturato_totale')|sum|default(0)|float|round(2) }}
-        </p>
+    <div class="col-md-4">
+      <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
+        <div class="card-body text-center">
+          <h6 class="text-uppercase text-muted mb-2">Fatturato Totale</h6>
+          <h2 class="fw-bold display-6">
+            € {{ clienti|map(attribute='fatturato_totale')|sum|default(0)|float|round(2) }}
+          </h2>
+          <i class="bi bi-cash-coin fs-2 text-success"></i>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="col-md-4 mb-3">
-    <div class="card bg-secondary text-white shadow-sm rounded-3">
-      <div class="card-body">
-        <h5 class="card-title">Media Fatturato (€)</h5>
-        <p class="card-text fs-3 fw-bold">
+    <div class="col-md-4">
+      <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
+        <div class="card-body text-center">
+          <h6 class="text-uppercase text-muted mb-2">Media per Cliente</h6>
           {% set totale = clienti|map(attribute='fatturato_totale')|sum %}
-          € {{ (totale / (clienti|length) if clienti|length > 0 else 0) | round(2) }}
-        </p>
+          <h2 class="fw-bold display-6">
+            € {{ (totale / (clienti|length) if clienti|length > 0 else 0) | round(2) }}
+          </h2>
+          <i class="bi bi-graph-up-arrow fs-2 text-info"></i>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Grafico fatturato mensile totale -->
-<div class="card mb-4 bg-secondary text-white shadow-sm rounded-3">
-  <div class="card-body">
-    <h5 class="card-title mb-4">Fatturato Mensile Totale (ultimi 3 mesi)</h5>
-    <canvas id="fatturatoMensileChart" height="150"></canvas>
+  <!-- Sezione grafici -->
+  <div class="row g-4 mb-5">
+    <div class="col-lg-8">
+      <div class="card bg-dark text-white shadow border-0 rounded-4 h-100">
+        <div class="card-body">
+          <h5 class="card-title mb-3 fw-semibold">
+            <i class="bi bi-graph-up me-2 text-info"></i> Fatturato Mensile Totale (ultimi 3 mesi)
+          </h5>
+          <canvas id="fatturatoMensileChart" height="150"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card bg-dark text-white shadow border-0 rounded-4 h-100">
+        <div class="card-body">
+          <h5 class="card-title mb-3 fw-semibold">
+            <i class="bi bi-pie-chart me-2 text-warning"></i> Fatturato per Zona
+          </h5>
+          <canvas id="fatturatoZonaChart" height="150"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- Tabella clienti -->
-{% if clienti %}
-<div class="table-responsive">
-  <table class="table table-striped table-dark align-middle rounded-3">
-    <thead>
-      <tr>
-        <th>Nome Cliente</th>
-        <th>Zona</th>
-        <th class="text-end">Fatturato Totale (€)</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for cliente in clienti %}
-        <tr>
-          <td>{{ cliente.nome }}</td>
-          <td>{{ cliente.zona or '–' }}</td>
-          <td class="text-end">€ {{ "%.2f"|format(cliente.fatturato_totale or 0) }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- Ricerca clienti -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="text-white fw-semibold mb-0">
+      <i class="bi bi-person-lines-fill me-2 text-primary"></i> Elenco Clienti
+    </h5>
+    <input id="searchInput" type="text" class="form-control form-control-sm bg-dark text-white border-secondary w-auto"
+           placeholder="Cerca cliente...">
+  </div>
+
+  <!-- Tabella clienti -->
+  {% if clienti %}
+  <div class="card bg-dark text-white shadow border-0 rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table id="clientiTable" class="table table-dark table-hover align-middle mb-0">
+          <thead class="text-uppercase text-secondary small">
+            <tr>
+              <th>Nome Cliente</th>
+              <th>Zona</th>
+              <th class="text-end">Fatturato (€)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cliente in clienti %}
+              <tr>
+                <td class="fw-semibold">{{ cliente.nome }}</td>
+                <td>{{ cliente.zona or '–' }}</td>
+                <td class="text-end fw-semibold text-success">
+                  € {{ "%.2f"|format(cliente.fatturato_totale or 0) }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+    <p class="text-muted text-center mt-5">Nessun cliente disponibile per i filtri selezionati.</p>
+  {% endif %}
 </div>
-{% else %}
-<p class="text-muted">Nessun cliente disponibile.</p>
-{% endif %}
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -90,7 +130,6 @@
   const fatturatoMensileRaw = {{ fatturato_mensile|default({})|tojson }};
   const mesiOrdinati = Object.keys(fatturatoMensileRaw).sort();
   const ultimi3Mesi = mesiOrdinati.slice(-3);
-
   const mesiNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
   const labels = ultimi3Mesi.map(m => {
     const [anno, mese] = m.split('-');
@@ -98,40 +137,63 @@
   });
   const valori = ultimi3Mesi.map(m => fatturatoMensileRaw[m]);
 
-  const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
-  new Chart(ctx, {
+  // Bar chart (mensile)
+  const ctx1 = document.getElementById('fatturatoMensileChart').getContext('2d');
+  new Chart(ctx1, {
     type: 'bar',
     data: {
-      labels: labels,
+      labels,
       datasets: [{
         label: 'Fatturato (€)',
         data: valori,
         backgroundColor: 'rgba(74,144,226,0.8)',
-        borderRadius: 5,
+        borderRadius: 8,
         borderSkipped: false
       }]
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a2638',
-          titleColor: '#4a90e2',
-          bodyColor: '#cfd8e6',
-          cornerRadius: 6,
-          padding: 8,
-          displayColors: false
-        }
-      },
+      plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } },
-        y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.2)' }, ticks: { color: '#a0a8b7' } }
+        y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.15)' }, ticks: { color: '#a0a8b7' } }
       }
     }
+  });
+
+  // Pie chart (per zona)
+  const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
+  const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(fatturatoZona),
+      datasets: [{
+        data: Object.values(fatturatoZona),
+        backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#a0a8b7', padding: 15 } },
+        tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
+      },
+      cutout: '70%'
+    }
+  });
+
+  // Ricerca clienti live
+  const searchInput = document.getElementById('searchInput');
+  const tableRows = document.querySelectorAll('#clientiTable tbody tr');
+  searchInput.addEventListener('keyup', () => {
+    const query = searchInput.value.toLowerCase();
+    tableRows.forEach(row => {
+      const nome = row.children[0].innerText.toLowerCase();
+      const zona = row.children[1].innerText.toLowerCase();
+      row.style.display = (nome.includes(query) || zona.includes(query)) ? '' : 'none';
+    });
   });
 })();
 </script>
 {% endblock %}
-
-
