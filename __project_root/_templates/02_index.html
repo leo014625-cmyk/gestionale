@@ -50,6 +50,7 @@
 
   .chart-card h5 {
     font-weight: 600;
+    color: #000; /* titolo grafico nero */
   }
 
   .notification-badge {
@@ -120,7 +121,7 @@
     </button>
 
     <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
-    <p class="lead mb-0">Gestisci in un colpo d’occhio clienti, prodotti e <span class="text-warning fw-semibold">fatturato</span>.</p>
+    <p class="lead mb-0 text-white">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
   </div>
 
   <!-- Quick links -->
@@ -150,65 +151,14 @@
 
   <!-- Metriche -->
   <div class="row g-4 mb-5">
-    <div class="col-6 col-md-4 col-xl-2">
-      <div class="card metric-card p-3 text-center">
-        <h6>Variazione Fatturato</h6>
-        {% if variazione_fatturato is not none %}
-          <div class="fs-4 fw-bold {{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
-            {{ "%.2f"|format(variazione_fatturato) }}%
-            {% if variazione_fatturato > 0 %}
-              <i class="bi bi-arrow-up"></i>
-            {% elif variazione_fatturato < 0 %}
-              <i class="bi bi-arrow-down"></i>
-            {% endif %}
-          </div>
-        {% else %}
-          <div class="fs-5 text-muted">N/D</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="col-6 col-md-4 col-xl-2">
-      <div class="card metric-card p-3 text-center">
-        <h6>Clienti Nuovi</h6>
-        <div class="fs-4 fw-bold text-success">{{ clienti_nuovi or 0 }}</div>
-      </div>
-    </div>
-
-    <div class="col-6 col-md-4 col-xl-2">
-      <div class="card metric-card p-3 text-center">
-        <h6>Clienti Bloccati</h6>
-        <div class="fs-4 fw-bold text-danger">{{ clienti_bloccati or 0 }}</div>
-      </div>
-    </div>
-
-    <div class="col-6 col-md-4 col-xl-2">
-      <div class="card metric-card p-3 text-center">
-        <h6>Clienti Inattivi</h6>
-        <div class="fs-4 fw-bold text-secondary">{{ clienti_inattivi_dettaglio|length or 0 }}</div>
-      </div>
-    </div>
-
-    <div class="col-6 col-md-4 col-xl-2">
-      <div class="card metric-card p-3 text-center">
-        <h6>Prodotti Inseriti</h6>
-        <div class="fs-4 fw-bold text-primary">{{ prodotti_totali_mese or 0 }}</div>
-      </div>
-    </div>
-
-    <div class="col-6 col-md-4 col-xl-2">
-      <div class="card metric-card p-3 text-center">
-        <h6>Prodotti Rimossi</h6>
-        <div class="fs-4 fw-bold text-danger">{{ prodotti_rimossi_mese or 0 }}</div>
-      </div>
-    </div>
+    {% include "metriche.html" %}
   </div>
 
   <!-- Grafico -->
   <div class="card chart-card mb-4">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento <span class="text-warning">Fatturato</span> (12 mesi)</h5>
+        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
       </div>
       <canvas id="fatturatoChart" height="150"></canvas>
     </div>
@@ -224,7 +174,7 @@
   </div>
   <div class="offcanvas-body">
     {% if notifiche %}
-      <ul class="list-group list-group-flush">
+      <ul class="list-group list-group-flush" id="lista-notifiche">
         {% for notifica in notifiche %}
           <li class="list-group-item d-flex justify-content-between align-items-start" id="notifica-{{ notifica.id }}">
             <div class="me-auto">
@@ -252,7 +202,23 @@ function chiudiNotifica(id) {
     let c = parseInt(badge.textContent);
     if (--c > 0) badge.textContent = c; else badge.remove();
   }
+  // salva in localStorage per evitare che riappaia fino al mese successivo
+  const mese = new Date().toISOString().slice(0,7);
+  let chiuse = JSON.parse(localStorage.getItem('notificheChiuse') || '{}');
+  chiuse[mese] = chiuse[mese] || [];
+  chiuse[mese].push(id);
+  localStorage.setItem('notificheChiuse', JSON.stringify(chiuse));
 }
+
+// nascondi notifiche già chiuse nel mese corrente
+document.addEventListener('DOMContentLoaded', () => {
+  const mese = new Date().toISOString().slice(0,7);
+  const chiuse = JSON.parse(localStorage.getItem('notificheChiuse') || '{}')[mese] || [];
+  chiuse.forEach(id => {
+    const el = document.getElementById('notifica-' + id);
+    if (el) el.remove();
+  });
+});
 </script>
 
 {% if fatturato_mensile is defined %}
