@@ -2,8 +2,8 @@
 
   <!-- Clienti totali -->
   <div class="col-12 col-md-2">
-    <div class="card metric-card text-center p-3 h-100 shadow-sm">
-      <div class="card-body">
+    <div class="card metric-card text-center p-3 h-100 shadow-sm" style="height: 220px;">
+      <div class="card-body d-flex flex-column justify-content-center">
         <i class="bi bi-people-fill fs-1 text-primary mb-2"></i>
         <h6>Clienti Totali</h6>
         <h2 class="fw-bold mb-0 text-dark">
@@ -15,8 +15,8 @@
 
   <!-- Fatturato totale -->
   <div class="col-12 col-md-2">
-    <div class="card metric-card text-center p-3 h-100 shadow-sm">
-      <div class="card-body">
+    <div class="card metric-card text-center p-3 h-100 shadow-sm" style="height: 220px;">
+      <div class="card-body d-flex flex-column justify-content-center">
         <i class="bi bi-cash-stack fs-1 text-success mb-2"></i>
         <h6>Fatturato Totale</h6>
         <h2 class="fw-bold mb-0 text-dark">
@@ -28,8 +28,8 @@
 
   <!-- Media per cliente -->
   <div class="col-12 col-md-2">
-    <div class="card metric-card text-center p-3 h-100 shadow-sm">
-      <div class="card-body">
+    <div class="card metric-card text-center p-3 h-100 shadow-sm" style="height: 220px;">
+      <div class="card-body d-flex flex-column justify-content-center">
         <i class="bi bi-bar-chart-line fs-1 text-info mb-2"></i>
         <h6>Media per Cliente</h6>
         {% set totale = clienti|map(attribute='fatturato_totale')|sum %}
@@ -42,8 +42,8 @@
 
   <!-- Mini grafico fatturato per zona (a barre) -->
   <div class="col-12 col-md-3">
-    <div class="card metric-card text-center p-3 h-100 shadow-sm">
-      <div class="card-body">
+    <div class="card metric-card text-center p-3 h-100 shadow-sm" style="height: 220px;">
+      <div class="card-body d-flex flex-column justify-content-center">
         <i class="bi bi-bar-chart-fill fs-1 text-warning mb-2"></i>
         <h6>Fatturato per Zona</h6>
         <canvas id="miniFatturatoZonaChart" height="90"></canvas>
@@ -53,8 +53,8 @@
 
   <!-- Crescita mensile -->
   <div class="col-12 col-md-3">
-    <div class="card metric-card text-center p-3 h-100 shadow-sm">
-      <div class="card-body">
+    <div class="card metric-card text-center p-3 h-100 shadow-sm" style="height: 220px;">
+      <div class="card-body d-flex flex-column justify-content-center">
         <i class="bi bi-graph-up-arrow fs-1 mb-2" id="trendIcon"></i>
         <h6>Crescita Mensile</h6>
         <h2 id="trendPercent" class="fw-bold mb-0 text-dark">--</h2>
