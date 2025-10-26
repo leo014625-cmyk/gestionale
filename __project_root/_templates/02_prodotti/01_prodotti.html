@@ -3,68 +3,75 @@
 {% block title %}Prodotti - Gestionale Horeca{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Gestione Prodotti</h1>
+<div class="container py-5">
 
-<div class="mb-4">
-  <input type="text" id="searchGlobale" class="form-control form-control-lg" placeholder="Cerca prodotto o categoria...">
-</div>
+  <h1 class="mb-4">Gestione Prodotti</h1>
 
-<div class="mb-4 d-flex gap-2 flex-wrap">
-  <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success">➕ Aggiungi Prodotto</a>
-  <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary">🗂️ Gestisci Categorie</a>
-</div>
+  <div class="mb-4">
+    <input type="text" id="searchGlobale" class="form-control form-control-lg" placeholder="Cerca prodotto o categoria...">
+  </div>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5" id="categorieCardContainer">
-  {% if categorie %}
-    {% for categoria in categorie %}
-      <div class="col">
-        <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
-             {% if categoria.immagine %}
-               style="background-image: url('{{ categoria.immagine }}');"
-             {% else %}
-               style="background: linear-gradient(135deg, #6c757d, #343a40);"
-             {% endif %}
-             data-bs-toggle="modal" 
-             data-bs-target="#categoriaModal"
-             data-categoria="{{ categoria.nome }}">
-          <div class="overlay d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title fw-bold">{{ categoria.nome }}</h5>
-            <p class="text-white">{{ prodotti_per_categoria.get(categoria.nome, [])|length }} prodotti</p>
+  <div class="mb-4 d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success rounded-4 d-flex align-items-center gap-2">
+      ➕ Aggiungi Prodotto
+    </a>
+    <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary rounded-4 d-flex align-items-center gap-2">
+      🗂️ Gestisci Categorie
+    </a>
+  </div>
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5" id="categorieCardContainer">
+    {% if categorie %}
+      {% for categoria in categorie %}
+        <div class="col">
+          <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
+               {% if categoria.immagine %}
+                 style="background-image: url('{{ categoria.immagine }}');"
+               {% else %}
+                 style="background: linear-gradient(135deg, #6c757d, #343a40);"
+               {% endif %}
+               data-bs-toggle="modal" 
+               data-bs-target="#categoriaModal"
+               data-categoria="{{ categoria.nome }}">
+            <div class="overlay d-flex flex-column justify-content-center align-items-center">
+              <h5 class="card-title fw-bold">{{ categoria.nome }}</h5>
+              <p class="text-white">{{ prodotti_per_categoria.get(categoria.nome, [])|length }} prodotti</p>
+            </div>
           </div>
         </div>
-      </div>
-    {% endfor %}
-  {% else %}
-    <div class="col-12">
-      <div class="alert alert-warning text-center">
-        Nessuna categoria disponibile.
-      </div>
-    </div>
-  {% endif %}
-</div>
-
-<!-- Modal prodotti -->
-<div class="modal fade" id="categoriaModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content modal-animate">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="categoriaModalLabel">Prodotti</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div class="search-container p-3 bg-light border-bottom sticky-top">
-          <input type="text" id="searchProdotti" class="form-control" placeholder="Cerca prodotto in questa categoria...">
+      {% endfor %}
+    {% else %}
+      <div class="col-12">
+        <div class="alert alert-warning text-center rounded-4">
+          Nessuna categoria disponibile.
         </div>
-        <div id="listaProdotti" class="list-group list-group-flush max-height-400 overflow-auto"></div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+    {% endif %}
+  </div>
+
+  <!-- Modal prodotti -->
+  <div class="modal fade" id="categoriaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content modal-animate">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="categoriaModalLabel">Prodotti</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="search-container p-3 bg-light border-bottom sticky-top">
+            <input type="text" id="searchProdotti" class="form-control" placeholder="Cerca prodotto in questa categoria...">
+          </div>
+          <div id="listaProdotti" class="list-group list-group-flush max-height-400 overflow-auto"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary rounded-4" data-bs-dismiss="modal">Chiudi</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<a href="{{ url_for('index') }}" class="btn btn-secondary mt-5">🏠 Torna alla home</a>
+  <a href="{{ url_for('index') }}" class="btn btn-secondary mt-5 rounded-4">🏠 Torna alla home</a>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -120,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   searchGlobale.addEventListener('input', () => {
     const query = searchGlobale.value.toLowerCase();
     document.querySelectorAll('#categorieCardContainer .col').forEach(col => {
-      const card = col.querySelector('.card');
+      const card = col.querySelector('.categoria-card');
       const categoria = card.getAttribute('data-categoria').toLowerCase();
       const prodotti = prodottiPerCategoria[card.getAttribute('data-categoria')] || [];
       const matchCategoria = categoria.includes(query);
