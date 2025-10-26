@@ -62,6 +62,7 @@
       </div>
     </div>
   </div>
+
 </div>
 
 <!-- Script grafici -->
@@ -110,9 +111,11 @@
     const trend = document.getElementById("trendPercent");
     const icon = document.getElementById("trendIcon");
     trend.textContent = (diff >= 0 ? '+' : '') + diff + '%';
+    trend.classList.remove('text-success','text-danger');
     trend.classList.add(diff >= 0 ? 'text-success' : 'text-danger');
+    icon.classList.remove('text-success','text-danger','bi-graph-up-arrow','bi-graph-down-arrow');
     icon.classList.add(diff >= 0 ? 'text-success' : 'text-danger');
-    icon.classList.remove(diff >= 0 ? 'bi-graph-down-arrow' : 'bi-graph-up-arrow');
+    icon.classList.add(diff >= 0 ? 'bi-graph-up-arrow' : 'bi-graph-down-arrow');
   }
 })();
 </script>
