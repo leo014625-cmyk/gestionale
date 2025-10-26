@@ -50,7 +50,7 @@
 
   .chart-card h5 {
     font-weight: 600;
-    color: #000; /* titolo grafico nero */
+    color: #000;
   }
 
   .notification-badge {
@@ -110,11 +110,13 @@
 
   <!-- Header -->
   <div class="dashboard-header text-center mb-5 position-relative">
-    <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
+    <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3"
+            data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
       <i class="bi bi-bell-fill fs-4 text-primary"></i>
       {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
       {% if not_unread|length > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill notification-badge" id="notifica-badge">
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill notification-badge"
+            id="notifica-badge">
         {{ not_unread|length }}
       </span>
       {% endif %}
@@ -149,16 +151,18 @@
     </div>
   </div>
 
-  <!-- Metriche -->
+  <!-- Include metriche -->
   <div class="row g-4 mb-5">
-    {% include "metriche.html" %}
+    {% include "03_metriche.html" %}
   </div>
 
   <!-- Grafico -->
   <div class="card chart-card mb-4">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
+        <h5 class="card-title mb-0">
+          <i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)
+        </h5>
       </div>
       <canvas id="fatturatoChart" height="150"></canvas>
     </div>
@@ -181,7 +185,9 @@
               <strong>{{ notifica.titolo }}</strong>
               <div class="small text-muted">{{ notifica.descrizione }}</div>
             </div>
-            <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">{{ notifica.data.strftime("%d/%m/%Y") }}</span>
+            <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">
+              {{ notifica.data.strftime("%d/%m/%Y") }}
+            </span>
             <button type="button" class="btn-close ms-2" onclick="chiudiNotifica({{ notifica.id }});"></button>
           </li>
         {% endfor %}
@@ -192,7 +198,7 @@
   </div>
 </div>
 
-<!-- JS -->
+<!-- JS notifiche -->
 <script>
 function chiudiNotifica(id) {
   const el = document.getElementById('notifica-' + id);
@@ -200,9 +206,9 @@ function chiudiNotifica(id) {
   const badge = document.getElementById('notifica-badge');
   if (badge) {
     let c = parseInt(badge.textContent);
-    if (--c > 0) badge.textContent = c; else badge.remove();
+    if (--c > 0) badge.textContent = c;
+    else badge.remove();
   }
-  // salva in localStorage per evitare che riappaia fino al mese successivo
   const mese = new Date().toISOString().slice(0,7);
   let chiuse = JSON.parse(localStorage.getItem('notificheChiuse') || '{}');
   chiuse[mese] = chiuse[mese] || [];
@@ -210,7 +216,6 @@ function chiudiNotifica(id) {
   localStorage.setItem('notificheChiuse', JSON.stringify(chiuse));
 }
 
-// nascondi notifiche già chiuse nel mese corrente
 document.addEventListener('DOMContentLoaded', () => {
   const mese = new Date().toISOString().slice(0,7);
   const chiuse = JSON.parse(localStorage.getItem('notificheChiuse') || '{}')[mese] || [];
@@ -241,16 +246,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const ctx = document.getElementById('fatturatoChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ 
-      label: 'Fatturato (€)',
-      data: valori,
-      fill: true,
-      borderColor: '#0d6efd',
-      backgroundColor: 'rgba(13,110,253,0.15)',
-      tension: 0.4,
-      pointRadius: 4,
-      pointBackgroundColor: '#0d6efd'
-    }] },
+    data: { 
+      labels, 
+      datasets: [{ 
+        label: 'Fatturato (€)',
+        data: valori,
+        fill: true,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13,110,253,0.15)',
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: '#0d6efd'
+      }]
+    },
     options: {
       plugins: { legend: { display: false } },
       scales: { 
