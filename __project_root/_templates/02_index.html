@@ -5,40 +5,40 @@
 {% block styles %}
 {{ super() }}
 <style>
-  body { background: #f6f8fa; }
+body { background: #f6f8fa; }
 
-  .dashboard-header {
-    background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
-    color: #fff;
-    border-radius: 1rem;
-    padding: 3rem 2rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  }
+.dashboard-header {
+  background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
+  color: #fff;
+  border-radius: 1rem;
+  padding: 3rem 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
 
-  .metric-card {
-    border: none;
-    transition: all 0.25s ease;
-    background: #fff;
-    border-radius: 1rem !important;
-    height: 100%;
-  }
+.metric-card {
+  border: none;
+  transition: all 0.25s ease;
+  background: #fff;
+  border-radius: 1rem !important;
+  height: 100%;
+}
+.metric-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+}
+.metric-card h6 { font-size: 0.95rem; color: #6c757d; }
 
-  .metric-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-  }
+.chart-card { border-radius: 1rem; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); height: 100%; display: flex; flex-direction: column; }
 
-  .metric-card h6 { font-size: 0.95rem; color: #6c757d; }
+.link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+.link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+.link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
+.link-prodotti:hover { background-color: #198754; color: #fff !important; border-color: #198754; }
+.link-fatturato:hover { background-color: #ffc107; color: #212529 !important; border-color: #ffc107; }
+.link-card i { transition: transform 0.2s ease; }
+.link-card:hover i { transform: scale(1.15); }
 
-  .chart-card { border-radius: 1rem; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); height: 100%; }
-
-  .link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-  .link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
-  .link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
-  .link-prodotti:hover { background-color: #198754; color: #fff !important; border-color: #198754; }
-  .link-fatturato:hover { background-color: #ffc107; color: #212529 !important; border-color: #ffc107; }
-  .link-card i { transition: transform 0.2s ease; }
-  .link-card:hover i { transform: scale(1.15); }
+.list-group-item { border-radius: 0.5rem; margin-bottom: 0.3rem; }
 </style>
 {% endblock %}
 
@@ -84,11 +84,11 @@
   <div class="row g-4 mb-5">
     {% set metriche = [
       {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-dark'},
-      {'titolo': 'Clienti Nuovi', 'valore': clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
       {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
       {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-      {'titolo': 'Prodotti Inseriti', 'valore': prodotti_totali_mese, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
-      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi_mese, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
     ] %}
     
     {% for m in metriche %}
@@ -110,19 +110,19 @@
 
   <!-- Grafici: 12 mesi e per zona -->
   <div class="row g-4 mb-5">
-    <div class="col-12 col-lg-6">
-      <div class="card chart-card h-100">
-        <div class="card-body">
+    <div class="col-12 col-lg-6 d-flex">
+      <div class="card chart-card w-100">
+        <div class="card-body d-flex flex-column">
           <h5 class="card-title"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
-          <canvas id="fatturatoChart" height="250"></canvas>
+          <canvas id="fatturatoChart" class="flex-grow-1"></canvas>
         </div>
       </div>
     </div>
-    <div class="col-12 col-lg-6">
-      <div class="card chart-card h-100">
-        <div class="card-body">
+    <div class="col-12 col-lg-6 d-flex">
+      <div class="card chart-card w-100">
+        <div class="card-body d-flex flex-column">
           <h5 class="card-title"><i class="bi bi-pie-chart-fill me-2 text-warning"></i> Fatturato per Zona</h5>
-          <canvas id="fatturatoZonaChart" height="250"></canvas>
+          <canvas id="fatturatoZonaChart" class="flex-grow-1"></canvas>
         </div>
       </div>
     </div>
@@ -131,7 +131,7 @@
 </div>
 
 <!-- Modali dettagli metriche -->
-{% macro dettaglio_clienti(modal_id, lista_clienti, tipo='attivo') %}
+{% macro dettaglio_lista(modal_id, lista, tipo='') %}
 <div class="modal fade" id="{{ modal_id }}" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -140,12 +140,14 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        {% if lista_clienti %}
+        {% if lista %}
         <ul class="list-group">
-          {% for cliente in lista_clienti %}
-            <li class="list-group-item {{ 'text-danger' if tipo=='bloccato' else '' }}">
-              {{ cliente.nome }}
-            </li>
+          {% for item in lista %}
+            {% if tipo == 'prodotto' %}
+              <li class="list-group-item">{{ item.cliente }}: {{ item.prodotto }}</li>
+            {% else %}
+              <li class="list-group-item {{ 'text-danger' if tipo=='bloccato' else '' }}">{{ item.nome }}</li>
+            {% endif %}
           {% endfor %}
         </ul>
         {% else %}
@@ -157,11 +159,11 @@
 </div>
 {% endmacro %}
 
-{{ dettaglio_clienti('modalClientiNuovi', clienti_nuovi_dettaglio) }}
-{{ dettaglio_clienti('modalClientiBloccati', clienti_bloccati_dettaglio, 'bloccato') }}
-{{ dettaglio_clienti('modalClientiInattivi', clienti_inattivi_dettaglio, 'inattivo') }}
-{{ dettaglio_clienti('modalProdottiTotali', prodotti_inseriti) }}
-{{ dettaglio_clienti('modalProdottiRimossi', prodotti_rimossi) }}
+{{ dettaglio_lista('modalClientiNuovi', clienti_nuovi_dettaglio) }}
+{{ dettaglio_lista('modalClientiBloccati', clienti_bloccati_dettaglio, 'bloccato') }}
+{{ dettaglio_lista('modalClientiInattivi', clienti_inattivi_dettaglio, 'inattivo') }}
+{{ dettaglio_lista('modalProdottiTotali', prodotti_inseriti, 'prodotto') }}
+{{ dettaglio_lista('modalProdottiRimossi', prodotti_rimossi, 'prodotto') }}
 
 <!-- Offcanvas Notifiche -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNotifiche">
@@ -189,7 +191,6 @@
   </div>
 </div>
 
-<!-- JS Notifiche -->
 <script>
 function chiudiNotifica(id) {
     const elem = document.getElementById('notifica-' + id);
@@ -221,24 +222,7 @@ function chiudiNotifica(id) {
     new Chart(ctx12, {
         type: 'bar',
         data: { labels: labels12, datasets: [{ label: 'Fatturato (€)', data: valori12, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 8, borderSkipped: false }] },
-        options: {
-            responsive: true,
-            plugins: { 
-                legend: { display: false },
-                tooltip: { 
-                    backgroundColor: '#1a2638',
-                    titleColor: '#4a90e2',
-                    bodyColor: '#cfd8e6',
-                    cornerRadius: 6,
-                    padding: 10,
-                    displayColors: false
-                }
-            },
-            scales: { 
-                x: { grid: { display: false }, ticks: { color: '#6c757d', font: { weight: 600 } } },
-                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6c757d' } }
-            }
-        }
+        options: { responsive: true, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', cornerRadius: 6, padding: 10, displayColors: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#6c757d', font: { weight: 600 } } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6c757d' } } } }
     });
 
     // Fatturato per zona
@@ -249,27 +233,8 @@ function chiudiNotifica(id) {
         const ctxZona = document.getElementById('fatturatoZonaChart').getContext('2d');
         new Chart(ctxZona, {
             type: 'pie',
-            data: { 
-                labels: labelsZona,
-                datasets: [{
-                    data: valoriZona,
-                    backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14']
-                }] 
-            },
-            options: { 
-                responsive: true,
-                plugins: { 
-                    legend: { position: 'right', labels: { color: '#6c757d' } },
-                    tooltip: { 
-                        backgroundColor: '#1a2638',
-                        titleColor: '#4a90e2',
-                        bodyColor: '#cfd8e6',
-                        cornerRadius: 6,
-                        padding: 10
-                    }
-                },
-                maintainAspectRatio: false
-            }
+            data: { labels: labelsZona, datasets: [{ data: valoriZona, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14'] }] },
+            options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#6c757d' } }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', cornerRadius: 6, padding: 10 } }, maintainAspectRatio: false }
         });
     }
 })();
