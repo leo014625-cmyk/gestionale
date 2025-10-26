@@ -28,21 +28,14 @@
     box-shadow: 0 8px 25px rgba(0,0,0,0.08);
   }
 
-  .metric-card h6 {
-    font-size: 0.95rem;
-    color: #6c757d;
-  }
+  .metric-card h6 { font-size: 0.95rem; color: #6c757d; }
 
-  .offcanvas { border-left: 2px solid #0d6efd; }
   .chart-card { border-radius: 1rem; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-
   .link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
   .link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
-
   .link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
   .link-prodotti:hover { background-color: #198754; color: #fff !important; border-color: #198754; }
   .link-fatturato:hover { background-color: #ffc107; color: #212529 !important; border-color: #ffc107; }
-
   .link-card i { transition: transform 0.2s ease; }
   .link-card:hover i { transform: scale(1.15); }
 </style>
@@ -114,17 +107,60 @@
     {% endfor %}
   </div>
 
-  <!-- Grafico -->
-  <div class="card chart-card mb-4">
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
+  <!-- Grafici: 12 mesi e per zona -->
+  <div class="row g-4 mb-5">
+    <div class="col-12 col-lg-6">
+      <div class="card chart-card">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
+          <canvas id="fatturatoChart" height="150"></canvas>
+        </div>
       </div>
-      <canvas id="fatturatoChart" height="150"></canvas>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card chart-card">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-pie-chart-fill me-2 text-warning"></i> Fatturato per Zona</h5>
+          <canvas id="fatturatoZonaChart" height="150"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 
 </div>
+
+<!-- Modali dettagli metriche -->
+{% macro dettaglio_clienti(modal_id, lista_clienti, tipo='attivo') %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ modal_id.replace('modal','') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if lista_clienti %}
+        <ul class="list-group">
+          {% for cliente in lista_clienti %}
+            <li class="list-group-item {{ 'text-danger' if tipo=='bloccato' else '' }}">
+              {{ cliente.nome }}
+            </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+          <p class="text-muted">Nessun dato disponibile</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{{ dettaglio_clienti('modalClientiNuovi', clienti_nuovi_dettaglio) }}
+{{ dettaglio_clienti('modalClientiBloccati', clienti_bloccati_dettaglio, 'bloccato') }}
+{{ dettaglio_clienti('modalClientiInattivi', clienti_inattivi_dettaglio, 'inattivo') }}
+{{ dettaglio_clienti('modalProdottiTotali', prodotti_inseriti) }}
+{{ dettaglio_clienti('modalProdottiRimossi', prodotti_rimossi) }}
 
 <!-- Offcanvas Notifiche -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNotifiche">
@@ -134,7 +170,7 @@
   </div>
   <div class="offcanvas-body">
     {% if notifiche %}
-      <ul class="list-group list-group-flush" id="lista-notifiche">
+      <ul class="list-group list-group-flush">
         {% for notifica in notifiche %}
           <li class="list-group-item d-flex justify-content-between align-items-start" id="notifica-{{ notifica.id }}">
             <div class="me-auto">
@@ -167,24 +203,38 @@ function chiudiNotifica(id) {
 }
 </script>
 
-<!-- Grafico Chart.js -->
+<!-- Grafici Chart.js -->
 {% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-    const dati = {{ fatturato_mensile|tojson }};
-    const labels = Object.keys(dati).sort().map(m => {
+    // Fatturato ultimi 12 mesi
+    const dati12 = {{ fatturato_mensile|tojson }};
+    const labels12 = Object.keys(dati12).sort().map(m => {
         const [anno, mese] = m.split('-');
         const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
         return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
     });
-    const valori = Object.keys(dati).sort().map(m => dati[m]);
-    const ctx = document.getElementById('fatturatoChart').getContext('2d');
-    new Chart(ctx, {
+    const valori12 = Object.keys(dati12).sort().map(m => dati12[m]);
+    const ctx12 = document.getElementById('fatturatoChart').getContext('2d');
+    new Chart(ctx12, {
         type: 'bar',
-        data: { labels, datasets: [{ label: 'Fatturato (€)', data: valori, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 5, borderSkipped: false }] },
+        data: { labels: labels12, datasets: [{ label: 'Fatturato (€)', data: valori12, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 5, borderSkipped: false }] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } } }
     });
+
+    // Fatturato per zona
+    const datiZona = {{ fatturato_per_zona|default({})|tojson }};
+    const labelsZona = Object.keys(datiZona);
+    const valoriZona = Object.values(datiZona);
+    if(labelsZona.length > 0){
+      const ctxZona = document.getElementById('fatturatoZonaChart').getContext('2d');
+      new Chart(ctxZona, {
+        type: 'pie',
+        data: { labels: labelsZona, datasets: [{ data: valoriZona, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'right' } } }
+      });
+    }
 })();
 </script>
 {% endif %}
