@@ -1,0 +1,124 @@
+<!-- _templates/03_metriche.html -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
+      <div class="card-body text-center">
+        <h6 class="text-uppercase text-muted mb-2">Clienti Totali</h6>
+        <h2 class="fw-bold display-6 text-primary">{{ clienti|length }}</h2>
+        <i class="bi bi-people fs-2 text-primary"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
+      <div class="card-body text-center">
+        <h6 class="text-uppercase text-muted mb-2">Fatturato Totale</h6>
+        <h2 class="fw-bold display-6 text-success">
+          € {{ clienti|map(attribute='fatturato_totale')|sum|default(0)|float|round(2) }}
+        </h2>
+        <i class="bi bi-cash-coin fs-2 text-success"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card bg-gradient-dark text-white shadow-lg border-0 rounded-4 h-100">
+      <div class="card-body text-center">
+        <h6 class="text-uppercase text-muted mb-2">Media per Cliente</h6>
+        {% set totale = clienti|map(attribute='fatturato_totale')|sum %}
+        <h2 class="fw-bold display-6 text-info">
+          € {{ (totale / (clienti|length) if clienti|length > 0 else 0) | round(2) }}
+        </h2>
+        <i class="bi bi-graph-up-arrow fs-2 text-info"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sezione Grafici -->
+<div class="row g-4 mb-5">
+  <div class="col-lg-8">
+    <div class="card bg-dark text-white shadow border-0 rounded-4 h-100">
+      <div class="card-body">
+        <h5 class="card-title mb-3 fw-semibold">
+          <i class="bi bi-graph-up me-2 text-info"></i> Fatturato Mensile Totale (ultimi 3 mesi)
+        </h5>
+        <canvas id="fatturatoMensileChart" height="150"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card bg-dark text-white shadow border-0 rounded-4 h-100">
+      <div class="card-body">
+        <h5 class="card-title mb-3 fw-semibold">
+          <i class="bi bi-pie-chart me-2 text-warning"></i> Fatturato per Zona
+        </h5>
+        <canvas id="fatturatoZonaChart" height="150"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(() => {
+  // === Grafico Fatturato Mensile ===
+  const fatturatoMensileRaw = {{ fatturato_mensile|default({})|tojson }};
+  const mesiOrdinati = Object.keys(fatturatoMensileRaw).sort();
+  const ultimi3Mesi = mesiOrdinati.slice(-3);
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const labels = ultimi3Mesi.map(m => {
+    const [anno, mese] = m.split('-');
+    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+  });
+  const valori = ultimi3Mesi.map(m => fatturatoMensileRaw[m]);
+
+  const ctx1 = document.getElementById('fatturatoMensileChart').getContext('2d');
+  new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Fatturato (€)',
+        data: valori,
+        backgroundColor: 'rgba(74,144,226,0.8)',
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } },
+        y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.15)' }, ticks: { color: '#a0a8b7' } }
+      }
+    }
+  });
+
+  // === Grafico Fatturato per Zona ===
+  const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
+  const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(fatturatoZona),
+      datasets: [{
+        data: Object.values(fatturatoZona),
+        backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#a0a8b7', padding: 15 } },
+        tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
+      },
+      cutout: '70%'
+    }
+  });
+})();
+</script>
