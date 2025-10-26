@@ -40,11 +40,11 @@
     </div>
   </div>
 
-  <!-- Mini grafico fatturato per zona -->
+  <!-- Mini grafico fatturato per zona (a barre) -->
   <div class="col-12 col-md-3">
     <div class="card metric-card text-center p-3 h-100 shadow-sm">
       <div class="card-body">
-        <i class="bi bi-pie-chart-fill fs-1 text-warning mb-2"></i>
+        <i class="bi bi-bar-chart-fill fs-1 text-warning mb-2"></i>
         <h6>Fatturato per Zona</h6>
         <canvas id="miniFatturatoZonaChart" height="90"></canvas>
       </div>
@@ -68,10 +68,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  // ===== Mini grafico per zona =====
+  // ===== Mini grafico per zona (a barre) =====
   const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
   if (Object.keys(fatturatoZona).length > 0) {
     const ctx = document.getElementById('miniFatturatoZonaChart').getContext('2d');
+    const colori = ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'];
     new Chart(ctx, {
       type: 'bar',
       data: {
@@ -79,7 +80,7 @@
         datasets: [{
           label: '€',
           data: Object.values(fatturatoZona),
-          backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
+          backgroundColor: colori,
           borderRadius: 6,
           borderSkipped: false
         }]
