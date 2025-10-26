@@ -1,17 +1,16 @@
 {% extends "01_base.html" %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container py-5">
 
     <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h2 class="fw-bold">📑 Gestione Volantini</h2>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('nuovo_volantino') }}" class="btn btn-primary btn-lg d-flex align-items-center gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('nuovo_volantino') }}" class="btn btn-primary btn-lg d-flex align-items-center gap-2 rounded-4">
                 ➕ Crea Nuovo Volantino
             </a>
-            </a>
-            <a href="{{ url_for('nuova_promo_lampo') }}" class="btn btn-danger btn-lg d-flex align-items-center gap-2">
+            <a href="{{ url_for('nuova_promo_lampo') }}" class="btn btn-danger btn-lg d-flex align-items-center gap-2 rounded-4">
                 ⚡ Crea Promo Lampo
             </a>
         </div>
@@ -36,16 +35,16 @@
                         </span>
                         <div class="mt-auto d-flex flex-wrap gap-2">
                             <a href="{{ url_for('visualizza_volantino', volantino_id=volantino['id']) }}" 
-                               class="btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                               class="btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                 👁 Visualizza
                             </a>
                             <a href="{{ url_for('modifica_volantino', volantino_id=volantino['id']) }}" 
-                               class="btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                               class="btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                 ✏️ Modifica
                             </a>
                             {% if volantino['tipo'] == 'beta' %}
                             <a href="{{ url_for('editor_volantino_beta', volantino_id=volantino['id']) }}" 
-                               class="btn btn-info btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                               class="btn btn-info btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                 🧪 Editor Beta
                             </a>
                             {% endif %}
@@ -53,7 +52,7 @@
                                   method="POST" 
                                   class="flex-grow-1"
                                   onsubmit="return confirm('Sei sicuro di voler eliminare questo volantino?');">
-                                <button type="submit" class="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1">
+                                <button type="submit" class="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                     🗑 Elimina
                                 </button>
                             </form>
@@ -63,7 +62,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info text-center mt-4">
+        <div class="alert alert-info text-center mt-4 rounded-4">
             ℹ️ Non ci sono volantini disponibili.
         </div>
     {% endif %}
@@ -87,18 +86,18 @@
                         </span>
                         <div class="mt-auto d-flex flex-wrap gap-2">
                             <a href="{{ url_for('editor_promo_lampo', promo_id=promo['id']) }}" 
-                               class="btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                               class="btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                 👁 Visualizza
                             </a>
                             <a href="{{ url_for('modifica_promo_lampo', promo_id=promo['id']) }}" 
-                               class="btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                               class="btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                 ✏️ Modifica
                             </a>
                             <form action="{{ url_for('elimina_promo_lampo', promo_id=promo['id']) }}" 
                                   method="POST" 
                                   class="flex-grow-1"
                                   onsubmit="return confirm('Vuoi davvero eliminare questa promo lampo?');">
-                                <button type="submit" class="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1">
+                                <button type="submit" class="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1 rounded-4">
                                     🗑 Elimina
                                 </button>
                             </form>
@@ -108,7 +107,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info text-center mt-4">
+        <div class="alert alert-info text-center mt-4 rounded-4">
             ℹ️ Non ci sono promo lampo disponibili.
         </div>
     {% endif %}
