@@ -5,9 +5,7 @@
 {% block styles %}
 {{ super() }}
 <style>
-  body {
-    background: #f6f8fa;
-  }
+  body { background: #f6f8fa; }
 
   .dashboard-header {
     background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
@@ -17,15 +15,12 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   }
 
-  .dashboard-header h1 {
-    font-weight: 700;
-  }
-
   .metric-card {
     border: none;
     transition: all 0.25s ease;
     background: #fff;
     border-radius: 1rem !important;
+    height: 100%;
   }
 
   .metric-card:hover {
@@ -38,70 +33,18 @@
     color: #6c757d;
   }
 
-  .offcanvas {
-    border-left: 2px solid #0d6efd;
-  }
+  .offcanvas { border-left: 2px solid #0d6efd; }
+  .chart-card { border-radius: 1rem; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 
-  .chart-card {
-    border-radius: 1rem;
-    background: #fff;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  }
+  .link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+  .link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
 
-  .chart-card h5 {
-    font-weight: 600;
-    color: #000;
-  }
+  .link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
+  .link-prodotti:hover { background-color: #198754; color: #fff !important; border-color: #198754; }
+  .link-fatturato:hover { background-color: #ffc107; color: #212529 !important; border-color: #ffc107; }
 
-  .notification-badge {
-    background: #ff3b3b;
-    font-size: 0.75rem;
-  }
-
-  .bi {
-    vertical-align: middle;
-  }
-
-  /* --- Quick Links Moderni --- */
-  .link-card {
-    transition: all 0.25s ease;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-  }
-
-  .link-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-  }
-
-  /* Clienti (blu) */
-  .link-clienti:hover {
-    background-color: #0d6efd;
-    color: #fff !important;
-    border-color: #0d6efd;
-  }
-
-  /* Prodotti (verde) */
-  .link-prodotti:hover {
-    background-color: #198754;
-    color: #fff !important;
-    border-color: #198754;
-  }
-
-  /* Fatturato (giallo) */
-  .link-fatturato:hover {
-    background-color: #ffc107;
-    color: #212529 !important;
-    border-color: #ffc107;
-  }
-
-  /* Icone animate */
-  .link-card i {
-    transition: transform 0.2s ease;
-  }
-
-  .link-card:hover i {
-    transform: scale(1.15);
-  }
+  .link-card i { transition: transform 0.2s ease; }
+  .link-card:hover i { transform: scale(1.15); }
 </style>
 {% endblock %}
 
@@ -115,54 +58,67 @@
       <i class="bi bi-bell-fill fs-4 text-primary"></i>
       {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
       {% if not_unread|length > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill notification-badge"
-            id="notifica-badge">
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill notification-badge" id="notifica-badge">
         {{ not_unread|length }}
       </span>
       {% endif %}
     </button>
-
     <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
     <p class="lead mb-0 text-white">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
   </div>
 
-  <!-- Quick links -->
+  <!-- Quick Links -->
   <div class="row quick-links justify-content-center g-4 mb-5">
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('clienti') }}" 
-         class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-clienti">
-        <i class="bi bi-people-fill fs-3"></i> 
-        <span class="fw-semibold">Clienti</span>
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-clienti">
+        <i class="bi bi-people-fill fs-3"></i> <span class="fw-semibold">Clienti</span>
       </a>
     </div>
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('prodotti') }}" 
-         class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-prodotti">
-        <i class="bi bi-box-seam fs-3"></i> 
-        <span class="fw-semibold">Prodotti</span>
+      <a href="{{ url_for('prodotti') }}" class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-prodotti">
+        <i class="bi bi-box-seam fs-3"></i> <span class="fw-semibold">Prodotti</span>
       </a>
     </div>
     <div class="col-12 col-md-3">
-      <a href="{{ url_for('fatturato') }}" 
-         class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-fatturato text-warning fw-semibold">
-        <i class="bi bi-cash-stack fs-3 text-warning"></i> 
-        <span>Fatturato</span>
+      <a href="{{ url_for('fatturato') }}" class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-fatturato text-warning fw-semibold">
+        <i class="bi bi-cash-stack fs-3 text-warning"></i> <span>Fatturato</span>
       </a>
     </div>
   </div>
 
-  <!-- Include metriche -->
+  <!-- Metriche Card -->
   <div class="row g-4 mb-5">
-    {% include "03_metriche.html" %}
+    {% set metriche = [
+      {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-dark'},
+      {'titolo': 'Clienti Nuovi', 'valore': clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
+      {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
+      {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
+      {'titolo': 'Prodotti Inseriti', 'valore': prodotti_totali_mese, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi_mese, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
+    ] %}
+    
+    {% for m in metriche %}
+      <div class="col-6 col-md-3">
+        <div class="card metric-card text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#{{ m.modal }}">
+          <h6>{{ m.titolo }}</h6>
+          {% if m.tipo == 'percent' and m.valore is not none %}
+            <div class="fs-3 fw-bold {{ 'text-success' if m.valore > 0 else 'text-danger' }}">
+              {{ "%.2f"|format(m.valore) }}%
+              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>{% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
+            </div>
+          {% else %}
+            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore or 0 }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
   </div>
 
   <!-- Grafico -->
   <div class="card chart-card mb-4">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title mb-0">
-          <i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)
-        </h5>
+        <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i> Andamento Fatturato (12 mesi)</h5>
       </div>
       <canvas id="fatturatoChart" height="150"></canvas>
     </div>
@@ -185,9 +141,7 @@
               <strong>{{ notifica.titolo }}</strong>
               <div class="small text-muted">{{ notifica.descrizione }}</div>
             </div>
-            <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">
-              {{ notifica.data.strftime("%d/%m/%Y") }}
-            </span>
+            <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">{{ notifica.data.strftime("%d/%m/%Y") }}</span>
             <button type="button" class="btn-close ms-2" onclick="chiudiNotifica({{ notifica.id }});"></button>
           </li>
         {% endfor %}
@@ -198,75 +152,39 @@
   </div>
 </div>
 
-<!-- JS notifiche -->
+<!-- JS Notifiche -->
 <script>
 function chiudiNotifica(id) {
-  const el = document.getElementById('notifica-' + id);
-  if (el) el.remove();
-  const badge = document.getElementById('notifica-badge');
-  if (badge) {
-    let c = parseInt(badge.textContent);
-    if (--c > 0) badge.textContent = c;
-    else badge.remove();
-  }
-  const mese = new Date().toISOString().slice(0,7);
-  let chiuse = JSON.parse(localStorage.getItem('notificheChiuse') || '{}');
-  chiuse[mese] = chiuse[mese] || [];
-  chiuse[mese].push(id);
-  localStorage.setItem('notificheChiuse', JSON.stringify(chiuse));
+    const elem = document.getElementById('notifica-' + id);
+    if(elem) elem.remove();
+    const badge = document.getElementById('notifica-badge');
+    if(badge) {
+        let count = parseInt(badge.textContent);
+        count--;
+        if(count > 0) badge.textContent = count;
+        else badge.remove();
+    }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  const mese = new Date().toISOString().slice(0,7);
-  const chiuse = JSON.parse(localStorage.getItem('notificheChiuse') || '{}')[mese] || [];
-  chiuse.forEach(id => {
-    const el = document.getElementById('notifica-' + id);
-    if (el) el.remove();
-  });
-});
 </script>
 
+<!-- Grafico Chart.js -->
 {% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  const dati = {
-    {% for mese, valore in fatturato_mensile.items() %}
-      "{{ mese }}": {{ valore }},
-    {% endfor %}
-  };
-  const mesi = Object.keys(dati).sort((a,b)=>a.localeCompare(b));
-  const labels = mesi.map(m => {
-    const [anno, mese] = m.split('-');
-    const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
-  });
-  const valori = mesi.map(m=>dati[m]);
-
-  const ctx = document.getElementById('fatturatoChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: { 
-      labels, 
-      datasets: [{ 
-        label: 'Fatturato (€)',
-        data: valori,
-        fill: true,
-        borderColor: '#0d6efd',
-        backgroundColor: 'rgba(13,110,253,0.15)',
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: '#0d6efd'
-      }]
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: { 
-        x: { grid: { display: false } },
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
-      }
-    }
-  });
+    const dati = {{ fatturato_mensile|tojson }};
+    const labels = Object.keys(dati).sort().map(m => {
+        const [anno, mese] = m.split('-');
+        const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+        return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+    });
+    const valori = Object.keys(dati).sort().map(m => dati[m]);
+    const ctx = document.getElementById('fatturatoChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Fatturato (€)', data: valori, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 5, borderSkipped: false }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } } }
+    });
 })();
 </script>
 {% endif %}
