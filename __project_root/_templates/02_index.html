@@ -5,54 +5,57 @@
 {% block styles %}
 {{ super() }}
 <style>
-body { background: #f6f8fa; }
+body { background: #0f172a; color: #fff; }
 
 .dashboard-header {
   background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
   color: #fff;
   border-radius: 1rem;
   padding: 3rem 2rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
 
+/* === Metriche === */
 .metric-card {
   border: none;
   transition: all 0.25s ease;
-  background: #fff;
+  background: #1e293b;
   border-radius: 1rem !important;
   height: 100%;
+  color: #fff;
 }
 .metric-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
 }
-.metric-card h6 { font-size: 0.95rem; color: #6c757d; }
+.metric-card h6 { font-size: 0.95rem; color: #a0a8b7; }
 
-/* === Altezza grafici corretta e uniforme === */
+/* === Grafici in stile "fatturato.html" === */
 .chart-card {
   border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  height: 400px; /* Altezza fissa e uguale per entrambi */
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  height: 420px;
   display: flex;
   flex-direction: column;
+  color: #fff;
 }
 .chart-card .card-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
+  padding: 1.5rem;
 }
 .chart-card canvas {
   flex-grow: 1;
-  height: 280px !important; /* evita espansione verticale */
+  height: 280px !important;
   width: 100% !important;
 }
 
 /* === Link cards === */
-.link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-.link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+.link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
 .link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
 .link-prodotti:hover { background-color: #198754; color: #fff !important; border-color: #198754; }
 .link-fatturato:hover { background-color: #ffc107; color: #212529 !important; border-color: #ffc107; }
@@ -73,7 +76,7 @@ body { background: #f6f8fa; }
       <i class="bi bi-bell-fill fs-4 text-primary"></i>
       {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
       {% if not_unread|length > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill notification-badge" id="notifica-badge">
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
         {{ not_unread|length }}
       </span>
       {% endif %}
@@ -104,12 +107,12 @@ body { background: #f6f8fa; }
   <!-- Metriche -->
   <div class="row g-4 mb-5">
     {% set metriche = [
-      {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-dark'},
-      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
+      {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-light'},
       {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
       {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
-      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-light'},
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-light'}
     ] %}
     
     {% for m in metriche %}
@@ -131,26 +134,21 @@ body { background: #f6f8fa; }
 
   <!-- Grafici -->
   <div class="row g-4 mb-5">
-    <!-- Fatturato 12 mesi -->
-    <div class="col-12 col-lg-6 d-flex">
-      <div class="card chart-card w-100">
+    <div class="col-lg-8">
+      <div class="card chart-card">
         <div class="card-body">
-          <h5 class="card-title mb-3">
-            <i class="bi bi-graph-up-arrow me-2 text-primary"></i>
-            Andamento Fatturato (12 mesi)
+          <h5 class="card-title mb-3 fw-semibold">
+            <i class="bi bi-graph-up me-2 text-info"></i> Andamento Fatturato Mensile
           </h5>
           <canvas id="fatturatoChart"></canvas>
         </div>
       </div>
     </div>
-
-    <!-- Fatturato per zona -->
-    <div class="col-12 col-lg-6 d-flex">
-      <div class="card chart-card w-100">
+    <div class="col-lg-4">
+      <div class="card chart-card">
         <div class="card-body">
-          <h5 class="card-title mb-3">
-            <i class="bi bi-pie-chart-fill me-2 text-warning"></i>
-            Fatturato per Zona
+          <h5 class="card-title mb-3 fw-semibold">
+            <i class="bi bi-pie-chart me-2 text-warning"></i> Fatturato per Zona
           </h5>
           <canvas id="fatturatoZonaChart"></canvas>
         </div>
@@ -165,31 +163,60 @@ body { background: #f6f8fa; }
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  const dati12 = {{ fatturato_mensile|tojson }};
-  const labels12 = Object.keys(dati12).sort().map(m => {
+  // === Fatturato Mensile ===
+  const fatturatoMensile = {{ fatturato_mensile|tojson }};
+  const mesi = Object.keys(fatturatoMensile).sort();
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const labels = mesi.map(m => {
     const [anno, mese] = m.split('-');
-    const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
     return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
   });
-  const valori12 = Object.keys(dati12).sort().map(m => dati12[m]);
-  const ctx12 = document.getElementById('fatturatoChart').getContext('2d');
-  new Chart(ctx12, {
+  const valori = Object.values(fatturatoMensile);
+
+  const ctx1 = document.getElementById('fatturatoChart').getContext('2d');
+  new Chart(ctx1, {
     type: 'bar',
-    data: { labels: labels12, datasets: [{ label: 'Fatturato (€)', data: valori12, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 8, borderSkipped: false }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    data: {
+      labels,
+      datasets: [{
+        label: 'Fatturato (€)',
+        data: valori,
+        backgroundColor: 'rgba(74,144,226,0.8)',
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } },
+        y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.15)' }, ticks: { color: '#a0a8b7' } }
+      }
+    }
   });
 
-  const datiZona = {{ fatturato_per_zona|default({})|tojson }};
-  const labelsZona = Object.keys(datiZona);
-  const valoriZona = Object.values(datiZona);
-  if(labelsZona.length > 0){
-    const ctxZona = document.getElementById('fatturatoZonaChart').getContext('2d');
-    new Chart(ctxZona, {
-      type: 'pie',
-      data: { labels: labelsZona, datasets: [{ data: valoriZona, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14'] }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-    });
-  }
+  // === Fatturato per Zona ===
+  const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
+  const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(fatturatoZona),
+      datasets: [{
+        data: Object.values(fatturatoZona),
+        backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#a0a8b7', padding: 15 } },
+        tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
+      },
+      cutout: '70%'
+    }
+  });
 })();
 </script>
 {% endif %}
