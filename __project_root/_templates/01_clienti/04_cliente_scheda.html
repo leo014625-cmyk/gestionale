@@ -6,7 +6,6 @@
 {{ super() }}
 <style>
   body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
-
   h1, h5 { font-weight: 600; }
 
   .card, .categoria-card {
@@ -15,7 +14,6 @@
     background: #fff;
     transition: all 0.25s ease;
   }
-
   .card:hover, .categoria-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.08);
@@ -53,6 +51,8 @@
   table tbody tr:hover { background-color: #f1f3f5 !important; }
 
   .tooltip-inner { background-color: #6c757d; }
+
+  .metric-badge { font-size: 0.9rem; margin-right: 0.5rem; }
 </style>
 {% endblock %}
 
@@ -70,20 +70,62 @@
   </h1>
 </div>
 
+<!-- Metriche rapide -->
 <div class="row g-4 mb-4">
-  <!-- Dati cliente e log -->
+  <div class="col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <h6 class="text-muted">Fatturato Totale</h6>
+      <h3 class="fw-bold text-success">{{ "%.2f"|format(fatturato_totale or 0) }} €</h3>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <h6 class="text-muted">Media Mensile</h6>
+      {% set media = (fatturato_totale / mesi_totali if mesi_totali > 0 else 0) %}
+      <h3 class="fw-bold text-info">{{ "%.2f"|format(media) }} €</h3>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <h6 class="text-muted">Crescita Mensile</h6>
+      {% if crescita_mensile is defined %}
+        <h3 class="fw-bold {{ 'text-success' if crescita_mensile>=0 else 'text-danger' }}">
+          {{ "%.1f"|format(crescita_mensile) }} %
+        </h3>
+      {% else %}
+        <h3 class="fw-bold text-muted">–</h3>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <h6 class="text-muted">Ultimo Contatto</h6>
+      <h3 class="fw-bold text-primary">{{ ultimo_contatto or '–' }}</h3>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Grafico Fatturato -->
+  <div class="col-12 col-lg-6">
+    <div class="card chart-card h-100">
+      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
+        <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
+          <option value="ultimi3" selected>Ultimi 3 mesi</option>
+          <option value="tutti">Tutti</option>
+        </select>
+      </div>
+      <div class="card-body d-flex flex-column">
+        <canvas id="fatturatoMensileChart" class="flex-grow-1"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Cliente -->
   <div class="col-12 col-lg-6">
     <div class="card h-100 p-3">
-      <p><strong>Zona:</strong> {{ cliente.zona or '–' }}</p>
-      <p><strong>Fatturato Totale:</strong>
-        {% if fatturato_totale and fatturato_totale|float > 0 %}
-          <span class="fw-bold text-success">{{ "%.2f"|format(fatturato_totale) }} €</span>
-        {% else %}
-          <span class="text-muted fst-italic">Nessun dato disponibile</span>
-        {% endif %}
-      </p>
-
-      <h6 class="mt-4 mb-2">Ultimi 5 Log</h6>
+      <h6 class="mb-3">Ultimi Log</h6>
       {% if log_cliente %}
         {% set ultimi_log = log_cliente|sort(attribute='data', reverse=true) %}
         <div class="log-container">
@@ -91,14 +133,12 @@
             {% for log in ultimi_log[:5] %}
               <li class="d-flex justify-content-between align-items-center border-bottom py-1">
                 <div>
-                  {% if 'Aggiunto prodotto' in log.descrizione %}
-                    <i class="bi bi-plus-circle-fill text-success me-2"></i>
-                  {% elif 'Rimosso prodotto' in log.descrizione %}
-                    <i class="bi bi-dash-circle-fill text-danger me-2"></i>
-                  {% elif 'Fatturato aggiornato' in log.descrizione %}
+                  {% if 'Aggiornato fatturato' in log.descrizione %}
                     <i class="bi bi-currency-euro text-primary me-2"></i>
-                  {% else %}
+                  {% elif 'Nota' in log.descrizione %}
                     <i class="bi bi-info-circle-fill text-secondary me-2"></i>
+                  {% else %}
+                    <i class="bi bi-pencil-fill text-warning me-2"></i>
                   {% endif %}
                   {{ log.descrizione }}
                 </div>
@@ -112,25 +152,9 @@
       {% endif %}
     </div>
   </div>
-
-  <!-- Grafico -->
-  <div class="col-12 col-lg-6 d-flex">
-    <div class="card chart-card w-100">
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
-        <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
-          <option value="ultimi3" selected>Ultimi 3 mesi</option>
-          <option value="tutti">Tutti</option>
-        </select>
-      </div>
-      <div class="card-body d-flex flex-column">
-        <canvas id="fatturatoMensileChart" class="flex-grow-1"></canvas>
-      </div>
-    </div>
-  </div>
 </div>
 
-<!-- Categorie -->
+<!-- Prodotti come promemoria -->
 <div class="row g-4 mb-4">
   {% for cat in categorie %}
     <div class="col-md-4">
@@ -142,10 +166,8 @@
     </div>
   {% endfor %}
 </div>
-
 <div id="contenitore-tabella" class="mt-4"></div>
 
-<!-- Templates prodotti per categoria -->
 {% for cat in categorie %}
   <template id="tabella-template-{{ cat.id }}">
     <div class="card p-3 mb-4">
@@ -156,37 +178,21 @@
           <thead class="table-light">
             <tr>
               <th>Prodotto</th>
-              <th>Stato</th>
-              <th>Prezzo Attuale (€)</th>
-              <th>Offerta (€)</th>
+              <th>Note</th>
+              <th>Prezzo Promemoria (€)</th>
               <th>Ultima Modifica</th>
             </tr>
           </thead>
           <tbody>
             {% for p in prodotti|sort(attribute='nome') if p.categoria_id == cat.id %}
-              {% set pid = p.id|string %}
-              {% set lavorato = pid in (prodotti_lavorati | map('string') | list) %}
-              <tr class="{% if lavorato %}table-success{% else %}table-danger{% endif %}">
+              <tr>
                 <td><strong>{{ p.nome }}</strong></td>
-                <td>
-                  {% if lavorato %}
-                    <span class="badge-soft badge-soft-success">Lavorato</span>
-                  {% else %}
-                    <span class="badge-soft badge-soft-danger">Non Lavorato</span>
-                  {% endif %}
-                </td>
-                <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
-                <td>
-                  {% if prezzi_offerta.get(pid) %}
-                    <span class="badge-soft badge-soft-warning" data-bs-toggle="tooltip" title="Ultima modifica: {{ prodotti_data.get(pid) }}">
-                      {{ "%.2f"|format(prezzi_offerta[pid]) }}
-                    </span>
-                  {% else %}–{% endif %}
-                </td>
-                <td>{{ prodotti_data.get(pid) or '–' }}</td>
+                <td>{{ p.note or '–' }}</td>
+                <td>{{ "%.2f"|format(prezzi_attuali.get(p.id|string) or 0) }}</td>
+                <td>{{ prodotti_data.get(p.id|string) or '–' }}</td>
               </tr>
             {% else %}
-              <tr><td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td></tr>
+              <tr><td colspan="4" class="text-center text-muted fst-italic">Nessun prodotto</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -234,7 +240,12 @@
         labels: d.labels,
         datasets: [{ data: d.dati, backgroundColor: gradient, borderRadius: 6, borderSkipped: false }]
       },
-      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                  x: { grid: { display: false } } }
+      }
     });
   };
 
