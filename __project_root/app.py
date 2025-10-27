@@ -1226,12 +1226,26 @@ def fatturato():
             key = f"{anno}-{str(mese).zfill(2)}"
             fatturato_mensile[key] = float(totale_row['totale_mese'] or 0)
 
+        # === Fatturato per zona (come in index) ===
+        cur.execute('''
+            SELECT 
+                COALESCE(c.zona, 'Sconosciuta') AS zona, 
+                COALESCE(SUM(f.totale),0) AS totale
+            FROM fatturato f
+            JOIN clienti c ON f.cliente_id = c.id
+            GROUP BY c.zona
+            ORDER BY zona
+        ''')
+        fatturato_per_zona_rows = cur.fetchall()
+        fatturato_per_zona = {r['zona']: r['totale'] for r in fatturato_per_zona_rows}
+
     return render_template(
         '03_fatturato/01_fatturato.html',
         clienti=clienti_list,
         zone=zone,
         zona_filtro=zona_filtro,
-        fatturato_mensile=fatturato_mensile
+        fatturato_mensile=fatturato_mensile,
+        fatturato_per_zona=fatturato_per_zona  # <-- aggiunto per grafico
     )
 
 
