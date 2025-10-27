@@ -304,7 +304,10 @@ def index():
             WHERE data_registrazione >= %s AND data_registrazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         clienti_nuovi_rows = cur.fetchall()
-        clienti_nuovi_dettaglio = [{'nome': c['nome'], 'data_registrazione': c['data_registrazione']} for c in clienti_nuovi_rows]
+        clienti_nuovi_dettaglio = [
+            {'nome': c['nome'], 'data_registrazione': c['data_registrazione']}
+            for c in clienti_nuovi_rows
+        ]
         clienti_nuovi = len(clienti_nuovi_rows)
 
         # === Stato clienti (attivi, bloccati, inattivi) ===
@@ -313,33 +316,25 @@ def index():
         clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
 
         for cliente in clienti_rows:
-            cur.execute(
-                'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                (cliente['id'], mese_corrente, anno_corrente)
-            )
-            totale_corrente = cur.fetchone()['totale']
+            # Fatturato degli ultimi 3 mesi per ogni cliente
+            cur.execute('''
+                SELECT COALESCE(SUM(totale),0) as totale
+                FROM fatturato
+                WHERE cliente_id=%s AND ((anno=%s AND mese=%s) OR (anno=%s AND mese=%s) OR (anno=%s AND mese=%s))
+            ''', (
+                cliente['id'],
+                anno_corrente, mese_corrente,
+                anno_prec, mese_prec,
+                anno_prec if mese_corrente <= 2 else anno_corrente,
+                12 if mese_corrente <= 2 else mese_corrente - 2
+            ))
+            totale_periodo = cur.fetchone()['totale']
 
-            cur.execute(
-                'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                (cliente['id'], mese_prec, anno_prec)
-            )
-            totale_prec = cur.fetchone()['totale']
-
-            mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
-            anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
-            cur.execute(
-                'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                (cliente['id'], mese_due_fa, anno_due_fa)
-            )
-            totale_due_mesi_fa = cur.fetchone()['totale']
-
-            # Determina stato cliente
-            if totale_corrente > 0:
+            # Stato cliente
+            if totale_periodo > 0:
                 clienti_attivi_dettaglio.append({'nome': cliente['nome']})
-            elif totale_prec == 0 and totale_due_mesi_fa == 0:
-                clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
             else:
-                clienti_bloccati_dettaglio.append({'nome': cliente['nome']})
+                clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
 
         clienti_bloccati = len(clienti_bloccati_dettaglio)
         clienti_inattivi = len(clienti_inattivi_dettaglio)
@@ -355,7 +350,10 @@ def index():
               AND cp.data_operazione >= %s AND cp.data_operazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_inseriti_rows = cur.fetchall()
-        prodotti_inseriti = [{'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']} for r in prodotti_inseriti_rows]
+        prodotti_inseriti = [
+            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']}
+            for r in prodotti_inseriti_rows
+        ]
         prodotti_totali_mese = len(prodotti_inseriti)
 
         # === Prodotti rimossi nel mese ===
@@ -368,7 +366,10 @@ def index():
             WHERE pr.data_rimozione >= %s AND pr.data_rimozione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_rimossi_rows = cur.fetchall()
-        prodotti_rimossi = [{'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']} for r in prodotti_rimossi_rows]
+        prodotti_rimossi = [
+            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']}
+            for r in prodotti_rimossi_rows
+        ]
         prodotti_rimossi_mese = len(prodotti_rimossi)
 
         # === Fatturato ultimi 12 mesi ===
@@ -384,41 +385,35 @@ def index():
             f"{r['anno']}-{r['mese']:02}": r['totale']
             for r in reversed(fatturato_mensile_rows)
         }
-        fatturato_mensile = dict(sorted(fatturato_mensile.items()))  # garantisce ordine mesi
 
         # === Fatturato per Zona ===
         cur.execute('''
-            SELECT zona, COALESCE(SUM(f.totale),0) AS totale
-            FROM clienti c
-            JOIN fatturato f ON c.id = f.cliente_id
-            GROUP BY zona
+            SELECT 
+                COALESCE(c.zona, 'Sconosciuta') AS zona, 
+                COALESCE(SUM(f.totale),0) AS totale
+            FROM fatturato f
+            JOIN clienti c ON f.cliente_id = c.id
+            GROUP BY c.zona
             ORDER BY zona
         ''')
         fatturato_per_zona_rows = cur.fetchall()
-        fatturato_per_zona = {r['zona'] or 'Sconosciuta': r['totale'] for r in fatturato_per_zona_rows}
+        fatturato_per_zona = {
+            r['zona']: r['totale'] for r in fatturato_per_zona_rows
+        }
 
         # === Notifiche dinamiche ===
         notifiche = []
-        if clienti_attivi_dettaglio or clienti_bloccati_dettaglio:
+        if clienti_attivi_dettaglio:
             notifiche.append({
                 'titolo': "Aggiorna Fatturato",
-                'descrizione': "Ricorda di aggiornare il fatturato dei clienti attivi o bloccati questo mese.",
+                'descrizione': "Ricorda di aggiornare il fatturato dei clienti attivi questo mese.",
                 'data': datetime.now(),
                 'tipo': "warning",
-                'clienti_attivi': clienti_attivi_dettaglio,
-                'clienti_bloccati': clienti_bloccati_dettaglio
-            })
-            notifiche.append({
-                'titolo': "Controlla Prodotti",
-                'descrizione': "Verifica i prodotti dei clienti attivi o bloccati.",
-                'data': datetime.now(),
-                'tipo': "info",
-                'clienti_attivi': clienti_attivi_dettaglio,
-                'clienti_bloccati': clienti_bloccati_dettaglio
+                'clienti_attivi': clienti_attivi_dettaglio
             })
         if clienti_inattivi_dettaglio:
             notifiche.append({
-                'titolo': "Clienti inattivi",
+                'titolo': "Clienti Inattivi",
                 'descrizione': "Verifica eventuali aggiornamenti sui clienti inattivi.",
                 'data': datetime.now(),
                 'tipo': "secondary",
@@ -440,10 +435,9 @@ def index():
         prodotti_inseriti=prodotti_inseriti,
         prodotti_rimossi=prodotti_rimossi,
         fatturato_mensile=fatturato_mensile,
-        fatturato_per_zona=fatturato_per_zona,  # 👈 nuovo dato per metriche
+        fatturato_per_zona=fatturato_per_zona,
         notifiche=notifiche
     )
-
 
 
 # ============================
