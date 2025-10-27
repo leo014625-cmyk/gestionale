@@ -108,11 +108,11 @@ body { background: #0f172a; color: #fff; }
   <div class="row g-4 mb-5">
     {% set metriche = [
       {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
-      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-light'},
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},  <!-- nero -->
       {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
       {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-light'},
-      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-light'}
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},  <!-- nero -->
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}  <!-- nero -->
     ] %}
     
     {% for m in metriche %}
