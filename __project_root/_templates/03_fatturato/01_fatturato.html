@@ -62,22 +62,22 @@
   <!-- Sezione grafici -->
   <div class="row g-4 mb-5">
     <div class="col-lg-8">
-      <div class="card bg-dark text-white shadow border-0 rounded-4 h-100">
+      <div class="card chart-card">
         <div class="card-body">
           <h5 class="card-title mb-3 fw-semibold">
             <i class="bi bi-graph-up me-2 text-info"></i> Fatturato Mensile Totale (ultimi 3 mesi)
           </h5>
-          <canvas id="fatturatoMensileChart" height="150"></canvas>
+          <canvas id="fatturatoMensileChart"></canvas>
         </div>
       </div>
     </div>
     <div class="col-lg-4">
-      <div class="card bg-dark text-white shadow border-0 rounded-4 h-100">
+      <div class="card chart-card">
         <div class="card-body">
           <h5 class="card-title mb-3 fw-semibold">
             <i class="bi bi-pie-chart me-2 text-warning"></i> Fatturato per Zona
           </h5>
-          <canvas id="fatturatoZonaChart" height="150"></canvas>
+          <canvas id="fatturatoZonaChart"></canvas>
         </div>
       </div>
     </div>
@@ -131,15 +131,14 @@
 (() => {
   const fatturatoMensileRaw = {{ fatturato_mensile|default({})|tojson }};
   const mesiOrdinati = Object.keys(fatturatoMensileRaw).sort();
-  const ultimi3Mesi = mesiOrdinati.slice(-3);
-  const mesiNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-  const labels = ultimi3Mesi.map(m => {
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const labels = mesiOrdinati.map(m => {
     const [anno, mese] = m.split('-');
     return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
   });
-  const valori = ultimi3Mesi.map(m => fatturatoMensileRaw[m]);
+  const valori = Object.values(fatturatoMensileRaw);
 
-  // Bar chart (mensile)
+  // Bar chart (identico a index.html)
   const ctx1 = document.getElementById('fatturatoMensileChart').getContext('2d');
   new Chart(ctx1, {
     type: 'bar',
@@ -163,7 +162,7 @@
     }
   });
 
-  // Pie chart (per zona)
+  // Doughnut chart fatturato per zona (identico a index.html)
   const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
   const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
   new Chart(ctx2, {
