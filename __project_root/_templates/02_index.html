@@ -28,7 +28,19 @@ body { background: #f6f8fa; }
 }
 .metric-card h6 { font-size: 0.95rem; color: #6c757d; }
 
-.chart-card { border-radius: 1rem; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); height: 100%; display: flex; flex-direction: column; }
+/* --- Altezza grafici uniformata --- */
+.chart-card {
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  height: 420px; /* Altezza uniforme */
+  display: flex;
+  flex-direction: column;
+}
+.chart-card canvas {
+  flex-grow: 1;
+  max-height: 320px; /* Altezza proporzionata */
+}
 
 .link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
@@ -80,7 +92,7 @@ body { background: #f6f8fa; }
     </div>
   </div>
 
-  <!-- Metriche Card -->
+  <!-- Metriche -->
   <div class="row g-4 mb-5">
     {% set metriche = [
       {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-dark'},
@@ -108,7 +120,7 @@ body { background: #f6f8fa; }
     {% endfor %}
   </div>
 
-  <!-- Grafici: 12 mesi e per zona -->
+  <!-- Grafici -->
   <div class="row g-4 mb-5">
     <div class="col-12 col-lg-6 d-flex">
       <div class="card chart-card w-100">
@@ -130,113 +142,36 @@ body { background: #f6f8fa; }
 
 </div>
 
-<!-- Modali dettagli metriche -->
-{% macro dettaglio_lista(modal_id, lista, tipo='') %}
-<div class="modal fade" id="{{ modal_id }}" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">{{ modal_id.replace('modal','') }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {% if lista %}
-        <ul class="list-group">
-          {% for item in lista %}
-            {% if tipo == 'prodotto' %}
-              <li class="list-group-item">{{ item.cliente }}: {{ item.prodotto }}</li>
-            {% else %}
-              <li class="list-group-item {{ 'text-danger' if tipo=='bloccato' else '' }}">{{ item.nome }}</li>
-            {% endif %}
-          {% endfor %}
-        </ul>
-        {% else %}
-          <p class="text-muted">Nessun dato disponibile</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-{% endmacro %}
-
-{{ dettaglio_lista('modalClientiNuovi', clienti_nuovi_dettaglio) }}
-{{ dettaglio_lista('modalClientiBloccati', clienti_bloccati_dettaglio, 'bloccato') }}
-{{ dettaglio_lista('modalClientiInattivi', clienti_inattivi_dettaglio, 'inattivo') }}
-{{ dettaglio_lista('modalProdottiTotali', prodotti_inseriti, 'prodotto') }}
-{{ dettaglio_lista('modalProdottiRimossi', prodotti_rimossi, 'prodotto') }}
-
-<!-- Offcanvas Notifiche -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNotifiche">
-  <div class="offcanvas-header">
-    <h5 class="offcanvas-title">Centro Notifiche</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-  </div>
-  <div class="offcanvas-body">
-    {% if notifiche %}
-      <ul class="list-group list-group-flush">
-        {% for notifica in notifiche %}
-          <li class="list-group-item d-flex justify-content-between align-items-start" id="notifica-{{ notifica.id }}">
-            <div class="me-auto">
-              <strong>{{ notifica.titolo }}</strong>
-              <div class="small text-muted">{{ notifica.descrizione }}</div>
-            </div>
-            <span class="badge bg-{{ notifica.tipo or 'primary' }} rounded-pill">{{ notifica.data.strftime("%d/%m/%Y") }}</span>
-            <button type="button" class="btn-close ms-2" onclick="chiudiNotifica({{ notifica.id }});"></button>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted">Nessuna notifica disponibile.</p>
-    {% endif %}
-  </div>
-</div>
-
-<script>
-function chiudiNotifica(id) {
-    const elem = document.getElementById('notifica-' + id);
-    if(elem) elem.remove();
-    const badge = document.getElementById('notifica-badge');
-    if(badge) {
-        let count = parseInt(badge.textContent);
-        count--;
-        if(count > 0) badge.textContent = count;
-        else badge.remove();
-    }
-}
-</script>
-
 <!-- Grafici Chart.js -->
 {% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-    // Fatturato ultimi 12 mesi
-    const dati12 = {{ fatturato_mensile|tojson }};
-    const labels12 = Object.keys(dati12).sort().map(m => {
-        const [anno, mese] = m.split('-');
-        const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-        return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
-    });
-    const valori12 = Object.keys(dati12).sort().map(m => dati12[m]);
-    const ctx12 = document.getElementById('fatturatoChart').getContext('2d');
-    new Chart(ctx12, {
-        type: 'bar',
-        data: { labels: labels12, datasets: [{ label: 'Fatturato (€)', data: valori12, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 8, borderSkipped: false }] },
-        options: { responsive: true, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', cornerRadius: 6, padding: 10, displayColors: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#6c757d', font: { weight: 600 } } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6c757d' } } } }
-    });
+  const dati12 = {{ fatturato_mensile|tojson }};
+  const labels12 = Object.keys(dati12).sort().map(m => {
+    const [anno, mese] = m.split('-');
+    const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+  });
+  const valori12 = Object.keys(dati12).sort().map(m => dati12[m]);
+  const ctx12 = document.getElementById('fatturatoChart').getContext('2d');
+  new Chart(ctx12, {
+    type: 'bar',
+    data: { labels: labels12, datasets: [{ label: 'Fatturato (€)', data: valori12, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 8, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
 
-    // Fatturato per zona
-    const datiZona = {{ fatturato_per_zona|default({})|tojson }};
-    const labelsZona = Object.keys(datiZona);
-    const valoriZona = Object.values(datiZona);
-    if(labelsZona.length > 0){
-        const ctxZona = document.getElementById('fatturatoZonaChart').getContext('2d');
-        new Chart(ctxZona, {
-            type: 'pie',
-            data: { labels: labelsZona, datasets: [{ data: valoriZona, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14'] }] },
-            options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#6c757d' } }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', cornerRadius: 6, padding: 10 } }, maintainAspectRatio: false }
-        });
-    }
+  const datiZona = {{ fatturato_per_zona|default({})|tojson }};
+  const labelsZona = Object.keys(datiZona);
+  const valoriZona = Object.values(datiZona);
+  if(labelsZona.length > 0){
+    const ctxZona = document.getElementById('fatturatoZonaChart').getContext('2d');
+    new Chart(ctxZona, {
+      type: 'pie',
+      data: { labels: labelsZona, datasets: [{ data: valoriZona, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14'] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+    });
+  }
 })();
 </script>
 {% endif %}
