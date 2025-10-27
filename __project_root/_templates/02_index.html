@@ -108,13 +108,13 @@ body { background: #0f172a; color: #fff; }
   <div class="row g-4 mb-5">
     {% set metriche = [
       {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
-      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},  <!-- nero -->
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
       {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
       {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},  <!-- nero -->
-      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}  <!-- nero -->
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
     ] %}
-    
+
     {% for m in metriche %}
       <div class="col-6 col-md-3">
         <div class="card metric-card text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#{{ m.modal }}">
@@ -163,7 +163,6 @@ body { background: #0f172a; color: #fff; }
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  // === Fatturato Mensile ===
   const fatturatoMensile = {{ fatturato_mensile|tojson }};
   const mesi = Object.keys(fatturatoMensile).sort();
   const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
@@ -196,7 +195,6 @@ body { background: #0f172a; color: #fff; }
     }
   });
 
-  // === Fatturato per Zona ===
   const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
   const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
   new Chart(ctx2, {
