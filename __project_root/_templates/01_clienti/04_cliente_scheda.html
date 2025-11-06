@@ -48,7 +48,8 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% for titolo, valore, colore in [
       ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success'),
       ('Media Mensile', "%.2f"|format(media)+' €','info'),
-      ('Crescita Mensile', crescita_mensile ~ ' %' if crescita_mensile is defined else '–', crescita_mensile>=0 ? 'success':'danger'),
+      ('Crescita Mensile', (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
+       'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger'),
       ('Ultimo Contatto', ultimo_contatto or '–','primary')
     ] %}
     <div class="col-md-3">
