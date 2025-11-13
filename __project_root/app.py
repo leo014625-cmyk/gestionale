@@ -1450,6 +1450,8 @@ def modifica_volantino(volantino_id):
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     try:
         cur = conn.cursor()
+
+        # --- Volantino ---
         cur.execute("SELECT * FROM volantini WHERE id = %s", (volantino_id,))
         volantino = cur.fetchone()
 
@@ -1457,49 +1459,60 @@ def modifica_volantino(volantino_id):
             flash("❌ Volantino non trovato", "danger")
             return redirect(url_for("lista_volantini"))
 
+        # --- POST: aggiorna titolo/sfondo ---
         if request.method == "POST":
             titolo = request.form.get("titolo", "").strip()
             sfondo_file = request.files.get("sfondo")
             sfondo_nome = volantino["sfondo"] or "no-image.png"
 
+            # Upload sfondo
             if sfondo_file and sfondo_file.filename:
                 filename = secure_filename(sfondo_file.filename)
                 sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
-                sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome)
-                sfondo_file.save(sfondo_path)
+                sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome))
 
-            cur.execute(
-                "UPDATE volantini SET titolo=%s, sfondo=%s WHERE id=%s",
-                (titolo, sfondo_nome, volantino_id)
-            )
+            # Aggiorna volantino
+            cur.execute("""
+                UPDATE volantini
+                SET titolo=%s, sfondo=%s
+                WHERE id=%s
+            """, (titolo, sfondo_nome, volantino_id))
             conn.commit()
+
             flash("✅ Volantino aggiornato con successo", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
 
-        # 🔹 Prodotti attivi del volantino
-        cur.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=%s AND eliminato=FALSE ORDER BY id ASC",
-            (volantino_id,)
-        )
-        prodotti_raw = cur.fetchall()
-        prodotti = [dict(p) for p in prodotti_raw]
-
-        # 🔹 Prodotti consigliati (ultimi 15)
+        # --- Prodotti del volantino ---
         cur.execute("""
-            SELECT id, nome, prezzo AS prezzo_default,
-                   COALESCE(immagine, 'no-image.png') AS immagine
+            SELECT id, nome, prezzo, immagine,
+                   COALESCE(descrizione, '') AS descrizione
+            FROM volantino_prodotti
+            WHERE volantino_id=%s AND eliminato=FALSE
+            ORDER BY id ASC
+        """, (volantino_id,))
+        prodotti = cur.fetchall()
+
+        # Garantisce sempre 9 slot
+        prodotti = [dict(p) for p in prodotti]  
+
+        # --- Prodotti consigliati (ultimi 15 usati) ---
+        cur.execute("""
+            SELECT id, nome,
+                   COALESCE(prezzo,0) AS prezzo_default,
+                   COALESCE(immagine,'no-image.png') AS immagine,
+                   COALESCE(descrizione,'') AS descrizione
             FROM volantino_prodotti
             WHERE eliminato=FALSE
-            ORDER BY id DESC LIMIT 15
+            ORDER BY id DESC
+            LIMIT 15
         """)
-        prodotti_precedenti_raw = cur.fetchall()
-        prodotti_precedenti = [dict(p) for p in prodotti_precedenti_raw]
+        prodotti_precedenti = [dict(p) for p in cur.fetchall()]
 
-        # 🔹 Usa placeholder se sfondo non esiste
-        sfondo_path_full = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
-        if not os.path.exists(sfondo_path_full):
-            volantino["sfondo"] = os.path.basename(NO_IMAGE_PATH)
+        # --- Se sfondo mancante, usa placeholder ---
+        sfondo_full = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
+        if not os.path.exists(sfondo_full):
+            volantino["sfondo"] = "no-image.png"
 
     finally:
         cur.close()
@@ -1511,6 +1524,7 @@ def modifica_volantino(volantino_id):
         prodotti=prodotti,
         prodotti_precedenti=prodotti_precedenti
     )
+
 
 
 
