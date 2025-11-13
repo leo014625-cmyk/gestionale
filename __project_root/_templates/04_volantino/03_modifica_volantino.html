@@ -1,3 +1,4 @@
+<!-- FILE AGGIORNATO con campo DESCRIZIONE PRODOTTO -->
 {% extends "01_base.html" %}
 {% block content %}
 
@@ -80,6 +81,11 @@
                         {% if prodotto %}{{ prodotto['nome'] }}{% else %}<em>Vuoto</em>{% endif %}
                     </div>
 
+                    <!-- Descrizione prodotto (NOVITÀ) -->
+                    <div style="text-align:center; font-size:11px; color:#555; min-height:22px;">
+                        {% if prodotto %}{{ prodotto['descrizione']|default('') }}{% endif %}
+                    </div>
+
                     <!-- Prezzo -->
                     <div style="text-align:center; font-size:14px; font-weight:bold; color:{% if prodotto %}{{ prodotto['colore_prezzo']|default('red') }}{% else %}gray{% endif %}; margin-top:2px;">
                         {% if prodotto %}€ {{ "%.2f"|format(prodotto['prezzo']) }}{% endif %}
@@ -125,10 +131,16 @@
                                  class="img-fluid mb-2"
                                  style="max-height:100px; object-fit:contain;">
                             <div class="fw-bold">{{ p['nome'] }}</div>
-                            <input type="number" class="form-control mt-1"
+
+                            <!-- Campo descrizione prodotto consigliato -->
+                            <textarea class="form-control mt-1 descrizioneConsigliato" rows="2"
+                                      placeholder="Descrizione breve..." data-id="{{ p['id'] }}">{{ p['descrizione_default'] }}</textarea>
+
+                            <input type="number" class="form-control mt-1 prezzoConsigliato"
                                    placeholder="Prezzo €"
                                    value="{{ "%.2f"|format(p['prezzo_default']) }}"
                                    data-id="{{ p['id'] }}">
+                            
                             <button type="button"
                                     class="btn btn-primary btn-sm mt-2 w-100 aggiungiConsigliato"
                                     data-id="{{ p['id'] }}"
@@ -171,13 +183,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = btn.dataset.id;
             const nome = btn.dataset.nome;
             const img = btn.dataset.immagine;
-            const prezzoInput = btn.previousElementSibling;
-            const prezzo = parseFloat(prezzoInput.value).toFixed(2);
+
+            const prezzo = parseFloat(btn.parentElement.querySelector('.prezzoConsigliato').value).toFixed(2);
+            const descrizione = btn.parentElement.querySelector('.descrizioneConsigliato').value;
 
             const res = await fetch(`/volantini/{{ volantino['id'] }}/aggiungi_consigliato`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, prezzo })
+                body: JSON.stringify({ id, prezzo, descrizione })
             });
             const data = await res.json();
             if (data.status !== "ok") {
@@ -194,7 +207,8 @@ document.addEventListener('DOMContentLoaded', () => {
             slot.querySelector('img').src = `/static/uploads/volantino_prodotti/${img}`;
             slot.querySelector('img').alt = nome;
             slot.querySelector('div:nth-child(2)').textContent = nome;
-            slot.querySelector('div:nth-child(3)').textContent = `€ ${prezzo}`;
+            slot.querySelector('div:nth-child(3)').textContent = descrizione;
+            slot.querySelector('div:nth-child(4)').textContent = `€ ${prezzo}`;
 
             let actionsDiv = slot.querySelector('.d-flex');
             if (!actionsDiv) {
@@ -207,48 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
                    class="btn btn-warning btn-sm" title="Modifica">✏️</a>
                 <button type="button" class="btn btn-danger btn-sm rimuoviProdotto" title="Rimuovi">🗑</button>
             `;
-
-            actionsDiv.querySelector('button').addEventListener('click', async () => {
-                if (!confirm('Vuoi rimuovere questo prodotto dal volantino?')) return;
-                const res = await fetch(`/volantini/prodotto/elimina/${data.id}`, { method: 'POST' });
-                const result = await res.json();
-                if (result.status === "ok") {
-                    // reset slot
-                    slot.querySelector('img').src = `/static/no-image.png`;
-                    slot.querySelector('img').alt = 'Vuoto';
-                    slot.querySelector('div:nth-child(2)').innerHTML = '<em>Vuoto</em>';
-                    slot.querySelector('div:nth-child(3)').textContent = '';
-                    actionsDiv.innerHTML = '';
-                } else {
-                    alert('Errore: ' + result.msg);
-                }
-            });
         });
     });
-
-    // Elimina manuale slot esistente
-    document.querySelectorAll('.rimuoviProdotto').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const slot = e.target.closest('.col');
-            const link = slot.querySelector('a');
-            if (!link) return;
-            const id = link.href.split('/').pop();
-
-            if (!confirm('Vuoi rimuovere questo prodotto dal volantino?')) return;
-            const res = await fetch(`/volantini/prodotto/elimina/${id}`, { method: 'POST' });
-            const result = await res.json();
-            if (result.status === "ok") {
-                slot.querySelector('img').src = `/static/no-image.png`;
-                slot.querySelector('img').alt = 'Vuoto';
-                slot.querySelector('div:nth-child(2)').innerHTML = '<em>Vuoto</em>';
-                slot.querySelector('div:nth-child(3)').textContent = '';
-                slot.querySelector('.d-flex').innerHTML = '';
-            } else {
-                alert('Errore: ' + result.msg);
-            }
-        });
-    });
-
 });
 </script>
 
