@@ -1457,6 +1457,9 @@ def modifica_volantino(volantino_id):
             flash("❌ Volantino non trovato", "danger")
             return redirect(url_for("lista_volantini"))
 
+        # ============================
+        # POST → aggiorna volantino
+        # ============================
         if request.method == "POST":
             titolo = request.form.get("titolo", "").strip()
             sfondo_file = request.files.get("sfondo")
@@ -1474,12 +1477,15 @@ def modifica_volantino(volantino_id):
                 (titolo, sfondo_nome, volantino_id)
             )
             conn.commit()
+
             flash("✅ Volantino aggiornato con successo", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
 
-        # 🔹 Prodotti attivi del volantino
+        # ============================
+        # GET → prodotti nel volantino
+        # ============================
         cur.execute("""
-            SELECT id, nome, prezzo, immagine, lavorato
+            SELECT id, nome, prezzo, immagine
             FROM volantino_prodotti
             WHERE volantino_id=%s AND eliminato=FALSE
             ORDER BY id ASC
@@ -1487,19 +1493,23 @@ def modifica_volantino(volantino_id):
         prodotti_raw = cur.fetchall()
         prodotti = [dict(p) for p in prodotti_raw]
 
-        # 🔹 Prodotti consigliati (ultimi 15)
+        # ============================
+        # Ultimi 15 prodotti inseriti
+        # ============================
         cur.execute("""
             SELECT id, nome, prezzo AS prezzo_default,
-                   COALESCE(immagine, 'no-image.png') AS immagine,
-                   lavorato
+                   COALESCE(immagine, 'no-image.png') AS immagine
             FROM volantino_prodotti
             WHERE eliminato=FALSE
-            ORDER BY id DESC LIMIT 15
+            ORDER BY id DESC
+            LIMIT 15
         """)
         prodotti_precedenti_raw = cur.fetchall()
         prodotti_precedenti = [dict(p) for p in prodotti_precedenti_raw]
 
-        # 🔹 Usa placeholder se sfondo non esiste
+        # ============================
+        # Controllo sfondo
+        # ============================
         sfondo_path_full = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
         if not os.path.exists(sfondo_path_full):
             volantino["sfondo"] = os.path.basename(NO_IMAGE_PATH)
@@ -1514,7 +1524,6 @@ def modifica_volantino(volantino_id):
         prodotti=prodotti,
         prodotti_precedenti=prodotti_precedenti
     )
-
 
 
 
