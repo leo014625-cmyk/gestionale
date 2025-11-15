@@ -1,50 +1,79 @@
 {% extends "01_base.html" %}
 {% block content %}
 
-<div class="container mt-4">
-    <h2 class="mb-4">➕ Crea Nuovo Volantino</h2>
+<div class="container py-5">
 
-    <form action="{{ url_for('nuovo_volantino') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
-        
-        <!-- Titolo -->
-        <div class="mb-3">
-            <label for="titolo" class="form-label">📝 Titolo Volantino</label>
-            <input type="text" class="form-control" id="titolo" name="titolo" 
-                   placeholder="Inserisci un titolo descrittivo" required>
-            <div class="invalid-feedback">Inserisci un titolo valido.</div>
-        </div>
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <h2 class="fw-bold">➕ Crea Nuovo Volantino</h2>
+        <a href="{{ url_for('lista_volantini') }}" 
+           class="btn btn-secondary d-flex align-items-center gap-2 rounded-4">
+            ⬅ Torna alla Lista
+        </a>
+    </div>
 
-        <!-- Sfondo -->
-        <div class="mb-3">
-            <label for="sfondo" class="form-label">🖼 Sfondo Volantino</label>
-            <input type="file" class="form-control" id="sfondo" name="sfondo" accept="image/*" required>
-            <div class="form-text">Carica l'immagine di sfondo che verrà usata come base del volantino.</div>
-            <div class="invalid-feedback">Seleziona un'immagine per lo sfondo.</div>
-        </div>
+    <!-- CARD FORM -->
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
 
-        <!-- Griglia visiva 3x3 -->
-        <div class="mb-3">
-            <label class="form-label">📦 Griglia Prodotti (3x3)</label>
-            <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
-                {% for i in range(9) %}
-                    <div style="height: 100px; border: 1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#aaa;">
-                        Box {{ i + 1 }}
+            <form action="{{ url_for('nuovo_volantino') }}" 
+                  method="POST" enctype="multipart/form-data" 
+                  class="needs-validation" novalidate>
+
+                <!-- TITOLO -->
+                <div class="mb-4">
+                    <label for="titolo" class="form-label fw-semibold">📝 Titolo Volantino</label>
+                    <input type="text" class="form-control rounded-4" id="titolo" name="titolo"
+                           placeholder="Inserisci un titolo descrittivo" required>
+                    <div class="invalid-feedback">Inserisci un titolo valido.</div>
+                </div>
+
+                <!-- SFONDO -->
+                <div class="mb-4">
+                    <label for="sfondo" class="form-label fw-semibold">🖼 Sfondo Volantino</label>
+                    <input type="file" class="form-control rounded-4" id="sfondo" name="sfondo" 
+                           accept="image/*" required>
+                    <div class="form-text">Carica l'immagine che verrà usata come base del volantino.</div>
+                    <div class="invalid-feedback">Seleziona un'immagine valida.</div>
+                </div>
+
+                <!-- GRIGLIA 3x3 -->
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">📦 Griglia Prodotti (3x3)</label>
+
+                    <div class="grid-template" 
+                         style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+                        {% for i in range(9) %}
+                            <div class="rounded-4 d-flex align-items-center justify-content-center"
+                                 style="height:110px; border:2px dashed #d0d0d0; color:#999;">
+                                Slot {{ i + 1 }}
+                            </div>
+                        {% endfor %}
                     </div>
-                {% endfor %}
-            </div>
-            <div class="form-text">Questa griglia indica i 9 slot disponibili nell'editor.</div>
-        </div>
 
-        <!-- Pulsanti -->
-        <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-success">💾 Salva Volantino</button>
-            <a href="{{ url_for('lista_volantini') }}" class="btn btn-secondary">↩ Torna alla Lista</a>
+                    <div class="form-text mt-2">Questa griglia rappresenta i 9 slot disponibili nell’editor.</div>
+                </div>
+
+                <!-- BOTTONI -->
+                <div class="mt-4 d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-success btn-lg rounded-4 d-flex align-items-center gap-2">
+                        💾 Salva Volantino
+                    </button>
+
+                    <a href="{{ url_for('lista_volantini') }}" 
+                       class="btn btn-outline-secondary btn-lg rounded-4 d-flex align-items-center gap-2">
+                        ↩ Annulla
+                    </a>
+                </div>
+
+            </form>
+
         </div>
-    </form>
+    </div>
 </div>
 
+<!-- VALIDAZIONE BOOTSTRAP -->
 <script>
-// Bootstrap validation
 (function () {
   'use strict'
   const forms = document.querySelectorAll('.needs-validation')
