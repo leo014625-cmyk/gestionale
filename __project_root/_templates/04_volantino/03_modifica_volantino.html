@@ -1,115 +1,99 @@
 {% extends "01_base.html" %}
 {% block content %}
 
-<div class="container py-5">
+<div class="container mt-4">
+    <h2 class="mb-4">✏️ Modifica Volantino</h2>
 
-    <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <h2 class="fw-bold">✏️ Modifica Volantino</h2>
-        <a href="{{ url_for('lista_volantini') }}" class="btn btn-secondary d-flex align-items-center gap-2 rounded-4">
-            ⬅ Torna alla Lista
-        </a>
-    </div>
-
-    <!-- CARD FORM -->
-    <div class="card shadow-sm border-0 rounded-4 mb-4">
-        <div class="card-body p-4">
-
-            <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
-
-                <!-- Titolo -->
-                <div class="mb-3">
-                    <label for="titolo" class="form-label fw-semibold">📝 Titolo Volantino</label>
-                    <input type="text" class="form-control rounded-4" id="titolo" name="titolo"
-                           value="{{ volantino['titolo'] }}" placeholder="Inserisci un titolo" required>
-                    <div class="invalid-feedback">Inserisci un titolo valido.</div>
-                </div>
-
-                <!-- Sfondo -->
-                <div class="mb-3">
-                    <label for="sfondo" class="form-label fw-semibold">🖼 Sfondo Volantino</label><br>
-                    {% if volantino['sfondo'] %}
-                        <img src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}"
-                             alt="Sfondo attuale"
-                             class="img-thumbnail mb-2"
-                             style="max-height: 200px;">
-                    {% endif %}
-                    <input type="file" class="form-control rounded-4" id="sfondo" name="sfondo" accept="image/*">
-                    <div class="form-text">Lascia vuoto se non vuoi cambiare lo sfondo.</div>
-                </div>
-
-                <!-- Pulsanti -->
-                <div class="d-flex gap-2 flex-wrap">
-                    <button type="submit" class="btn btn-primary btn-lg rounded-4 d-flex align-items-center gap-2">
-                        💾 Salva Modifiche
-                    </button>
-                    <a href="{{ url_for('editor_volantino', volantino_id=volantino['id']) }}"
-                       class="btn btn-success btn-lg rounded-4 d-flex align-items-center gap-2">
-                        🖌 Apri Editor
-                    </a>
-                    <a href="{{ url_for('visualizza_volantino', volantino_id=volantino['id']) }}"
-                       class="btn btn-info btn-lg rounded-4 d-flex align-items-center gap-2">
-                        👁 Anteprima
-                    </a>
-                </div>
-            </form>
+    <!-- Modifica dati base -->
+    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+        <!-- Titolo -->
+        <div class="mb-3">
+            <label for="titolo" class="form-label">📝 Titolo Volantino</label>
+            <input type="text" class="form-control" id="titolo" name="titolo"
+                   value="{{ volantino['titolo'] }}" placeholder="Inserisci un titolo" required>
+            <div class="invalid-feedback">Inserisci un titolo valido.</div>
         </div>
-    </div>
 
-    <!-- GRIGLIA PRODOTTI -->
-    <h4 class="mb-3">🛒 Prodotti nel Volantino</h4>
+        <!-- Sfondo -->
+        <div class="mb-3">
+            <label for="sfondo" class="form-label">🖼 Sfondo Volantino</label><br>
+            {% if volantino['sfondo'] %}
+                <img src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}"
+                     alt="Sfondo attuale"
+                     class="img-thumbnail mb-2"
+                     style="max-height: 200px;">
+            {% endif %}
+            <input type="file" class="form-control" id="sfondo" name="sfondo" accept="image/*">
+            <div class="form-text">Lascia vuoto se non vuoi cambiare lo sfondo.</div>
+        </div>
 
-    <div class="mb-3 d-flex gap-2 flex-wrap">
-        <a href="{{ url_for('aggiungi_prodotto_volantino', volantino_id=volantino['id']) }}"
-           class="btn btn-success d-flex align-items-center gap-2 rounded-4">➕ Aggiungi Prodotto Manualmente</a>
-        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 rounded-4"
-                data-bs-toggle="modal" data-bs-target="#prodottiConsigliatiModal">
+        <!-- Pulsanti -->
+        <div class="d-flex gap-2 mb-4">
+            <button type="submit" class="btn btn-primary">💾 Salva Modifiche</button>
+            <a href="{{ url_for('lista_volantini') }}" class="btn btn-secondary">↩ Torna alla Lista</a>
+            <a href="{{ url_for('editor_volantino', volantino_id=volantino['id']) }}"
+               class="btn btn-success">🖌 Apri Editor</a>
+            <a href="{{ url_for('visualizza_volantino', volantino_id=volantino['id']) }}"
+               class="btn btn-info">👁 Anteprima</a>
+        </div>
+    </form>
+
+    <hr class="my-4">
+
+    <!-- Gestione prodotti -->
+    <h4>🛒 Prodotti nel Volantino</h4>
+
+    <!-- Aggiunta manuale + prodotti consigliati -->
+    <div class="mb-3 d-flex gap-2">
+        <a href="{{ url_for('aggiungi_prodotto_volantino', volantino_id=volantino['id']) }}" 
+           class="btn btn-success">➕ Aggiungi Prodotto Manualmente</a>
+
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#prodottiConsigliatiModal">
             💡 Prodotti Consigliati
         </button>
     </div>
 
+    <!-- Griglia prodotti: 3x3, 9 slot fissi -->
     <div id="grigliaProdotti" class="row row-cols-3 g-3">
         {% set max_slots = 9 %}
         {% for i in range(max_slots) %}
             {% set prodotto = prodotti[i] if i < prodotti|length else None %}
             <div class="col">
-                <div class="card shadow-sm text-center h-100 rounded-4 p-2">
+                <div class="card shadow-sm text-center h-100"
+                     style="padding:3px; border:1px solid #ddd;">
 
                     <!-- Immagine -->
-                    <div class="d-flex align-items-center justify-content-center" style="height:100px; overflow:hidden;">
+                    <div style="flex:1; display:flex; align-items:center; justify-content:center; height:100px; overflow:hidden;">
                         {% if prodotto and prodotto['immagine'] %}
                             <img src="{{ url_for('static', filename='uploads/volantino_prodotti/' ~ prodotto['immagine']) }}"
-                                 alt="{{ prodotto['nome'] }}" style="max-width:130px; max-height:100px; object-fit:contain;">
+                                 alt="{{ prodotto['nome'] }}"
+                                 style="max-width:130px; max-height:100px; object-fit:contain;">
                         {% else %}
                             <img src="{{ url_for('static', filename='no-image.png') }}"
-                                 alt="Vuoto" style="max-width:130px; max-height:100px; object-fit:contain; opacity:0.4;">
+                                 alt="Vuoto"
+                                 style="max-width:130px; max-height:100px; object-fit:contain; opacity:0.4;">
                         {% endif %}
                     </div>
 
                     <!-- Nome -->
-                    <div class="fw-semibold mt-1" style="font-size:13px;">
+                    <div style="text-align:center; font-size:12px; margin-top:3px; color:black; min-height:18px;">
                         {% if prodotto %}{{ prodotto['nome'] }}{% else %}<em>Vuoto</em>{% endif %}
                     </div>
 
-                    <!-- Descrizione -->
-                    <div class="text-muted" style="font-size:12px; min-height:22px;">
-                        {% if prodotto %}{{ prodotto['descrizione']|default('') }}{% endif %}
-                    </div>
-
                     <!-- Prezzo -->
-                    <div class="fw-bold mt-1" style="color:{% if prodotto %}{{ prodotto['colore_prezzo']|default('red') }}{% else %}gray{% endif %}; font-size:14px;">
+                    <div style="text-align:center; font-size:14px; font-weight:bold; color:{% if prodotto %}{{ prodotto['colore_prezzo']|default('red') }}{% else %}gray{% endif %}; margin-top:2px;">
                         {% if prodotto %}€ {{ "%.2f"|format(prodotto['prezzo']) }}{% endif %}
                     </div>
 
                     <!-- Pulsanti azione -->
-                    <div class="d-flex justify-content-center gap-2 mt-2">
+                    <div class="d-flex justify-content-center gap-2 mt-1">
                         {% if prodotto %}
                         <a href="{{ url_for('modifica_prodotto_volantino', prodotto_id=prodotto['id']) }}"
-                           class="btn btn-warning btn-sm rounded-4" title="Modifica">✏️</a>
-                        <button type="button" class="btn btn-danger btn-sm rounded-4 rimuoviProdotto" title="Rimuovi">🗑</button>
+                           class="btn btn-warning btn-sm" title="Modifica">✏️</a>
+
+                        <button type="button" class="btn btn-danger btn-sm rimuoviProdotto" title="Rimuovi">🗑</button>
                         {% endif %}
                     </div>
-
                 </div>
             </div>
         {% endfor %}
@@ -119,16 +103,16 @@
 <!-- MODAL PRODOTTI CONSIGLIATI -->
 <div class="modal fade" id="prodottiConsigliatiModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content rounded-4">
+    <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">💡 Prodotti Consigliati</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
 
-        <!-- Ricerca -->
+        <!-- 🔍 Barra di ricerca -->
         <div class="mb-3">
-          <input type="text" id="searchProdottiConsigliati" class="form-control rounded-4"
+          <input type="text" id="searchProdottiConsigliati" class="form-control"
                  placeholder="🔍 Cerca prodotto per nome...">
         </div>
 
@@ -136,18 +120,20 @@
             <div class="row row-cols-2 row-cols-md-3 g-3" id="listaProdottiConsigliati">
                 {% for p in prodotti_precedenti %}
                     <div class="col prodotto-consigliato" data-nome="{{ p['nome']|lower }}">
-                        <div class="card h-100 text-center p-2 shadow-sm rounded-4">
+                        <div class="card h-100 text-center p-2 shadow-sm">
                             <img src="{{ url_for('static', filename='uploads/volantino_prodotti/' ~ p['immagine']) }}"
-                                 class="img-fluid mb-2" style="max-height:100px; object-fit:contain;">
+                                 class="img-fluid mb-2"
+                                 style="max-height:100px; object-fit:contain;">
                             <div class="fw-bold">{{ p['nome'] }}</div>
-                            <textarea class="form-control mt-1 descrizioneConsigliato rounded-4" rows="2"
-                                      placeholder="Descrizione breve..." data-id="{{ p['id'] }}">{{ p['descrizione_default'] }}</textarea>
-                            <input type="number" class="form-control mt-1 prezzoConsigliato rounded-4"
-                                   placeholder="Prezzo €" value="{{ "%.2f"|format(p['prezzo_default']) }}"
+                            <input type="number" class="form-control mt-1"
+                                   placeholder="Prezzo €"
+                                   value="{{ "%.2f"|format(p['prezzo_default']) }}"
                                    data-id="{{ p['id'] }}">
                             <button type="button"
-                                    class="btn btn-primary btn-sm mt-2 w-100 rounded-4 aggiungiConsigliato"
-                                    data-id="{{ p['id'] }}" data-nome="{{ p['nome'] }}" data-immagine="{{ p['immagine'] }}">
+                                    class="btn btn-primary btn-sm mt-2 w-100 aggiungiConsigliato"
+                                    data-id="{{ p['id'] }}"
+                                    data-nome="{{ p['nome'] }}"
+                                    data-immagine="{{ p['immagine'] }}">
                                 ➕ Aggiungi
                             </button>
                         </div>
@@ -185,41 +171,84 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = btn.dataset.id;
             const nome = btn.dataset.nome;
             const img = btn.dataset.immagine;
-
-            const prezzo = parseFloat(btn.parentElement.querySelector('.prezzoConsigliato').value).toFixed(2);
-            const descrizione = btn.parentElement.querySelector('.descrizioneConsigliato').value;
+            const prezzoInput = btn.previousElementSibling;
+            const prezzo = parseFloat(prezzoInput.value).toFixed(2);
 
             const res = await fetch(`/volantini/{{ volantino['id'] }}/aggiungi_consigliato`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, prezzo, descrizione })
+                body: JSON.stringify({ id, prezzo })
             });
             const data = await res.json();
-            if (data.status !== "ok") { alert("❌ Errore: " + data.msg); return; }
+            if (data.status !== "ok") {
+                alert("❌ Errore: " + data.msg);
+                return;
+            }
 
+            // Trova slot vuoto
             const slots = Array.from(document.querySelectorAll('#grigliaProdotti .col'));
             const slot = slots.find((c, index) => index < 9 && c.querySelector('img[alt="Vuoto"]'));
             if (!slot) { alert('❌ Tutti i 9 slot sono già occupati!'); return; }
 
+            // Aggiorna visivamente
             slot.querySelector('img').src = `/static/uploads/volantino_prodotti/${img}`;
             slot.querySelector('img').alt = nome;
             slot.querySelector('div:nth-child(2)').textContent = nome;
-            slot.querySelector('div:nth-child(3)').textContent = descrizione;
-            slot.querySelector('div:nth-child(4)').textContent = `€ ${prezzo}`;
+            slot.querySelector('div:nth-child(3)').textContent = `€ ${prezzo}`;
 
             let actionsDiv = slot.querySelector('.d-flex');
             if (!actionsDiv) {
                 actionsDiv = document.createElement('div');
-                actionsDiv.className = 'd-flex justify-content-center gap-2 mt-2';
+                actionsDiv.className = 'd-flex justify-content-center gap-2 mt-1';
                 slot.querySelector('.card').appendChild(actionsDiv);
             }
             actionsDiv.innerHTML = `
                 <a href="/volantini/prodotto/modifica/${data.id}" 
-                   class="btn btn-warning btn-sm rounded-4" title="Modifica">✏️</a>
-                <button type="button" class="btn btn-danger btn-sm rounded-4 rimuoviProdotto" title="Rimuovi">🗑</button>
+                   class="btn btn-warning btn-sm" title="Modifica">✏️</a>
+                <button type="button" class="btn btn-danger btn-sm rimuoviProdotto" title="Rimuovi">🗑</button>
             `;
+
+            actionsDiv.querySelector('button').addEventListener('click', async () => {
+                if (!confirm('Vuoi rimuovere questo prodotto dal volantino?')) return;
+                const res = await fetch(`/volantini/prodotto/elimina/${data.id}`, { method: 'POST' });
+                const result = await res.json();
+                if (result.status === "ok") {
+                    // reset slot
+                    slot.querySelector('img').src = `/static/no-image.png`;
+                    slot.querySelector('img').alt = 'Vuoto';
+                    slot.querySelector('div:nth-child(2)').innerHTML = '<em>Vuoto</em>';
+                    slot.querySelector('div:nth-child(3)').textContent = '';
+                    actionsDiv.innerHTML = '';
+                } else {
+                    alert('Errore: ' + result.msg);
+                }
+            });
         });
     });
+
+    // Elimina manuale slot esistente
+    document.querySelectorAll('.rimuoviProdotto').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const slot = e.target.closest('.col');
+            const link = slot.querySelector('a');
+            if (!link) return;
+            const id = link.href.split('/').pop();
+
+            if (!confirm('Vuoi rimuovere questo prodotto dal volantino?')) return;
+            const res = await fetch(`/volantini/prodotto/elimina/${id}`, { method: 'POST' });
+            const result = await res.json();
+            if (result.status === "ok") {
+                slot.querySelector('img').src = `/static/no-image.png`;
+                slot.querySelector('img').alt = 'Vuoto';
+                slot.querySelector('div:nth-child(2)').innerHTML = '<em>Vuoto</em>';
+                slot.querySelector('div:nth-child(3)').textContent = '';
+                slot.querySelector('.d-flex').innerHTML = '';
+            } else {
+                alert('Errore: ' + result.msg);
+            }
+        });
+    });
+
 });
 </script>
 
