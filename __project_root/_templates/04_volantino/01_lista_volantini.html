@@ -1,168 +1,266 @@
 {% extends "01_base.html" %}
 
 {% block content %}
-<div class="container py-5">
+<style>
+/* SIDEBAR */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid #e3e3e3;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 1000;
+}
+
+.sidebar .title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: .5rem;
+}
+
+.sidebar a {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .75rem 1rem;
+    border-radius: .6rem;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    transition: .2s;
+}
+
+.sidebar a:hover {
+    background: #f2f2f2;
+}
+
+.sidebar a.active {
+    background: #007bff;
+    color: #fff;
+}
+
+/* CONTENT */
+.main-content {
+    margin-left: 260px;
+    padding: 2rem 2.5rem;
+}
+
+/* CARD GRID */
+.masonry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.6rem;
+}
+
+.volantino-card {
+    transition: transform .25s, box-shadow .25s;
+    border: none !important;
+    background: #fff;
+}
+
+.volantino-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 26px rgba(0,0,0,0.12);
+}
+
+.volantino-thumb {
+    cursor: pointer;
+}
+
+.ratio {
+    background: #f6f6f6;
+}
+
+</style>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="title">📁 Dashboard</div>
+
+    <a href="#" class="active">
+        📰 Volantini
+    </a>
+
+    <a href="{{ url_for('nuovo_volantino') }}">
+        ➕ Crea Volantino
+    </a>
+
+    <a href="{{ url_for('nuova_promo_lampo') }}">
+        ⚡ Promo Lampo
+    </a>
+
+    <a href="{{ url_for('home') }}">
+        🏠 Home
+    </a>
+</div>
+
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
 
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <h2 class="fw-bold">📑 Gestione Volantini</h2>
+        <h2 class="fw-bold m-0" style="font-size: 2rem;">Gestione Volantini</h2>
+
         <div class="d-flex gap-2 flex-wrap">
-            <a href="{{ url_for('nuovo_volantino') }}" class="btn btn-primary btn-lg d-flex align-items-center gap-2 rounded-4">
-                ➕ Crea Nuovo Volantino
+            <a href="{{ url_for('nuovo_volantino') }}" 
+               class="btn btn-primary d-flex align-items-center gap-2 px-4 py-2 rounded-3 fw-semibold">
+                ➕ Nuovo Volantino
             </a>
-            <a href="{{ url_for('nuova_promo_lampo') }}" class="btn btn-danger btn-lg d-flex align-items-center gap-2 rounded-4">
-                ⚡ Crea Promo Lampo
+
+            <a href="{{ url_for('nuova_promo_lampo') }}" 
+               class="btn btn-danger d-flex align-items-center gap-2 px-4 py-2 rounded-3 fw-semibold">
+                ⚡ Promo Lampo
             </a>
         </div>
     </div>
 
     <!-- SEZIONE VOLANTINI -->
-    <h3 class="mb-3">📂 Categorie Volantini</h3>
+    <h4 class="mb-3 fw-bold">Categorie Volantini</h4>
+
     {% if volantini %}
         <div class="masonry-grid mb-5">
             {% for volantino in volantini %}
-                <div class="card shadow-sm rounded-4 overflow-hidden hover-shadow">
-                    <img src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}" 
-                         class="card-img-top img-fluid volantino-thumb"
-                         data-bs-toggle="modal"
-                         data-bs-target="#lightboxModal"
-                         data-src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}"
-                         alt="Anteprima Volantino">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title fw-semibold">{{ volantino['titolo'] }}</h5>
-                        <span class="badge bg-secondary mb-3">
+                <div class="card volantino-card rounded-4 overflow-hidden">
+
+                    <div class="ratio ratio-4x3">
+                        <img src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}" 
+                             class="img-fluid object-fit-cover volantino-thumb"
+                             data-bs-toggle="modal"
+                             data-bs-target="#lightboxModal"
+                             data-src="{{ url_for('static', filename='uploads/volantini/' ~ volantino['sfondo']) }}"
+                             alt="Anteprima Volantino">
+                    </div>
+
+                    <div class="card-body d-flex flex-column p-3">
+                        <h5 class="fw-semibold mb-1">{{ volantino['titolo'] }}</h5>
+
+                        <span class="badge bg-light text-dark border mb-3">
                             📅 {{ volantino['data_creazione'] }}
                         </span>
+
                         <div class="mt-auto d-flex flex-wrap gap-2">
                             <a href="{{ url_for('visualizza_volantino', volantino_id=volantino['id']) }}" 
-                               class="btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                               class="btn btn-success btn-sm flex-grow-1 rounded-3">
                                 👁 Visualizza
                             </a>
+
                             <a href="{{ url_for('modifica_volantino', volantino_id=volantino['id']) }}" 
-                               class="btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                               class="btn btn-warning btn-sm flex-grow-1 rounded-3">
                                 ✏️ Modifica
                             </a>
+
                             {% if volantino['tipo'] == 'beta' %}
                             <a href="{{ url_for('editor_volantino_beta', volantino_id=volantino['id']) }}" 
-                               class="btn btn-info btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                               class="btn btn-info btn-sm flex-grow-1 rounded-3">
                                 🧪 Editor Beta
                             </a>
                             {% endif %}
+
                             <form action="{{ url_for('elimina_volantino', volantino_id=volantino['id']) }}" 
-                                  method="POST" 
+                                  method="POST"
                                   class="flex-grow-1"
                                   onsubmit="return confirm('Sei sicuro di voler eliminare questo volantino?');">
-                                <button type="submit" class="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                                <button type="submit" class="btn btn-danger btn-sm w-100 rounded-3">
                                     🗑 Elimina
                                 </button>
                             </form>
                         </div>
                     </div>
+
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info text-center mt-4 rounded-4">
-            ℹ️ Non ci sono volantini disponibili.
+        <div class="alert alert-info rounded-4">
+            Nessun volantino disponibile.
         </div>
     {% endif %}
 
+
     <!-- SEZIONE PROMO LAMPO -->
-    <h3 class="mb-3">⚡ Categorie Promo Lampo</h3>
+    <h4 class="mb-3 fw-bold">Categorie Promo Lampo</h4>
+
     {% if promo_lampo %}
         <div class="masonry-grid">
             {% for promo in promo_lampo %}
-                <div class="card shadow-sm rounded-4 overflow-hidden hover-shadow">
-                    <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}" 
-                         class="card-img-top img-fluid volantino-thumb"
-                         data-bs-toggle="modal"
-                         data-bs-target="#lightboxModal"
-                         data-src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}"
-                         alt="{{ promo['nome'] }}">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title fw-semibold">{{ promo['nome'] }}</h5>
-                        <span class="badge bg-secondary mb-3">
+                <div class="card volantino-card rounded-4 overflow-hidden">
+
+                    <div class="ratio ratio-4x3">
+                        <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}" 
+                             class="img-fluid object-fit-cover volantino-thumb"
+                             data-bs-toggle="modal"
+                             data-bs-target="#lightboxModal"
+                             data-src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}"
+                             alt="{{ promo['nome'] }}">
+                    </div>
+
+                    <div class="card-body d-flex flex-column p-3">
+                        <h5 class="fw-semibold mb-1">{{ promo['nome'] }}</h5>
+
+                        <span class="badge bg-light text-dark border mb-3">
                             📅 {{ promo['data_creazione'] }}
                         </span>
+
                         <div class="mt-auto d-flex flex-wrap gap-2">
                             <a href="{{ url_for('editor_promo_lampo', promo_id=promo['id']) }}" 
-                               class="btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                               class="btn btn-success btn-sm flex-grow-1 rounded-3">
                                 👁 Visualizza
                             </a>
+
                             <a href="{{ url_for('modifica_promo_lampo', promo_id=promo['id']) }}" 
-                               class="btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                               class="btn btn-warning btn-sm flex-grow-1 rounded-3">
                                 ✏️ Modifica
                             </a>
+
                             <form action="{{ url_for('elimina_promo_lampo', promo_id=promo['id']) }}" 
-                                  method="POST" 
+                                  method="POST"
                                   class="flex-grow-1"
                                   onsubmit="return confirm('Vuoi davvero eliminare questa promo lampo?');">
-                                <button type="submit" class="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1 rounded-4">
+                                <button type="submit" class="btn btn-danger btn-sm w-100 rounded-3">
                                     🗑 Elimina
                                 </button>
                             </form>
                         </div>
                     </div>
+
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info text-center mt-4 rounded-4">
-            ℹ️ Non ci sono promo lampo disponibili.
+        <div class="alert alert-info rounded-4">
+            Nessuna promo lampo disponibile.
         </div>
     {% endif %}
 
+
     <!-- MODAL LIGHTBOX -->
     <div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content bg-transparent border-0">
-          <div class="modal-body p-0">
-            <img src="" id="lightboxImage" class="img-fluid rounded-4 w-100" alt="Anteprima ingrandita">
-          </div>
-          <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+          <img src="" id="lightboxImage" class="img-fluid rounded-4" alt="">
+          <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
         </div>
       </div>
     </div>
 
-    <!-- STILE -->
-    <style>
-    .masonry-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1.5rem;
-    }
-    .hover-shadow {
-        transition: transform 0.25s, box-shadow 0.25s;
-    }
-    .hover-shadow:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
-    }
-    .card-title {
-        font-size: 1.25rem;
-    }
-    .card img {
-        cursor: pointer;
-    }
-    </style>
 
-    <!-- SCRIPT LIGHTBOX -->
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const lightboxModal = document.getElementById('lightboxModal');
-        const lightboxImage = document.getElementById('lightboxImage');
-
-        document.querySelectorAll('.volantino-thumb').forEach(img => {
-            img.addEventListener('click', () => {
-                const src = img.getAttribute('data-src');
-                lightboxImage.src = src;
-            });
-        });
-
-        lightboxModal.addEventListener('hidden.bs.modal', () => {
-            lightboxImage.src = '';
-        });
-    });
-    </script>
 </div>
+
+<!-- SCRIPT LIGHTBOX -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modalImg = document.getElementById('lightboxImage');
+    document.querySelectorAll('.volantino-thumb').forEach(img => {
+        img.addEventListener('click', () => modalImg.src = img.dataset.src);
+    });
+});
+</script>
+
 {% endblock %}
