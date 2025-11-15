@@ -93,8 +93,22 @@ document.addEventListener("DOMContentLoaded", function () {
         elements.push(nomeText, prezzoText, line);
         const group = new fabric.Group(elements, {
           left: p.x, top: p.y, width: p.w, height: p.h,
-          hasControls: true, hasBorders: true, lockRotation: true
+          hasControls: true, hasBorders: true, lockRotation: true, cornerSize: 12
         });
+
+        // Doppio click per menu rapido: duplicare o eliminare
+        group.on('mousedblclick', function() {
+          const action = prompt("Inserisci 'duplica' per duplicare o 'elimina' per rimuovere il box:");
+          if(action==="duplica"){
+            const clone = fabric.util.object.clone(group);
+            clone.set({ left: group.left + 20, top: group.top + 20 });
+            canvas.add(clone);
+          } else if(action==="elimina"){
+            canvas.remove(group);
+          }
+          canvas.renderAll();
+        });
+
         resolve(group);
       }
 
@@ -113,7 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Carica tutti i prodotti con maniglie per ridimensionamento
+  // Carica prodotti
   Promise.all(volantinoProdotti.map(p=>creaBoxProdotto(p))).then(groups=>{
     groups.forEach(g=>{
       g.set({ selectable:true, hasControls:true, cornerSize:12 });
@@ -125,9 +139,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ZOOM griglia
   document.getElementById("zoomGrid").addEventListener("input", e=>{
     const scale = e.target.value/100;
-    canvas.getObjects().forEach(o=>{
-      if(o.type==="group") o.scaleX = scale, o.scaleY = scale;
-    });
+    canvas.getObjects().forEach(o=>{ if(o.type==="group") o.scaleX = scale, o.scaleY = scale; });
     document.getElementById("zoomGridValue").textContent = e.target.value+"%";
     canvas.renderAll();
   });
@@ -135,9 +147,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ZOOM box prodotto
   document.getElementById("zoomBox").addEventListener("input", e=>{
     const scale = e.target.value/100;
-    canvas.getObjects().forEach(o=>{
-      if(o.type==="group") o.set({ scaleX:scale, scaleY:scale });
-    });
+    canvas.getObjects().forEach(o=>{ if(o.type==="group") o.set({ scaleX:scale, scaleY:scale }); });
     document.getElementById("zoomBoxValue").textContent = e.target.value+"%";
     canvas.renderAll();
   });
@@ -147,7 +157,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if(confirm("Sei sicuro di voler resettare il layout?")) location.reload();
   });
 
-  // SALVA layout con posizione e dimensioni individuali
+  // SALVA layout con dimensioni e posizione
   document.getElementById("salvaCanvas").addEventListener("click", ()=>{
     const layout = canvas.getObjects().filter(o=>o.type==="group").map(o=>{
       return {
