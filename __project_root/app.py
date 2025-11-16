@@ -777,7 +777,10 @@ def cliente_scheda(id):
     prev_year = current_year - 1 if current_month == 1 else current_year
 
     with get_db() as db:
-        cur = db.cursor()
+        # FIX: ora i risultati sono dict invece di tuple
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # Cliente
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
         cliente = cur.fetchone()
         if not cliente:
@@ -800,11 +803,15 @@ def cliente_scheda(id):
             WHERE cliente_id=%s
         ''', (id,))
         prodotti_assoc = cur.fetchall()
+
+        # Conversione in dict per accesso veloce
         assoc_dict = {p['prodotto_id']: p for p in prodotti_assoc}
 
         prodotti_lavorati, prezzi_attuali, prezzi_offerta, prodotti_data = [], {}, {}, {}
+
         for p in prodotti:
             pid = p['id']
+
             if pid in assoc_dict:
                 lavorato = assoc_dict[pid]['lavorato']
                 prezzo_attuale = assoc_dict[pid]['prezzo_attuale']
@@ -818,6 +825,7 @@ def cliente_scheda(id):
 
             if lavorato:
                 prodotti_lavorati.append(str(pid))
+
             prezzi_attuali[str(pid)] = prezzo_attuale
             prezzi_offerta[str(pid)] = prezzo_offerta
             prodotti_data[str(pid)] = data_op
@@ -830,24 +838,25 @@ def cliente_scheda(id):
         cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (id,))
         fatturato_totale = cur.fetchone()['totale']
 
-        # Fatturato corrente
+        # Fatturato mese corrente
         cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                     (id, current_month, current_year))
         totale_corrente = cur.fetchone()['totale']
 
-        # Fatturato precedente
+        # Fatturato mese precedente
         cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                     (id, prev_month, prev_year))
         totale_prec = cur.fetchone()['totale']
 
         variazione_fatturato_cliente = ((totale_corrente - totale_prec) / totale_prec * 100) if totale_prec else None
+
         stato_cliente = (
             'attivo' if totale_corrente > 0
             else 'inattivo' if totale_corrente == 0 and totale_prec == 0
             else 'bloccato'
         )
 
-        # Fatturato mensile
+        # Fatturato mensile storico
         cur.execute('''
             SELECT anno, mese, SUM(totale) AS totale
             FROM fatturato
@@ -857,28 +866,35 @@ def cliente_scheda(id):
         ''', (id,))
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02d}": r['totale'] for r in cur.fetchall()}
 
-        # Log cliente (con fix su lavorato=TRUE e make_date)
+        # Log cliente
         cur.execute('''
             SELECT descrizione, data
             FROM (
                 SELECT 'Aggiunto prodotto: ' || p.nome AS descrizione, cp.data_operazione AS data
                 FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
                 WHERE cp.cliente_id=%s AND cp.lavorato=TRUE
+
                 UNION ALL
+
                 SELECT 'Rimosso prodotto: ' || p.nome, pr.data_rimozione
                 FROM prodotti_rimossi pr JOIN prodotti p ON pr.prodotto_id=p.id
                 WHERE pr.cliente_id=%s
+
                 UNION ALL
+
                 SELECT 'Fatturato aggiornato: ' || totale || ' €', make_date(anno, mese, 1)
                 FROM fatturato
                 WHERE cliente_id=%s
+
                 UNION ALL
+
                 SELECT 'Prezzo prodotto modificato: ' || p.nome, cp.data_operazione
                 FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
                 WHERE cp.cliente_id=%s AND (cp.prezzo_attuale IS NOT NULL OR cp.prezzo_offerta IS NOT NULL)
             ) AS logs
             ORDER BY data DESC
         ''', (id, id, id, id))
+
         log_cliente = []
         for l in cur.fetchall():
             log_dict = dict(l)
