@@ -9,14 +9,11 @@ body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
 h1,h5 { font-weight:600; }
 
 .card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
-.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10,30, rgba(0,0,0,0.1); }
+.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-.categoria-card { cursor:pointer; padding:1rem 1.25rem; display:flex; align-items:center; gap:1rem; border-radius:1rem; text-align:left; transition:0.3s; margin-bottom:0.5rem; background:#fff; }
-.categoria-card i { font-size:1.8rem; color:#0d6efd; }
-.categoria-card .categoria-info { flex-grow:1; }
-.categoria-card.selected { border:2px solid #0d6efd; background:#e7f1ff; }
-
-.categorie-container { max-height:500px; overflow-y:auto; padding-right:0.25rem; }
+.categoria-card { cursor:pointer; padding:1.5rem; text-align:center; margin-bottom:1rem; }
+.categoria-card i { font-size:2.5rem; color:#0d6efd; margin-bottom:0.5rem; }
+.categoria-card .prod-count { font-size:0.8rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; display:block; margin-top:0.25rem; }
 
 .badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
 .badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
@@ -30,8 +27,7 @@ h1,h5 { font-weight:600; }
 table tbody tr { transition:0.2s; }
 table tbody tr:hover { background:#f1f3f5 !important; }
 .price-offer { color:#28a745; font-weight:600; }
-
-.note-data { font-size:0.75rem; color:#6c757d; display:block; margin-top:0.25rem; }
+.note-data { display:block; font-size:0.75rem; color:#6c757d; margin-top:0.25rem; }
 </style>
 {% endblock %}
 
@@ -112,32 +108,24 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
-<!-- Layout a due colonne: sinistra categorie scrollabili, destra prodotti -->
-<div class="row g-3">
-  <!-- Colonna categorie -->
-  <div class="col-md-4 col-lg-3">
-    <div class="categorie-container d-flex flex-column">
-      {% for cat in categorie %}
-        {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
-        {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
-        <div class="categoria-card" data-cat-id="{{ cat.id }}">
-          <i class="bi bi-box-seam"></i>
-          <div class="categoria-info">
-            <h6>{{ cat.nome }}</h6>
-            <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
-          </div>
+<!-- Layout categorie e prodotti -->
+<div class="row">
+  <div class="col-md-3">
+    <!-- Categorie come card bianche -->
+    {% for cat in categorie %}
+      {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
+      {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
+      <div class="card categoria-card" data-cat-id="{{ cat.id }}">
+        <div class="d-flex flex-column align-items-center justify-content-center p-3">
+          <i class="bi bi-box-seam mb-2"></i>
+          <h5 class="mb-1">{{ cat.nome }}</h5>
+          <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
         </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- Colonna prodotti -->
-  <div class="col-md-8 col-lg-9">
-    <div id="contenitore-tabella">
-      <div class="card p-3 text-center text-muted">
-        Seleziona una categoria per vedere i prodotti.
       </div>
-    </div>
+    {% endfor %}
+  </div>
+  <div class="col-md-9">
+    <div id="contenitore-tabella"></div>
   </div>
 </div>
 
@@ -168,6 +156,8 @@ table tbody tr:hover { background:#f1f3f5 !important; }
                   <span class="note-data">Ultima modifica: {{ p.data_modifica.strftime("%d/%m/%Y") }}</span>
                 {% elif p.data_inserimento %}
                   <span class="note-data">Inserito: {{ p.data_inserimento.strftime("%d/%m/%Y") }}</span>
+                {% else %}
+                  <span class="note-data">–</span>
                 {% endif %}
               </td>
               <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
@@ -191,7 +181,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 {% endfor %}
 
 <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary mt-3"><i class="bi bi-arrow-left me-1"></i> Torna alla lista clienti</a>
-
 {% endblock %}
 
 {% block scripts %}
@@ -225,15 +214,10 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
 
-  const categorieCards = document.querySelectorAll(".categoria-card");
-  categorieCards.forEach(card=>{
-    card.addEventListener("click",()=>{
+  document.querySelectorAll(".categoria-card").forEach(card=>{
+    card.addEventListener("click",()=> {
       const t=document.getElementById(`tabella-template-${card.dataset.catId}`);
       document.getElementById("contenitore-tabella").innerHTML=t.innerHTML;
-
-      // evidenzia categoria selezionata
-      categorieCards.forEach(c=>c.classList.remove("selected"));
-      card.classList.add("selected");
     });
   });
 })();
