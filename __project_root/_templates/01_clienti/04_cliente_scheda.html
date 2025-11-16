@@ -11,15 +11,10 @@ h1,h5 { font-weight:600; }
 .card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
 .card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-.categoria-card { cursor:pointer; padding:1rem; text-align:center; position:relative; transition:0.3s ease; border:1px solid #eaeaea; }
-.categoria-card:hover { border-color:#0d6efd; box-shadow:0 8px 25px rgba(0,0,0,0.08); }
-.categoria-card i { font-size:2rem; color:#0d6efd; margin-bottom:0.5rem; }
-.categoria-card h5 { margin-bottom:0.25rem; }
-.categoria-card small { color:#6c757d; }
-
-.badge-stato { font-size:0.85rem; font-weight:500; display:inline-flex; align-items:center; gap:0.25rem; }
-.badge-lavorato { background-color: #28a745; color:#fff; }
-.badge-nonlavorato { background-color: #6c757d; color:#fff; }
+.categoria-card { cursor:pointer; padding:1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem; border-radius:1rem; transition:0.3s; }
+.categoria-card i { font-size:2rem; color:#0d6efd; }
+.categoria-card .categoria-info { flex-grow:1; }
+.categoria-card:hover { background:#f1f3f5; }
 
 .badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
 .badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
@@ -33,6 +28,9 @@ h1,h5 { font-weight:600; }
 table tbody tr { transition:0.2s; }
 table tbody tr:hover { background:#f1f3f5 !important; }
 .price-offer { color:#28a745; font-weight:600; }
+
+.sidebar { max-width:250px; }
+.product-list { flex-grow:1; }
 </style>
 {% endblock %}
 
@@ -113,21 +111,25 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
-<!-- Layout categorie + prodotti -->
-<div class="row g-3 mb-4">
-  <div class="col-lg-3">
+<!-- Layout Sidebar + Prodotti -->
+<div class="d-flex gap-3">
+  <div class="sidebar">
     {% for cat in categorie %}
       {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
       {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
-      <div class="card categoria-card mb-3" data-cat-id="{{ cat.id }}">
+      <div class="categoria-card" data-cat-id="{{ cat.id }}">
         <i class="bi bi-box-seam"></i>
-        <h5>{{ cat.nome }}</h5>
-        <small>{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
+        <div class="categoria-info">
+          <h6>{{ cat.nome }}</h6>
+          <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
+        </div>
       </div>
     {% endfor %}
   </div>
-  <div class="col-lg-9">
-    <div id="contenitore-tabella"></div>
+  <div class="product-list flex-grow-1" id="contenitore-tabella">
+    <div class="card p-3 text-center text-muted">
+      Seleziona una categoria per vedere i prodotti.
+    </div>
   </div>
 </div>
 
@@ -157,9 +159,9 @@ table tbody tr:hover { background:#f1f3f5 !important; }
               <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
               <td>
                 {% if pid in prodotti_lavorati %}
-                  <span class="badge badge-stato badge-lavorato"><i class="bi bi-check-circle"></i> Lavorato</span>
+                  <span class="badge bg-success">Lavorato</span>
                 {% else %}
-                  <span class="badge badge-stato badge-nonlavorato"><i class="bi bi-x-circle"></i> Non Lavorato</span>
+                  <span class="badge bg-secondary">Non Lavorato</span>
                 {% endif %}
               </td>
             </tr>
