@@ -30,7 +30,7 @@ body { background: #0f172a; color: #fff; }
 }
 .metric-card h6 { font-size: 0.95rem; color: #a0a8b7; }
 
-/* === Grafici in stile "fatturato.html" === */
+/* === Grafici === */
 .chart-card {
   border-radius: 1rem;
   background: #1e293b;
@@ -53,7 +53,7 @@ body { background: #0f172a; color: #fff; }
   width: 100% !important;
 }
 
-/* === Link cards === */
+/* Link cards */
 .link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 .link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
 .link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
@@ -106,27 +106,37 @@ body { background: #0f172a; color: #fff; }
 
   <!-- Metriche -->
   <div class="row g-4 mb-5">
+
     {% set metriche = [
       {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
-      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
-      {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
-      {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
-      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
+
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi_dettaglio|length, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
+
+      {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati_dettaglio|length, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
+
+      {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi_dettaglio|length, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
+
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
+
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
     ] %}
 
     {% for m in metriche %}
       <div class="col-6 col-md-3">
         <div class="card metric-card text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#{{ m.modal }}">
           <h6>{{ m.titolo }}</h6>
+
           {% if m.tipo == 'percent' and m.valore is not none %}
             <div class="fs-3 fw-bold {{ 'text-success' if m.valore > 0 else 'text-danger' }}">
               {{ "%.2f"|format(m.valore) }}%
-              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>{% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
+              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>
+              {% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>
+              {% endif %}
             </div>
           {% else %}
-            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore or 0 }}</div>
+            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore }}</div>
           {% endif %}
+
         </div>
       </div>
     {% endfor %}
