@@ -152,10 +152,8 @@ table tbody tr:hover { background:#f1f3f5 !important; }
               <td>{{ p.nome }}</td>
               <td>
                 {{ p.note or '–' }}
-                {% if p.data_modifica %}
-                  <span class="note-data">Ultima modifica: {{ p.data_modifica.strftime("%d/%m/%Y") }}</span>
-                {% elif p.data_inserimento %}
-                  <span class="note-data">Inserito: {{ p.data_inserimento.strftime("%d/%m/%Y") }}</span>
+                {% if prodotti_data.get(pid) %}
+                  <span class="note-data">Ultima operazione: {{ prodotti_data[pid].strftime("%d/%m/%Y") }}</span>
                 {% else %}
                   <span class="note-data">–</span>
                 {% endif %}
