@@ -8,11 +8,12 @@
 body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
 h1,h5 { font-weight:600; }
 
-.card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.25s ease; }
-.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 8px 25px rgba(0,0,0,0.08); }
+.card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
+.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-.categoria-card { cursor:pointer; padding:1rem; text-align:center; }
-.categoria-card i { font-size:2rem; color:#0d6efd; margin-bottom:0.5rem; }
+.categoria-card { cursor:pointer; padding:1.5rem; text-align:center; position:relative; }
+.categoria-card i { font-size:2.5rem; color:#0d6efd; margin-bottom:0.5rem; }
+.categoria-card .prod-count { position:absolute; top:0.5rem; right:0.5rem; font-size:0.75rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; }
 
 .badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
 .badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
@@ -25,7 +26,7 @@ h1,h5 { font-weight:600; }
 .log-container { max-height:220px; overflow-y:auto; border-radius:1rem; padding:0.5rem 0.75rem; background:#fff; border:1px solid #eaeaea; }
 table tbody tr { transition:0.2s; }
 table tbody tr:hover { background:#f1f3f5 !important; }
-.metric-badge { font-size:0.9rem; margin-right:0.5rem; }
+.price-offer { color:#28a745; font-weight:600; }
 </style>
 {% endblock %}
 
@@ -61,7 +62,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% endfor %}
 </div>
 
-<!-- Grafico Fatturato compatto -->
 <div class="row g-3 mb-4">
   <div class="col-12 col-lg-6">
     <div class="card h-100 p-2">
@@ -76,7 +76,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
     </div>
   </div>
 
-  <!-- Log Cliente -->
   <div class="col-12 col-lg-6">
     <div class="card h-100 p-2">
       <h6>Ultimi Log</h6>
@@ -108,14 +107,16 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
-<!-- Prodotti Lavorati -->
+<!-- Categorie Prodotti -->
 <div class="row g-3 mb-4">
   {% for cat in categorie %}
+    {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
+    {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
     <div class="col-md-4">
       <div class="categoria-card" data-cat-id="{{ cat.id }}">
         <i class="bi bi-box-seam"></i>
         <h5>{{ cat.nome }}</h5>
-        <small class="text-muted">Clicca per vedere i prodotti</small>
+        <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
       </div>
     </div>
   {% endfor %}
@@ -124,34 +125,38 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 
 {% for cat in categorie %}
 <template id="tabella-template-{{ cat.id }}">
-  <div class="card p-2 mb-3">
-    <h5 class="border-bottom pb-1 mb-2">{{ cat.nome }}</h5>
-    <input type="text" class="search-bar" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+  <div class="card p-3 mb-3">
+    <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
+    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
     <div class="table-responsive">
       <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
         <thead class="table-light">
-          <tr><th>Prodotto</th><th>Note</th><th>Prezzo Promemoria (€)</th><th>Stato</th></tr>
+          <tr>
+            <th>Prodotto</th>
+            <th>Note</th>
+            <th>Prezzo Attuale (€)</th>
+            <th>Prezzo Offerta (€)</th>
+            <th>Stato</th>
+          </tr>
         </thead>
         <tbody>
           {% for p in prodotti|sort(attribute='nome') if p.categoria_id==cat.id %}
             {% set pid = p.id|string %}
-            {% if pid in prodotti_lavorati %}
-              <tr>
-                <td>{{ p.nome }}</td>
-                <td>{{ p.note or '–' }}</td>
-                <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
-                <td><span class="badge bg-success">Lavorato</span></td>
-              </tr>
-            {% else %}
-              <tr>
-                <td>{{ p.nome }}</td>
-                <td>{{ p.note or '–' }}</td>
-                <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
-                <td><span class="badge bg-secondary">Non Lavorato</span></td>
-              </tr>
-            {% endif %}
+            <tr>
+              <td>{{ p.nome }}</td>
+              <td>{{ p.note or '–' }}</td>
+              <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
+              <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
+              <td>
+                {% if pid in prodotti_lavorati %}
+                  <span class="badge bg-success">Lavorato</span>
+                {% else %}
+                  <span class="badge bg-secondary">Non Lavorato</span>
+                {% endif %}
+              </td>
+            </tr>
           {% else %}
-            <tr><td colspan="4" class="text-center text-muted fst-italic">Nessun prodotto</td></tr>
+            <tr><td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td></tr>
           {% endfor %}
         </tbody>
       </table>
