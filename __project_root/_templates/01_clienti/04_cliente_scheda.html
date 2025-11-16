@@ -12,7 +12,7 @@ h1,h5 { font-weight:600; }
 .card:hover, .categoria-card:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
 .categoria-sidebar { display:flex; flex-direction:column; gap:0.5rem; max-height:calc(100vh - 200px); overflow-y:auto; padding-right:0.5rem; }
-.categoria-card { cursor:pointer; padding:1rem 1.2rem; display:flex; justify-content:space-between; align-items:center; transition:0.2s; border-left:4px solid transparent; position:relative; }
+.categoria-card { cursor:pointer; padding:1rem 1.2rem; display:flex; justify-content:space-between; align-items:center; transition:0.2s; border-left:4px solid transparent; background:#fff; }
 .categoria-card.selected { border-left:4px solid #0d6efd; background:#e9f2ff; }
 .categoria-card:hover { background:#f1f5f9; }
 
@@ -38,6 +38,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 .price-offer { color:#28a745; font-weight:600; }
 
 .btn-filter { margin-bottom:0.5rem; font-size:0.85rem; padding:0.25rem 0.6rem; border-radius:0.5rem; }
+
 </style>
 {% endblock %}
 
@@ -125,7 +126,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
     {% for cat in categorie %}
       {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
       {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
-      <div class="categoria-card" data-cat-id="{{ cat.id }}">
+      <div class="categoria-card card p-2" data-cat-id="{{ cat.id }}">
         <div class="info">
           <h6>{{ cat.nome }}</h6>
           <small>{{ lavorati_count }} / {{ tot_count }} lavorati</small>
@@ -227,7 +228,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
 
-  // Gestione selezione categorie e visualizzazione prodotti
   const categorieCards = document.querySelectorAll(".categoria-card");
   categorieCards.forEach(card => {
     card.addEventListener("click",()=> {
@@ -236,7 +236,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
       const t = document.getElementById(`tabella-template-${card.dataset.catId}`);
       const container = document.getElementById("contenitore-tabella");
       container.innerHTML = t.innerHTML;
-      container.querySelectorAll(".fade-in").forEach(el=>el.classList.add("fade-in"));
     });
   });
 })();
