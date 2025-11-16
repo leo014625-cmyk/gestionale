@@ -452,15 +452,11 @@ def clienti():
     search = request.args.get('search', '').strip().lower()
 
     oggi = datetime.today()
-    mese_corrente = oggi.month
-    anno_corrente = oggi.year
-    mese_prec = 12 if mese_corrente == 1 else mese_corrente - 1
-    anno_prec = anno_corrente - 1 if mese_corrente == 1 else anno_corrente
-    mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
-    anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
 
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # Recupero clienti con eventuali filtri
         query = 'SELECT id, nome, zona FROM clienti'
         condizioni = []
         params = []
@@ -471,6 +467,7 @@ def clienti():
         if search:
             condizioni.append('LOWER(nome) LIKE %s')
             params.append(f'%{search}%')
+
         if condizioni:
             query += ' WHERE ' + ' AND '.join(condizioni)
         query += ' ORDER BY nome'
@@ -482,24 +479,25 @@ def clienti():
         stati_clienti = {}
 
         for cliente in clienti_rows:
+            # Totale fatturato
             cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
             fatturato_totale = cur.fetchone()['totale']
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_corrente, anno_corrente))
-            totale_mese_corrente = cur.fetchone()['coalesce']
+            # Data ultimo fatturato
+            cur.execute('SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
+            ultimo = cur.fetchone()['ultimo_fatturato']
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_prec, anno_prec))
-            totale_mese_prec = cur.fetchone()['coalesce']
+            if ultimo:
+                giorni_trascorsi = (oggi.date() - ultimo).days
+                if giorni_trascorsi <= 60:
+                    stato = 'attivo'
+                elif 61 <= giorni_trascorsi <= 91:
+                    stato = 'bloccato'
+                else:
+                    stato = 'inattivo'
+            else:
+                stato = 'inattivo'
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_due_fa, anno_due_fa))
-            totale_due_mesi_fa = cur.fetchone()['coalesce']
-
-            stato = ('attivo' if totale_mese_corrente > 0
-                     else 'inattivo' if totale_mese_prec == 0 and totale_due_mesi_fa == 0
-                     else 'bloccato')
             stati_clienti[cliente['id']] = stato
 
             clienti_list.append({
@@ -507,16 +505,16 @@ def clienti():
                 'nome': cliente['nome'],
                 'zona': cliente['zona'],
                 'fatturato_totale': fatturato_totale,
-                'fatturato_corrente': totale_mese_corrente,
-                'fatturato_precedente': totale_mese_prec,
-                'fatturato_due_mesi_fa': totale_due_mesi_fa
+                'ultimo_fatturato': ultimo
             })
 
+        # Ordinamento
         if order == 'fatturato':
             clienti_list.sort(key=lambda c: c['fatturato_totale'], reverse=True)
         else:
             clienti_list.sort(key=lambda c: (c['zona'] or '', c['nome']))
 
+        # Raggruppamento per zona
         clienti_per_zona = defaultdict(list)
         for c in clienti_list:
             clienti_per_zona[c['zona']].append(c)
@@ -534,7 +532,6 @@ def clienti():
         search=search,
         stati_clienti=stati_clienti
     )
-
 
 @app.route('/clienti/aggiungi', methods=['GET', 'POST'])
 @login_required
