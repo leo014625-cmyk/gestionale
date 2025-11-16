@@ -9,36 +9,30 @@ body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
 h1,h5 { font-weight:600; }
 
 .card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
-.card:hover, .categoria-card:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
+.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-.categoria-sidebar { display:flex; flex-direction:column; gap:0.5rem; max-height:calc(100vh - 200px); overflow-y:auto; padding-right:0.5rem; }
-.categoria-card { cursor:pointer; padding:1rem 1.2rem; display:flex; justify-content:space-between; align-items:center; transition:0.2s; border-left:4px solid transparent; background:#fff; }
-.categoria-card.selected { border-left:4px solid #0d6efd; background:#e9f2ff; }
-.categoria-card:hover { background:#f1f5f9; }
+.categoria-card { cursor:pointer; padding:1rem; text-align:center; position:relative; transition:0.3s ease; border:1px solid #eaeaea; }
+.categoria-card:hover { border-color:#0d6efd; box-shadow:0 8px 25px rgba(0,0,0,0.08); }
+.categoria-card i { font-size:2rem; color:#0d6efd; margin-bottom:0.5rem; }
+.categoria-card h5 { margin-bottom:0.25rem; }
+.categoria-card small { color:#6c757d; }
 
-.categoria-card .info { display:flex; flex-direction:column; }
-.categoria-card .info h6 { margin:0; font-size:0.95rem; font-weight:600; }
-.categoria-card .info small { font-size:0.8rem; color:#6c757d; }
+.badge-stato { font-size:0.85rem; font-weight:500; display:inline-flex; align-items:center; gap:0.25rem; }
+.badge-lavorato { background-color: #28a745; color:#fff; }
+.badge-nonlavorato { background-color: #6c757d; color:#fff; }
 
-.prod-container { padding-left:1rem; transition: all 0.3s ease; }
-.prod-container .fade-in { animation: fadeIn 0.3s ease; }
-
-@keyframes fadeIn { from {opacity:0} to {opacity:1} }
+.badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
+.badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
+.badge-soft-danger { background-color: rgba(220,53,69,0.15); color:#dc3545; }
+.badge-soft-warning { background-color: rgba(253,126,20,0.15); color:#fd7e14; }
 
 .search-bar { padding:0.5rem 1rem; border:1px solid #ddd; border-radius:1rem; width:100%; margin-bottom:0.5rem; font-size:0.9rem; }
 .search-bar:focus { border-color:#0d6efd; box-shadow:0 0 0 0.15rem rgba(13,110,253,0.25); outline:none; }
 
+.log-container { max-height:220px; overflow-y:auto; border-radius:1rem; padding:0.5rem 0.75rem; background:#fff; border:1px solid #eaeaea; }
 table tbody tr { transition:0.2s; }
 table tbody tr:hover { background:#f1f3f5 !important; }
-
-.badge-stato { font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.3rem; }
-.badge-lavorato { background-color:#28a745; color:#fff; }
-.badge-nonlavorato { background-color:#6c757d; color:#fff; }
-
 .price-offer { color:#28a745; font-weight:600; }
-
-.btn-filter { margin-bottom:0.5rem; font-size:0.85rem; padding:0.25rem 0.6rem; border-radius:0.5rem; }
-
 </style>
 {% endblock %}
 
@@ -119,39 +113,28 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
-<!-- Layout moderno: sidebar categorie e container prodotti -->
-<div class="d-flex">
-  <!-- Sidebar Categorie -->
-  <div class="col-md-3 categoria-sidebar">
+<!-- Layout Categorie + Prodotti -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-3">
     {% for cat in categorie %}
       {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
       {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
-      <div class="categoria-card card p-2" data-cat-id="{{ cat.id }}">
-        <div class="info">
-          <h6>{{ cat.nome }}</h6>
-          <small>{{ lavorati_count }} / {{ tot_count }} lavorati</small>
-        </div>
-        <i class="bi bi-chevron-right"></i>
+      <div class="card categoria-card mb-3" data-cat-id="{{ cat.id }}">
+        <i class="bi bi-box-seam"></i>
+        <h5>{{ cat.nome }}</h5>
+        <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
       </div>
     {% endfor %}
   </div>
-
-  <!-- Container Prodotti -->
-  <div class="col-md-9 prod-container" id="contenitore-tabella">
-    <p class="text-muted fst-italic">Seleziona una categoria per visualizzare i prodotti.</p>
+  <div class="col-lg-9">
+    <div id="contenitore-tabella"></div>
   </div>
 </div>
 
 {% for cat in categorie %}
 <template id="tabella-template-{{ cat.id }}">
-  <div class="card p-3 mb-3 fade-in">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0">{{ cat.nome }}</h5>
-      <div>
-        <button class="btn btn-sm btn-outline-primary btn-filter" onclick="filtraSoloNonLavorati('{{ cat.id }}')">Mostra solo non lavorati</button>
-        <button class="btn btn-sm btn-outline-secondary btn-filter" onclick="mostraTuttiProdotti('{{ cat.id }}')">Mostra tutti</button>
-      </div>
-    </div>
+  <div class="card p-3 mb-3">
+    <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
     <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
     <div class="table-responsive">
       <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
@@ -169,11 +152,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
             {% set pid = p.id|string %}
             <tr>
               <td>{{ p.nome }}</td>
-              <td>
-                {% if p.note %}
-                  <span title="{{ p.note }}">{{ p.note[:25] ~ ('...' if p.note|length>25 else '') }}</span>
-                {% else %}-{% endif %}
-              </td>
+              <td>{{ p.note or '–' }}</td>
               <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
               <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
               <td>
@@ -228,14 +207,10 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
 
-  const categorieCards = document.querySelectorAll(".categoria-card");
-  categorieCards.forEach(card => {
+  document.querySelectorAll(".categoria-card").forEach(card=>{
     card.addEventListener("click",()=> {
-      categorieCards.forEach(c => c.classList.remove("selected"));
-      card.classList.add("selected");
-      const t = document.getElementById(`tabella-template-${card.dataset.catId}`);
-      const container = document.getElementById("contenitore-tabella");
-      container.innerHTML = t.innerHTML;
+      const t=document.getElementById(`tabella-template-${card.dataset.catId}`);
+      document.getElementById("contenitore-tabella").innerHTML=t.innerHTML;
     });
   });
 })();
@@ -244,20 +219,7 @@ function filtraProdotti(input,catId){
   const filtro=input.value.toLowerCase();
   document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
     const nome=r.querySelector("td")?.innerText.toLowerCase()||"";
-    r.style.display = nome.includes(filtro) ? "" : "none";
-  });
-}
-
-function filtraSoloNonLavorati(catId){
-  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
-    const stato=r.querySelector("td:last-child span")?.innerText || "";
-    r.style.display = stato.includes("Non Lavorato") ? "" : "none";
-  });
-}
-
-function mostraTuttiProdotti(catId){
-  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
-    r.style.display = "";
+    r.style.display=nome.includes(filtro)?"":"none";
   });
 }
 </script>
