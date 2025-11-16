@@ -270,23 +270,29 @@ def aggiorna_fatturato_totale(id):
 def index():
     with get_db() as db:
         cur = db.cursor()
-        now = datetime.now()
-        mese_corrente = now.month
-        anno_corrente = now.year
+
+        # --- Data e mesi di riferimento ---
+        oggi = datetime.now()
+        # ultimo giorno del mese scorso
+        ultimo_mese_completo = oggi.replace(day=1) - relativedelta(days=1)
+        mese_corrente = ultimo_mese_completo.month
+        anno_corrente = ultimo_mese_completo.year
+
+        # mese precedente a quello ultimo completo
+        mese_prec = (ultimo_mese_completo - relativedelta(months=1)).month
+        anno_prec = (ultimo_mese_completo - relativedelta(months=1)).year
 
         primo_giorno_mese_corrente = datetime(anno_corrente, mese_corrente, 1)
         primo_giorno_prossimo_mese = primo_giorno_mese_corrente + relativedelta(months=1)
 
-        # === Fatturato totale corrente ===
+        # === Fatturato mese ultimo completo ===
         cur.execute(
             'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
             (mese_corrente, anno_corrente)
         )
         fatturato_corrente = cur.fetchone()['totale']
 
-        # === Fatturato mese precedente ===
-        mese_prec = 12 if mese_corrente == 1 else mese_corrente - 1
-        anno_prec = anno_corrente - 1 if mese_corrente == 1 else anno_corrente
+        # === Fatturato mese precedente ---
         cur.execute(
             'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
             (mese_prec, anno_prec)
@@ -317,16 +323,23 @@ def index():
 
         for cliente in clienti_rows:
             # Fatturato degli ultimi 3 mesi per ogni cliente
+            mese_1 = mese_corrente
+            anno_1 = anno_corrente
+            mese_2 = mese_prec
+            anno_2 = anno_prec
+            mese_3_dt = ultimo_mese_completo - relativedelta(months=2)
+            mese_3 = mese_3_dt.month
+            anno_3 = mese_3_dt.year
+
             cur.execute('''
                 SELECT COALESCE(SUM(totale),0) as totale
                 FROM fatturato
                 WHERE cliente_id=%s AND ((anno=%s AND mese=%s) OR (anno=%s AND mese=%s) OR (anno=%s AND mese=%s))
             ''', (
                 cliente['id'],
-                anno_corrente, mese_corrente,
-                anno_prec, mese_prec,
-                anno_prec if mese_corrente <= 2 else anno_corrente,
-                12 if mese_corrente <= 2 else mese_corrente - 2
+                anno_1, mese_1,
+                anno_2, mese_2,
+                anno_3, mese_3
             ))
             totale_periodo = cur.fetchone()['totale']
 
