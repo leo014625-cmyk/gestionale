@@ -1,5 +1,7 @@
 {% extends "01_base.html" %}
 
+{% block title %}Scheda Cliente - {{ cliente.nome }}{% endblock %}
+
 {% block styles %}
 {{ super() }}
 <style>
@@ -17,8 +19,6 @@ h1,h5 { font-weight:600; }
 .categoria-card .info { display:flex; flex-direction:column; }
 .categoria-card .info h6 { margin:0; font-size:0.95rem; font-weight:600; }
 .categoria-card .info small { font-size:0.8rem; color:#6c757d; }
-
-.categoria-card .prod-count { position:absolute; top:0.5rem; right:0.5rem; font-size:0.75rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; }
 
 .prod-container { padding-left:1rem; transition: all 0.3s ease; }
 .prod-container .fade-in { animation: fadeIn 0.3s ease; }
@@ -54,7 +54,71 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </h1>
 </div>
 
-<!-- Layout moderno categorie e prodotti -->
+<div class="row g-3 mb-4">
+  {% set mesi_totali = fatturato_mensile|length %}
+  {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
+  {% for titolo, valore, colore in [
+      ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success'),
+      ('Media Mensile', "%.2f"|format(media)+' €','info'),
+      ('Crescita Mensile', (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
+       'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger'),
+      ('Ultimo Contatto', ultimo_contatto or '–','primary')
+    ] %}
+    <div class="col-md-3">
+      <div class="card h-100 p-2 text-center">
+        <h6 class="text-muted">{{ titolo }}</h6>
+        <h4 class="fw-bold text-{{ colore }}">{{ valore }}</h4>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 p-2">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
+        <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
+          <option value="ultimi3" selected>Ultimi 3 mesi</option>
+          <option value="tutti">Tutti</option>
+        </select>
+      </div>
+      <canvas id="fatturatoMensileChart"></canvas>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 p-2">
+      <h6>Ultimi Log</h6>
+      {% if log_cliente %}
+        {% set ultimi_log = log_cliente|sort(attribute='data',reverse=true) %}
+        <div class="log-container">
+          <ul class="list-unstyled mb-0">
+            {% for log in ultimi_log[:5] %}
+              <li class="d-flex justify-content-between border-bottom py-1">
+                <div>
+                  {% if 'Aggiornato fatturato' in log.descrizione %}
+                    <i class="bi bi-currency-euro text-primary me-1"></i>
+                  {% elif 'Nota' in log.descrizione %}
+                    <i class="bi bi-info-circle-fill text-secondary me-1"></i>
+                  {% else %}
+                    <i class="bi bi-pencil-fill text-warning me-1"></i>
+                  {% endif %}
+                  {{ log.descrizione }}
+                </div>
+                <small class="text-muted">{{ log.data.strftime("%d/%m/%Y %H:%M") if log.data else '–' }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <p class="text-muted fst-italic">Nessun log disponibile.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Layout moderno: sidebar categorie e container prodotti -->
 <div class="d-flex">
   <!-- Sidebar Categorie -->
   <div class="col-md-3 categoria-sidebar">
@@ -71,7 +135,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
     {% endfor %}
   </div>
 
-  <!-- Prodotti -->
+  <!-- Container Prodotti -->
   <div class="col-md-9 prod-container" id="contenitore-tabella">
     <p class="text-muted fst-italic">Seleziona una categoria per visualizzare i prodotti.</p>
   </div>
@@ -137,13 +201,38 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
+  const fatturato = {{ fatturato_mensile|default({})|tojson }};
+  const mesi = Object.keys(fatturato).sort();
+  const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
+  let chart;
+
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const formatta = m => { const [anno,mese]=m.split('-'); return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2); };
+  const getData = tipo => { const s=tipo==='ultimi3'?mesi.slice(-3):mesi; return {labels:s.map(formatta), dati:s.map(m=>fatturato[m])}; };
+
+  const gradient = ctx.createLinearGradient(0,0,0,150);
+  gradient.addColorStop(0,'rgba(13,110,253,0.8)');
+  gradient.addColorStop(1,'rgba(13,110,253,0.2)');
+
+  const aggiornaGrafico = tipo => {
+    const d=getData(tipo);
+    if(chart) chart.destroy();
+    chart=new Chart(ctx,{
+      type:'bar',
+      data:{labels:d.labels,datasets:[{data:d.dati,backgroundColor:gradient,borderRadius:6,borderSkipped:false}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+    });
+  };
+
+  document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
+  aggiornaGrafico('ultimi3');
+
+  // Gestione selezione categorie e visualizzazione prodotti
   const categorieCards = document.querySelectorAll(".categoria-card");
   categorieCards.forEach(card => {
     card.addEventListener("click",()=> {
-      // Deseleziona le altre
       categorieCards.forEach(c => c.classList.remove("selected"));
       card.classList.add("selected");
-
       const t = document.getElementById(`tabella-template-${card.dataset.catId}`);
       const container = document.getElementById("contenitore-tabella");
       container.innerHTML = t.innerHTML;
