@@ -15,6 +15,7 @@ body { background: #0f172a; color: #fff; }
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
 
+/* === Metriche === */
 .metric-card {
   border: none;
   transition: all 0.25s ease;
@@ -22,7 +23,6 @@ body { background: #0f172a; color: #fff; }
   border-radius: 1rem !important;
   height: 100%;
   color: #fff;
-  cursor: pointer;
 }
 .metric-card:hover {
   transform: translateY(-5px);
@@ -30,13 +30,39 @@ body { background: #0f172a; color: #fff; }
 }
 .metric-card h6 { font-size: 0.95rem; color: #a0a8b7; }
 
-.modal-body {
+/* === Grafici in stile "fatturato.html" === */
+.chart-card {
+  border-radius: 1rem;
   background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  height: 420px;
+  display: flex;
+  flex-direction: column;
   color: #fff;
 }
-.modal-header, .modal-footer {
-  border-color: rgba(255,255,255,0.1);
+.chart-card .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.5rem;
 }
+.chart-card canvas {
+  flex-grow: 1;
+  height: 280px !important;
+  width: 100% !important;
+}
+
+/* === Link cards === */
+.link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+.link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
+.link-prodotti:hover { background-color: #198754; color: #fff !important; border-color: #198754; }
+.link-fatturato:hover { background-color: #ffc107; color: #212529 !important; border-color: #ffc107; }
+.link-card i { transition: transform 0.2s ease; }
+.link-card:hover i { transform: scale(1.15); }
+
+.list-group-item { border-radius: 0.5rem; margin-bottom: 0.3rem; }
 </style>
 {% endblock %}
 
@@ -78,46 +104,32 @@ body { background: #0f172a; color: #fff; }
     </div>
   </div>
 
-  <!-- Metriche con modali -->
+  <!-- Metriche -->
   <div class="row g-4 mb-5">
-    <!-- Clienti Nuovi -->
-    <div class="col-6 col-md-3">
-      <div class="card metric-card text-center p-3 h-100" data-bs-toggle="modal" data-bs-target="#modalClientiNuovi">
-        <h6>Clienti Nuovi (30gg)</h6>
-        <div class="fs-3 fw-bold text-success">{{ clienti_nuovi or 0 }}</div>
-      </div>
-    </div>
+    {% set metriche = [
+      {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
+      {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
+      {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
+    ] %}
 
-    <!-- Clienti Bloccati -->
-    <div class="col-6 col-md-3">
-      <div class="card metric-card text-center p-3 h-100" data-bs-toggle="modal" data-bs-target="#modalClientiBloccati">
-        <h6>Clienti Bloccati</h6>
-        <div class="fs-3 fw-bold text-danger">{{ clienti_bloccati or 0 }}</div>
-      </div>
-    </div>
-
-    <!-- Clienti Inattivi -->
-    <div class="col-6 col-md-3">
-      <div class="card metric-card text-center p-3 h-100" data-bs-toggle="modal" data-bs-target="#modalClientiInattivi">
-        <h6>Clienti Inattivi</h6>
-        <div class="fs-3 fw-bold text-secondary">{{ clienti_inattivi or 0 }}</div>
-      </div>
-    </div>
-
-    <!-- Variazione Fatturato -->
-    <div class="col-6 col-md-3">
-      <div class="card metric-card text-center p-3 h-100">
-        <h6>Variazione Fatturato</h6>
-        {% if variazione_fatturato is not none %}
-        <div class="fs-3 fw-bold {{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
-          {{ "%.2f"|format(variazione_fatturato) }}%
-          {% if variazione_fatturato > 0 %}<i class="bi bi-arrow-up"></i>{% elif variazione_fatturato < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
+    {% for m in metriche %}
+      <div class="col-6 col-md-3">
+        <div class="card metric-card text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#{{ m.modal }}">
+          <h6>{{ m.titolo }}</h6>
+          {% if m.tipo == 'percent' and m.valore is not none %}
+            <div class="fs-3 fw-bold {{ 'text-success' if m.valore > 0 else 'text-danger' }}">
+              {{ "%.2f"|format(m.valore) }}%
+              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>{% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
+            </div>
+          {% else %}
+            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore or 0 }}</div>
+          {% endif %}
         </div>
-        {% else %}
-        <div class="fs-3 fw-bold text-light">--</div>
-        {% endif %}
       </div>
-    </div>
+    {% endfor %}
   </div>
 
   <!-- Grafici -->
@@ -146,111 +158,64 @@ body { background: #0f172a; color: #fff; }
 
 </div>
 
-<!-- ==================== MODALI DETTAGLIO CLIENTI ==================== -->
-<!-- Clienti Nuovi -->
-<div class="modal fade" id="modalClientiNuovi" tabindex="-1">
-  <div class="modal-dialog modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Clienti Nuovi</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {% if clienti_nuovi_dettaglio %}
-          <ul class="list-group list-group-flush">
-            {% for c in clienti_nuovi_dettaglio %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              {{ c.nome }}
-              <span class="badge bg-success rounded-pill">{{ c.data_registrazione.strftime('%d/%m/%Y') }}</span>
-            </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-center text-muted">Nessun cliente nuovo in questo periodo.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Clienti Bloccati -->
-<div class="modal fade" id="modalClientiBloccati" tabindex="-1">
-  <div class="modal-dialog modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Clienti Bloccati</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {% if clienti_bloccati_dettaglio %}
-          <ul class="list-group list-group-flush">
-            {% for c in clienti_bloccati_dettaglio %}
-            <li class="list-group-item">{{ c.nome }}</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-center text-muted">Nessun cliente bloccato.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Clienti Inattivi -->
-<div class="modal fade" id="modalClientiInattivi" tabindex="-1">
-  <div class="modal-dialog modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Clienti Inattivi</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {% if clienti_inattivi_dettaglio %}
-          <ul class="list-group list-group-flush">
-            {% for c in clienti_inattivi_dettaglio %}
-            <li class="list-group-item">{{ c.nome }}</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-center text-muted">Nessun cliente inattivo.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Chart.js -->
+<!-- Grafici Chart.js -->
+{% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-
   const fatturatoMensile = {{ fatturato_mensile|tojson }};
   const mesi = Object.keys(fatturatoMensile).sort();
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
   const labels = mesi.map(m => {
-    const [anno,mese] = m.split('-');
-    return mesiNomi[parseInt(mese,10)-1]+" '"+anno.slice(2);
+    const [anno, mese] = m.split('-');
+    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
   });
   const valori = Object.values(fatturatoMensile);
 
   const ctx1 = document.getElementById('fatturatoChart').getContext('2d');
   new Chart(ctx1, {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'Fatturato (€)', data: valori, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 8, borderSkipped: false }] },
+    data: {
+      labels,
+      datasets: [{
+        label: 'Fatturato (€)',
+        data: valori,
+        backgroundColor: 'rgba(74,144,226,0.8)',
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
     options: {
-      responsive:true,
-      plugins:{ legend:{ display:false } },
-      scales:{ x:{ grid:{ display:false }, ticks:{ color:'#a0a8b7', font:{ weight:'600' } } }, y:{ beginAtZero:true, grid:{ color:'rgba(160,168,183,0.15)' }, ticks:{ color:'#a0a8b7' } } }
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } },
+        y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.15)' }, ticks: { color: '#a0a8b7' } }
+      }
     }
   });
 
   const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
   const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
   new Chart(ctx2, {
-    type:'doughnut',
-    data:{ labels:Object.keys(fatturatoZona), datasets:[{ data:Object.values(fatturatoZona), backgroundColor:['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'], borderWidth:0 }] },
-    options:{ plugins:{ legend:{ labels:{ color:'#a0a8b7', padding:15 } }, tooltip:{ backgroundColor:'#1a2638', titleColor:'#4a90e2', bodyColor:'#cfd8e6', displayColors:false } }, cutout:'70%' }
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(fatturatoZona),
+      datasets: [{
+        data: Object.values(fatturatoZona),
+        backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#a0a8b7', padding: 15 } },
+        tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
+      },
+      cutout: '70%'
+    }
   });
 })();
 </script>
+{% endif %}
 {% endblock %}
