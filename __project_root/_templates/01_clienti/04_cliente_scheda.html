@@ -1,7 +1,5 @@
 {% extends "01_base.html" %}
 
-{% block title %}Scheda Cliente - {{ cliente.nome }}{% endblock %}
-
 {% block styles %}
 {{ super() }}
 <style>
@@ -9,24 +7,37 @@ body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
 h1,h5 { font-weight:600; }
 
 .card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
-.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
+.card:hover, .categoria-card:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-.categoria-card { cursor:pointer; padding:1.5rem; text-align:center; position:relative; }
-.categoria-card i { font-size:2.5rem; color:#0d6efd; margin-bottom:0.5rem; }
+.categoria-sidebar { display:flex; flex-direction:column; gap:0.5rem; max-height:calc(100vh - 200px); overflow-y:auto; padding-right:0.5rem; }
+.categoria-card { cursor:pointer; padding:1rem 1.2rem; display:flex; justify-content:space-between; align-items:center; transition:0.2s; border-left:4px solid transparent; position:relative; }
+.categoria-card.selected { border-left:4px solid #0d6efd; background:#e9f2ff; }
+.categoria-card:hover { background:#f1f5f9; }
+
+.categoria-card .info { display:flex; flex-direction:column; }
+.categoria-card .info h6 { margin:0; font-size:0.95rem; font-weight:600; }
+.categoria-card .info small { font-size:0.8rem; color:#6c757d; }
+
 .categoria-card .prod-count { position:absolute; top:0.5rem; right:0.5rem; font-size:0.75rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; }
 
-.badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
-.badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
-.badge-soft-danger { background-color: rgba(220,53,69,0.15); color:#dc3545; }
-.badge-soft-warning { background-color: rgba(253,126,20,0.15); color:#fd7e14; }
+.prod-container { padding-left:1rem; transition: all 0.3s ease; }
+.prod-container .fade-in { animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn { from {opacity:0} to {opacity:1} }
 
 .search-bar { padding:0.5rem 1rem; border:1px solid #ddd; border-radius:1rem; width:100%; margin-bottom:0.5rem; font-size:0.9rem; }
 .search-bar:focus { border-color:#0d6efd; box-shadow:0 0 0 0.15rem rgba(13,110,253,0.25); outline:none; }
 
-.log-container { max-height:220px; overflow-y:auto; border-radius:1rem; padding:0.5rem 0.75rem; background:#fff; border:1px solid #eaeaea; }
 table tbody tr { transition:0.2s; }
 table tbody tr:hover { background:#f1f3f5 !important; }
+
+.badge-stato { font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.3rem; }
+.badge-lavorato { background-color:#28a745; color:#fff; }
+.badge-nonlavorato { background-color:#6c757d; color:#fff; }
+
 .price-offer { color:#28a745; font-weight:600; }
+
+.btn-filter { margin-bottom:0.5rem; font-size:0.85rem; padding:0.25rem 0.6rem; border-radius:0.5rem; }
 </style>
 {% endblock %}
 
@@ -43,90 +54,39 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </h1>
 </div>
 
-<div class="row g-3 mb-4">
-  {% set mesi_totali = fatturato_mensile|length %}
-  {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
-  {% for titolo, valore, colore in [
-      ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success'),
-      ('Media Mensile', "%.2f"|format(media)+' €','info'),
-      ('Crescita Mensile', (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
-       'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger'),
-      ('Ultimo Contatto', ultimo_contatto or '–','primary')
-    ] %}
-    <div class="col-md-3">
-      <div class="card h-100 p-2 text-center">
-        <h6 class="text-muted">{{ titolo }}</h6>
-        <h4 class="fw-bold text-{{ colore }}">{{ valore }}</h4>
-      </div>
-    </div>
-  {% endfor %}
-</div>
-
-<div class="row g-3 mb-4">
-  <div class="col-12 col-lg-6">
-    <div class="card h-100 p-2">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <span><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
-        <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
-          <option value="ultimi3" selected>Ultimi 3 mesi</option>
-          <option value="tutti">Tutti</option>
-        </select>
-      </div>
-      <canvas id="fatturatoMensileChart"></canvas>
-    </div>
-  </div>
-
-  <div class="col-12 col-lg-6">
-    <div class="card h-100 p-2">
-      <h6>Ultimi Log</h6>
-      {% if log_cliente %}
-        {% set ultimi_log = log_cliente|sort(attribute='data',reverse=true) %}
-        <div class="log-container">
-          <ul class="list-unstyled mb-0">
-            {% for log in ultimi_log[:5] %}
-              <li class="d-flex justify-content-between border-bottom py-1">
-                <div>
-                  {% if 'Aggiornato fatturato' in log.descrizione %}
-                    <i class="bi bi-currency-euro text-primary me-1"></i>
-                  {% elif 'Nota' in log.descrizione %}
-                    <i class="bi bi-info-circle-fill text-secondary me-1"></i>
-                  {% else %}
-                    <i class="bi bi-pencil-fill text-warning me-1"></i>
-                  {% endif %}
-                  {{ log.descrizione }}
-                </div>
-                <small class="text-muted">{{ log.data.strftime("%d/%m/%Y %H:%M") if log.data else '–' }}</small>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% else %}
-        <p class="text-muted fst-italic">Nessun log disponibile.</p>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- Categorie Prodotti -->
-<div class="row g-3 mb-4">
-  {% for cat in categorie %}
-    {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
-    {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
-    <div class="col-md-4">
+<!-- Layout moderno categorie e prodotti -->
+<div class="d-flex">
+  <!-- Sidebar Categorie -->
+  <div class="col-md-3 categoria-sidebar">
+    {% for cat in categorie %}
+      {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
+      {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
       <div class="categoria-card" data-cat-id="{{ cat.id }}">
-        <i class="bi bi-box-seam"></i>
-        <h5>{{ cat.nome }}</h5>
-        <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
+        <div class="info">
+          <h6>{{ cat.nome }}</h6>
+          <small>{{ lavorati_count }} / {{ tot_count }} lavorati</small>
+        </div>
+        <i class="bi bi-chevron-right"></i>
       </div>
-    </div>
-  {% endfor %}
+    {% endfor %}
+  </div>
+
+  <!-- Prodotti -->
+  <div class="col-md-9 prod-container" id="contenitore-tabella">
+    <p class="text-muted fst-italic">Seleziona una categoria per visualizzare i prodotti.</p>
+  </div>
 </div>
-<div id="contenitore-tabella" class="mt-2"></div>
 
 {% for cat in categorie %}
 <template id="tabella-template-{{ cat.id }}">
-  <div class="card p-3 mb-3">
-    <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
+  <div class="card p-3 mb-3 fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">{{ cat.nome }}</h5>
+      <div>
+        <button class="btn btn-sm btn-outline-primary btn-filter" onclick="filtraSoloNonLavorati('{{ cat.id }}')">Mostra solo non lavorati</button>
+        <button class="btn btn-sm btn-outline-secondary btn-filter" onclick="mostraTuttiProdotti('{{ cat.id }}')">Mostra tutti</button>
+      </div>
+    </div>
     <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
     <div class="table-responsive">
       <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
@@ -144,14 +104,18 @@ table tbody tr:hover { background:#f1f3f5 !important; }
             {% set pid = p.id|string %}
             <tr>
               <td>{{ p.nome }}</td>
-              <td>{{ p.note or '–' }}</td>
+              <td>
+                {% if p.note %}
+                  <span title="{{ p.note }}">{{ p.note[:25] ~ ('...' if p.note|length>25 else '') }}</span>
+                {% else %}-{% endif %}
+              </td>
               <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
               <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
               <td>
                 {% if pid in prodotti_lavorati %}
-                  <span class="badge bg-success">Lavorato</span>
+                  <span class="badge badge-stato badge-lavorato"><i class="bi bi-check-circle"></i> Lavorato</span>
                 {% else %}
-                  <span class="badge bg-secondary">Non Lavorato</span>
+                  <span class="badge badge-stato badge-nonlavorato"><i class="bi bi-x-circle"></i> Non Lavorato</span>
                 {% endif %}
               </td>
             </tr>
@@ -173,36 +137,17 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  const fatturato = {{ fatturato_mensile|default({})|tojson }};
-  const mesi = Object.keys(fatturato).sort();
-  const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
-  let chart;
-
-  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-  const formatta = m => { const [anno,mese]=m.split('-'); return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2); };
-  const getData = tipo => { const s=tipo==='ultimi3'?mesi.slice(-3):mesi; return {labels:s.map(formatta), dati:s.map(m=>fatturato[m])}; };
-
-  const gradient = ctx.createLinearGradient(0,0,0,150);
-  gradient.addColorStop(0,'rgba(13,110,253,0.8)');
-  gradient.addColorStop(1,'rgba(13,110,253,0.2)');
-
-  const aggiornaGrafico = tipo => {
-    const d=getData(tipo);
-    if(chart) chart.destroy();
-    chart=new Chart(ctx,{
-      type:'bar',
-      data:{labels:d.labels,datasets:[{data:d.dati,backgroundColor:gradient,borderRadius:6,borderSkipped:false}]},
-      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
-    });
-  };
-
-  document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
-  aggiornaGrafico('ultimi3');
-
-  document.querySelectorAll(".categoria-card").forEach(card=>{
+  const categorieCards = document.querySelectorAll(".categoria-card");
+  categorieCards.forEach(card => {
     card.addEventListener("click",()=> {
-      const t=document.getElementById(`tabella-template-${card.dataset.catId}`);
-      document.getElementById("contenitore-tabella").innerHTML=t.innerHTML;
+      // Deseleziona le altre
+      categorieCards.forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
+
+      const t = document.getElementById(`tabella-template-${card.dataset.catId}`);
+      const container = document.getElementById("contenitore-tabella");
+      container.innerHTML = t.innerHTML;
+      container.querySelectorAll(".fade-in").forEach(el=>el.classList.add("fade-in"));
     });
   });
 })();
@@ -211,7 +156,20 @@ function filtraProdotti(input,catId){
   const filtro=input.value.toLowerCase();
   document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
     const nome=r.querySelector("td")?.innerText.toLowerCase()||"";
-    r.style.display=nome.includes(filtro)?"":"none";
+    r.style.display = nome.includes(filtro) ? "" : "none";
+  });
+}
+
+function filtraSoloNonLavorati(catId){
+  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
+    const stato=r.querySelector("td:last-child span")?.innerText || "";
+    r.style.display = stato.includes("Non Lavorato") ? "" : "none";
+  });
+}
+
+function mostraTuttiProdotti(catId){
+  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
+    r.style.display = "";
   });
 }
 </script>
