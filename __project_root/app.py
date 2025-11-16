@@ -273,87 +273,77 @@ def index():
 
         # --- Data e mesi di riferimento ---
         oggi = datetime.now()
-        # ultimo giorno del mese scorso
         ultimo_mese_completo = oggi.replace(day=1) - relativedelta(days=1)
-        mese_corrente = ultimo_mese_completo.month
-        anno_corrente = ultimo_mese_completo.year
-
-        # mese precedente a quello ultimo completo
-        mese_prec = (ultimo_mese_completo - relativedelta(months=1)).month
-        anno_prec = (ultimo_mese_completo - relativedelta(months=1)).year
+        mese_corrente, anno_corrente = ultimo_mese_completo.month, ultimo_mese_completo.year
+        mese_prec_dt = ultimo_mese_completo - relativedelta(months=1)
+        mese_prec, anno_prec = mese_prec_dt.month, mese_prec_dt.year
 
         primo_giorno_mese_corrente = datetime(anno_corrente, mese_corrente, 1)
         primo_giorno_prossimo_mese = primo_giorno_mese_corrente + relativedelta(months=1)
+        data_30_giorni_fa = oggi - timedelta(days=30)
 
-        # === Fatturato mese ultimo completo ===
-        cur.execute(
-            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-            (mese_corrente, anno_corrente)
-        )
+        # === Fatturato mese corrente e precedente ===
+        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE mese=%s AND anno=%s',
+                    (mese_corrente, anno_corrente))
         fatturato_corrente = cur.fetchone()['totale']
 
-        # === Fatturato mese precedente ---
-        cur.execute(
-            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-            (mese_prec, anno_prec)
-        )
+        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE mese=%s AND anno=%s',
+                    (mese_prec, anno_prec))
         fatturato_precedente = cur.fetchone()['totale']
 
-        variazione_fatturato = None
-        if fatturato_precedente != 0:
-            variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente) * 100
+        variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente * 100) \
+            if fatturato_precedente != 0 else None
 
-        # === Clienti nuovi nel mese ===
-        cur.execute('''
-            SELECT id, nome, zona, data_registrazione
-            FROM clienti
-            WHERE data_registrazione >= %s AND data_registrazione < %s
-        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
-        clienti_nuovi_rows = cur.fetchall()
-        clienti_nuovi_dettaglio = [
-            {'nome': c['nome'], 'data_registrazione': c['data_registrazione']}
-            for c in clienti_nuovi_rows
-        ]
-        clienti_nuovi = len(clienti_nuovi_rows)
-
-        # === Stato clienti (attivi, bloccati, inattivi) ===
-        cur.execute('SELECT id, nome FROM clienti')
+        # === Clienti ===
+        cur.execute('SELECT id, nome, data_registrazione, bloccato FROM clienti')
         clienti_rows = cur.fetchall()
-        clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
+
+        clienti_nuovi_dettaglio = []
+        clienti_bloccati_dettaglio = []
+        clienti_attivi_dettaglio = []
+        clienti_inattivi_dettaglio = []
+
+        # Pre-calcolo mesi ultimi 3 mesi
+        mesi_ultimi_3 = [
+            (anno_corrente, mese_corrente),
+            (anno_prec, mese_prec),
+            ((ultimo_mese_completo - relativedelta(months=2)).year,
+             (ultimo_mese_completo - relativedelta(months=2)).month)
+        ]
 
         for cliente in clienti_rows:
-            # Fatturato degli ultimi 3 mesi per ogni cliente
-            mese_1 = mese_corrente
-            anno_1 = anno_corrente
-            mese_2 = mese_prec
-            anno_2 = anno_prec
-            mese_3_dt = ultimo_mese_completo - relativedelta(months=2)
-            mese_3 = mese_3_dt.month
-            anno_3 = mese_3_dt.year
+            # Clienti nuovi
+            if cliente['data_registrazione'] >= data_30_giorni_fa:
+                clienti_nuovi_dettaglio.append(cliente)
 
+            # Clienti bloccati
+            if cliente['bloccato']:
+                clienti_bloccati_dettaglio.append(cliente)
+
+            # Clienti inattivi/attivi
             cur.execute('''
-                SELECT COALESCE(SUM(totale),0) as totale
+                SELECT COALESCE(SUM(totale),0) AS totale
                 FROM fatturato
                 WHERE cliente_id=%s AND ((anno=%s AND mese=%s) OR (anno=%s AND mese=%s) OR (anno=%s AND mese=%s))
             ''', (
                 cliente['id'],
-                anno_1, mese_1,
-                anno_2, mese_2,
-                anno_3, mese_3
+                mesi_ultimi_3[0][0], mesi_ultimi_3[0][1],
+                mesi_ultimi_3[1][0], mesi_ultimi_3[1][1],
+                mesi_ultimi_3[2][0], mesi_ultimi_3[2][1],
             ))
             totale_periodo = cur.fetchone()['totale']
-
-            # Stato cliente
-            if totale_periodo > 0:
-                clienti_attivi_dettaglio.append({'nome': cliente['nome']})
+            if totale_periodo == 0:
+                clienti_inattivi_dettaglio.append(cliente)
             else:
-                clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
+                clienti_attivi_dettaglio.append(cliente)
 
+        # Conteggi
+        clienti_nuovi = len(clienti_nuovi_dettaglio)
         clienti_bloccati = len(clienti_bloccati_dettaglio)
         clienti_inattivi = len(clienti_inattivi_dettaglio)
         clienti_attivi = len(clienti_attivi_dettaglio)
 
-        # === Prodotti inseriti nel mese ===
+        # === Prodotti inseriti e rimossi nel mese ===
         cur.execute('''
             SELECT c.nome AS cliente, p.nome AS prodotto, cp.data_operazione
             FROM clienti_prodotti cp
@@ -363,13 +353,10 @@ def index():
               AND cp.data_operazione >= %s AND cp.data_operazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_inseriti_rows = cur.fetchall()
-        prodotti_inseriti = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']}
-            for r in prodotti_inseriti_rows
-        ]
+        prodotti_inseriti = [{'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']} 
+                             for r in prodotti_inseriti_rows]
         prodotti_totali_mese = len(prodotti_inseriti)
 
-        # === Prodotti rimossi nel mese ===
         cur.execute('''
             SELECT c.nome AS cliente, p.nome AS prodotto, pr.data_rimozione
             FROM prodotti_rimossi pr
@@ -379,40 +366,31 @@ def index():
             WHERE pr.data_rimozione >= %s AND pr.data_rimozione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_rimossi_rows = cur.fetchall()
-        prodotti_rimossi = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']}
-            for r in prodotti_rimossi_rows
-        ]
+        prodotti_rimossi = [{'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']} 
+                            for r in prodotti_rimossi_rows]
         prodotti_rimossi_mese = len(prodotti_rimossi)
 
         # === Fatturato ultimi 12 mesi ===
         cur.execute('''
-            SELECT anno, mese, COALESCE(SUM(totale),0) as totale
+            SELECT anno, mese, COALESCE(SUM(totale),0) AS totale
             FROM fatturato
             GROUP BY anno, mese
             ORDER BY anno DESC, mese DESC
             LIMIT 12
         ''')
         fatturato_mensile_rows = cur.fetchall()
-        fatturato_mensile = {
-            f"{r['anno']}-{r['mese']:02}": r['totale']
-            for r in reversed(fatturato_mensile_rows)
-        }
+        fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": r['totale'] for r in reversed(fatturato_mensile_rows)}
 
-        # === Fatturato per Zona ===
+        # === Fatturato per zona ===
         cur.execute('''
-            SELECT 
-                COALESCE(c.zona, 'Sconosciuta') AS zona, 
-                COALESCE(SUM(f.totale),0) AS totale
+            SELECT COALESCE(c.zona,'Sconosciuta') AS zona, COALESCE(SUM(f.totale),0) AS totale
             FROM fatturato f
             JOIN clienti c ON f.cliente_id = c.id
             GROUP BY c.zona
             ORDER BY zona
         ''')
         fatturato_per_zona_rows = cur.fetchall()
-        fatturato_per_zona = {
-            r['zona']: r['totale'] for r in fatturato_per_zona_rows
-        }
+        fatturato_per_zona = {r['zona']: r['totale'] for r in fatturato_per_zona_rows}
 
         # === Notifiche dinamiche ===
         notifiche = []
@@ -438,8 +416,9 @@ def index():
         '02_index.html',
         variazione_fatturato=variazione_fatturato,
         clienti_nuovi=clienti_nuovi,
-        clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
         clienti_bloccati=clienti_bloccati,
+        clienti_inattivi=clienti_inattivi,
+        clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
         clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
         clienti_attivi_dettaglio=clienti_attivi_dettaglio,
         clienti_inattivi_dettaglio=clienti_inattivi_dettaglio,
