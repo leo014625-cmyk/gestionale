@@ -737,24 +737,26 @@ def modifica_cliente(id):
         nuova_zona_value = cliente['zona'] if nuova_zona_selected else ''
 
     return render_template(
-        '01_clienti/03_modifica_cliente.html',
-        cliente=cliente,
-        zone=zone,
-        categorie=categorie,
-        prodotti=prodotti,
-        prodotti_lavorati=prodotti_lavorati,
-        prodotti_non_lavorati=prodotti_non_lavorati,
-        prezzi_attuali=prezzi_attuali,
-        prezzi_offerta=prezzi_offerta,
-        nuova_zona_selected=nuova_zona_selected,
-        nuova_zona_value=nuova_zona_value,
-        fatturato_mese=mese,
-        fatturato_anno=anno,
-        fatturato_importo=importo,
-        fatturati_cliente=fatturati_cliente,
-        current_month=current_datetime.month,
-        current_year=current_datetime.year
-    )
+    '01_clienti/03_modifica_cliente.html',
+    cliente=cliente,
+    zone=zone,
+    categorie=categorie,
+    prodotti=prodotti,
+    prodotti_per_categoria=prodotti_per_categoria,
+    prodotti_lavorati=prodotti_lavorati,
+    prodotti_non_lavorati=prodotti_non_lavorati,
+    prezzi_attuali=prezzi_attuali,
+    prezzi_offerta=prezzi_offerta,
+    nuova_zona_selected=nuova_zona_selected,
+    nuova_zona_value=nuova_zona_value,
+    fatturato_mese=mese,
+    fatturato_anno=anno,
+    fatturato_importo=importo,
+    fatturati_cliente=fatturati_cliente,
+    current_month=current_datetime.month,
+    current_year=current_datetime.year
+)
+
 
 
 
