@@ -134,18 +134,19 @@ table tbody tr:hover { background:#f1f3f5 !important; }
         </thead>
         <tbody>
           {% for p in prodotti|sort(attribute='nome') if p.categoria_id==cat.id %}
-            {% if p.lavorato %}
+            {% set pid = p.id|string %}
+            {% if pid in prodotti_lavorati %}
               <tr>
                 <td>{{ p.nome }}</td>
                 <td>{{ p.note or '–' }}</td>
-                <td>{{ "%.2f"|format(prezzi_attuali.get(p.id|string) or 0) }}</td>
+                <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
                 <td><span class="badge bg-success">Lavorato</span></td>
               </tr>
             {% else %}
               <tr>
                 <td>{{ p.nome }}</td>
                 <td>{{ p.note or '–' }}</td>
-                <td>{{ "%.2f"|format(prezzi_attuali.get(p.id|string) or 0) }}</td>
+                <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
                 <td><span class="badge bg-secondary">Non Lavorato</span></td>
               </tr>
             {% endif %}
