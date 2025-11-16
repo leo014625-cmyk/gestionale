@@ -601,7 +601,6 @@ def nuovo_cliente():
         current_year=current_year
     )
 
-
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
 def modifica_cliente(id):
@@ -630,6 +629,14 @@ def modifica_cliente(id):
             ORDER BY c.nome, p.nome
         ''')
         prodotti = cur.fetchall()
+
+        # 💡 CREA prodotti_per_categoria (risolve l'errore!)
+        prodotti_per_categoria = {}
+        for p in prodotti:
+            cat = p['categoria_nome'] or 'Senza categoria'
+            if cat not in prodotti_per_categoria:
+                prodotti_per_categoria[cat] = []
+            prodotti_per_categoria[cat].append(p)
 
         # Prodotti associati al cliente
         cur.execute('''
@@ -737,26 +744,25 @@ def modifica_cliente(id):
         nuova_zona_value = cliente['zona'] if nuova_zona_selected else ''
 
     return render_template(
-    '01_clienti/03_modifica_cliente.html',
-    cliente=cliente,
-    zone=zone,
-    categorie=categorie,
-    prodotti=prodotti,
-    prodotti_per_categoria=prodotti_per_categoria,
-    prodotti_lavorati=prodotti_lavorati,
-    prodotti_non_lavorati=prodotti_non_lavorati,
-    prezzi_attuali=prezzi_attuali,
-    prezzi_offerta=prezzi_offerta,
-    nuova_zona_selected=nuova_zona_selected,
-    nuova_zona_value=nuova_zona_value,
-    fatturato_mese=mese,
-    fatturato_anno=anno,
-    fatturato_importo=importo,
-    fatturati_cliente=fatturati_cliente,
-    current_month=current_datetime.month,
-    current_year=current_datetime.year
-)
-
+        '01_clienti/03_modifica_cliente.html',
+        cliente=cliente,
+        zone=zone,
+        categorie=categorie,
+        prodotti=prodotti,
+        prodotti_per_categoria=prodotti_per_categoria,
+        prodotti_lavorati=prodotti_lavorati,
+        prodotti_non_lavorati=prodotti_non_lavorati,
+        prezzi_attuali=prezzi_attuali,
+        prezzi_offerta=prezzi_offerta,
+        nuova_zona_selected=nuova_zona_selected,
+        nuova_zona_value=nuova_zona_value,
+        fatturato_mese=mese,
+        fatturato_anno=anno,
+        fatturato_importo=importo,
+        fatturati_cliente=fatturati_cliente,
+        current_month=current_datetime.month,
+        current_year=current_datetime.year
+    )
 
 
 
