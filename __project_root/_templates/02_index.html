@@ -74,7 +74,7 @@ body { background: #0f172a; color: #fff; }
     <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3"
             data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
       <i class="bi bi-bell-fill fs-4 text-primary"></i>
-      {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
+      {% set not_unread = notifiche|selectattr('letto', 'equalto', false)|list %}
       {% if not_unread|length > 0 %}
       <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
         {{ not_unread|length }}
@@ -106,18 +106,12 @@ body { background: #0f172a; color: #fff; }
 
   <!-- Metriche -->
   <div class="row g-4 mb-5">
-
     {% set metriche = [
       {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
-
       {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi_dettaglio|length, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
-
       {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati_dettaglio|length, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
-
       {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi_dettaglio|length, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-
       {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
-
       {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
     ] %}
 
@@ -125,18 +119,14 @@ body { background: #0f172a; color: #fff; }
       <div class="col-6 col-md-3">
         <div class="card metric-card text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#{{ m.modal }}">
           <h6>{{ m.titolo }}</h6>
-
           {% if m.tipo == 'percent' and m.valore is not none %}
             <div class="fs-3 fw-bold {{ 'text-success' if m.valore > 0 else 'text-danger' }}">
               {{ "%.2f"|format(m.valore) }}%
-              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>
-              {% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>
-              {% endif %}
+              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>{% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
             </div>
           {% else %}
-            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore }}</div>
+            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore or 0 }}</div>
           {% endif %}
-
         </div>
       </div>
     {% endfor %}
@@ -185,16 +175,7 @@ body { background: #0f172a; color: #fff; }
   const ctx1 = document.getElementById('fatturatoChart').getContext('2d');
   new Chart(ctx1, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Fatturato (€)',
-        data: valori,
-        backgroundColor: 'rgba(74,144,226,0.8)',
-        borderRadius: 8,
-        borderSkipped: false
-      }]
-    },
+    data: { labels, datasets: [{ label: 'Fatturato (€)', data: valori, backgroundColor: 'rgba(74,144,226,0.8)', borderRadius: 8, borderSkipped: false }] },
     options: {
       responsive: true,
       plugins: { legend: { display: false } },
@@ -209,19 +190,9 @@ body { background: #0f172a; color: #fff; }
   const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
   new Chart(ctx2, {
     type: 'doughnut',
-    data: {
-      labels: Object.keys(fatturatoZona),
-      datasets: [{
-        data: Object.values(fatturatoZona),
-        backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
-        borderWidth: 0
-      }]
-    },
+    data: { labels: Object.keys(fatturatoZona), datasets: [{ data: Object.values(fatturatoZona), backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'], borderWidth: 0 }] },
     options: {
-      plugins: {
-        legend: { labels: { color: '#a0a8b7', padding: 15 } },
-        tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
-      },
+      plugins: { legend: { labels: { color: '#a0a8b7', padding: 15 } }, tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false } },
       cutout: '70%'
     }
   });
