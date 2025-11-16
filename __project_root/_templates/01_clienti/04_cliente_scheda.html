@@ -35,11 +35,11 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 <div class="d-flex align-items-center mb-3">
   <h1 class="mb-0 flex-grow-1">{{ cliente.nome }}
     {% if stato_cliente=='attivo' %}
-      <span class="badge bg-success ms-3"><i class="bi bi-circle-fill"></i> Attivo</span>
+      <span class="badge bg-success ms-3" title="Attivo: ultimo fatturato entro 60 giorni"><i class="bi bi-circle-fill"></i> Attivo</span>
     {% elif stato_cliente=='bloccato' %}
-      <span class="badge bg-danger ms-3"><i class="bi bi-circle-fill"></i> Bloccato</span>
+      <span class="badge bg-danger ms-3" title="Bloccato: ultimo fatturato tra 61 e 91 giorni"><i class="bi bi-circle-fill"></i> Bloccato</span>
     {% else %}
-      <span class="badge bg-secondary ms-3"><i class="bi bi-circle-fill"></i> Inattivo</span>
+      <span class="badge bg-secondary ms-3" title="Inattivo: ultimo fatturato oltre 91 giorni"><i class="bi bi-circle-fill"></i> Inattivo</span>
     {% endif %}
   </h1>
 </div>
@@ -108,10 +108,8 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
-<!-- Layout categorie e prodotti -->
 <div class="row">
   <div class="col-md-3">
-    <!-- Categorie come card bianche -->
     {% for cat in categorie %}
       {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
       {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
