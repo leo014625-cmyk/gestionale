@@ -2,7 +2,7 @@ import os
 import json
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
 import psycopg2
