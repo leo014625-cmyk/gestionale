@@ -270,12 +270,12 @@ def aggiorna_fatturato_totale(id):
 def index():
     
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor() # Usiamo il cursore standard in questa route
 
         # --- Data e mesi di riferimento ---
         oggi = datetime.now()
         
-        # LOGICA PER CLIENTi NUOVI (30gg) - FIX: Usiamo timedelta per calcolare 30 giorni fa
+        # LOGICA PER CLIENTI NUOVI (30gg)
         trenta_giorni_fa = oggi - timedelta(days=30)
         
         # ultimo giorno del mese scorso (usato per calcoli del fatturato)
@@ -309,8 +309,7 @@ def index():
             variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente) * 100
 
         # =======================================================================
-        # === Clienti nuovi negli ULTIMI 30 GIORNI (Logica Corretta) ===
-        # Query aggiornata per usare trenta_giorni_fa
+        # === Clienti nuovi negli ULTIMI 30 GIORNI ===
         # =======================================================================
         cur.execute('''
             SELECT id, nome, zona, data_registrazione
@@ -329,45 +328,46 @@ def index():
         # =======================================================================
 
 
-        # === Stato clienti (attivi, bloccati, inattivi) ===
-        cur.execute('SELECT id, nome FROM clienti')
+        # === Stato clienti (attivi, bloccati, inattivi) - LOGICA AGGIORNATA ===
+        # Usiamo la logica dei giorni trascorsi dall'ultimo fatturato (come nella rotta /clienti)
+        cur.execute('SELECT id, nome, bloccato FROM clienti') 
         clienti_rows = cur.fetchall()
         clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
+        
+        oggi_data = oggi.date()
 
-        for cliente in clienti_rows: # FIX: Corretto 'clientes_rows' a 'clienti_rows'
-             # ... (il resto della tua logica di fatturato per cliente rimane invariata)
-             
-             # Fatturato degli ultimi 3 mesi per ogni cliente
-             
-            mese_1 = mese_corrente
-            anno_1 = anno_corrente
-            mese_2 = mese_prec
-            anno_2 = anno_prec
-            mese_3_dt = ultimo_mese_completo - relativedelta(months=2)
-            mese_3 = mese_3_dt.month
-            anno_3 = mese_3_dt.year
+        for cliente in clienti_rows:
+            # Recupera la data dell'ultimo fatturato per il cliente
+            cur.execute('SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
+            ultimo = cur.fetchone()['ultimo_fatturato']
+            
+            stato = 'inattivo' # Default
 
-            cur.execute('''
-                SELECT COALESCE(SUM(totale),0) as totale
-                FROM fatturato
-                WHERE cliente_id=%s AND ((anno=%s AND mese=%s) OR (anno=%s AND mese=%s) OR (anno=%s AND mese=%s))
-            ''', (
-                cliente['id'],
-                anno_1, mese_1,
-                anno_2, mese_2,
-                anno_3, mese_3
-            ))
-            totale_periodo = cur.fetchone()['totale']
-
-            # Stato cliente
-            if totale_periodo > 0:
-                clienti_attivi_dettaglio.append({'nome': cliente['nome']})
+            # Calcola i giorni trascorsi e determina lo stato
+            if ultimo:
+                giorni_trascorsi = (oggi_data - ultimo).days
+                if giorni_trascorsi <= 60:
+                    stato = 'attivo'
+                elif 61 <= giorni_trascorsi <= 91:
+                    stato = 'bloccato'
+                else:
+                    stato = 'inattivo'
             else:
+                stato = 'inattivo'
+                
+            # Assegna al dettaglio corretto
+            if stato == 'bloccato':
+                clienti_bloccati_dettaglio.append({'nome': cliente['nome']})
+            elif stato == 'attivo':
+                clienti_attivi_dettaglio.append({'nome': cliente['nome']})
+            elif stato == 'inattivo':
                 clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
-
+            
+        # Aggiornamento dei conteggi finali
         clienti_bloccati = len(clienti_bloccati_dettaglio)
         clienti_inattivi = len(clienti_inattivi_dettaglio)
         clienti_attivi = len(clienti_attivi_dettaglio)
+
 
         # === Prodotti inseriti nel mese (lascio invariato al mese solare completo) ===
         cur.execute('''
