@@ -5,44 +5,21 @@
 {% block styles %}
 {{ super() }}
 <style>
-/* --- Stili di Base --- */
 body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
 h1,h5 { font-weight:600; }
 
-.card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
-/* Hover mantenuto solo per le card delle metriche/log/grafico */
-.card:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.08); } 
+.card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
+.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-/* --- Stili Card Categoria --- */
-.categoria-card { 
-    border-radius:1rem; 
-    box-shadow:0 4px 15px rgba(0,0,0,0.05); 
-    background:#fff; 
-    transition:0.3s ease;
-    cursor:pointer; 
-    padding:1.5rem; 
-    text-align:center; 
-    margin-bottom:1rem;
-    border: 1px solid transparent; /* Aggiunto per evitare "salti" all'attivazione */
-}
-.categoria-card:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.1); }
-.categoria-card.active { 
-    border: 2px solid #0d6efd; /* Bordo blu per evidenziare */
-    box-shadow: 0 4px 20px rgba(13, 110, 253, 0.2); 
-    transform:translateY(-3px);
-}
-
+.categoria-card { cursor:pointer; padding:1.5rem; text-align:center; margin-bottom:1rem; }
 .categoria-card i { font-size:2.5rem; color:#0d6efd; margin-bottom:0.5rem; }
 .categoria-card .prod-count { font-size:0.8rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; display:block; margin-top:0.25rem; }
 
-/* --- Stili Badge Soft (Usati ovunque) --- */
 .badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
 .badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
 .badge-soft-danger { background-color: rgba(220,53,69,0.15); color:#dc3545; }
 .badge-soft-warning { background-color: rgba(253,126,20,0.15); color:#fd7e14; }
-.badge-soft-secondary { background-color: rgba(108,117,125,0.15); color:#6c757d; }
 
-/* --- Altri stili --- */
 .search-bar { padding:0.5rem 1rem; border:1px solid #ddd; border-radius:1rem; width:100%; margin-bottom:0.5rem; font-size:0.9rem; }
 .search-bar:focus { border-color:#0d6efd; box-shadow:0 0 0 0.15rem rgba(13,110,253,0.25); outline:none; }
 
@@ -55,149 +32,147 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-4">
-    <h1 class="mb-0 flex-grow-1">{{ cliente.nome }}
+<div class="d-flex align-items-center mb-3">
+  <h1 class="mb-0 flex-grow-1">{{ cliente.nome }}
     {% if stato_cliente=='attivo' %}
-      <span class="badge badge-soft badge-soft-success ms-3" title="Attivo: ultimo fatturato entro 60 giorni"><i class="bi bi-circle-fill"></i> Attivo</span>
+      <span class="badge bg-success ms-3" title="Attivo: ultimo fatturato entro 60 giorni"><i class="bi bi-circle-fill"></i> Attivo</span>
     {% elif stato_cliente=='bloccato' %}
-      <span class="badge badge-soft badge-soft-danger ms-3" title="Bloccato: ultimo fatturato tra 61 e 91 giorni"><i class="bi bi-circle-fill"></i> Bloccato</span>
+      <span class="badge bg-danger ms-3" title="Bloccato: ultimo fatturato tra 61 e 91 giorni"><i class="bi bi-circle-fill"></i> Bloccato</span>
     {% else %}
-      <span class="badge badge-soft badge-soft-secondary ms-3" title="Inattivo: ultimo fatturato oltre 91 giorni"><i class="bi bi-circle-fill"></i> Inattivo</span>
+      <span class="badge bg-secondary ms-3" title="Inattivo: ultimo fatturato oltre 91 giorni"><i class="bi bi-circle-fill"></i> Inattivo</span>
     {% endif %}
-    </h1>
-    <a href="#" class="btn btn-primary"><i class="bi bi-pencil-fill me-1"></i> Modifica Cliente</a>
+  </h1>
 </div>
 
 <div class="row g-3 mb-4">
-    {% set mesi_totali = fatturato_mensile|length %}
-    {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
-    {% for titolo, valore, colore in [
-        ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success'),
-        ('Media Mensile', "%.2f"|format(media)+' €','info'),
-        ('Crescita Mensile', (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
-          'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger'),
-        ('Ultimo Contatto', ultimo_contatto or '–','primary')
-      ] %}
-      <div class="col-md-3">
-        <div class="card h-100 p-2 text-center">
-          <h6 class="text-muted">{{ titolo }}</h6>
-          <h4 class="fw-bold text-{{ colore }}">{{ valore }}</h4>
+  {% set mesi_totali = fatturato_mensile|length %}
+  {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
+  {% for titolo, valore, colore in [
+      ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success'),
+      ('Media Mensile', "%.2f"|format(media)+' €','info'),
+      ('Crescita Mensile', (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
+       'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger'),
+      ('Ultimo Contatto', ultimo_contatto or '–','primary')
+    ] %}
+    <div class="col-md-3">
+      <div class="card h-100 p-2 text-center">
+        <h6 class="text-muted">{{ titolo }}</h6>
+        <h4 class="fw-bold text-{{ colore }}">{{ valore }}</h4>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 p-2">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
+        <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
+          <option value="ultimi3" selected>Ultimi 3 mesi</option>
+          <option value="tutti">Tutti</option>
+        </select>
+      </div>
+      <canvas id="fatturatoMensileChart"></canvas>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 p-2">
+      <h6>Ultimi Log</h6>
+      {% if log_cliente %}
+        {% set ultimi_log = log_cliente|sort(attribute='data',reverse=true) %}
+        <div class="log-container">
+          <ul class="list-unstyled mb-0">
+            {% for log in ultimi_log[:5] %}
+              <li class="d-flex justify-content-between border-bottom py-1">
+                <div>
+                  {% if 'Aggiornato fatturato' in log.descrizione %}
+                    <i class="bi bi-currency-euro text-primary me-1"></i>
+                  {% elif 'Nota' in log.descrizione %}
+                    <i class="bi bi-info-circle-fill text-secondary me-1"></i>
+                  {% else %}
+                    <i class="bi bi-pencil-fill text-warning me-1"></i>
+                  {% endif %}
+                  {{ log.descrizione }}
+                </div>
+                <small class="text-muted">{{ log.data.strftime("%d/%m/%Y %H:%M") if log.data else '–' }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <p class="text-muted fst-italic">Nessun log disponibile.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-3">
+    {% for cat in categorie %}
+      {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
+      {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
+      <div class="card categoria-card" data-cat-id="{{ cat.id }}">
+        <div class="d-flex flex-column align-items-center justify-content-center p-3">
+          <i class="bi bi-box-seam mb-2"></i>
+          <h5 class="mb-1">{{ cat.nome }}</h5>
+          <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
         </div>
       </div>
     {% endfor %}
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-12 col-lg-6">
-      <div class="card h-100 p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</h5>
-          <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
-            <option value="ultimi3" selected>Ultimi 3 mesi</option>
-            <option value="tutti">Tutti</option>
-          </select>
-        </div>
-        <canvas id="fatturatoMensileChart"></canvas>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card h-100 p-3">
-        <h6><i class="bi bi-list-columns-reverse me-2"></i> Ultimi Log</h6>
-        {% if log_cliente %}
-          {% set ultimi_log = log_cliente|sort(attribute='data',reverse=true) %}
-          <div class="log-container">
-            <ul class="list-unstyled mb-0">
-              {% for log in ultimi_log[:5] %}
-                <li class="d-flex justify-content-between border-bottom py-1">
-                  <div>
-                    {% if 'Aggiornato fatturato' in log.descrizione %}
-                      <i class="bi bi-currency-euro text-primary me-1"></i>
-                    {% elif 'Nota' in log.descrizione %}
-                      <i class="bi bi-info-circle-fill text-secondary me-1"></i>
-                    {% else %}
-                      <i class="bi bi-pencil-fill text-warning me-1"></i>
-                    {% endif %}
-                    {{ log.descrizione }}
-                  </div>
-                  <small class="text-muted">{{ log.data.strftime("%d/%m/%Y %H:%M") if log.data else '–' }}</small>
-                </li>
-              {% endfor %}
-            </ul>
-          </div>
-        {% else %}
-          <p class="text-muted fst-italic">Nessun log disponibile.</p>
-        {% endif %}
-      </div>
-    </div>
-</div>
-
-<h2 class="h4 mb-3">Dettaglio Prodotti</h2>
-<div class="row">
-    <div class="col-md-3">
-      {% for cat in categorie %}
-        {% set lavorati_count = prodotti|selectattr("categoria_id","equalto",cat.id)|selectattr("id","in",prodotti_lavorati)|list|length %}
-        {% set tot_count = prodotti|selectattr("categoria_id","equalto",cat.id)|list|length %}
-        <div class="categoria-card {% if loop.first %}active{% endif %}" data-cat-id="{{ cat.id }}">
-          <div class="d-flex flex-column align-items-center justify-content-center p-3">
-            <i class="bi bi-box-seam mb-2"></i> 
-            <h5 class="mb-1">{{ cat.nome }}</h5>
-            <small class="text-muted">{{ lavorati_count }} / {{ tot_count }} prodotti lavorati</small>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    <div class="col-md-9">
-      <div id="contenitore-tabella"></div>
-    </div>
+  </div>
+  <div class="col-md-9">
+    <div id="contenitore-tabella"></div>
+  </div>
 </div>
 
 {% for cat in categorie %}
 <template id="tabella-template-{{ cat.id }}">
-    <div class="card p-3 mb-3">
-      <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
-      <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
-      <div class="table-responsive">
-        <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
-          <thead class="table-light">
+  <div class="card p-3 mb-3">
+    <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
+    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
+        <thead class="table-light">
+          <tr>
+            <th>Prodotto</th>
+            <th>Note / Data</th>
+            <th>Prezzo Attuale (€)</th>
+            <th>Prezzo Offerta (€)</th>
+            <th>Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in prodotti|sort(attribute='nome') if p.categoria_id==cat.id %}
+            {% set pid = p.id|string %}
             <tr>
-              <th>Prodotto</th>
-              <th>Note / Data</th>
-              <th>Prezzo Attuale (€)</th>
-              <th>Prezzo Offerta (€)</th>
-              <th>Stato</th>
+              <td>{{ p.nome }}</td>
+              <td>
+                {{ p.note or '–' }}
+                {% if prodotti_data.get(pid) %}
+                  <span class="note-data">Ultima operazione: {{ prodotti_data[pid].strftime("%d/%m/%Y") }}</span>
+                {% else %}
+                  <span class="note-data">–</span>
+                {% endif %}
+              </td>
+              <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
+              <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
+              <td>
+                {% if pid in prodotti_lavorati %}
+                  <span class="badge bg-success">Lavorato</span>
+                {% else %}
+                  <span class="badge bg-secondary">Non Lavorato</span>
+                {% endif %}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {% for p in prodotti|sort(attribute='nome') if p.categoria_id==cat.id %}
-              {% set pid = p.id|string %}
-              <tr>
-                <td>{{ p.nome }}</td>
-                <td>
-                  {{ p.note or '–' }}
-                  {% if prodotti_data.get(pid) %}
-                    <span class="note-data">Ultima operazione: {{ prodotti_data[pid].strftime("%d/%m/%Y") }}</span>
-                  {% else %}
-                    <span class="note-data">–</span>
-                  {% endif %}
-                </td>
-                <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
-                <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
-                <td>
-                  {% if pid in prodotti_lavorati %}
-                    <span class="badge badge-soft badge-soft-success">Lavorato</span>
-                  {% else %}
-                    <span class="badge badge-soft badge-soft-secondary">Non Lavorato</span>
-                  {% endif %}
-                </td>
-              </tr>
-            {% else %}
-              <tr><td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto in questa categoria.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+          {% else %}
+            <tr><td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
 </template>
 {% endfor %}
 
@@ -208,92 +183,47 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-
-/* --- Funzioni Grafico Fatturato --- */
 (() => {
-    const fatturato = {{ fatturato_mensile|default({})|tojson }};
-    const mesi = Object.keys(fatturato).sort();
-    const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
-    let chart;
+  const fatturato = {{ fatturato_mensile|default({})|tojson }};
+  const mesi = Object.keys(fatturato).sort();
+  const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
+  let chart;
 
-    const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const formatta = m => { const [anno,mese]=m.split('-'); return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2); };
-    const getData = tipo => { const s=tipo==='ultimi3'?mesi.slice(-3):mesi; return {labels:s.map(formatta), dati:s.map(m=>fatturato[m])}; };
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const formatta = m => { const [anno,mese]=m.split('-'); return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2); };
+  const getData = tipo => { const s=tipo==='ultimi3'?mesi.slice(-3):mesi; return {labels:s.map(formatta), dati:s.map(m=>fatturato[m])}; };
 
-    const gradient = ctx.createLinearGradient(0,0,0,150);
-    gradient.addColorStop(0,'rgba(13,110,253,0.8)');
-    gradient.addColorStop(1,'rgba(13,110,253,0.2)');
+  const gradient = ctx.createLinearGradient(0,0,0,150);
+  gradient.addColorStop(0,'rgba(13,110,253,0.8)');
+  gradient.addColorStop(1,'rgba(13,110,253,0.2)');
 
-    const aggiornaGrafico = tipo => {
-      const d=getData(tipo);
-      if(chart) chart.destroy();
-      chart=new Chart(ctx,{
-        type:'bar',
-        data:{labels:d.labels,datasets:[{data:d.dati,backgroundColor:gradient,borderRadius:6,borderSkipped:false}]},
-        options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
-      });
-    };
-
-    document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
-    aggiornaGrafico('ultimi3');
-
-    /* --- Logica Categorie e Tabelle --- */
-    
-    const contenitoreTabella = document.getElementById("contenitore-tabella");
-    const cards = document.querySelectorAll(".categoria-card");
-    
-    const caricaTabella = (card) => {
-        const catId = card.dataset.catId;
-        const template = document.getElementById(`tabella-template-${catId}`);
-        
-        // Uso cloneNode(true) come suggerito per una migliore pratica
-        const clone = template.content.cloneNode(true); 
-        
-        contenitoreTabella.innerHTML = ''; 
-        contenitoreTabella.appendChild(clone);
-        
-        // Gestione classe 'active'
-        cards.forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
-    };
-
-    // 1. Carica la prima categoria all'avvio (Miglioramento UX)
-    if (cards.length > 0) {
-        // La prima card ha già la classe 'active' in Jinja2
-        caricaTabella(cards[0]); 
-    }
-
-    // 2. Listener per il click sulle altre categorie
-    cards.forEach(card => {
-      card.addEventListener("click", () => caricaTabella(card));
+  const aggiornaGrafico = tipo => {
+    const d=getData(tipo);
+    if(chart) chart.destroy();
+    chart=new Chart(ctx,{
+      type:'bar',
+      data:{labels:d.labels,datasets:[{data:d.dati,backgroundColor:gradient,borderRadius:6,borderSkipped:false}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
     });
+  };
 
+  document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
+  aggiornaGrafico('ultimi3');
+
+  document.querySelectorAll(".categoria-card").forEach(card=>{
+    card.addEventListener("click",()=> {
+      const t=document.getElementById(`tabella-template-${card.dataset.catId}`);
+      document.getElementById("contenitore-tabella").innerHTML=t.innerHTML;
+    });
+  });
 })();
 
-/* --- Funzione Filtro Prodotti --- */
 function filtraProdotti(input,catId){
-    const filtro=input.value.toLowerCase();
-    const tableBody=document.querySelector(`#tabella-prodotti-${catId} tbody`);
-    const rows=tableBody.querySelectorAll("tr");
-    let resultsFound = false;
-
-    rows.forEach(r=>{
-        const nome=r.querySelector("td:first-child")?.innerText.toLowerCase()||"";
-        const isMatch=nome.includes(filtro);
-        r.style.display=isMatch?"":"none";
-        if(isMatch) resultsFound = true;
-    });
-
-    // Aggiungi feedback se non ci sono risultati (Miglioramento UX)
-    const feedbackRow = tableBody.querySelector('.no-results-row');
-    if (feedbackRow) feedbackRow.remove();
-
-    if (!resultsFound && rows.length > 0) {
-        const noResults = document.createElement('tr');
-        noResults.classList.add('no-results-row');
-        noResults.innerHTML = `<td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto trovato per la ricerca "${input.value}".</td>`;
-        tableBody.appendChild(noResults);
-    }
+  const filtro=input.value.toLowerCase();
+  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
+    const nome=r.querySelector("td")?.innerText.toLowerCase()||"";
+    r.style.display=nome.includes(filtro)?"":"none";
+  });
 }
 </script>
 {% endblock %}
