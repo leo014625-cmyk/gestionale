@@ -329,8 +329,9 @@ def index():
 
 
         # === Stato clienti (attivi, bloccati, inattivi) - LOGICA AGGIORNATA ===
-        # Usiamo la logica dei giorni trascorsi dall'ultimo fatturato (come nella rotta /clienti)
-        cur.execute('SELECT id, nome, bloccato FROM clienti') 
+        # FIX: Rimosso 'bloccato' dalla SELECT, poiché è una colonna non esistente.
+        # Lo stato 'bloccato' viene calcolato dinamicamente subito dopo.
+        cur.execute('SELECT id, nome FROM clienti') 
         clienti_rows = cur.fetchall()
         clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
         
@@ -343,13 +344,13 @@ def index():
             
             stato = 'inattivo' # Default
 
-            # Calcola i giorni trascorsi e determina lo stato
+            # Calcola i giorni trascorsi e determina lo stato (Logica 60/91 giorni)
             if ultimo:
                 giorni_trascorsi = (oggi_data - ultimo).days
                 if giorni_trascorsi <= 60:
                     stato = 'attivo'
                 elif 61 <= giorni_trascorsi <= 91:
-                    stato = 'bloccato'
+                    stato = 'bloccato' # Stato Bloccato dinamico
                 else:
                     stato = 'inattivo'
             else:
