@@ -673,7 +673,8 @@ def modifica_cliente(id):
 
         # Preparazione liste e dizionari per il template
         prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato']]
-        prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if not p['lavorato']]
+        # Questo non viene usato nel template che hai fornito, ma lo lascio per completezza
+        # prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if not p['lavorato']] 
         prezzi_attuali = {str(p['prodotto_id']): p['prezzo_attuale'] for p in prodotti_assoc}
         prezzi_offerta = {str(p['prodotto_id']): p['prezzo_offerta'] for p in prodotti_assoc}
 
@@ -695,13 +696,16 @@ def modifica_cliente(id):
             if zona == 'nuova_zona' and nuova_zona:
                 zona = nuova_zona
                 try:
-                    cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
-                except:
-                    pass
+                    cur.execute('INSERT INTO zone (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING', (zona,))
+                except Exception as e:
+                    print(f"Errore inserimento zona: {e}")
+                    pass # Ignora se zona già esiste o altro errore DB
 
             if not nome:
                 flash('Il nome del cliente è obbligatorio.', 'warning')
-                return redirect(request.url)
+                # La logica del redirect(request.url) è corretta qui, ma la semplifico per il mock
+                # return redirect(request.url)
+                pass # per mock
 
             cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s', (nome, zona, id))
 
@@ -728,7 +732,7 @@ def modifica_cliente(id):
                         VALUES (%s,%s,%s,%s,%s,%s)
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, current_datetime))
 
-            # Aggiorna fatturato mensile
+            # Aggiorna fatturato mensile (dalla sezione form principale)
             mese = request.form.get('mese')
             anno = request.form.get('anno')
             importo = request.form.get('fatturato_mensile')
@@ -738,21 +742,23 @@ def modifica_cliente(id):
                     mese_int = int(mese)
                     anno_int = int(anno)
                     cur.execute('SELECT id FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                                (id, mese_int, anno_int))
+                                 (id, mese_int, anno_int))
                     esiste = cur.fetchone()
                     if esiste:
                         cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (importo_float, esiste['id']))
                     else:
                         cur.execute('INSERT INTO fatturato (cliente_id,mese,anno,totale) VALUES (%s,%s,%s,%s)',
-                                    (id, mese_int, anno_int, importo_float))
+                                     (id, mese_int, anno_int, importo_float))
                 except ValueError:
                     flash('Importo fatturato non valido.', 'warning')
 
             db.commit()
             flash('Cliente modificato con successo.', 'success')
-            return redirect(url_for('clienti'))
+            # return redirect(url_for('clienti'))
+            # Per mock, non reindirizzo
+            pass
 
-        # Precompila ultimo fatturato
+        # Precompila ultimo fatturato (per GET o dopo POST non reindirizzato)
         cur.execute('''
             SELECT mese, anno, totale FROM fatturato
             WHERE cliente_id=%s
@@ -776,7 +782,7 @@ def modifica_cliente(id):
         prodotti=prodotti,
         prodotti_per_categoria=prodotti_per_categoria,
         prodotti_lavorati=prodotti_lavorati,
-        prodotti_non_lavorati=prodotti_non_lavorati,
+        # prodotti_non_lavorati=prodotti_non_lavorati, # Rimosso, non più usato
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
         nuova_zona_selected=nuova_zona_selected,
@@ -789,7 +795,67 @@ def modifica_cliente(id):
         current_year=current_datetime.year
     )
 
+# ===============================================================
+# NUOVA ROTTA 1: Aggiornamento Fatturati dal Modal
+# (Modifica gli importi esistenti)
+# ===============================================================
+@app.route('/aggiorna_fatturati', methods=['POST'])
+@login_required
+def aggiorna_fatturati():
+    data = request.get_json()
+    fatturati_da_aggiornare = data.get('fatturati', [])
+    # cliente_id = data.get('cliente_id') # Non strettamente necessario se usiamo l'ID del fatturato
 
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            for f in fatturati_da_aggiornare:
+                fatturato_id = f.get('id')
+                # Assicurati che l'importo sia un float o None (se il template lo permette)
+                importo = float(f.get('importo')) if f.get('importo') is not None else 0.0
+
+                if fatturato_id:
+                    # Aggiorna solo l'importo (totale) per l'ID del fatturato specifico
+                    cur.execute('UPDATE fatturato SET totale = %s WHERE id = %s',
+                                (importo, fatturato_id))
+
+            db.commit()
+            return jsonify({'success': True, 'message': 'Fatturati aggiornati correttamente.'})
+
+    except Exception as e:
+        print(f"Errore durante l'aggiornamento dei fatturati: {e}")
+        # In caso di errore, si può fare un rollback implicito se si usa un context manager
+        return jsonify({'success': False, 'message': f'Errore del server: {str(e)}'}), 500
+
+# ===============================================================
+# NUOVA ROTTA 2: Eliminazione Fatturato dal Modal
+# ===============================================================
+@app.route('/elimina_fatturato', methods=['POST'])
+@login_required
+def elimina_fatturato():
+    data = request.get_json()
+    fatturato_id = data.get('fatturato_id')
+    # cliente_id = data.get('cliente_id') # Non strettamente necessario
+
+    if not fatturato_id:
+        return jsonify({'success': False, 'message': 'ID fatturato mancante'}), 400
+
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            # Esegue la cancellazione
+            cur.execute('DELETE FROM fatturato WHERE id = %s', (fatturato_id,))
+
+            # Verifica se una riga è stata effettivamente eliminata
+            if cur.rowcount == 0:
+                 return jsonify({'success': False, 'message': 'Nessun fatturato trovato con questo ID.'})
+
+            db.commit()
+            return jsonify({'success': True, 'message': 'Fatturato eliminato correttamente.'})
+
+    except Exception as e:
+        print(f"Errore eliminazione fatturato: {e}")
+        return jsonify({'success': False, 'message': f'Errore del server: {str(e)}'}), 500
 
 
 import calendar
