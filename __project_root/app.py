@@ -268,9 +268,6 @@ def aggiorna_fatturato_totale(id):
 @app.route('/')
 @login_required
 def index():
-    # Assicurati che datetime e timedelta siano importati all'inizio del file, ad esempio:
-    # from datetime import datetime, timedelta
-    # from dateutil.relativedelta import relativedelta
     
     with get_db() as db:
         cur = db.cursor()
@@ -278,9 +275,8 @@ def index():
         # --- Data e mesi di riferimento ---
         oggi = datetime.now()
         
-        # *** LOGICA PER CLIENTi NUOVI (30gg) AGGIUNTA QUI ***
+        # LOGICA PER CLIENTi NUOVI (30gg) - FIX: Usiamo timedelta per calcolare 30 giorni fa
         trenta_giorni_fa = oggi - timedelta(days=30)
-        # **************************************************
         
         # ultimo giorno del mese scorso (usato per calcoli del fatturato)
         ultimo_mese_completo = oggi.replace(day=1) - relativedelta(days=1)
@@ -314,6 +310,7 @@ def index():
 
         # =======================================================================
         # === Clienti nuovi negli ULTIMI 30 GIORNI (Logica Corretta) ===
+        # Query aggiornata per usare trenta_giorni_fa
         # =======================================================================
         cur.execute('''
             SELECT id, nome, zona, data_registrazione
@@ -322,7 +319,7 @@ def index():
         ''', (trenta_giorni_fa,))
         clienti_nuovi_rows = cur.fetchall()
         
-        # Dettaglio per il modale (nonostante il filtro sia sui 30 giorni)
+        # Dettaglio per il modale
         clienti_nuovi_dettaglio = [
             {'nome': c['nome'], 'data_registrazione': c['data_registrazione']}
             for c in clienti_nuovi_rows
@@ -337,12 +334,10 @@ def index():
         clienti_rows = cur.fetchall()
         clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
 
-        for cliente in clientes_rows: # Attenzione qui: 'clientes_rows' non è definito, dovrebbe essere 'clienti_rows'
+        for cliente in clienti_rows: # FIX: Corretto 'clientes_rows' a 'clienti_rows'
              # ... (il resto della tua logica di fatturato per cliente rimane invariata)
-             # Ho corretto l'errore di battitura sopra: 'clientes_rows' -> 'clienti_rows' per coerenza
              
              # Fatturato degli ultimi 3 mesi per ogni cliente
-             # ... (logica invariata)
              
             mese_1 = mese_corrente
             anno_1 = anno_corrente
@@ -458,7 +453,7 @@ def index():
     return render_template(
         '02_index.html',
         variazione_fatturato=variazione_fatturato,
-        clienti_nuovi=clienti_nuovi, # Questo è ora il conteggio corretto degli ultimi 30 giorni
+        clienti_nuovi=clienti_nuovi, 
         clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
         clienti_bloccati=clienti_bloccati,
         clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
