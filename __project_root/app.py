@@ -720,22 +720,30 @@ def modifica_cliente(id):
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
 
-        # Recupera cliente
+        # ============================
+        # CLIENTE
+        # ============================
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
         cliente = cur.fetchone()
         if not cliente:
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
-        # Zone
+        # ============================
+        # ZONE
+        # ============================
         cur.execute('SELECT * FROM zone ORDER BY nome')
         zone = cur.fetchall()
 
-        # Categorie
+        # ============================
+        # CATEGORIE
+        # ============================
         cur.execute('SELECT * FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
-        # Prodotti
+        # ============================
+        # PRODOTTI
+        # ============================
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, c.nome AS categoria_nome
             FROM prodotti p
@@ -744,10 +752,13 @@ def modifica_cliente(id):
         ''')
         prodotti = cur.fetchall()
 
-        # Prodotti associati
+        # ============================
+        # PRODOTTI ASSOCIATI
+        # ============================
         cur.execute('''
-            SELECT prodotto_id, lavorato, prezzo_attuale
-            FROM clienti_prodotti
+            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, fornitori.nome AS fornitore
+            FROM clienti_prodotti cp
+            LEFT JOIN fornitori ON cp.fornitore_id = fornitori.id
             WHERE cliente_id=%s
         ''', (id,))
         prodotti_assoc = cur.fetchall()
@@ -757,29 +768,19 @@ def modifica_cliente(id):
         prezzi_offerta = {}
         fornitori = {}
 
-        # 📌 DECODIFICA JSON DAL DB
-        import json
         for p in prodotti_assoc:
-            pid = str(p['prodotto_id'])
-            if p['lavorato']:
+            pid = str(p["prodotto_id"])
+
+            if p["lavorato"]:
                 prodotti_lavorati.append(pid)
 
-            raw = p['prezzo_attuale']
-            if raw:
-                try:
-                    data = json.loads(raw)
-                except:
-                    data = {}
+            prezzi_attuali[pid] = p["prezzo_attuale"]
+            prezzi_offerta[pid] = p["prezzo_offerta"]
+            fornitori[pid] = p["fornitore"] or ""
 
-                prezzi_attuali[pid] = data.get("attuale")
-                prezzi_offerta[pid] = data.get("offerta")
-                fornitori[pid] = data.get("fornitore")
-            else:
-                prezzi_attuali[pid] = None
-                prezzi_offerta[pid] = None
-                fornitori[pid] = None
-
-        # Fatturati
+        # ============================
+        # FATTURATI
+        # ============================
         cur.execute('''
             SELECT id, mese, anno, totale
             FROM fatturato
@@ -788,7 +789,9 @@ def modifica_cliente(id):
         ''', (id,))
         fatturati_cliente = cur.fetchall()
 
-        # ---------------------- POST ----------------------
+        # ============================
+        # POST
+        # ============================
         if request.method == 'POST':
 
             nome = request.form.get('nome')
@@ -803,33 +806,36 @@ def modifica_cliente(id):
                 except:
                     pass
 
-            # update cliente
             cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s',
                         (nome, zona, id))
 
-            # prodotti lavorati
-            prodotti_selezionati = request.form.getlist('prodotti_lavorati[]')
+            # ---------------------------
+            # PRODOTTI LAVORATI
+            # ---------------------------
+            selezionati = request.form.getlist("prodotti_lavorati[]")
 
             for prodotto in prodotti:
-                pid = str(prodotto['id'])
-                lavorato = pid in prodotti_selezionati
+                pid = str(prodotto["id"])
+                lavorato = pid in selezionati
 
-                # campi ricevuti
-                prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]')
-                prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]')
-                fornitore = request.form.get(f'fornitore[{pid}]')
+                prezzo_attuale = request.form.get(f"prezzo_attuale[{pid}]")
+                prezzo_offerta = request.form.get(f"prezzo_offerta[{pid}]")
+                fornitore_nome = request.form.get(f"fornitore[{pid}]") or None
 
-                # 📌 COSTRUIAMO JSON DA SALVARE
-                data_json = {
-                    "attuale": prezzo_attuale,
-                    "offerta": prezzo_offerta,
-                    "fornitore": fornitore
-                }
-                data_json_str = json.dumps(data_json)
+                # --- gestisci fornitore ---
+                fornitore_id = None
+                if fornitore_nome:
+                    cur.execute("SELECT id FROM fornitori WHERE nome=%s", (fornitore_nome,))
+                    f = cur.fetchone()
+                    if f:
+                        fornitore_id = f["id"]
+                    else:
+                        cur.execute("INSERT INTO fornitori (nome) VALUES (%s) RETURNING id", (fornitore_nome,))
+                        fornitore_id = cur.fetchone()["id"]
 
-                # esiste già?
+                # --- esiste già? ---
                 cur.execute('''
-                    SELECT * FROM clienti_prodotti
+                    SELECT id FROM clienti_prodotti
                     WHERE cliente_id=%s AND prodotto_id=%s
                 ''', (id, pid))
                 esiste = cur.fetchone()
@@ -839,17 +845,22 @@ def modifica_cliente(id):
                         UPDATE clienti_prodotti
                         SET lavorato=%s,
                             prezzo_attuale=%s,
+                            prezzo_offerta=%s,
+                            fornitore_id=%s,
                             data_operazione=%s
                         WHERE cliente_id=%s AND prodotto_id=%s
-                    ''', (lavorato, data_json_str, current_datetime, id, pid))
+                    ''', (lavorato, prezzo_attuale, prezzo_offerta, fornitore_id,
+                          current_datetime, id, pid))
                 else:
                     cur.execute('''
                         INSERT INTO clienti_prodotti
-                        (cliente_id, prodotto_id, lavorato, prezzo_attuale, data_operazione)
-                        VALUES (%s, %s, %s, %s, %s)
-                    ''', (id, pid, lavorato, data_json_str, current_datetime))
+                        (cliente_id, prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
-            # fatturato
+            # ---------------------------
+            # FATTURATO
+            # ---------------------------
             mese = request.form.get('mese')
             anno = request.form.get('anno')
             importo = request.form.get('fatturato_mensile')
@@ -859,6 +870,7 @@ def modifica_cliente(id):
                     mese = int(mese)
                     anno = int(anno)
                     importo = float(importo)
+
                     cur.execute('''
                         SELECT id FROM fatturato
                         WHERE cliente_id=%s AND mese=%s AND anno=%s
@@ -873,6 +885,7 @@ def modifica_cliente(id):
                             INSERT INTO fatturato (cliente_id,mese,anno,totale)
                             VALUES (%s,%s,%s,%s)
                         ''', (id, mese, anno, importo))
+
                 except:
                     flash("Errore importo fatturato", "warning")
 
@@ -880,7 +893,9 @@ def modifica_cliente(id):
             flash("Cliente aggiornato con successo!", "success")
             return redirect(url_for('clienti'))
 
-        # ultimo fatturato per precompilazione
+        # ============================
+        # PRECOMPILAZIONE ULTIMO FATTURATO
+        # ============================
         cur.execute('''
             SELECT mese, anno, totale FROM fatturato
             WHERE cliente_id=%s
