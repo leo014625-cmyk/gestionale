@@ -74,7 +74,7 @@ body { background: #0f172a; color: #fff; }
     <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3"
             data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
       <i class="bi bi-bell-fill fs-4 text-primary"></i>
-      {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
+      {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list if notifiche is defined else [] %}
       {% if not_unread|length > 0 %}
       <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
         {{ not_unread|length }}
@@ -233,8 +233,11 @@ body { background: #0f172a; color: #fff; }
           <ul class="list-group">
             {% for c in clienti_nuovi_dettaglio %}
               <li class="list-group-item bg-secondary text-white">
-                <strong>{{ c.nome }}</strong>  
-                <br><small>Registrato il: {{ c.data_registrazione.strftime('%d/%m/%Y') }}</small>
+                <strong>{{ c.nome }}</strong><br>
+                <small>Registrato il: {{ c.data_registrazione.strftime('%d/%m/%Y') }}</small><br>
+                <a href="{{ url_for('modifica_cliente', id=c.id) }}" class="btn btn-sm btn-light mt-2">
+                  Apri Cliente
+                </a>
               </li>
             {% endfor %}
           </ul>
@@ -255,11 +258,23 @@ body { background: #0f172a; color: #fff; }
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        {% if clienti_bloccati_dettaglio %}
+        {% set bloccati_ordinati = clienti_bloccati_dettaglio|sort(attribute='giorni', reverse=True) %}
+        {% if bloccati_ordinati %}
           <ul class="list-group">
-            {% for c in clienti_bloccati_dettaglio %}
+            {% for c in bloccati_ordinati %}
               <li class="list-group-item bg-danger text-white fw-semibold">
-                {{ c.nome }}
+                <strong>{{ c.nome }}</strong><br>
+                <small>Ultimo fatturato:
+                  {% if c.ultimo_fatturato %}
+                    {{ c.ultimo_fatturato.strftime('%d/%m/%Y') }}
+                  {% else %}
+                    Mai
+                  {% endif %}
+                </small><br>
+                <small>Assente da {{ c.giorni }} giorni</small><br>
+                <a href="{{ url_for('modifica_cliente', id=c.id) }}" class="btn btn-sm btn-light mt-2">
+                  Apri Cliente
+                </a>
               </li>
             {% endfor %}
           </ul>
@@ -280,11 +295,23 @@ body { background: #0f172a; color: #fff; }
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        {% if clienti_inattivi %}
+        {% set inattivi_ordinati = clienti_inattivi|sort(attribute='giorni', reverse=True) %}
+        {% if inattivi_ordinati %}
           <ul class="list-group">
-            {% for c in clienti_inattivi %}
+            {% for c in inattivi_ordinati %}
               <li class="list-group-item bg-secondary text-white">
-                {{ c.nome }}
+                <strong>{{ c.nome }}</strong><br>
+                <small>Ultimo fatturato:
+                  {% if c.ultimo_fatturato %}
+                    {{ c.ultimo_fatturato.strftime('%d/%m/%Y') }}
+                  {% else %}
+                    Mai
+                  {% endif %}
+                </small><br>
+                <small>Assente da {{ c.giorni }} giorni</small><br>
+                <a href="{{ url_for('modifica_cliente', id=c.id) }}" class="btn btn-sm btn-light mt-2">
+                  Apri Cliente
+                </a>
               </li>
             {% endfor %}
           </ul>
@@ -309,9 +336,9 @@ body { background: #0f172a; color: #fff; }
           <ul class="list-group">
             {% for p in prodotti_inseriti %}
               <li class="list-group-item bg-success text-white">
-                <strong>{{ p.prodotto }}</strong>  
-                <br><small>Cliente: {{ p.cliente }}</small>
-                <br><small>Aggiunto il: {{ p.data_operazione.strftime('%d/%m/%Y') }}</small>
+                <strong>{{ p.prodotto }}</strong><br>
+                <small>Cliente: {{ p.cliente }}</small><br>
+                <small>Aggiunto il: {{ p.data_operazione.strftime('%d/%m/%Y') }}</small>
               </li>
             {% endfor %}
           </ul>
@@ -336,9 +363,9 @@ body { background: #0f172a; color: #fff; }
           <ul class="list-group">
             {% for p in prodotti_rimossi %}
               <li class="list-group-item bg-warning text-dark">
-                <strong>{{ p.prodotto }}</strong>  
-                <br><small>Cliente: {{ p.cliente }}</small>
-                <br><small>Rimosso il: {{ p.data_operazione.strftime('%d/%m/%Y') }}</small>
+                <strong>{{ p.prodotto }}</strong><br>
+                <small>Cliente: {{ p.cliente }}</small><br>
+                <small>Rimosso il: {{ p.data_operazione.strftime('%d/%m/%Y') }}</small>
               </li>
             {% endfor %}
           </ul>
@@ -361,9 +388,13 @@ body { background: #0f172a; color: #fff; }
       <div class="modal-body">
         <p>Ultimo mese completo: <strong>{{ fatturato_mensile|list|last }}</strong></p>
         <p>Variazione: 
+          {% if variazione_fatturato is not none %}
           <strong class="{{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
             {{ "%.2f"|format(variazione_fatturato) }}%
           </strong>
+          {% else %}
+          <span class="text-muted">N.D.</span>
+          {% endif %}
         </p>
       </div>
     </div>
