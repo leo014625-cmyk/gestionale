@@ -278,8 +278,9 @@ def index():
         mese_corrente = ultimo_mese_completo.month
         anno_corrente = ultimo_mese_completo.year
 
-        mese_prec = (ultimo_mese_completo - relativedelta(months=1)).month
-        anno_prec = (ultimo_mese_completo - relativedelta(months=1)).year
+        mese_prec_dt = ultimo_mese_completo - relativedelta(months=1)
+        mese_prec = mese_prec_dt.month
+        anno_prec = mese_prec_dt.year
 
         # === Fatturato mese corrente ===
         cur.execute(
@@ -300,7 +301,7 @@ def index():
             variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente) * 100
 
         # ======================================================================================
-        # === CLIENTI NUOVI (ULTIMI 30 GIORNI) ===
+        # === CLIENTI NUOVI (ULTIMI 30 GIORNI)
         # ======================================================================================
         cur.execute("""
             SELECT id, nome, zona, data_registrazione
@@ -310,15 +311,19 @@ def index():
         clienti_nuovi_rows = cur.fetchall()
 
         clienti_nuovi_dettaglio = [
-            {"nome": c["nome"], "data_registrazione": c["data_registrazione"]}
+            {
+                "id": c["id"],
+                "nome": c["nome"],
+                "data_registrazione": c["data_registrazione"]
+            }
             for c in clienti_nuovi_rows
         ]
         clienti_nuovi = len(clienti_nuovi_rows)
 
         # ======================================================================================
-        # === CLIENTI ATTIVI, BLOCCATI, INATTIVI ===
+        # === CLIENTI ATTIVI / BLOCCATI / INATTIVI
         # ======================================================================================
-        cur.execute("SELECT id, nome FROM clienti")
+        cur.execute("SELECT id, nome FROM clienti ORDER BY nome")
         clienti_rows = cur.fetchall()
 
         clienti_attivi_dettaglio = []
@@ -326,47 +331,45 @@ def index():
         clienti_inattivi_dettaglio = []
 
         for cliente in clienti_rows:
+
             cur.execute("""
                 SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato
                 FROM fatturato
-                WHERE cliente_id=%s
+                WHERE cliente_id = %s
             """, (cliente["id"],))
 
             ultimo = cur.fetchone()["ultimo_fatturato"]
 
             if ultimo:
                 giorni = (oggi_data - ultimo).days
-                if giorni <= 60:
-                    stato = "attivo"
-                elif 61 <= giorni <= 91:
-                    stato = "bloccato"
-                else:
-                    stato = "inattivo"
+            else:
+                giorni = 9999   # se non ha fatturato: inattivo vecchissimo
+                ultimo = None
+
+            # Logica stato
+            if giorni <= 60:
+                stato = "attivo"
+            elif 61 <= giorni <= 91:
+                stato = "bloccato"
             else:
                 stato = "inattivo"
 
-            # 🔥 ADESSO AGGIUNGO ANCHE LA DATA DELL'ULTIMO FATTURATO
+            info = {
+                "id": cliente["id"],
+                "nome": cliente["nome"],
+                "ultimo_fatturato": ultimo,
+                "giorni": giorni
+            }
+
             if stato == "attivo":
-                clienti_attivi_dettaglio.append({
-                    "id": cliente["id"],
-                    "nome": cliente["nome"],
-                    "ultimo_fatturato": ultimo
-                })
+                clienti_attivi_dettaglio.append(info)
             elif stato == "bloccato":
-                clienti_bloccati_dettaglio.append({
-                    "id": cliente["id"],
-                    "nome": cliente["nome"],
-                    "ultimo_fatturato": ultimo
-                })
+                clienti_bloccati_dettaglio.append(info)
             else:
-                clienti_inattivi_dettaglio.append({
-                    "id": cliente["id"],
-                    "nome": cliente["nome"],
-                    "ultimo_fatturato": ultimo
-                })
+                clienti_inattivi_dettaglio.append(info)
 
         # ======================================================================================
-        # === PRODOTTI INSERITI (ULTIMI 30 GIORNI) ===
+        # === PRODOTTI INSERITI (30 giorni)
         # ======================================================================================
         cur.execute("""
             SELECT 
@@ -391,7 +394,7 @@ def index():
         ]
 
         # ======================================================================================
-        # === PRODOTTI RIMOSSI (ULTIMI 30 GIORNI) ===
+        # === PRODOTTI RIMOSSI (30 giorni)
         # ======================================================================================
         cur.execute("""
             SELECT 
@@ -415,7 +418,7 @@ def index():
         ]
 
         # ======================================================================================
-        # === FATTURATO 12 MESI ===
+        # === FATTURATO 12 MESI
         # ======================================================================================
         cur.execute("""
             SELECT anno, mese, COALESCE(SUM(totale),0) as totale
@@ -432,7 +435,7 @@ def index():
         }
 
         # ======================================================================================
-        # === FATTURATO PER ZONA ===
+        # === FATTURATO PER ZONA
         # ======================================================================================
         cur.execute("""
             SELECT 
@@ -444,12 +447,14 @@ def index():
             ORDER BY zona
         """)
         fatturato_per_zona_rows = cur.fetchall()
+
         fatturato_per_zona = {r["zona"]: r["totale"] for r in fatturato_per_zona_rows}
 
         # ======================================================================================
-        # === NOTIFICHE ===
+        # === NOTIFICHE
         # ======================================================================================
         notifiche = []
+
         if clienti_attivi_dettaglio:
             notifiche.append({
                 "titolo": "Aggiorna Fatturato",
@@ -458,6 +463,7 @@ def index():
                 "tipo": "warning",
                 "clienti_attivi": clienti_attivi_dettaglio
             })
+
         if clienti_inattivi_dettaglio:
             notifiche.append({
                 "titolo": "Clienti Inattivi",
@@ -473,17 +479,25 @@ def index():
     return render_template(
         "02_index.html",
         variazione_fatturato=variazione_fatturato,
+
         clienti_nuovi=clienti_nuovi,
         clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
+
         clienti_bloccati=clienti_bloccati_dettaglio,
+        clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
+
         clienti_attivi_dettaglio=clienti_attivi_dettaglio,
         clienti_inattivi=clienti_inattivi_dettaglio,
+
         prodotti_inseriti=prodotti_inseriti,
         prodotti_rimossi=prodotti_rimossi,
+
         fatturato_mensile=fatturato_mensile,
         fatturato_per_zona=fatturato_per_zona,
+
         notifiche=notifiche
     )
+
 
 # ============================
 # ROUTE CLIENTI
