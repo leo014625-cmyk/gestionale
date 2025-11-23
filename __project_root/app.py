@@ -265,205 +265,211 @@ def aggiorna_fatturato_totale(id):
 @app.route('/')
 @login_required
 def index():
-    
-    with get_db() as db:
-        cur = db.cursor() # Usiamo il cursore standard in questa route
+    
+    with get_db() as db:
+        cur = db.cursor() # Usiamo il cursore standard in questa route
 
-        # --- Data e mesi di riferimento ---
-        oggi = datetime.now()
-        
-        # LOGICA PER CLIENTI NUOVI (30gg)
-        trenta_giorni_fa = oggi - timedelta(days=30)
-        
-        # ultimo giorno del mese scorso (usato per calcoli del fatturato)
-        ultimo_mese_completo = oggi.replace(day=1) - relativedelta(days=1)
-        mese_corrente = ultimo_mese_completo.month
-        anno_corrente = ultimo_mese_completo.year
+        # --- Data e mesi di riferimento ---
+        oggi = datetime.now()
+        
+        # LOGICA PER CLIENTI NUOVI (30gg)
+        trenta_giorni_fa = oggi - timedelta(days=30)
+        
+        # ultimo giorno del mese scorso (usato per calcoli del fatturato)
+        ultimo_mese_completo = oggi.replace(day=1) - relativedelta(days=1)
+        mese_corrente = ultimo_mese_completo.month
+        anno_corrente = ultimo_mese_completo.year
 
-        # mese precedente a quello ultimo completo
-        mese_prec = (ultimo_mese_completo - relativedelta(months=1)).month
-        anno_prec = (ultimo_mese_completo - relativedelta(months=1)).year
+        # mese precedente a quello ultimo completo
+        mese_prec = (ultimo_mese_completo - relativedelta(months=1)).month
+        anno_prec = (ultimo_mese_completo - relativedelta(months=1)).year
 
-        primo_giorno_mese_corrente = datetime(anno_corrente, mese_corrente, 1)
-        primo_giorno_prossimo_mese = primo_giorno_mese_corrente + relativedelta(months=1)
+        primo_giorno_mese_corrente = datetime(anno_corrente, mese_corrente, 1)
+        primo_giorno_prossimo_mese = primo_giorno_mese_corrente + relativedelta(months=1)
 
-        # === Fatturato mese ultimo completo ===
-        cur.execute(
-            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-            (mese_corrente, anno_corrente)
-        )
-        fatturato_corrente = cur.fetchone()['totale']
+        # === Fatturato mese ultimo completo ===
+        cur.execute(
+            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
+            (mese_corrente, anno_corrente)
+        )
+        fatturato_corrente = cur.fetchone()['totale']
 
-        # === Fatturato mese precedente ---
-        cur.execute(
-            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-            (mese_prec, anno_prec)
-        )
-        fatturato_precedente = cur.fetchone()['totale']
+        # === Fatturato mese precedente ---
+        cur.execute(
+            'SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
+            (mese_prec, anno_prec)
+        )
+        fatturato_precedente = cur.fetchone()['totale']
 
-        variazione_fatturato = None
-        if fatturato_precedente != 0:
-            variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente) * 100
+        variazione_fatturato = None
+        if fatturato_precedente != 0:
+            variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente) * 100
 
-        # =======================================================================
-        # === Clienti nuovi negli ULTIMI 30 GIORNI ===
-        # =======================================================================
-        cur.execute('''
-            SELECT id, nome, zona, data_registrazione
-            FROM clienti
-            WHERE data_registrazione >= %s
-        ''', (trenta_giorni_fa,))
-        clienti_nuovi_rows = cur.fetchall()
-        
-        # Dettaglio per il modale (ora chiamato 'clienti_nuovi' per coerenza con il template)
-        clienti_nuovi = [
-            {'nome': c['nome'], 'zona': c['zona'], 'data_registrazione': c['data_registrazione']} # Aggiunto 'zona'
-            for c in clienti_nuovi_rows
-        ]
-        # =======================================================================
+        # =======================================================================
+        # === Clienti nuovi negli ULTIMI 30 GIORNI ===
+        # =======================================================================
+        cur.execute('''
+            SELECT id, nome, zona, data_registrazione
+            FROM clienti
+            WHERE data_registrazione >= %s
+        ''', (trenta_giorni_fa,))
+        clienti_nuovi_rows = cur.fetchall()
+        
+        # Dettaglio per il modale
+        clienti_nuovi_dettaglio = [
+            {'nome': c['nome'], 'data_registrazione': c['data_registrazione']}
+            for c in clienti_nuovi_rows
+        ]
+        # Conteggio finale
+        clienti_nuovi = len(clienti_nuovi_rows)
+        # =======================================================================
 
 
-        # === Stato clienti (attivi, bloccati, inattivi) - LOGICA AGGIORNATA ===
-        cur.execute('SELECT id, nome, zona FROM clienti')  # Aggiunto 'zona' qui
-        clienti_rows = cur.fetchall()
-        clienti_bloccati, clienti_attivi_dettaglio, clienti_inattivi = [], [], [] # Rinominato direttamente
-        
-        oggi_data = oggi.date()
+        # === Stato clienti (attivi, bloccati, inattivi) - LOGICA AGGIORNATA ===
+        cur.execute('SELECT id, nome FROM clienti') 
+        clienti_rows = cur.fetchall()
+        clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
+        
+        oggi_data = oggi.date()
 
-        for cliente in clienti_rows:
-            # Recupera la data dell'ultimo fatturato per il cliente
-            cur.execute('SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
-            ultimo = cur.fetchone()['ultimo_fatturato']
-            
-            stato = 'inattivo' # Default
+        for cliente in clienti_rows:
+            # Recupera la data dell'ultimo fatturato per il cliente
+            # NOTA: Per un DB reale dovresti fare un JOIN e filtrare solo i record recenti per efficienza.
+            cur.execute('SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
+            ultimo = cur.fetchone()['ultimo_fatturato']
+            
+            stato = 'inattivo' # Default
 
-            # Calcola i giorni trascorsi e determina lo stato (Logica 60/91 giorni)
-            if ultimo:
-                giorni_trascorsi = (oggi_data - ultimo).days
-                if giorni_trascorsi <= 60:
-                    stato = 'attivo'
-                elif 61 <= giorni_trascorsi <= 91:
-                    stato = 'bloccato' # Stato Bloccato dinamico
-                else:
-                    stato = 'inattivo'
-            else:
-                stato = 'inattivo'
-                
-            # Formato dati per la modale (uso 'data_stato' come etichetta generica per il template)
-            dettaglio_cliente = {
-                'nome': cliente['nome'], 
-                'zona': cliente['zona'], 
-                'data_stato': ultimo.strftime('%Y-%m') if ultimo else 'N/D'
-            }
+            # Calcola i giorni trascorsi e determina lo stato (Logica 60/91 giorni)
+            if ultimo:
+                giorni_trascorsi = (oggi_data - ultimo).days
+                if giorni_trascorsi <= 60:
+                    stato = 'attivo'
+                elif 61 <= giorni_trascorsi <= 91:
+                    stato = 'bloccato' # Stato Bloccato dinamico
+                else:
+                    stato = 'inattivo'
+            else:
+                stato = 'inattivo'
+                
+            # Assegna al dettaglio corretto
+            if stato == 'bloccato':
+                clienti_bloccati_dettaglio.append({'nome': cliente['nome']})
+            elif stato == 'attivo':
+                clienti_attivi_dettaglio.append({'nome': cliente['nome']})
+            elif stato == 'inattivo':
+                clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
+                
+        # Aggiornamento dei conteggi finali
+        clienti_bloccati = len(clienti_bloccati_dettaglio)
+        clienti_inattivi_count = len(clienti_inattivi_dettaglio) # Rinominata per chiarezza nel backend
+        clienti_attivi = len(clienti_attivi_dettaglio)
+        
+        # *** RISOLUZIONE: Usiamo la lista 'clienti_inattivi_dettaglio' per il conteggio nel template ***
+        # Il template index.html usa la variabile 'clienti_inattivi' (che si aspetta sia una lista)
+        # per calcolarne la lunghezza. La usiamo così come è stata riempita sopra.
+        
+        # === Prodotti inseriti nel mese (lascio invariato al mese solare completo) ===
+        cur.execute('''
+            SELECT c.nome AS cliente, p.nome AS prodotto, cp.data_operazione
+            FROM clienti_prodotti cp
+            JOIN clienti c ON cp.cliente_id = c.id
+            JOIN prodotti p ON cp.prodotto_id = p.id
+            WHERE cp.lavorato = TRUE
+              AND cp.data_operazione >= %s AND cp.data_operazione < %s
+        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
+        prodotti_inseriti_rows = cur.fetchall()
+        prodotti_inseriti = [
+            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']}
+            for r in prodotti_inseriti_rows
+        ]
+        prodotti_totali_mese = len(prodotti_inseriti)
 
-            # Assegna al dettaglio corretto
-            if stato == 'bloccato':
-                clienti_bloccati.append(detaglio_cliente)
-            elif stato == 'attivo':
-                clienti_attivi_dettaglio.append(detaglio_cliente)
-            elif stato == 'inattivo':
-                clienti_inattivi.append(detaglio_cliente)
-                
-        # NOTA: I conteggi non sono più necessari qui, il template userà la lunghezza delle liste.
-        
-        # === Prodotti inseriti nel mese ===
-        cur.execute('''
-            SELECT c.nome AS cliente, p.nome AS prodotto, cp.data_operazione
-            FROM clienti_prodotti cp
-            JOIN clienti c ON cp.cliente_id = c.id
-            JOIN prodotti p ON cp.prodotto_id = p.id
-            WHERE cp.lavorato = TRUE
-              AND cp.data_operazione >= %s AND cp.data_operazione < %s
-        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
-        prodotti_inseriti_rows = cur.fetchall()
-        prodotti_inseriti = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']}
-            for r in prodotti_inseriti_rows
-        ]
-        # La variabile prodotti_totali_mese (conteggio) non è più necessaria separatamente.
+        # === Prodotti rimossi nel mese (lascio invariato al mese solare completo) ===
+        cur.execute('''
+            SELECT c.nome AS cliente, p.nome AS prodotto, pr.data_rimozione
+            FROM prodotti_rimossi pr
+            JOIN prodotti p ON pr.prodotto_id = p.id
+            JOIN clienti_prodotti cp ON cp.prodotto_id = p.id
+            JOIN clienti c ON cp.cliente_id = c.id
+            WHERE pr.data_rimozione >= %s AND pr.data_rimozione < %s
+        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
+        prodotti_rimossi_rows = cur.fetchall()
+        prodotti_rimossi = [
+            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']}
+            for r in prodotti_rimossi_rows
+        ]
+        prodotti_rimossi_mese = len(prodotti_rimossi)
 
-        # === Prodotti rimossi nel mese ===
-        cur.execute('''
-            SELECT c.nome AS cliente, p.nome AS prodotto, pr.data_rimozione
-            FROM prodotti_rimossi pr
-            JOIN prodotti p ON pr.prodotto_id = p.id
-            JOIN clienti_prodotti cp ON cp.prodotto_id = p.id
-            JOIN clienti c ON cp.cliente_id = c.id
-            WHERE pr.data_rimozione >= %s AND pr.data_rimozione < %s
-        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
-        prodotti_rimossi_rows = cur.fetchall()
-        prodotti_rimossi = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']}
-            for r in prodotti_rimossi_rows
-        ]
-        # La variabile prodotti_rimossi_mese (conteggio) non è più necessaria separatamente.
+        # === Fatturato ultimi 12 mesi ===
+        cur.execute('''
+            SELECT anno, mese, COALESCE(SUM(totale),0) as totale
+            FROM fatturato
+            GROUP BY anno, mese
+            ORDER BY anno DESC, mese DESC
+            LIMIT 12
+        ''')
+        fatturato_mensile_rows = cur.fetchall()
+        fatturato_mensile = {
+            f"{r['anno']}-{r['mese']:02}": r['totale']
+            for r in reversed(fatturato_mensile_rows)
+        }
 
-        # === Fatturato ultimi 12 mesi ===
-        cur.execute('''
-            SELECT anno, mese, COALESCE(SUM(totale),0) as totale
-            FROM fatturato
-            GROUP BY anno, mese
-            ORDER BY anno DESC, mese DESC
-            LIMIT 12
-        ''')
-        fatturato_mensile_rows = cur.fetchall()
-        fatturato_mensile = {
-            f"{r['anno']}-{r['mese']:02}": r['totale']
-            for r in reversed(fatturato_mensile_rows)
-        }
+        # === Fatturato per Zona ===
+        cur.execute('''
+            SELECT 
+                COALESCE(c.zona, 'Sconosciuta') AS zona, 
+                COALESCE(SUM(f.totale),0) AS totale
+            FROM fatturato f
+            JOIN clienti c ON f.cliente_id = c.id
+            GROUP BY c.zona
+            ORDER BY zona
+        ''')
+        fatturato_per_zona_rows = cur.fetchall()
+        fatturato_per_zona = {
+            r['zona']: r['totale'] for r in fatturato_per_zona_rows
+        }
 
-        # === Fatturato per Zona ===
-        cur.execute('''
-            SELECT 
-                COALESCE(c.zona, 'Sconosciuta') AS zona, 
-                COALESCE(SUM(f.totale),0) AS totale
-            FROM fatturato f
-            JOIN clienti c ON f.cliente_id = c.id
-            GROUP BY c.zona
-            ORDER BY zona
-        ''')
-        fatturato_per_zona_rows = cur.fetchall()
-        fatturato_per_zona = {
-            r['zona']: r['totale'] for r in fatturato_per_zona_rows
-        }
+        # === Notifiche dinamiche ===
+        notifiche = []
+        if clienti_attivi_dettaglio:
+            notifiche.append({
+                'titolo': "Aggiorna Fatturato",
+                'descrizione': "Ricorda di aggiornare il fatturato dei clienti attivi questo mese.",
+                'data': datetime.now(),
+                'tipo': "warning",
+                'clienti_attivi': clienti_attivi_dettaglio
+            })
+        if clienti_inattivi_dettaglio:
+            notifiche.append({
+                'titolo': "Clienti Inattivi",
+                'descrizione': "Verifica eventuali aggiornamenti sui clienti inattivi.",
+                'data': datetime.now(),
+                'tipo': "secondary",
+                'clienti': clienti_inattivi_dettaglio
+            })
 
-        # === Notifiche dinamiche ===
-        notifiche = []
-        if clienti_attivi_dettaglio:
-            notifiche.append({
-                'titolo': "Aggiorna Fatturato",
-                'descrizione': "Ricorda di aggiornare il fatturato dei clienti attivi questo mese.",
-                'data': datetime.now(),
-                'tipo': "warning",
-                'clienti_attivi': clienti_attivi_dettaglio
-            })
-        if clienti_inattivi:
-            notifiche.append({
-                'titolo': "Clienti Inattivi",
-                'descrizione': "Verifica eventuali aggiornamenti sui clienti inattivi.",
-                'data': datetime.now(),
-                'tipo': "secondary",
-                'clienti': clienti_inattivi
-            })
-
-    # === RENDER TEMPLATE (Variabili di lista utilizzate per i Modali e i Conteggi) ===
-    return render_template(
-        '02_index.html',
-        variazione_fatturato=variazione_fatturato,
-        # Ora passiamo le liste complete al template:
-        clienti_nuovi=clienti_nuovi,                # Lista dei clienti nuovi
-        clienti_bloccati=clienti_bloccati,          # Lista dei clienti bloccati
-        clienti_inattivi=clienti_inattivi,          # Lista dei clienti inattivi
-        
-        # Queste sono liste di prodotti usate per le modali
-        prodotti_inseriti=prodotti_inseriti,
-        prodotti_rimossi=prodotti_rimossi,
-        
-        # Dati per i grafici e le notifiche
-        fatturato_mensile=fatturato_mensile,
-        fatturato_per_zona=fatturato_per_zona,
-        notifiche=notifiche
-    )
+    # === RENDER TEMPLATE ===
+    return render_template(
+        '02_index.html',
+        variazione_fatturato=variazione_fatturato,
+        clienti_nuovi=clienti_nuovi, 
+        clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
+        clienti_bloccati=clienti_bloccati,
+        clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
+        clienti_attivi_dettaglio=clienti_attivi_dettaglio,
+        # *** VARIABILE AGGIORNATA: Passiamo la lista al template ***
+        clienti_inattivi=clienti_inattivi_dettaglio, 
+        # *** Il template index.html usa 'clienti_inattivi|length' e questa lista ne fornirà il conteggio
+        
+        prodotti_totali_mese=prodotti_totali_mese,
+        prodotti_rimossi_mese=prodotti_rimossi_mese,
+        prodotti_inseriti=prodotti_inseriti,
+        prodotti_rimossi=prodotti_rimossi,
+        fatturato_mensile=fatturato_mensile,
+        fatturato_per_zona=fatturato_per_zona,
+        notifiche=notifiche
+    )
 # ============================
 # ROUTE CLIENTI
 # ============================
