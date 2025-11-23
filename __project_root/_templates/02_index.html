@@ -15,7 +15,6 @@ body { background: #0f172a; color: #fff; }
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
 
-/* === Metriche === */
 .metric-card {
   border: none;
   transition: all 0.25s ease;
@@ -30,7 +29,6 @@ body { background: #0f172a; color: #fff; }
 }
 .metric-card h6 { font-size: 0.95rem; color: #a0a8b7; }
 
-/* === Grafici in stile "fatturato.html" === */
 .chart-card {
   border-radius: 1rem;
   background: #1e293b;
@@ -53,7 +51,6 @@ body { background: #0f172a; color: #fff; }
   width: 100% !important;
 }
 
-/* === Link cards === */
 .link-card { transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 .link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
 .link-clienti:hover { background-color: #0d6efd; color: #fff !important; border-color: #0d6efd; }
@@ -74,6 +71,7 @@ body { background: #0f172a; color: #fff; }
     <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3"
             data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
       <i class="bi bi-bell-fill fs-4 text-primary"></i>
+
       {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list if notifiche is defined else [] %}
       {% if not_unread|length > 0 %}
       <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
@@ -81,6 +79,7 @@ body { background: #0f172a; color: #fff; }
       </span>
       {% endif %}
     </button>
+
     <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
     <p class="lead mb-0 text-white">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
   </div>
@@ -144,6 +143,7 @@ body { background: #0f172a; color: #fff; }
         </div>
       </div>
     </div>
+
     <div class="col-lg-4">
       <div class="card chart-card">
         <div class="card-body">
@@ -158,9 +158,9 @@ body { background: #0f172a; color: #fff; }
 
 </div>
 
-<!-- Grafici Chart.js -->
 {% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 (() => {
   const fatturatoMensile = {{ fatturato_mensile|tojson }};
@@ -218,16 +218,19 @@ body { background: #0f172a; color: #fff; }
 })();
 </script>
 {% endif %}
-<!-- ========================= MODALI DETTAGLIO METRICHE ========================= -->
 
-<!-- 🔵 CLIENTI NUOVI -->
+<!-- ========================= MODALI ========================= -->
+
+<!-- CLIENTI NUOVI -->
 <div class="modal fade" id="modalClientiNuovi" tabindex="-1">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content bg-dark text-white rounded-4">
+
       <div class="modal-header">
         <h5 class="modal-title">Clienti Nuovi (ultimi 30 giorni)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
         {% if clienti_nuovi_dettaglio %}
           <ul class="list-group">
@@ -235,44 +238,47 @@ body { background: #0f172a; color: #fff; }
               <li class="list-group-item bg-secondary text-white">
                 <strong>{{ c.nome }}</strong><br>
                 <small>Registrato il: {{ c.data_registrazione.strftime('%d/%m/%Y') }}</small><br>
-                <a href="{{ url_for('modifica_cliente', id=c.id) }}" class="btn btn-sm btn-light mt-2">
+
+                <!-- CORRETTO: apre scheda cliente -->
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="btn btn-sm btn-light mt-2">
                   Apri Cliente
                 </a>
               </li>
             {% endfor %}
           </ul>
         {% else %}
-          <p class="text-muted">Nessun nuovo cliente negli ultimi 30 giorni.</p>
+          <p class="text-muted">Nessun nuovo cliente.</p>
         {% endif %}
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- 🔴 CLIENTI BLOCCATI -->
+<!-- CLIENTI BLOCCATI -->
 <div class="modal fade" id="modalClientiBloccati" tabindex="-1">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content bg-dark text-white rounded-4">
+
       <div class="modal-header">
-        <h5 class="modal-title">Clienti Bloccati (60–91 giorni senza fatturato)</h5>
+        <h5 class="modal-title">Clienti Bloccati (60–91 giorni)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
-        {% set bloccati_ordinati = clienti_bloccati_dettaglio|sort(attribute='giorni', reverse=True) %}
-        {% if bloccati_ordinati %}
+        {% if clienti_bloccati %}
           <ul class="list-group">
-            {% for c in bloccati_ordinati %}
-              <li class="list-group-item bg-danger text-white fw-semibold">
+            {% for c in clienti_bloccati %}
+              <li class="list-group-item bg-danger text-white">
                 <strong>{{ c.nome }}</strong><br>
+
                 <small>Ultimo fatturato:
                   {% if c.ultimo_fatturato %}
                     {{ c.ultimo_fatturato.strftime('%d/%m/%Y') }}
-                  {% else %}
-                    Mai
-                  {% endif %}
+                  {% else %} Mai {% endif %}
                 </small><br>
-                <small>Assente da {{ c.giorni }} giorni</small><br>
-                <a href="{{ url_for('modifica_cliente', id=c.id) }}" class="btn btn-sm btn-light mt-2">
+
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="btn btn-light btn-sm mt-2">
                   Apri Cliente
                 </a>
               </li>
@@ -282,34 +288,35 @@ body { background: #0f172a; color: #fff; }
           <p class="text-muted">Nessun cliente bloccato.</p>
         {% endif %}
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- ⚫ CLIENTI INATTIVI -->
+<!-- CLIENTI INATTIVI -->
 <div class="modal fade" id="modalClientiInattivi" tabindex="-1">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content bg-dark text-white rounded-4">
+
       <div class="modal-header">
-        <h5 class="modal-title">Clienti Inattivi (oltre 91 giorni senza fatturato)</h5>
+        <h5 class="modal-title">Clienti Inattivi (oltre 91 giorni)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
-        {% set inattivi_ordinati = clienti_inattivi|sort(attribute='giorni', reverse=True) %}
-        {% if inattivi_ordinati %}
+        {% if clienti_inattivi %}
           <ul class="list-group">
-            {% for c in inattivi_ordinati %}
+            {% for c in clienti_inattivi %}
               <li class="list-group-item bg-secondary text-white">
                 <strong>{{ c.nome }}</strong><br>
+
                 <small>Ultimo fatturato:
                   {% if c.ultimo_fatturato %}
                     {{ c.ultimo_fatturato.strftime('%d/%m/%Y') }}
-                  {% else %}
-                    Mai
-                  {% endif %}
+                  {% else %} Mai {% endif %}
                 </small><br>
-                <small>Assente da {{ c.giorni }} giorni</small><br>
-                <a href="{{ url_for('modifica_cliente', id=c.id) }}" class="btn btn-sm btn-light mt-2">
+
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="btn btn-light btn-sm mt-2">
                   Apri Cliente
                 </a>
               </li>
@@ -319,18 +326,21 @@ body { background: #0f172a; color: #fff; }
           <p class="text-muted">Nessun cliente inattivo.</p>
         {% endif %}
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- 🟩 PRODOTTI INSERITI -->
+<!-- PRODOTTI INSERITI -->
 <div class="modal fade" id="modalProdottiTotali" tabindex="-1">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content bg-dark text-white rounded-4">
+
       <div class="modal-header">
         <h5 class="modal-title">Prodotti Inseriti (ultimi 30 giorni)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
         {% if prodotti_inseriti %}
           <ul class="list-group">
@@ -346,18 +356,21 @@ body { background: #0f172a; color: #fff; }
           <p class="text-muted">Nessun prodotto inserito.</p>
         {% endif %}
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- 🟧 PRODOTTI RIMOSSI -->
+<!-- PRODOTTI RIMOSSI -->
 <div class="modal fade" id="modalProdottiRimossi" tabindex="-1">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content bg-dark text-white rounded-4">
+
       <div class="modal-header">
         <h5 class="modal-title">Prodotti Rimossi (ultimi 30 giorni)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
         {% if prodotti_rimossi %}
           <ul class="list-group">
@@ -373,30 +386,35 @@ body { background: #0f172a; color: #fff; }
           <p class="text-muted">Nessun prodotto rimosso.</p>
         {% endif %}
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- 📈 VARIAZIONE FATTURATO -->
+<!-- VARIAZIONE FATTURATO -->
 <div class="modal fade" id="modalFatturato" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content bg-dark text-white rounded-4">
+
       <div class="modal-header">
         <h5 class="modal-title">Dettaglio variazione fatturato</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
         <p>Ultimo mese completo: <strong>{{ fatturato_mensile|list|last }}</strong></p>
+
         <p>Variazione: 
           {% if variazione_fatturato is not none %}
-          <strong class="{{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
-            {{ "%.2f"|format(variazione_fatturato) }}%
-          </strong>
+            <strong class="{{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
+              {{ "%.2f"|format(variazione_fatturato) }}%
+            </strong>
           {% else %}
-          <span class="text-muted">N.D.</span>
+            <span class="text-muted">N.D.</span>
           {% endif %}
         </p>
       </div>
+
     </div>
   </div>
 </div>
