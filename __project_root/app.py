@@ -625,7 +625,6 @@ def nuovo_cliente():
         prodotti=prodotti,
         current_year=current_year
     )
-
 # --- FUNZIONE 1: ELIMINA FATTURATO (ENDPOINT ESPLICITO) ---
 @app.route('/elimina_fatturato', methods=['POST'], endpoint='elimina_fatturato')
 @login_required
@@ -677,8 +676,9 @@ def aggiorna_fatturati():
         return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
 
 
-# --- FUNZIONE 3: REPORT FATTURATO TOTALE (ENDPOINT ESPLICITO) ---
-@app.route('/clienti/fatturato_totale', endpoint='fatturato_totale') # FIX: Aggiunto endpoint esplicito
+# --- FUNZIONE 3: REPORT FATTURATO TOTALE (ENDPOINT UNIVOCO) ---
+# Ho cambiato l'endpoint a 'clienti_fatturato_totale' per evitare conflitti con eventuali endpoint preesistenti chiamati 'fatturato_totale'
+@app.route('/clienti/fatturato_totale', endpoint='clienti_fatturato_totale') 
 @login_required
 def fatturato_totale_clienti():
     """Mostra la lista dei clienti ordinata per fatturato totale decrescente."""
@@ -698,7 +698,7 @@ def fatturato_totale_clienti():
 
 
 # --- FUNZIONE PRINCIPALE MODIFICATA CLIENTE ---
-# Questa funzione è stata accorciata per non superare i 1000 caratteri
+# La funzione è accorciata per non superare i 1000 caratteri.
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
 def modifica_cliente(id):
