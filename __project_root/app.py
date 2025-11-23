@@ -506,6 +506,7 @@ def index():
 @login_required
 def clienti():
     zona_filtro = request.args.get('zona')
+    stato_filtro = request.args.get('stato')   # ⭐ NUOVO
     order = request.args.get('order', 'zona')
     search = request.args.get('search', '').strip().lower()
 
@@ -517,16 +518,16 @@ def clienti():
     mese_ref = current_month - 1 if current_month > 1 else 12
     anno_ref = current_year if current_month > 1 else current_year - 1
 
-    # Mese prima ancora
+    # Mese precedente a quello concluso
     mese_ref_prev = mese_ref - 1 if mese_ref > 1 else 12
     anno_ref_prev = anno_ref if mese_ref > 1 else anno_ref - 1
 
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
 
-        # ---------------------------
-        # Recupero clienti + filtri
-        # ---------------------------
+        # ----------------------------------------------------
+        # Recupero clienti con filtri zona + ricerca
+        # ----------------------------------------------------
         query = 'SELECT id, nome, zona FROM clienti'
         condizioni = []
         params = []
@@ -543,19 +544,16 @@ def clienti():
             query += ' WHERE ' + ' AND '.join(condizioni)
 
         query += ' ORDER BY nome'
-
         cur.execute(query, params)
         clienti_rows = cur.fetchall()
 
         clienti_list = []
         stati_clienti = {}
-        andamento_clienti = {}  # ⭐ NUOVO
+        andamento_clienti = {}
 
         for cliente in clienti_rows:
 
-            # ----------------------------------------------------
             # Totale fatturato
-            # ----------------------------------------------------
             cur.execute('''
                 SELECT COALESCE(SUM(totale),0) AS totale 
                 FROM fatturato 
@@ -563,9 +561,7 @@ def clienti():
             ''', (cliente['id'],))
             fatturato_totale = cur.fetchone()['totale']
 
-            # ----------------------------------------------------
             # Ultimo fatturato → stato cliente
-            # ----------------------------------------------------
             cur.execute('''
                 SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato 
                 FROM fatturato 
@@ -586,10 +582,11 @@ def clienti():
 
             stati_clienti[cliente['id']] = stato
 
-            # ----------------------------------------------------
-            # ⭐ ANDAMENTO FATTURATO (mese_ref vs mese_ref_prev)
-            # ----------------------------------------------------
-            # Mese riferimento (es: ottobre)
+            # ⭐ Filtro STATO CLIENTE
+            if stato_filtro and stato != stato_filtro:
+                continue
+
+            # ANDAMENTO FATTURATO (mese_ref vs mese_ref_prev)
             cur.execute('''
                 SELECT COALESCE(SUM(totale),0) AS totale 
                 FROM fatturato
@@ -597,7 +594,6 @@ def clienti():
             ''', (cliente['id'], mese_ref, anno_ref))
             fatt_ref = cur.fetchone()['totale']
 
-            # Mese precedente (es: settembre)
             cur.execute('''
                 SELECT COALESCE(SUM(totale),0) AS totale 
                 FROM fatturato
@@ -612,9 +608,7 @@ def clienti():
 
             andamento_clienti[cliente['id']] = andamento
 
-            # ----------------------------------------------------
-            # Append Cliente
-            # ----------------------------------------------------
+            # Aggiungo cliente alla lista finale
             clienti_list.append({
                 'id': cliente['id'],
                 'nome': cliente['nome'],
@@ -623,17 +617,13 @@ def clienti():
                 'ultimo_fatturato': ultimo
             })
 
-        # ---------------------------
         # Ordinamento
-        # ---------------------------
         if order == 'fatturato':
             clienti_list.sort(key=lambda c: c['fatturato_totale'], reverse=True)
         else:
             clienti_list.sort(key=lambda c: (c['zona'] or '', c['nome']))
 
-        # ---------------------------
         # Raggruppamento per zona
-        # ---------------------------
         clienti_per_zona = defaultdict(list)
         for c in clienti_list:
             clienti_per_zona[c['zona']].append(c)
@@ -651,8 +641,10 @@ def clienti():
         order=order,
         search=search,
         stati_clienti=stati_clienti,
-        andamento_clienti=andamento_clienti   # ⭐ PASSATO AL TEMPLATE
+        andamento_clienti=andamento_clienti,
+        stato_filtro=stato_filtro   # ⭐ PASSATO AL TEMPLATE
     )
+
 
 
 @app.route('/clienti/aggiungi', methods=['GET', 'POST'])
