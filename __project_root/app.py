@@ -712,7 +712,6 @@ def nuovo_cliente():
         current_year=current_year
     )
 
-
 # --- FUNZIONE PRINCIPALE MODIFICA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -737,7 +736,7 @@ def modifica_cliente(id):
         cur.execute('SELECT * FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
-        # Prodotti + categorie
+        # Prodotti + categoria
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, c.nome AS categoria_nome
             FROM prodotti p
@@ -746,15 +745,9 @@ def modifica_cliente(id):
         ''')
         prodotti = cur.fetchall()
 
-        # Prodotti per categoria (per template)
-        prodotti_per_categoria = {}
-        for p in prodotti:
-            cat = p.get('categoria_nome') or 'Senza categoria'
-            prodotti_per_categoria.setdefault(cat, []).append(p)
-
         # Prodotti già associati
         cur.execute('''
-            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta
+            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, fornitore
             FROM clienti_prodotti
             WHERE cliente_id=%s
         ''', (id,))
@@ -764,8 +757,9 @@ def modifica_cliente(id):
         prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if not p['lavorato']]
         prezzi_attuali = {str(p['prodotto_id']): p['prezzo_attuale'] for p in prodotti_assoc}
         prezzi_offerta = {str(p['prodotto_id']): p['prezzo_offerta'] for p in prodotti_assoc}
+        fornitori = {str(p['prodotto_id']): p['fornitore'] for p in prodotti_assoc}
 
-        # Fatturati del cliente
+        # Fatturati
         cur.execute('''
             SELECT id, mese, anno, totale
             FROM fatturato
@@ -776,7 +770,7 @@ def modifica_cliente(id):
 
         if request.method == 'POST':
 
-            # ====== Aggiornamento dati cliente ======
+            # ======= DATI BASE CLIENTE =======
             nome = request.form.get('nome', '').strip()
             zona = request.form.get('zona', '').strip()
             nuova_zona = request.form.get('nuova_zona', '').strip()
@@ -785,16 +779,17 @@ def modifica_cliente(id):
                 zona = nuova_zona
                 try:
                     cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
-                except Exception:
-                    pass  # Se esiste già ignoriamo
+                except:
+                    pass
 
             if not nome:
                 flash("Il nome del cliente è obbligatorio.", "warning")
                 return redirect(request.url)
 
-            cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s', (nome, zona, id))
+            cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s',
+                        (nome, zona, id))
 
-            # ====== Aggiornamento prodotti cliente ======
+            # ======= SALVATAGGIO PRODOTTI =======
             prodotti_selezionati = request.form.getlist('prodotti_lavorati[]')
 
             for prodotto in prodotti:
@@ -806,61 +801,60 @@ def modifica_cliente(id):
                     SELECT lavorato FROM clienti_prodotti
                     WHERE cliente_id=%s AND prodotto_id=%s
                 ''', (id, pid))
-                stato_precedente = cur.fetchone()
+                precedente = cur.fetchone()
 
-                # ----- LOG RIMOZIONE -----
-                if stato_precedente and stato_precedente['lavorato'] and not lavorato:
+                # Prezzi e fornitore
+                prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]')
+                prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]')
+                fornitore = request.form.get(f'fornitore[{pid}]')
+
+                # Normalizza valori vuoti
+                prezzo_attuale = prezzo_attuale if prezzo_attuale not in [None, ""] else None
+                prezzo_offerta = prezzo_offerta if prezzo_offerta not in [None, ""] else None
+                fornitore = fornitore if fornitore not in [None, ""] else None
+
+                # LOG RIMOZIONE
+                if precedente and precedente['lavorato'] and not lavorato:
                     cur.execute('''
                         INSERT INTO prodotti_rimossi (cliente_id, prodotto_id, data_rimozione)
                         VALUES (%s, %s, %s)
                     ''', (id, pid, current_datetime))
 
-                # Prezzi
-                prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]') or None
-                prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]') or None
+                # ====== SALVA o AGGIORNA PRODOTTO (INCL. FORNITORE) ======
+                cur.execute('''
+                    INSERT INTO clienti_prodotti (cliente_id, prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, fornitore, data_operazione)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (cliente_id, prodotto_id)
+                    DO UPDATE SET
+                        lavorato = EXCLUDED.lavorato,
+                        prezzo_attuale = EXCLUDED.prezzo_attuale,
+                        prezzo_offerta = EXCLUDED.prezzo_offerta,
+                        fornitore = EXCLUDED.fornitore,
+                        data_operazione = EXCLUDED.data_operazione
+                ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore, current_datetime))
 
-                # Aggiorna o inserisce il record
-                if stato_precedente:
-                    cur.execute('''
-                        UPDATE clienti_prodotti
-                        SET lavorato=%s, prezzo_attuale=%s, prezzo_offerta=%s, data_operazione=%s
-                        WHERE cliente_id=%s AND prodotto_id=%s
-                    ''', (lavorato, prezzo_attuale, prezzo_offerta, current_datetime, id, pid))
-                else:
-                    cur.execute('''
-                        INSERT INTO clienti_prodotti
-                        (cliente_id, prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                    ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, current_datetime))
-
-            # ====== Aggiornamento fatturato ======
+            # ======= FATTURATO =======
             mese = request.form.get('mese')
             anno = request.form.get('anno')
             importo = request.form.get('fatturato_mensile')
 
             if mese and anno and importo:
                 try:
-                    importo_float = float(importo)
-                    mese_int = int(mese)
-                    anno_int = int(anno)
+                    cur.execute('''
+                        INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                        VALUES (%s,%s,%s,%s)
+                        ON CONFLICT (cliente_id, mese, anno)
+                        DO UPDATE SET totale = EXCLUDED.totale
+                    ''', (id, int(mese), int(anno), float(importo)))
 
-                    cur.execute('SELECT id FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                                (id, mese_int, anno_int))
-                    esiste = cur.fetchone()
-
-                    if esiste:
-                        cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (importo_float, esiste['id']))
-                    else:
-                        cur.execute('INSERT INTO fatturato (cliente_id,mese,anno,totale) VALUES (%s,%s,%s,%s)',
-                                    (id, mese_int, anno_int, importo_float))
-                except ValueError:
-                    flash('Importo fatturato non valido.', 'warning')
+                except:
+                    flash('Importo non valido.', 'warning')
 
             db.commit()
             flash("Cliente modificato con successo.", "success")
             return redirect(url_for('clienti'))
 
-        # ====== Precompila ultimo fatturato (GET) ======
+        # Precompila fatturato
         cur.execute('''
             SELECT mese, anno, totale
             FROM fatturato
@@ -868,11 +862,11 @@ def modifica_cliente(id):
             ORDER BY anno DESC, mese DESC
             LIMIT 1
         ''', (id,))
-        ultimo_fatturato = cur.fetchone()
+        ultimo_fatt = cur.fetchone()
 
-        mese = ultimo_fatturato['mese'] if ultimo_fatturato else None
-        anno = ultimo_fatturato['anno'] if ultimo_fatturato else None
-        importo = ultimo_fatturato['totale'] if ultimo_fatturato else None
+        mese = ultimo_fatt['mese'] if ultimo_fatt else None
+        anno = ultimo_fatt['anno'] if ultimo_fatt else None
+        importo = ultimo_fatt['totale'] if ultimo_fatt else None
 
         zone_nomi = [z['nome'] for z in zone]
         nuova_zona_selected = cliente['zona'] not in zone_nomi
@@ -884,11 +878,11 @@ def modifica_cliente(id):
         zone=zone,
         categorie=categorie,
         prodotti=prodotti,
-        prodotti_per_categoria=prodotti_per_categoria,
         prodotti_lavorati=prodotti_lavorati,
         prodotti_non_lavorati=prodotti_non_lavorati,
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
+        fornitori=fornitori,   # ⭐ IMPORTANTE
         nuova_zona_selected=nuova_zona_selected,
         nuova_zona_value=nuova_zona_value,
         fatturato_mese=mese,
@@ -898,7 +892,6 @@ def modifica_cliente(id):
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
-
 
 
 
