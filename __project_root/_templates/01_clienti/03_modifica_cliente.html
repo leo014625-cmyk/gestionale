@@ -29,7 +29,6 @@
       <option disabled>──────────</option>
       <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>+ Aggiungi nuova zona</option>
     </select>
-    <div class="form-text">Seleziona una zona esistente o aggiungine una nuova.</div>
   </div>
 
   <!-- Nuova zona -->
@@ -41,387 +40,215 @@
   <!-- Fatturato -->
   <fieldset class="mb-4">
     <legend>Fatturato Mensile</legend>
+
     <div class="row g-3 align-items-center mb-3">
       <div class="col-auto">
-        <label for="mese" class="col-form-label">Mese</label>
+        <label class="col-form-label">Mese</label>
       </div>
       <div class="col-auto">
-        <select id="mese" name="mese" class="form-select" required>
-          {% for k, v in mesi.items() %}
-            <option value="{{ k }}" {% if k == (fatturato_mese or current_month) %}selected{% endif %}>{{ v }}</option>
+        <select id="mese" name="mese" class="form-select">
+          {% for k,v in mesi.items() %}
+            <option value="{{ k }}" {% if k == current_month %}selected{% endif %}>{{ v }}</option>
           {% endfor %}
         </select>
       </div>
+
       <div class="col-auto">
-        <label for="anno" class="col-form-label">Anno</label>
+        <label class="col-form-label">Anno</label>
       </div>
       <div class="col-auto">
-        <input type="number" id="anno" name="anno" class="form-control" value="{{ fatturato_anno or current_year }}" min="2000" max="2100" required>
+        <input type="number" name="anno" class="form-control" value="{{ current_year }}" min="2000" max="2100">
       </div>
     </div>
 
     <div class="mb-3">
       <label for="fatturato_mensile" class="form-label">Importo (€)</label>
-      <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile" placeholder="Inserisci fatturato mensile" value="{{ fatturato_importo or '' }}">
-      <div class="form-text">Lascia vuoto se non vuoi aggiungere un fatturato.</div>
+      <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile">
     </div>
-
-    <button type="button" class="btn btn-outline-secondary mt-2" data-bs-toggle="modal" data-bs-target="#modalFatturato">
-      Visualizza e modifica fatturati
-    </button>
   </fieldset>
 
-  <!-- Prodotti - Layout B: lista tabellare per categoria -->
+  <!-- PRODOTTI -->
   <div class="mb-4">
     <h4 class="mb-3">Prodotti</h4>
 
     {% if categorie %}
-      <!-- Tabs categorie -->
-      <ul class="nav nav-tabs mb-3" id="prodottiTabs" role="tablist">
+      <!-- Tabs -->
+      <ul class="nav nav-tabs mb-3">
         {% for categoria in categorie %}
-          <li class="nav-item" role="presentation">
-            <button class="nav-link {% if loop.first %}active{% endif %}"
-                    id="tab-{{ categoria.id }}"
-                    data-bs-toggle="tab"
-                    data-bs-target="#cat-{{ categoria.id }}"
-                    type="button" role="tab">
-              {{ categoria.nome }}
-              {% if categoria.id|string in categorie_lavorate %}
-                <i class="bi bi-check-circle-fill text-success ms-1"></i>
-              {% endif %}
-            </button>
-          </li>
+        <li class="nav-item">
+          <button class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}">
+            {{ categoria.nome }}
+          </button>
+        </li>
         {% endfor %}
       </ul>
 
       <div class="tab-content">
         {% for categoria in categorie %}
-          <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}" role="tabpanel">
-            {% set prodotti_cat = prodotti|selectattr("categoria_id","equalto",categoria.id)|list %}
-            {% if prodotti_cat %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}">
 
-              <!-- Barra di ricerca prodotti nella categoria -->
-              <div class="mb-2">
-                <input type="text"
-                       class="form-control form-control-sm filtro-prodotto"
-                       data-cat-id="{{ categoria.id }}"
-                       placeholder="Cerca prodotto o fornitore in {{ categoria.nome }}...">
-              </div>
+          <!-- Ricerca -->
+          <input type="text" class="form-control form-control-sm mb-2 filtro-prodotto"
+                 data-cat="{{ categoria.id }}" placeholder="Cerca prodotto o fornitore...">
 
-              <div class="table-responsive">
-                <table class="table table-sm align-middle table-hover mb-0 tabella-prodotti-cat"
-                       id="tabella-cat-{{ categoria.id }}">
-                  <thead class="table-light">
-                    <tr>
-                      <th style="width: 40px;"></th>
-                      <th>Prodotto</th>
-                      <th style="width: 25%;">Fornitore</th>
-                      <th style="width: 15%;">Prezzo attuale (€)</th>
-                      <th style="width: 15%;">Prezzo offerta (€)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for prodotto in prodotti_cat %}
-                      {% set pid = prodotto.id|string %}
-                      <tr data-prodotto-id="{{ pid }}">
-                        <!-- Checkbox lavorato -->
-                        <td class="text-center">
-                          <input class="form-check-input check-lavorato"
-                                 type="checkbox"
-                                 id="prodotto{{ prodotto.id }}"
-                                 name="prodotti_lavorati[]"
-                                 value="{{ prodotto.id }}"
-                                 {% if pid in prodotti_lavorati %}checked{% endif %}>
-                        </td>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle tabella-prodotti-cat" id="tabella-cat-{{ categoria.id }}">
+              <thead class="table-light">
+                <tr>
+                  <th></th>
+                  <th>Prodotto</th>
+                  <th>Fornitore</th>
+                  <th>Prezzo Attuale</th>
+                  <th>Prezzo Offerta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in prodotti if p.categoria_id == categoria.id %}
+                {% set pid = p.id|string %}
+                <tr>
+                  <!-- Checkbox -->
+                  <td class="text-center">
+                    <input class="form-check-input chk-lavorato"
+                           type="checkbox"
+                           name="prodotti_lavorati[]"
+                           value="{{ p.id }}"
+                           {% if pid in prodotti_lavorati %}checked{% endif %}>
+                  </td>
 
-                        <!-- Nome + categoria badge -->
-                        <td>
-                          <label class="fw-semibold mb-0" for="prodotto{{ prodotto.id }}">
-                            {{ prodotto.nome }}
-                          </label><br>
-                          <small class="text-muted">
-                            <i class="bi bi-box-seam"></i> {{ prodotto.categoria_nome }}
-                          </small>
-                        </td>
+                  <!-- Nome -->
+                  <td>
+                    <strong>{{ p.nome }}</strong><br>
+                    <small class="text-muted">{{ p.categoria_nome }}</small>
+                  </td>
 
-                        <!-- Fornitore -->
-                        <td>
-                          <input type="text"
-                                 class="form-control form-control-sm"
-                                 name="fornitore[{{ prodotto.id }}]"
-                                 placeholder="Nome fornitore"
-                                 value="{% if fornitori is defined and fornitori.get(pid) %}{{ fornitori.get(pid) }}{% endif %}">
-                        </td>
+                  <!-- Fornitore -->
+                  <td>
+                    <input type="text" class="form-control form-control-sm"
+                           name="fornitore[{{ p.id }}]"
+                           value="{{ fornitori.get(pid,'') if fornitori is defined }}">
+                  </td>
 
-                        <!-- Prezzo attuale -->
-                        <td>
-                          <input type="number"
-                                 step="0.01" min="0"
-                                 class="form-control form-control-sm"
-                                 name="prezzo_attuale[{{ prodotto.id }}]"
-                                 placeholder="0,00"
-                                 value="{{ prezzi_attuali.get(pid, '') }}">
-                        </td>
+                  <!-- Prezzi -->
+                  <td>
+                    <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                           name="prezzo_attuale[{{ p.id }}]"
+                           value="{{ prezzi_attuali.get(pid,'') }}">
+                  </td>
 
-                        <!-- Prezzo offerta -->
-                        <td>
-                          <input type="number"
-                                 step="0.01" min="0"
-                                 class="form-control form-control-sm"
-                                 name="prezzo_offerta[{{ prodotto.id }}]"
-                                 placeholder="0,00"
-                                 value="{{ prezzi_offerta.get(pid, '') }}">
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-
-              <small class="text-muted d-block mt-2">
-                Seleziona la casella per indicare che il prodotto è lavorato per questo cliente.
-              </small>
-            {% else %}
-              <p class="text-muted">Nessun prodotto in questa categoria.</p>
-            {% endif %}
+                  <td>
+                    <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                           name="prezzo_offerta[{{ p.id }}]"
+                           value="{{ prezzi_offerta.get(pid,'') }}">
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
+
+        </div>
         {% endfor %}
       </div>
-    {% else %}
-      <p class="text-muted">Nessuna categoria disponibile.</p>
     {% endif %}
   </div>
 
-  <!-- Tabelle riepilogo Prodotti -->
+  <!-- RIEPILOGO -->
   <hr>
   <div class="row">
-    <div class="col-md-6 mb-4">
+    <div class="col-md-6">
       <h5>Prodotti Lavorati</h5>
-      <table class="table table-bordered table-striped mb-0" id="tabella-lavorati">
+      <table class="table table-bordered" id="tabella-lavorati">
         <thead class="table-success">
-          <tr>
-            <th>Prodotto</th>
-            <th>Categoria</th>
-            <th>Fornitore</th>
-          </tr>
+          <tr><th>Prodotto</th><th>Categoria</th><th>Fornitore</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
-    <div class="col-md-6 mb-4">
+
+    <div class="col-md-6">
       <h5>Prodotti Non Lavorati</h5>
-      <table class="table table-bordered table-striped mb-0" id="tabella-non-lavorati">
+      <table class="table table-bordered" id="tabella-non-lavorati">
         <thead class="table-danger">
-          <tr>
-            <th>Prodotto</th>
-            <th>Categoria</th>
-            <th>Fornitore</th>
-            <th>Prezzo Attuale</th>
-            <th>Prezzo Offerta</th>
-          </tr>
+          <tr><th>Prodotto</th><th>Categoria</th><th>Fornitore</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
-  <!-- Pulsanti -->
-  <button type="submit" class="btn btn-primary">Salva modifiche</button>
-  <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
-</form>
+  <button class="btn btn-primary mt-3">Salva modifiche</button>
+  <a href="{{ url_for('clienti') }}" class="btn btn-secondary mt-3 ms-2">Annulla</a>
 
-<!-- Modal Fatturato -->
-<div class="modal fade" id="modalFatturato" tabindex="-1" aria-labelledby="modalFatturatoLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalFatturatoLabel">Fatturati Mensili</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body">
-        <table class="table table-striped">
-          <thead>
-            <tr><th>Mese</th><th>Anno</th><th>Importo (€)</th></tr>
-          </thead>
-          <tbody>
-            {% for f in fatturati_cliente %}
-            <tr>
-              <td>{{ mesi[f.mese] }}</td>
-              <td>{{ f.anno }}</td>
-              <td>
-                <input type="number" class="form-control form-control-sm" value="{{ f.totale }}" data-fatt-id="{{ f.id }}">
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="3" class="text-muted">Nessun fatturato inserito</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="salvaFatturatiModal">Salva modifiche</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-      </div>
-    </div>
-  </div>
-</div>
+</form>
 
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  // --- Nuova zona ---
-  const zonaSelect = document.getElementById('zona');
-  const nuovaZonaWrapper = document.getElementById('nuova-zona-wrapper');
-  const nuovaZonaInput = document.getElementById('nuova_zona');
+document.addEventListener("DOMContentLoaded", () => {
 
-  zonaSelect.addEventListener('change', function () {
-    const isNew = zonaSelect.value === 'nuova_zona';
-    nuovaZonaWrapper.classList.toggle('d-none', !isNew);
-    nuovaZonaInput.required = isNew;
-    if (isNew) nuovaZonaInput.focus();
-  });
-
-  // --- Prodotti per riepilogo ---
-  const prodotti = [
-    {% for prodotto in prodotti %}
-      {
-        id: '{{ prodotto.id }}',
-        nome: '{{ prodotto.nome|replace("'", "\\'") }}',
-        categoria: '{{ prodotto.categoria_nome|replace("'", "\\'") }}'
-      },
+  const listaProdotti = [
+    {% for p in prodotti %}
+      { id: "{{ p.id }}", nome: "{{ p.nome }}", categoria: "{{ p.categoria_nome }}" },
     {% endfor %}
   ];
 
-  const lavoratiTbody = document.querySelector('#tabella-lavorati tbody');
-  const nonLavoratiTbody = document.querySelector('#tabella-non-lavorati tbody');
+  const lavoratiBody = document.querySelector("#tabella-lavorati tbody");
+  const nonLavoratiBody = document.querySelector("#tabella-non-lavorati tbody");
 
-  function aggiornaTabelle() {
-    lavoratiTbody.innerHTML = '';
-    nonLavoratiTbody.innerHTML = '';
+  function aggiorna() {
+    lavoratiBody.innerHTML = "";
+    nonLavoratiBody.innerHTML = "";
 
-    prodotti.forEach(p => {
+    listaProdotti.forEach(p => {
+
       const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
-      const fornitoreInput = document.querySelector(`input[name="fornitore[${p.id}]"]`);
-      const prezzoAttualeInput = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`);
-      const prezzoOffertaInput = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`);
-
-      const forn = (fornitoreInput && fornitoreInput.value) ? fornitoreInput.value : '–';
-      const attuale = (prezzoAttualeInput && prezzoAttualeInput.value) ? prezzoAttualeInput.value : '–';
-      const offerta = (prezzoOffertaInput && prezzoOffertaInput.value) ? prezzoOffertaInput.value : '–';
+      const forn = document.querySelector(`input[name="fornitore[${p.id}]"]`)?.value || "–";
+      const att = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value || "–";
+      const off = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value || "–";
 
       if (chk && chk.checked) {
-        lavoratiTbody.insertAdjacentHTML(
-          'beforeend',
-          `<tr>
-            <td>${p.nome}</td>
-            <td>${p.categoria}</td>
-            <td>${forn}</td>
-          </tr>`
+        lavoratiBody.insertAdjacentHTML("beforeend",
+          `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
         );
       } else {
-        nonLavoratiTbody.insertAdjacentHTML(
-          'beforeend',
-          `<tr>
-            <td>${p.nome}</td>
-            <td>${p.categoria}</td>
-            <td>${forn}</td>
-            <td>${attuale}</td>
-            <td>${offerta}</td>
-          </tr>`
+        nonLavoratiBody.insertAdjacentHTML("beforeend",
+          `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
         );
       }
     });
   }
 
-  aggiornaTabelle();
+  aggiorna();
 
-  // Gestione check / dettagli prodotto
-  document.querySelectorAll('.check-lavorato').forEach(chk => {
-    chk.addEventListener('change', function () {
-      // (Se vuoi aggiungere logica di style per la riga, qui è il punto)
-      aggiornaTabelle();
-    });
+  document.querySelectorAll(".chk-lavorato").forEach(chk => {
+    chk.addEventListener("change", aggiorna);
   });
 
-  // Filtro per nome prodotto / fornitore per categoria
-  document.querySelectorAll('.filtro-prodotto').forEach(input => {
-    input.addEventListener('keyup', function () {
-      const catId = this.getAttribute('data-cat-id');
-      const filtro = this.value.toLowerCase();
-      const righe = document.querySelectorAll(`#tabella-cat-${catId} tbody tr`);
+  document.querySelectorAll("input[name^='fornitore'], input[name^='prezzo']")
+    .forEach(inp => inp.addEventListener("input", aggiorna));
 
-      righe.forEach(riga => {
-        const testoProd = (riga.cells[1]?.innerText || '').toLowerCase();
-        const testoForn = (riga.cells[2]?.innerText || '').toLowerCase();
-        if (testoProd.includes(filtro) || testoForn.includes(filtro)) {
-          riga.style.display = '';
-        } else {
-          riga.style.display = 'none';
-        }
+  document.querySelectorAll(".filtro-prodotto").forEach(input => {
+    input.addEventListener("keyup", function () {
+      const filtro = this.value.toLowerCase();
+      const tab = document.querySelector(`#tabella-cat-${this.dataset.cat}`);
+      const righe = tab.querySelectorAll("tbody tr");
+
+      righe.forEach(r => {
+        const testo = r.innerText.toLowerCase();
+        r.style.display = testo.includes(filtro) ? "" : "none";
       });
     });
   });
 
-  // --- Salvataggio fatturati dal modal via fetch ---
-  document.getElementById('salvaFatturatiModal').addEventListener('click', function() {
-    const inputs = document.querySelectorAll('#modalFatturato tbody input[data-fatt-id]');
-    const data = [];
-
-    inputs.forEach(i => {
-      data.push({ id: i.dataset.fattId, importo: parseFloat(i.value) });
-    });
-
-    fetch("{{ url_for('aggiorna_fatturati') }}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fatturati: data, cliente_id: {{ cliente.id }} })
-    })
-    .then(res => res.json())
-    .then(resp => {
-        if (resp.success) {
-            alert("Fatturati aggiornati correttamente!");
-            location.reload();
-        } else {
-            alert("Errore nel salvataggio: " + resp.message);
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Errore di comunicazione con il server.");
-    });
-  });
 });
 </script>
 
 <style>
-/* Tabella prodotti */
-.tabella-prodotti-cat tbody tr {
-  cursor: pointer;
-}
-.tabella-prodotti-cat tbody tr:hover {
-  background-color: #f5f9ff;
-}
-
-/* Evidenziazione prodotti lavorati (checkbox) – opzionale, puoi aggiungere classe */
-.check-lavorato:checked.closest('tr') {
-  font-weight: 600;
-}
-
-/* Riepilogo tabelle */
-#tabella-lavorati thead,
-#tabella-non-lavorati thead {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-/* Responsive migliorato */
-.table-responsive {
-  margin-bottom: 0.75rem;
-}
+.tabella-prodotti-cat tr:hover { background: #f5faff; }
+.table-bordered thead { position: sticky; top: 0; background: white; z-index: 5; }
 </style>
 
 {% endblock %}
