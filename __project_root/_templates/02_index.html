@@ -218,4 +218,156 @@ body { background: #0f172a; color: #fff; }
 })();
 </script>
 {% endif %}
+<!-- ========================= MODALI DETTAGLIO METRICHE ========================= -->
+
+<!-- 🔵 CLIENTI NUOVI -->
+<div class="modal fade" id="modalClientiNuovi" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Clienti Nuovi (ultimi 30 giorni)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if clienti_nuovi_dettaglio %}
+          <ul class="list-group">
+            {% for c in clienti_nuovi_dettaglio %}
+              <li class="list-group-item bg-secondary text-white">
+                <strong>{{ c.nome }}</strong>  
+                <br><small>Registrato il: {{ c.data_registrazione.strftime('%d/%m/%Y') }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">Nessun nuovo cliente negli ultimi 30 giorni.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🔴 CLIENTI BLOCCATI -->
+<div class="modal fade" id="modalClientiBloccati" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Clienti Bloccati (60–91 giorni senza fatturato)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if clienti_bloccati_dettaglio %}
+          <ul class="list-group">
+            {% for c in clienti_bloccati_dettaglio %}
+              <li class="list-group-item bg-danger text-white fw-semibold">
+                {{ c.nome }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">Nessun cliente bloccato.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ⚫ CLIENTI INATTIVI -->
+<div class="modal fade" id="modalClientiInattivi" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Clienti Inattivi (oltre 91 giorni senza fatturato)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if clienti_inattivi %}
+          <ul class="list-group">
+            {% for c in clienti_inattivi %}
+              <li class="list-group-item bg-secondary text-white">
+                {{ c.nome }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">Nessun cliente inattivo.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🟩 PRODOTTI INSERITI -->
+<div class="modal fade" id="modalProdottiTotali" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Prodotti Inseriti (ultimi 30 giorni)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if prodotti_inseriti %}
+          <ul class="list-group">
+            {% for p in prodotti_inseriti %}
+              <li class="list-group-item bg-success text-white">
+                <strong>{{ p.prodotto }}</strong>  
+                <br><small>Cliente: {{ p.cliente }}</small>
+                <br><small>Aggiunto il: {{ p.data_operazione.strftime('%d/%m/%Y') }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">Nessun prodotto inserito.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🟧 PRODOTTI RIMOSSI -->
+<div class="modal fade" id="modalProdottiRimossi" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Prodotti Rimossi (ultimi 30 giorni)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if prodotti_rimossi %}
+          <ul class="list-group">
+            {% for p in prodotti_rimossi %}
+              <li class="list-group-item bg-warning text-dark">
+                <strong>{{ p.prodotto }}</strong>  
+                <br><small>Cliente: {{ p.cliente }}</small>
+                <br><small>Rimosso il: {{ p.data_operazione.strftime('%d/%m/%Y') }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">Nessun prodotto rimosso.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 📈 VARIAZIONE FATTURATO -->
+<div class="modal fade" id="modalFatturato" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-white rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Dettaglio variazione fatturato</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Ultimo mese completo: <strong>{{ fatturato_mensile|list|last }}</strong></p>
+        <p>Variazione: 
+          <strong class="{{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
+            {{ "%.2f"|format(variazione_fatturato) }}%
+          </strong>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
