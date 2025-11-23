@@ -626,6 +626,61 @@ def nuovo_cliente():
         current_year=current_year
     )
 
+# --- NUOVA FUNZIONE PER ELIMINARE FATTURATO ---
+@app.route('/elimina_fatturato', methods=['POST'])
+@login_required
+def elimina_fatturato():
+    """Endpoint per eliminare una riga di fatturato tramite ID."""
+    data = request.get_json()
+    fatturato_id = data.get('fatturato_id')
+
+    if not fatturato_id:
+        return jsonify(success=False, message="ID fatturato mancante."), 400
+
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            cur.execute('DELETE FROM fatturato WHERE id = %s', (fatturato_id,))
+            db.commit()
+            return jsonify(success=True, message="Fatturato eliminato con successo.")
+    except Exception as e:
+        print(f"Errore durante l'eliminazione del fatturato: {e}")
+        return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
+
+# --- FUNZIONE AGGIORNATA PER MODIFICARE I FATTURATI (già presente nel template) ---
+@app.route('/aggiorna_fatturati', methods=['POST'])
+@login_required
+def aggiorna_fatturati():
+    """Endpoint per aggiornare gli importi dei fatturati dal modal."""
+    data = request.get_json()
+    fatturati = data.get('fatturati', [])
+
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            for item in fatturati:
+                fatturato_id = item.get('id')
+                importo = item.get('importo')
+                
+                # Assicurati che importo sia un numero valido (o convertibile)
+                if fatturato_id and importo is not None:
+                    # Se l'importo è 0 o negativo (o null dal form, gestito come 0.0 nel JS)
+                    # Potresti voler implementare qui una logica per eliminare se l'importo è zero,
+                    # ma per ora aggiorniamo.
+                    importo_float = float(importo) if importo else 0.0
+
+                    cur.execute(
+                        'UPDATE fatturato SET totale = %s WHERE id = %s', 
+                        (importo_float, fatturato_id)
+                    )
+            db.commit()
+            return jsonify(success=True, message="Fatturati aggiornati con successo.")
+    except Exception as e:
+        print(f"Errore durante l'aggiornamento dei fatturati: {e}")
+        return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
+
+
+# --- FUNZIONE PRINCIPALE MODIFICATA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
 def modifica_cliente(id):
@@ -658,7 +713,7 @@ def modifica_cliente(id):
         # 💡 CREA prodotti_per_categoria (risolve l'errore!)
         prodotti_per_categoria = {}
         for p in prodotti:
-            cat = p['categoria_nome'] or 'Senza categoria'
+            cat = p.get('categoria_nome') or 'Senza categoria'
             if cat not in prodotti_per_categoria:
                 prodotti_per_categoria[cat] = []
             prodotti_per_categoria[cat].append(p)
@@ -696,7 +751,8 @@ def modifica_cliente(id):
                 zona = nuova_zona
                 try:
                     cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
-                except:
+                except Exception:
+                    # Ignora se la zona esiste già
                     pass
 
             if not nome:
@@ -728,7 +784,7 @@ def modifica_cliente(id):
                         VALUES (%s,%s,%s,%s,%s,%s)
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, current_datetime))
 
-            # Aggiorna fatturato mensile
+            # Aggiorna fatturato mensile (dalla sezione sopra le card)
             mese = request.form.get('mese')
             anno = request.form.get('anno')
             importo = request.form.get('fatturato_mensile')
@@ -752,7 +808,7 @@ def modifica_cliente(id):
             flash('Cliente modificato con successo.', 'success')
             return redirect(url_for('clienti'))
 
-        # Precompila ultimo fatturato
+        # Precompila ultimo fatturato (per il GET)
         cur.execute('''
             SELECT mese, anno, totale FROM fatturato
             WHERE cliente_id=%s
