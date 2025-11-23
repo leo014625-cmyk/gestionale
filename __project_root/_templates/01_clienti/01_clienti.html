@@ -19,24 +19,39 @@
     {% endif %}
   {% endwith %}
 
-  <!-- Filtri e ricerca -->
+  <!-- Filtri -->
   <form method="get" class="mb-4 d-flex flex-wrap gap-3 align-items-end">
+
+    <!-- Ricerca -->
     <div class="d-flex flex-column">
       <label class="form-label mb-1">Cerca cliente</label>
       <input type="text" name="search" class="form-control"
              placeholder="Inserisci nome cliente..." value="{{ request.args.get('search', '') }}">
     </div>
 
+    <!-- Zona -->
     <div class="d-flex flex-column">
       <label class="form-label mb-1">Filtra per zona</label>
       <select name="zona" class="form-select" onchange="this.form.submit()">
-        <option value="" {% if not request.args.get('zona') %}selected{% endif %}>Tutte le zone</option>
+        <option value="">Tutte le zone</option>
         {% for z in clienti_per_zona.keys()|sort %}
-          <option value="{{ z }}" {% if request.args.get('zona') == z %}selected{% endif %}>{{ z }}</option>
+        <option value="{{ z }}" {% if request.args.get('zona') == z %}selected{% endif %}>{{ z }}</option>
         {% endfor %}
       </select>
     </div>
 
+    <!-- ⭐ NUOVO: FILTRO STATO CLIENTE -->
+    <div class="d-flex flex-column">
+      <label class="form-label mb-1">Stato cliente</label>
+      <select name="stato" class="form-select" onchange="this.form.submit()">
+        <option value="">Tutti</option>
+        <option value="attivo" {% if request.args.get('stato') == 'attivo' %}selected{% endif %}>Attivo</option>
+        <option value="bloccato" {% if request.args.get('stato') == 'bloccato' %}selected{% endif %}>Bloccato</option>
+        <option value="inattivo" {% if request.args.get('stato') == 'inattivo' %}selected{% endif %}>Inattivo</option>
+      </select>
+    </div>
+
+    <!-- Ordine -->
     <div class="d-flex flex-column">
       <label class="form-label mb-1">Ordina per</label>
       <select name="order" class="form-select" onchange="this.form.submit()">
@@ -48,14 +63,18 @@
     <button type="submit" class="btn btn-primary mt-2 rounded-4">Applica</button>
   </form>
 
+  <!-- Pulsante aggiungi cliente -->
   <a href="{{ url_for('nuovo_cliente') }}" class="btn btn-success mb-4 rounded-4 d-flex align-items-center gap-2">
     <i class="bi bi-person-plus"></i> Aggiungi Cliente
   </a>
 
+  <!-- =============================== -->
+  <!-- LISTA CLIENTI PER ZONA -->
+  <!-- =============================== -->
   {% if clienti_per_zona %}
     {% for zona, clienti in clienti_per_zona.items() %}
-      {% if not request.args.get('zona') or request.args.get('zona') == zona %}
 
+      {% if not request.args.get('zona') or request.args.get('zona') == zona %}
         <h3 class="mt-5 mb-3">{{ zona }}</h3>
 
         {% if clienti|length > 0 %}
@@ -66,86 +85,87 @@
                 <th class="text-center">Stato</th>
                 <th>Nome cliente</th>
                 <th>Zona</th>
-
-                <!-- 🌟 NUOVA COLONNA ANDAMENTO -->
                 <th class="text-center">Andamento</th>
-
                 <th class="text-end">Fatturato totale (€)</th>
                 <th class="text-center">Azioni</th>
               </tr>
             </thead>
+
             <tbody>
-
               {% for cliente in clienti %}
-              <tr>
-                <!-- STATO -->
-                <td class="text-center fs-6">
-                  {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
-                  {% if stato == 'attivo' %}
-                    <span class="px-2 py-1 bg-success text-white rounded-pill">Attivo</span>
-                  {% elif stato == 'bloccato' %}
-                    <span class="px-2 py-1 bg-danger text-white rounded-pill">Bloccato</span>
-                  {% else %}
-                    <span class="px-2 py-1 bg-secondary text-white rounded-pill">Inattivo</span>
-                  {% endif %}
-                </td>
 
-                <td>{{ cliente.nome }}</td>
-                <td>{{ cliente.zona or '–' }}</td>
-
-                <!-- 🌟 ANDAMENTO FATTURATO (Freccia ↑↓) -->
-                <td class="text-center fs-4">
-                  {% set andamento = andamento_clienti.get(cliente.id) %}
-                  
-                  {% if andamento is not none %}
-                    {% if andamento > 0 %}
-                      <span class="text-success fw-bold">
-                        <i class="bi bi-arrow-up"></i> {{ andamento }}%
-                      </span>
-                    {% elif andamento < 0 %}
-                      <span class="text-danger fw-bold">
-                        <i class="bi bi-arrow-down"></i> {{ andamento }}%
-                      </span>
+                <tr>
+                  <!-- Stato -->
+                  <td class="text-center fs-6">
+                    {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
+                    {% if stato == 'attivo' %}
+                      <span class="px-2 py-1 bg-success text-white rounded-pill">Attivo</span>
+                    {% elif stato == 'bloccato' %}
+                      <span class="px-2 py-1 bg-danger text-white rounded-pill">Bloccato</span>
                     {% else %}
-                      <span class="text-muted fw-bold">0%</span>
+                      <span class="px-2 py-1 bg-secondary text-white rounded-pill">Inattivo</span>
                     {% endif %}
-                  {% else %}
-                    <span class="text-muted">N/A</span>
-                  {% endif %}
-                </td>
+                  </td>
 
-                <!-- FATTURATO TOTALE -->
-                <td class="text-end">
-                  {% if cliente.fatturato_totale %}
+                  <!-- Nome -->
+                  <td>{{ cliente.nome }}</td>
+
+                  <!-- Zona -->
+                  <td>{{ cliente.zona or '–' }}</td>
+
+                  <!-- Andamento -->
+                  <td class="text-center fs-4">
+                    {% set andamento = andamento_clienti.get(cliente.id) %}
+
+                    {% if andamento is not none %}
+                      {% if andamento > 0 %}
+                        <span class="text-success fw-bold">
+                          <i class="bi bi-arrow-up"></i> {{ andamento }}%
+                        </span>
+                      {% elif andamento < 0 %}
+                        <span class="text-danger fw-bold">
+                          <i class="bi bi-arrow-down"></i> {{ andamento }}%
+                        </span>
+                      {% else %}
+                        <span class="text-muted fw-bold">0%</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">N/A</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Fatturato totale -->
+                  <td class="text-end">
+                    {% if cliente.fatturato_totale %}
                     <span class="fw-bold text-success">{{ "%.2f"|format(cliente.fatturato_totale) }}</span>
-                  {% else %}
+                    {% else %}
                     <span class="text-muted fst-italic">N/A</span>
-                  {% endif %}
-                </td>
+                    {% endif %}
+                  </td>
 
-                <!-- AZIONI -->
-                <td class="text-center">
-                  <div class="btn-group">
-                    <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-sm btn-primary">
-                      <i class="bi bi-eye"></i>
-                    </a>
-                    <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-sm btn-warning">
-                      <i class="bi bi-pencil-square"></i>
-                    </a>
-                    <form action="{{ url_for('elimina_cliente', id=cliente.id) }}" method="POST"
-                          onsubmit="return confirm('Sei sicuro di voler eliminare questo cliente?');"
-                          style="display:inline;">
-                      <button type="submit" class="btn btn-sm btn-danger">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    </form>
-                  </div>
-                </td>
+                  <!-- Azioni -->
+                  <td class="text-center">
+                    <div class="btn-group">
+                      <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                      <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-sm btn-warning">
+                        <i class="bi bi-pencil-square"></i>
+                      </a>
+                      <form action="{{ url_for('elimina_cliente', id=cliente.id) }}" method="POST"
+                            onsubmit="return confirm('Sei sicuro di voler eliminare questo cliente?');"
+                            style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
 
-              </tr>
               {% endfor %}
-
             </tbody>
+
           </table>
         </div>
 
@@ -165,9 +185,16 @@
 </div>
 
 <style>
-.table-hover tbody tr:hover { background-color: #e9f5ff; transition: background 0.3s; }
-.table-striped tbody tr:nth-of-type(odd) { background-color: #f8f9fa; }
-.btn-group .btn:hover { transform: translateY(-2px); }
+.table-hover tbody tr:hover {
+  background-color: #e9f5ff;
+  transition: background 0.3s;
+}
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #f8f9fa;
+}
+.btn-group .btn:hover {
+  transform: translateY(-2px);
+}
 </style>
 
 {% endblock %}
