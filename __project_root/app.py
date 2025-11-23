@@ -849,7 +849,6 @@ def modifica_cliente(id):
 
 import calendar
 
-
 @app.route('/clienti/<int:id>')
 @login_required
 def cliente_scheda(id):
@@ -862,14 +861,14 @@ def cliente_scheda(id):
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
 
-        # Cliente
+        # ================== CLIENTE ==================
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
         cliente = cur.fetchone()
         if not cliente:
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
-        # Prodotti
+        # ================== PRODOTTI ==================
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, COALESCE(c.nome,'–') AS categoria_nome
             FROM prodotti p
@@ -878,7 +877,7 @@ def cliente_scheda(id):
         ''')
         prodotti = cur.fetchall()
 
-        # Prodotti associati
+        # ================== PRODOTTI ASSOCIATI ==================
         cur.execute('''
             SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione
             FROM clienti_prodotti
@@ -891,11 +890,13 @@ def cliente_scheda(id):
 
         for p in prodotti:
             pid = p['id']
+
             if pid in assoc_dict:
-                lavorato = assoc_dict[pid]['lavorato']
-                prezzo_attuale = assoc_dict[pid]['prezzo_attuale']
-                prezzo_offerta = assoc_dict[pid]['prezzo_offerta']
-                data_op = assoc_dict[pid]['data_operazione']
+                dati = assoc_dict[pid]
+                lavorato = dati['lavorato']
+                prezzo_attuale = dati['prezzo_attuale']
+                prezzo_offerta = dati['prezzo_offerta']
+                data_op = dati['data_operazione']
             else:
                 lavorato = False
                 prezzo_attuale = None
@@ -909,28 +910,39 @@ def cliente_scheda(id):
             prezzi_offerta[str(pid)] = prezzo_offerta
             prodotti_data[str(pid)] = data_op
 
-        # Categorie
+        # ================== CATEGORIE ==================
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = [dict(c) for c in cur.fetchall()]
 
-        # Fatturato totale
-        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (id,))
+        # ================== FATTURATO ==================
+        # Totale
+        cur.execute('''
+            SELECT COALESCE(SUM(totale),0) AS totale
+            FROM fatturato WHERE cliente_id=%s
+        ''', (id,))
         fatturato_totale = cur.fetchone()['totale']
 
-        # Fatturato mese corrente
-        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                    (id, current_month, current_year))
+        # Mese corrente
+        cur.execute('''
+            SELECT COALESCE(SUM(totale),0) AS totale
+            FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s
+        ''', (id, current_month, current_year))
         totale_corrente = cur.fetchone()['totale']
 
-        # Fatturato mese precedente
-        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                    (id, prev_month, prev_year))
+        # Mese precedente
+        cur.execute('''
+            SELECT COALESCE(SUM(totale),0) AS totale
+            FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s
+        ''', (id, prev_month, prev_year))
         totale_prec = cur.fetchone()['totale']
 
-        # Variazione fatturato
-        variazione_fatturato_cliente = ((totale_corrente - totale_prec) / totale_prec * 100) if totale_prec else None
+        # Crescita mensile (%)
+        if totale_prec and totale_prec != 0:
+            crescita_mensile = round(((totale_corrente - totale_prec) / totale_prec) * 100, 2)
+        else:
+            crescita_mensile = None
 
-        # STATO CLIENTE BASATO SULL'ULTIMO FATTURATO
+        # ================== STATO CLIENTE ==================
         cur.execute('''
             SELECT anno, mese, MAX(totale) AS totale
             FROM fatturato
@@ -946,6 +958,7 @@ def cliente_scheda(id):
             mese = ultimo_fatturato_row['mese']
             ultimo_giorno = calendar.monthrange(anno, mese)[1]
             ultimo_fatturato_date = datetime(anno, mese, ultimo_giorno)
+
             giorni_ult_fatt = (oggi - ultimo_fatturato_date).days
 
             if giorni_ult_fatt <= 60:
@@ -957,7 +970,7 @@ def cliente_scheda(id):
         else:
             stato_cliente = 'inattivo'
 
-        # Fatturato mensile storico
+        # ================== STORICO MENSILE ==================
         cur.execute('''
             SELECT anno, mese, SUM(totale) AS totale
             FROM fatturato
@@ -965,9 +978,12 @@ def cliente_scheda(id):
             GROUP BY anno, mese
             ORDER BY anno ASC, mese ASC
         ''', (id,))
-        fatturato_mensile = {f"{r['anno']}-{r['mese']:02d}": r['totale'] for r in cur.fetchall()}
+        fatturato_mensile = {
+            f"{r['anno']}-{r['mese']:02d}": r['totale']
+            for r in cur.fetchall()
+        }
 
-        # Log cliente
+        # ================== LOG CLIENTE ==================
         cur.execute('''
             SELECT descrizione, data
             FROM (
@@ -1003,6 +1019,7 @@ def cliente_scheda(id):
                 log_dict['data'] = datetime.min
             log_cliente.append(log_dict)
 
+    # ================== RENDER ==================
     return render_template(
         "01_clienti/04_cliente_scheda.html",
         cliente=cliente,
@@ -1011,13 +1028,15 @@ def cliente_scheda(id):
         prodotti_lavorati=prodotti_lavorati,
         log_cliente=log_cliente,
         fatturato_totale=fatturato_totale,
-        variazione_fatturato_cliente=variazione_fatturato_cliente,
+        crescita_mensile=crescita_mensile,
+        variazione_fatturato_cliente=crescita_mensile,   # compatibilità vecchia variabile
         fatturato_mensile=fatturato_mensile,
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
         prodotti_data=prodotti_data,
         stato_cliente=stato_cliente
     )
+
 
 
 
