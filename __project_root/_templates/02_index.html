@@ -8,49 +8,49 @@
 body { background: #0f172a; color: #fff; }
 
 .dashboard-header {
-  background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
-  color: #fff;
-  border-radius: 1rem;
-  padding: 3rem 2rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #0d6efd 0%, #2a5bd7 100%);
+  color: #fff;
+  border-radius: 1rem;
+  padding: 3rem 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
 
 /* === Metriche === */
 .metric-card {
-  border: none;
-  transition: all 0.25s ease;
-  background: #1e293b;
-  border-radius: 1rem !important;
-  height: 100%;
-  color: #fff;
+  border: none;
+  transition: all 0.25s ease;
+  background: #1e293b;
+  border-radius: 1rem !important;
+  height: 100%;
+  color: #fff;
 }
 .metric-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
 }
 .metric-card h6 { font-size: 0.95rem; color: #a0a8b7; }
 
 /* === Grafici in stile "fatturato.html" === */
 .chart-card {
-  border-radius: 1rem;
-  background: #1e293b;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-  height: 420px;
-  display: flex;
-  flex-direction: column;
-  color: #fff;
+  border-radius: 1rem;
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  height: 420px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
 }
 .chart-card .card-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.5rem;
 }
 .chart-card canvas {
-  flex-grow: 1;
-  height: 280px !important;
-  width: 100% !important;
+  flex-grow: 1;
+  height: 280px !important;
+  width: 100% !important;
 }
 
 /* === Link cards === */
@@ -63,158 +63,299 @@ body { background: #0f172a; color: #fff; }
 .link-card:hover i { transform: scale(1.15); }
 
 .list-group-item { border-radius: 0.5rem; margin-bottom: 0.3rem; }
+
+/* Stile per modali scuri */
+.modal-content { background-color: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 1rem; }
+.modal-header { border-bottom: 1px solid #334155; }
+.modal-footer { border-top: 1px solid #334155; }
+.table-dark { --bs-table-bg: #1e293b; --bs-table-striped-bg: #334155; --bs-table-hover-bg: #475569; }
+
+/* Override per metriche */
+.metric-card .text-dark { color: #fff !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-5">
 
-  <!-- Header -->
-  <div class="dashboard-header text-center mb-5 position-relative">
-    <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3"
-            data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
-      <i class="bi bi-bell-fill fs-4 text-primary"></i>
-      {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
-      {% if not_unread|length > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
-        {{ not_unread|length }}
-      </span>
-      {% endif %}
-    </button>
-    <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
-    <p class="lead mb-0 text-white">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
-  </div>
+  <!-- Header -->
+  <div class="dashboard-header text-center mb-5 position-relative">
+    <button type="button" class="btn btn-light position-absolute top-0 end-0 m-3"
+            data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
+      <i class="bi bi-bell-fill fs-4 text-primary"></i>
+      {% set not_unread = notifiche|selectattr('letto', 'equalto', False)|list %}
+      {% if not_unread|length > 0 %}
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifica-badge">
+        {{ not_unread|length }}
+      </span>
+      {% endif %}
+    </button>
+    <h1 class="display-5 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
+    <p class="lead mb-0 text-white">Gestisci in un colpo d’occhio clienti, prodotti e fatturato.</p>
+  </div>
 
-  <!-- Quick Links -->
-  <div class="row quick-links justify-content-center g-4 mb-5">
-    <div class="col-12 col-md-3">
-      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-clienti">
-        <i class="bi bi-people-fill fs-3"></i> <span class="fw-semibold">Clienti</span>
-      </a>
-    </div>
-    <div class="col-12 col-md-3">
-      <a href="{{ url_for('prodotti') }}" class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-prodotti">
-        <i class="bi bi-box-seam fs-3"></i> <span class="fw-semibold">Prodotti</span>
-      </a>
-    </div>
-    <div class="col-12 col-md-3">
-      <a href="{{ url_for('fatturato') }}" class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-fatturato text-warning fw-semibold">
-        <i class="bi bi-cash-stack fs-3 text-warning"></i> <span>Fatturato</span>
-      </a>
-    </div>
-  </div>
+  <!-- Quick Links -->
+  <div class="row quick-links justify-content-center g-4 mb-5">
+    <div class="col-12 col-md-3">
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-clienti">
+        <i class="bi bi-people-fill fs-3"></i> <span class="fw-semibold">Clienti</span>
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{{ url_for('prodotti') }}" class="btn btn-outline-success btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-prodotti">
+        <i class="bi bi-box-seam fs-3"></i> <span class="fw-semibold">Prodotti</span>
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{{ url_for('fatturato') }}" class="btn btn-outline-warning btn-lg w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-4 link-card link-fatturato text-warning fw-semibold">
+        <i class="bi bi-cash-stack fs-3 text-warning"></i> <span>Fatturato</span>
+      </a>
+    </div>
+  </div>
 
-  <!-- Metriche -->
-  <div class="row g-4 mb-5">
-    {% set metriche = [
-      {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
-      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-dark'},
-      {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
-      {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
-      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-dark'},
-      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-dark'}
-    ] %}
+  <!-- Metriche con Modali Attivate -->
+  <div class="row g-4 mb-5">
+    {% set metriche = [
+      {'titolo': 'Variazione Fatturato', 'valore': variazione_fatturato, 'tipo': 'percent', 'modal': 'modalFatturato', 'classe': 'text-light'},
+      {'titolo': 'Clienti Nuovi (30gg)', 'valore': clienti_nuovi|length if clienti_nuovi is iterable else clienti_nuovi, 'modal': 'modalClientiNuovi', 'classe': 'text-info'},
+      {'titolo': 'Clienti Bloccati', 'valore': clienti_bloccati|length if clienti_bloccati is iterable else clienti_bloccati, 'modal': 'modalClientiBloccati', 'classe': 'text-danger'},
+      {'titolo': 'Clienti Inattivi', 'valore': clienti_inattivi|length if clienti_inattivi is iterable else clienti_inattivi, 'modal': 'modalClientiInattivi', 'classe': 'text-secondary'},
+      {'titolo': 'Prodotti Inseriti (30gg)', 'valore': prodotti_inseriti|length if prodotti_inseriti is iterable else prodotti_inseriti, 'modal': 'modalProdottiTotali', 'classe': 'text-success'},
+      {'titolo': 'Prodotti Rimossi', 'valore': prodotti_rimossi|length if prodotti_rimossi is iterable else prodotti_rimossi, 'modal': 'modalProdottiRimossi', 'classe': 'text-warning'}
+    ] %}
 
-    {% for m in metriche %}
-      <div class="col-6 col-md-3">
-        <div class="card metric-card text-center p-3 h-100" role="button" data-bs-toggle="modal" data-bs-target="#{{ m.modal }}">
-          <h6>{{ m.titolo }}</h6>
-          {% if m.tipo == 'percent' and m.valore is not none %}
-            <div class="fs-3 fw-bold {{ 'text-success' if m.valore > 0 else 'text-danger' }}">
-              {{ "%.2f"|format(m.valore) }}%
-              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>{% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
-            </div>
-          {% else %}
-            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore or 0 }}</div>
-          {% endif %}
-        </div>
-      </div>
-    {% endfor %}
-  </div>
+    {% for m in metriche %}
+      <div class="col-6 col-md-3 col-lg-2">
+        <!-- Aggiunto data-bs-toggle e data-bs-target per attivare la modale al click -->
+        <div class="card metric-card text-center p-3 h-100" 
+                role="button" 
+                data-bs-toggle="modal" 
+                data-bs-target="#{{ m.modal }}">
+          <h6 class="text-muted">{{ m.titolo }}</h6>
+          {% if m.tipo == 'percent' and m.valore is not none %}
+            <div class="fs-3 fw-bold {{ 'text-success' if m.valore > 0 else 'text-danger' }}">
+              {{ "%.2f"|format(m.valore) }}%
+              {% if m.valore > 0 %}<i class="bi bi-arrow-up"></i>{% elif m.valore < 0 %}<i class="bi bi-arrow-down"></i>{% endif %}
+            </div>
+          {% else %}
+            <div class="fs-3 fw-bold {{ m.classe }}">{{ m.valore or 0 }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 
-  <!-- Grafici -->
-  <div class="row g-4 mb-5">
-    <div class="col-lg-8">
-      <div class="card chart-card">
-        <div class="card-body">
-          <h5 class="card-title mb-3 fw-semibold">
-            <i class="bi bi-graph-up me-2 text-info"></i> Andamento Fatturato Mensile
-          </h5>
-          <canvas id="fatturatoChart"></canvas>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-4">
-      <div class="card chart-card">
-        <div class="card-body">
-          <h5 class="card-title mb-3 fw-semibold">
-            <i class="bi bi-pie-chart me-2 text-warning"></i> Fatturato per Zona
-          </h5>
-          <canvas id="fatturatoZonaChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Grafici -->
+  <div class="row g-4 mb-5">
+    <div class="col-lg-8">
+      <div class="card chart-card">
+        <div class="card-body">
+          <h5 class="card-title mb-3 fw-semibold">
+            <i class="bi bi-graph-up me-2 text-info"></i> Andamento Fatturato Mensile
+          </h5>
+          <canvas id="fatturatoChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card chart-card">
+        <div class="card-body">
+          <h5 class="card-title mb-3 fw-semibold">
+            <i class="bi bi-pie-chart me-2 text-warning"></i> Fatturato per Zona
+          </h5>
+          <canvas id="fatturatoZonaChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
+<!-- INIZIO MACRO PER MODAL (necessarie per generare le modali) -->
+{% macro client_modal(id, title, list_data, date_label, type_icon) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="{{ id }}Label"><i class="{{ type_icon }} me-2"></i> {{ title }} ({{ list_data|length }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        {% if list_data|length > 0 %}
+        <div class="table-responsive">
+          <table class="table table-dark table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Nome Cliente</th>
+                <th scope="col">Zona</th>
+                <th scope="col">{{ date_label }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in list_data %}
+              <tr>
+                <td>{{ item.nome }}</td>
+                <td>{{ item.zona }}</td>
+                <td>{{ item.data_stato }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="p-4 text-center text-muted">Nessun dato da visualizzare.</p>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro product_modal(id, title, list_data, date_label, type_icon) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="{{ id }}Label"><i class="{{ type_icon }} me-2"></i> {{ title }} ({{ list_data|length }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        {% if list_data|length > 0 %}
+        <div class="table-responsive">
+          <table class="table table-dark table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Cliente</th>
+                <th scope="col">Prodotto</th>
+                <th scope="col">{{ date_label }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in list_data %}
+              <tr>
+                <td>{{ item.cliente }}</td>
+                <td>{{ item.prodotto }}</td>
+                <td>{{ item.data_operazione }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="p-4 text-center text-muted">Nessun dato da visualizzare.</p>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+    </div>
+</div>
+{% endmacro %}
+<!-- FINE MACRO PER MODAL -->
+
+<!-- CHIAMATE ALLE MACRO PER GENERARE LE MODALI NECESSARIE -->
+<!-- NB: Queste modali sono rese solo se i dati (clienti_nuovi, clienti_bloccati, etc.) sono definiti nel contesto. -->
+{{ client_modal('modalClientiNuovi', 'Dettaglio Clienti Nuovi (30 giorni)', clienti_nuovi, 'Data Registrazione', 'bi bi-person-check-fill text-info') }}
+{{ client_modal('modalClientiBloccati', 'Dettaglio Clienti Bloccati', clienti_bloccati, 'Ultimo Fatturato', 'bi bi-exclamation-triangle-fill text-danger') }}
+{{ client_modal('modalClientiInattivi', 'Dettaglio Clienti Inattivi', clienti_inattivi, 'Ultimo Fatturato', 'bi bi-person-x-fill text-secondary') }}
+{{ product_modal('modalProdottiTotali', 'Prodotti Inseriti (30 giorni)', prodotti_inseriti, 'Data Inserimento', 'bi bi-box-arrow-in-right text-success') }}
+{{ product_modal('modalProdottiRimossi', 'Prodotti Rimossi', prodotti_rimossi, 'Data Rimozione', 'bi bi-box-arrow-up-left text-warning') }}
+<!-- Modale fittizia per Variazione Fatturato (non ha una lista di clienti associata, ma serve per completezza) -->
+<div class="modal fade" id="modalFatturato" tabindex="-1" aria-labelledby="modalFatturatoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalFatturatoLabel">Variazione Fatturato</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p>Questa metrica mostra la variazione percentuale del fatturato rispetto al mese precedente.</p>
+        <h3 class="fw-bold {{ 'text-success' if variazione_fatturato > 0 else 'text-danger' }}">
+          {{ "%.2f"|format(variazione_fatturato) }}%
+        </h3>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Grafici Chart.js -->
-{% if fatturato_mensile is defined %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% if fatturato_mensile is defined %}
 <script>
 (() => {
-  const fatturatoMensile = {{ fatturato_mensile|tojson }};
-  const mesi = Object.keys(fatturatoMensile).sort();
-  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-  const labels = mesi.map(m => {
-    const [anno, mese] = m.split('-');
-    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
-  });
-  const valori = Object.values(fatturatoMensile);
+  // Funzione per parsare JSON in modo sicuro
+  const safeParseJson = (jsonString, defaultValue = {}) => {
+    try {
+      // Rimuove eventuali doppie virgolette esterne che potrebbero essere aggiunte dall'ambiente
+      const cleanedString = jsonString.trim().replace(/^"|"$/g, '');
+      return JSON.parse(cleanedString);
+    } catch (e) {
+      console.error("Errore nel parsing JSON:", e);
+      return defaultValue;
+    }
+  };
+  
+  const fatturatoMensile = safeParseJson('{{ fatturato_mensile|tojson | safe }}');
+  const mesi = Object.keys(fatturatoMensile).sort();
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const labels = mesi.map(m => {
+    const [anno, mese] = m.split('-');
+    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+  });
+  const valori = Object.values(fatturatoMensile);
 
-  const ctx1 = document.getElementById('fatturatoChart').getContext('2d');
-  new Chart(ctx1, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Fatturato (€)',
-        data: valori,
-        backgroundColor: 'rgba(74,144,226,0.8)',
-        borderRadius: 8,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } },
-        y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.15)' }, ticks: { color: '#a0a8b7' } }
-      }
-    }
-  });
+  if (document.getElementById('fatturatoChart')) {
+    const ctx1 = document.getElementById('fatturatoChart').getContext('2d');
+    new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Fatturato (€)',
+          data: valori,
+          backgroundColor: 'rgba(74,144,226,0.8)',
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#a0a8b7', font: { weight: '600' } } },
+          y: { beginAtZero: true, grid: { color: 'rgba(160,168,183,0.15)' }, ticks: { color: '#a0a8b7' } }
+        }
+      }
+    });
+  }
 
-  const fatturatoZona = {{ fatturato_per_zona|default({})|tojson }};
-  const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
-  new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-      labels: Object.keys(fatturatoZona),
-      datasets: [{
-        data: Object.values(fatturatoZona),
-        backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { labels: { color: '#a0a8b7', padding: 15 } },
-        tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
-      },
-      cutout: '70%'
-    }
-  });
+  const fatturatoZona = safeParseJson('{{ fatturato_per_zona|default({})|tojson | safe }}');
+
+  if (document.getElementById('fatturatoZonaChart')) {
+    const ctx2 = document.getElementById('fatturatoZonaChart').getContext('2d');
+    new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(fatturatoZona),
+        datasets: [{
+          data: Object.values(fatturatoZona),
+          backgroundColor: ['#4a90e2','#50e3c2','#f5a623','#e94e77','#7b61ff','#b8e986'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: '#a0a8b7', padding: 15 } },
+          tooltip: { backgroundColor: '#1a2638', titleColor: '#4a90e2', bodyColor: '#cfd8e6', displayColors: false }
+        },
+        cutout: '70%'
+      }
+    });
+  }
 })();
 </script>
 {% endif %}
