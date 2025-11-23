@@ -262,9 +262,6 @@ def aggiorna_fatturato_totale(id):
         ''', (id, id))
         db.commit()
 
-# ============================
-# ROUTE PRINCIPALE - DASHBOARD
-# ============================
 @app.route('/')
 @login_required
 def index():
@@ -329,8 +326,6 @@ def index():
 
 
         # === Stato clienti (attivi, bloccati, inattivi) - LOGICA AGGIORNATA ===
-        # FIX: Rimosso 'bloccato' dalla SELECT, poiché è una colonna non esistente.
-        # Lo stato 'bloccato' viene calcolato dinamicamente subito dopo.
         cur.execute('SELECT id, nome FROM clienti') 
         clienti_rows = cur.fetchall()
         clienti_bloccati_dettaglio, clienti_attivi_dettaglio, clienti_inattivi_dettaglio = [], [], []
@@ -339,6 +334,7 @@ def index():
 
         for cliente in clienti_rows:
             # Recupera la data dell'ultimo fatturato per il cliente
+            # NOTA: Per un DB reale dovresti fare un JOIN e filtrare solo i record recenti per efficienza.
             cur.execute('SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
             ultimo = cur.fetchone()['ultimo_fatturato']
             
@@ -363,13 +359,16 @@ def index():
                 clienti_attivi_dettaglio.append({'nome': cliente['nome']})
             elif stato == 'inattivo':
                 clienti_inattivi_dettaglio.append({'nome': cliente['nome']})
-            
+                
         # Aggiornamento dei conteggi finali
         clienti_bloccati = len(clienti_bloccati_dettaglio)
-        clienti_inattivi = len(clienti_inattivi_dettaglio)
+        clienti_inattivi_count = len(clienti_inattivi_dettaglio) # Rinominata per chiarezza nel backend
         clienti_attivi = len(clienti_attivi_dettaglio)
-
-
+        
+        # *** RISOLUZIONE: Usiamo la lista 'clienti_inattivi_dettaglio' per il conteggio nel template ***
+        # Il template index.html usa la variabile 'clienti_inattivi' (che si aspetta sia una lista)
+        # per calcolarne la lunghezza. La usiamo così come è stata riempita sopra.
+        
         # === Prodotti inseriti nel mese (lascio invariato al mese solare completo) ===
         cur.execute('''
             SELECT c.nome AS cliente, p.nome AS prodotto, cp.data_operazione
@@ -377,7 +376,7 @@ def index():
             JOIN clienti c ON cp.cliente_id = c.id
             JOIN prodotti p ON cp.prodotto_id = p.id
             WHERE cp.lavorato = TRUE
-             AND cp.data_operazione >= %s AND cp.data_operazione < %s
+              AND cp.data_operazione >= %s AND cp.data_operazione < %s
         ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
         prodotti_inseriti_rows = cur.fetchall()
         prodotti_inseriti = [
@@ -459,7 +458,10 @@ def index():
         clienti_bloccati=clienti_bloccati,
         clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
         clienti_attivi_dettaglio=clienti_attivi_dettaglio,
-        clienti_inattivi_dettaglio=clienti_inattivi_dettaglio,
+        # *** VARIABILE AGGIORNATA: Passiamo la lista al template ***
+        clienti_inattivi=clienti_inattivi_dettaglio, 
+        # *** Il template index.html usa 'clienti_inattivi|length' e questa lista ne fornirà il conteggio
+        
         prodotti_totali_mese=prodotti_totali_mese,
         prodotti_rimossi_mese=prodotti_rimossi_mese,
         prodotti_inseriti=prodotti_inseriti,
