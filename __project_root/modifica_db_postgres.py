@@ -58,7 +58,7 @@ def aggiorna_db():
     """)
 
     # ============================
-    # FORNITORI  (NUOVA TABELLA)
+    # FORNITORI (NUOVA TABELLA)
     # ============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS fornitori (
@@ -84,7 +84,7 @@ def aggiorna_db():
 
     # 🔥 Aggiunge la colonna fornitore_id solo se manca
     cur.execute("""
-        ALTER TABLE clienti_prodotti 
+        ALTER TABLE clienti_prodotti
         ADD COLUMN IF NOT EXISTS fornitore_id INTEGER REFERENCES fornitori(id)
     """)
 
@@ -163,6 +163,7 @@ def aggiorna_db():
     # ============================
     cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_cliente ON clienti_prodotti(cliente_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_prodotto ON clienti_prodotti(prodotto_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_fornitore ON clienti_prodotti(fornitore_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno ON fatturato(cliente_id, mese, anno)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino ON volantino_prodotti(volantino_id)")
 
