@@ -917,24 +917,34 @@ import calendar
 def cliente_scheda(id):
     oggi = datetime.today()
 
-    # 🔥 MESE DA USARE = MESE PRECEDENTE
-    mese_attuale = (oggi.replace(day=1) - relativedelta(months=1)).month
-    anno_attuale = (oggi.replace(day=1) - relativedelta(months=1)).year
+    # ===============================
+    # CALCOLO MESI PER LA CRESCITA
+    # ===============================
+    mese_corrente = oggi.month
+    anno_corrente = oggi.year
 
-    mese_precedente = (oggi.replace(day=1) - relativedelta(months=2)).month
-    anno_precedente = (oggi.replace(day=1) - relativedelta(months=2)).year
+    mese_ref = mese_corrente - 1 if mese_corrente > 1 else 12
+    anno_ref = anno_corrente if mese_corrente > 1 else anno_corrente - 1
+
+    mese_ref_prec = mese_ref - 1 if mese_ref > 1 else 12
+    anno_ref_prec = anno_ref if mese_ref > 1 else anno_ref - 1
 
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
 
-        # ================== CLIENTE ==================
+        # ====================================
+        # DATI CLIENTE
+        # ====================================
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
         cliente = cur.fetchone()
+
         if not cliente:
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
-        # ================== PRODOTTI ==================
+        # ====================================
+        # PRODOTTI
+        # ====================================
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, COALESCE(c.nome,'–') AS categoria_nome
             FROM prodotti p
@@ -943,7 +953,7 @@ def cliente_scheda(id):
         ''')
         prodotti = cur.fetchall()
 
-        # ================== PRODOTTI ASSOCIATI ==================
+        # Prodotti già assegnati al cliente
         cur.execute('''
             SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione
             FROM clienti_prodotti
@@ -952,59 +962,66 @@ def cliente_scheda(id):
         prodotti_assoc = cur.fetchall()
 
         assoc_dict = {p['prodotto_id']: p for p in prodotti_assoc}
-        prodotti_lavorati, prezzi_attuali, prezzi_offerta, prodotti_data = [], {}, {}, {}
+
+        prodotti_lavorati = []
+        prezzi_attuali = {}
+        prezzi_offerta = {}
+        prodotti_data = {}
 
         for p in prodotti:
             pid = p['id']
-            dati = assoc_dict.get(pid, {})
 
-            lavorato = dati.get('lavorato', False)
-            prezzo_attuale = dati.get('prezzo_attuale')
-            prezzo_offerta = dati.get('prezzo_offerta')
-            data_op = dati.get('data_operazione')
+            if pid in assoc_dict:
+                lavorato = assoc_dict[pid]['lavorato']
+                prezzi_attuali[str(pid)] = assoc_dict[pid]['prezzo_attuale']
+                prezzi_offerta[str(pid)] = assoc_dict[pid]['prezzo_offerta']
+                prodotti_data[str(pid)] = assoc_dict[pid]['data_operazione']
+            else:
+                lavorato = False
+                prezzi_attuali[str(pid)] = None
+                prezzi_offerta[str(pid)] = None
+                prodotti_data[str(pid)] = None
 
             if lavorato:
                 prodotti_lavorati.append(str(pid))
 
-            prezzi_attuali[str(pid)] = prezzo_attuale
-            prezzi_offerta[str(pid)] = prezzo_offerta
-            prodotti_data[str(pid)] = data_op
-
-        # ================== CATEGORIE ==================
+        # ====================================
+        # CATEGORIE
+        # ====================================
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = [dict(c) for c in cur.fetchall()]
 
-        # ================== FATTURATO ==================
-        # Totale
-        cur.execute('''
-            SELECT COALESCE(SUM(totale),0) AS totale
-            FROM fatturato WHERE cliente_id=%s
-        ''', (id,))
+        # ====================================
+        # FATTURATO TOTALI
+        # ====================================
+        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (id,))
         fatturato_totale = cur.fetchone()['totale']
 
-        # 🔥 Fatturato mese ATTUALE (che è mese precedente nella realtà)
+        # ====================================
+        # CRESCITA MENSILE SU MESI ARRETRATI
+        # ====================================
         cur.execute('''
             SELECT COALESCE(SUM(totale),0) AS totale
             FROM fatturato
             WHERE cliente_id=%s AND mese=%s AND anno=%s
-        ''', (id, mese_attuale, anno_attuale))
-        fatt_attuale = cur.fetchone()['totale']
+        ''', (id, mese_ref, anno_ref))
+        fatt_ref = cur.fetchone()['totale']
 
-        # 🔥 Fatturato mese PRECEDENTE rispetto a quello selezionato
         cur.execute('''
             SELECT COALESCE(SUM(totale),0) AS totale
             FROM fatturato
             WHERE cliente_id=%s AND mese=%s AND anno=%s
-        ''', (id, mese_precedente, anno_precedente))
-        fatt_precedente = cur.fetchone()['totale']
+        ''', (id, mese_ref_prec, anno_ref_prec))
+        fatt_prec = cur.fetchone()['totale']
 
-        # 🔥 Crescita (mese attuale VS mese precedente)
-        if fatt_precedente and fatt_precedente != 0:
-            crescita_mensile = round(((fatt_attuale - fatt_precedente) / fatt_precedente) * 100, 2)
+        if fatt_prec > 0:
+            crescita_mensile = round(((fatt_ref - fatt_prec) / fatt_prec) * 100, 2)
         else:
             crescita_mensile = None
 
-        # ================== STATO CLIENTE ==================
+        # ====================================
+        # STATO CLIENTE
+        # ====================================
         cur.execute('''
             SELECT anno, mese, MAX(totale) AS totale
             FROM fatturato
@@ -1023,15 +1040,17 @@ def cliente_scheda(id):
             giorni_ult_fatt = (oggi - ultimo_fatturato_date).days
 
             if giorni_ult_fatt <= 60:
-                stato_cliente = 'attivo'
+                stato_cliente = "attivo"
             elif 61 <= giorni_ult_fatt <= 91:
-                stato_cliente = 'bloccato'
+                stato_cliente = "bloccato"
             else:
-                stato_cliente = 'inattivo'
+                stato_cliente = "inattivo"
         else:
-            stato_cliente = 'inattivo'
+            stato_cliente = "inattivo"
 
-        # ================== STORICO MENSILE ==================
+        # ====================================
+        # FATTURATO MENSILE STORICO
+        # ====================================
         cur.execute('''
             SELECT anno, mese, SUM(totale) AS totale
             FROM fatturato
@@ -1044,43 +1063,56 @@ def cliente_scheda(id):
             for r in cur.fetchall()
         }
 
-        # ================== LOG CLIENTE ==================
+        # ====================================
+        # LOG COMPLETAMENTE SISTEMATO
+        # ====================================
         cur.execute('''
             SELECT descrizione, data
             FROM (
-                SELECT 'Aggiunto prodotto: ' || p.nome, cp.data_operazione
-                FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
+                SELECT 
+                    'Aggiunto prodotto: ' || p.nome AS descrizione,
+                    cp.data_operazione AS data
+                FROM clienti_prodotti cp 
+                JOIN prodotti p ON cp.prodotto_id=p.id
                 WHERE cp.cliente_id=%s AND cp.lavorato=TRUE
 
                 UNION ALL
 
-                SELECT 'Rimosso prodotto: ' || p.nome, pr.data_rimozione
-                FROM prodotti_rimossi pr JOIN prodotti p ON pr.prodotto_id=p.id
+                SELECT 
+                    'Rimosso prodotto: ' || p.nome AS descrizione,
+                    pr.data_rimozione AS data
+                FROM prodotti_rimossi pr 
+                JOIN prodotti p ON pr.prodotto_id=p.id
                 WHERE pr.cliente_id=%s
 
                 UNION ALL
 
-                SELECT 'Fatturato aggiornato: ' || totale || ' €', make_date(anno, mese, 1)
+                SELECT 
+                    'Fatturato aggiornato: ' || totale || ' €' AS descrizione,
+                    make_date(anno, mese, 1) AS data
                 FROM fatturato
                 WHERE cliente_id=%s
 
                 UNION ALL
 
-                SELECT 'Prezzo prodotto modificato: ' || p.nome, cp.data_operazione
-                FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
-                WHERE cp.cliente_id=%s AND (cp.prezzo_attuale IS NOT NULL OR cp.prezzo_offerta IS NOT NULL)
+                SELECT 
+                    'Prezzo prodotto modificato: ' || p.nome AS descrizione,
+                    cp.data_operazione AS data
+                FROM clienti_prodotti cp 
+                JOIN prodotti p ON cp.prodotto_id=p.id
+                WHERE cp.cliente_id=%s 
+                  AND (cp.prezzo_attuale IS NOT NULL OR cp.prezzo_offerta IS NOT NULL)
             ) AS logs
             ORDER BY data DESC
         ''', (id, id, id, id))
 
         log_cliente = []
         for l in cur.fetchall():
-            row = dict(l)
-            if not row['data']:
-                row['data'] = datetime.min
-            log_cliente.append(row)
+            log_dict = dict(l)
+            if not log_dict['data']:
+                log_dict['data'] = datetime.min
+            log_cliente.append(log_dict)
 
-    # ================== RENDER ==================
     return render_template(
         "01_clienti/04_cliente_scheda.html",
         cliente=cliente,
@@ -1096,8 +1128,6 @@ def cliente_scheda(id):
         prodotti_data=prodotti_data,
         stato_cliente=stato_cliente
     )
-
-
 
 
 
