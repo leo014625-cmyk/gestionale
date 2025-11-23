@@ -345,12 +345,25 @@ def index():
             else:
                 stato = "inattivo"
 
+            # 🔥 ADESSO AGGIUNGO ANCHE LA DATA DELL'ULTIMO FATTURATO
             if stato == "attivo":
-                clienti_attivi_dettaglio.append(cliente)
+                clienti_attivi_dettaglio.append({
+                    "id": cliente["id"],
+                    "nome": cliente["nome"],
+                    "ultimo_fatturato": ultimo
+                })
             elif stato == "bloccato":
-                clienti_bloccati_dettaglio.append(cliente)
+                clienti_bloccati_dettaglio.append({
+                    "id": cliente["id"],
+                    "nome": cliente["nome"],
+                    "ultimo_fatturato": ultimo
+                })
             else:
-                clienti_inattivi_dettaglio.append(cliente)
+                clienti_inattivi_dettaglio.append({
+                    "id": cliente["id"],
+                    "nome": cliente["nome"],
+                    "ultimo_fatturato": ultimo
+                })
 
         # ======================================================================================
         # === PRODOTTI INSERITI (ULTIMI 30 GIORNI) ===
@@ -387,7 +400,6 @@ def index():
                 pr.data_rimozione
             FROM prodotti_rimossi pr
             JOIN prodotti p ON pr.prodotto_id = p.id
-            JOIN clienti_prodotti cp ON cp.prodotto_id = p.id AND cp.cliente_id = pr.cliente_id
             JOIN clienti c ON pr.cliente_id = c.id
             WHERE pr.data_rimozione >= %s
         """, (trenta_giorni_fa,))
