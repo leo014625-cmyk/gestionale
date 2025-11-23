@@ -628,65 +628,13 @@ def nuovo_cliente():
         current_year=current_year
     )
 
-# --- NUOVA FUNZIONE PER ELIMINARE FATTURATO ---
-@app.route('/elimina_fatturato', methods=['POST'])
-@login_required
-def handle_elimina_fatturato():
-    """Endpoint per eliminare una riga di fatturato tramite ID."""
-    data = request.get_json()
-    fatturato_id = data.get('fatturato_id')
 
-    if not fatturato_id:
-        return jsonify(success=False, message="ID fatturato mancante."), 400
-
-    try:
-        with get_db() as db:
-            cur = db.cursor()
-            cur.execute('DELETE FROM fatturato WHERE id = %s', (fatturato_id,))
-            db.commit()
-            return jsonify(success=True, message="Fatturato eliminato con successo.")
-    except Exception as e:
-        print(f"Errore durante l'eliminazione del fatturato: {e}")
-        return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
-
-# --- FUNZIONE AGGIORNATA PER MODIFICARE I FATTURATI (già presente nel template) ---
-@app.route('/aggiorna_fatturati', methods=['POST'])
-@login_required
-def handle_aggiorna_fatturati():
-    """Endpoint per aggiornare gli importi dei fatturati dal modal."""
-    data = request.get_json()
-    fatturati = data.get('fatturati', [])
-
-    try:
-        with get_db() as db:
-            cur = db.cursor()
-            for item in fatturati:
-                fatturato_id = item.get('id')
-                importo = item.get('importo')
-                
-                # Assicurati che importo sia un numero valido (o convertibile)
-                if fatturato_id and importo is not None:
-                    # Se l'importo è 0 o negativo (o null dal form, gestito come 0.0 nel JS)
-                    # Potresti voler implementare qui una logica per eliminare se l'importo è zero,
-                    # ma per ora aggiorniamo.
-                    importo_float = float(importo) if importo else 0.0
-
-                    cur.execute(
-                        'UPDATE fatturato SET totale = %s WHERE id = %s', 
-                        (importo_float, fatturato_id)
-                    )
-            db.commit()
-            return jsonify(success=True, message="Fatturati aggiornati con successo.")
-    except Exception as e:
-        print(f"Errore durante l'aggiornamento dei fatturati: {e}")
-        return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
-
-
-# --- FUNZIONE PRINCIPALE MODIFICATA CLIENTE ---
+# --- FUNZIONE PRINCIPALE MODIFICA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
 def modifica_cliente(id):
     current_datetime = datetime.now()
+
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
 
@@ -697,13 +645,15 @@ def modifica_cliente(id):
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
-        # Zone e categorie
+        # Zone
         cur.execute('SELECT * FROM zone ORDER BY nome')
         zone = cur.fetchall()
+
+        # Categorie
         cur.execute('SELECT * FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
-        # Prodotti
+        # Prodotti + categorie
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, c.nome AS categoria_nome
             FROM prodotti p
@@ -712,15 +662,13 @@ def modifica_cliente(id):
         ''')
         prodotti = cur.fetchall()
 
-        # 💡 CREA prodotti_per_categoria (risolve l'errore!)
+        # Prodotti per categoria (per template)
         prodotti_per_categoria = {}
         for p in prodotti:
             cat = p.get('categoria_nome') or 'Senza categoria'
-            if cat not in prodotti_per_categoria:
-                prodotti_per_categoria[cat] = []
-            prodotti_per_categoria[cat].append(p)
+            prodotti_per_categoria.setdefault(cat, []).append(p)
 
-        # Prodotti associati al cliente
+        # Prodotti già associati
         cur.execute('''
             SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta
             FROM clienti_prodotti
@@ -728,13 +676,12 @@ def modifica_cliente(id):
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
-        # Preparazione liste e dizionari per il template
         prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato']]
         prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if not p['lavorato']]
         prezzi_attuali = {str(p['prodotto_id']): p['prezzo_attuale'] for p in prodotti_assoc}
         prezzi_offerta = {str(p['prodotto_id']): p['prezzo_offerta'] for p in prodotti_assoc}
 
-        # Fatturati cliente
+        # Fatturati del cliente
         cur.execute('''
             SELECT id, mese, anno, totale
             FROM fatturato
@@ -744,7 +691,8 @@ def modifica_cliente(id):
         fatturati_cliente = cur.fetchall()
 
         if request.method == 'POST':
-            # Aggiorna dati cliente
+
+            # ====== Aggiornamento dati cliente ======
             nome = request.form.get('nome', '').strip()
             zona = request.form.get('zona', '').strip()
             nuova_zona = request.form.get('nuova_zona', '').strip()
@@ -754,26 +702,41 @@ def modifica_cliente(id):
                 try:
                     cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
                 except Exception:
-                    # Ignora se la zona esiste già
-                    pass
+                    pass  # Se esiste già ignoriamo
 
             if not nome:
-                flash('Il nome del cliente è obbligatorio.', 'warning')
+                flash("Il nome del cliente è obbligatorio.", "warning")
                 return redirect(request.url)
 
             cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s', (nome, zona, id))
 
-            # Aggiorna prodotti associati
+            # ====== Aggiornamento prodotti cliente ======
             prodotti_selezionati = request.form.getlist('prodotti_lavorati[]')
+
             for prodotto in prodotti:
                 pid = str(prodotto['id'])
                 lavorato = pid in prodotti_selezionati
+
+                # Recupera stato precedente
+                cur.execute('''
+                    SELECT lavorato FROM clienti_prodotti
+                    WHERE cliente_id=%s AND prodotto_id=%s
+                ''', (id, pid))
+                stato_precedente = cur.fetchone()
+
+                # ----- LOG RIMOZIONE -----
+                if stato_precedente and stato_precedente['lavorato'] and not lavorato:
+                    cur.execute('''
+                        INSERT INTO prodotti_rimossi (cliente_id, prodotto_id, data_rimozione)
+                        VALUES (%s, %s, %s)
+                    ''', (id, pid, current_datetime))
+
+                # Prezzi
                 prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]') or None
                 prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]') or None
 
-                cur.execute('SELECT prodotto_id FROM clienti_prodotti WHERE cliente_id=%s AND prodotto_id=%s', (id, pid))
-                esiste = cur.fetchone()
-                if esiste:
+                # Aggiorna o inserisce il record
+                if stato_precedente:
                     cur.execute('''
                         UPDATE clienti_prodotti
                         SET lavorato=%s, prezzo_attuale=%s, prezzo_offerta=%s, data_operazione=%s
@@ -786,18 +749,21 @@ def modifica_cliente(id):
                         VALUES (%s,%s,%s,%s,%s,%s)
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, current_datetime))
 
-            # Aggiorna fatturato mensile (dalla sezione sopra le card)
+            # ====== Aggiornamento fatturato ======
             mese = request.form.get('mese')
             anno = request.form.get('anno')
             importo = request.form.get('fatturato_mensile')
+
             if mese and anno and importo:
                 try:
                     importo_float = float(importo)
                     mese_int = int(mese)
                     anno_int = int(anno)
+
                     cur.execute('SELECT id FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                                 (id, mese_int, anno_int))
                     esiste = cur.fetchone()
+
                     if esiste:
                         cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (importo_float, esiste['id']))
                     else:
@@ -807,17 +773,19 @@ def modifica_cliente(id):
                     flash('Importo fatturato non valido.', 'warning')
 
             db.commit()
-            flash('Cliente modificato con successo.', 'success')
+            flash("Cliente modificato con successo.", "success")
             return redirect(url_for('clienti'))
 
-        # Precompila ultimo fatturato (per il GET)
+        # ====== Precompila ultimo fatturato (GET) ======
         cur.execute('''
-            SELECT mese, anno, totale FROM fatturato
+            SELECT mese, anno, totale
+            FROM fatturato
             WHERE cliente_id=%s
             ORDER BY anno DESC, mese DESC
             LIMIT 1
         ''', (id,))
         ultimo_fatturato = cur.fetchone()
+
         mese = ultimo_fatturato['mese'] if ultimo_fatturato else None
         anno = ultimo_fatturato['anno'] if ultimo_fatturato else None
         importo = ultimo_fatturato['totale'] if ultimo_fatturato else None
