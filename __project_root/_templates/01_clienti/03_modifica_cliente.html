@@ -126,9 +126,10 @@
 
                 <!-- Fornitore -->
                 <td>
-                  <input type="text" class="form-control form-control-sm"
+                  <input type="text"
+                         class="form-control form-control-sm"
                          name="fornitore[{{ p.id }}]"
-                         value="{{ fornitori.get(pid,'') }}">
+                         value="{% if fornitori.get(pid) %}{{ lista_fornitori[fornitori.get(pid)]|default(fornitori.get(pid)) }}{% endif %}">
                 </td>
 
                 <!-- Prezzo attuale -->
