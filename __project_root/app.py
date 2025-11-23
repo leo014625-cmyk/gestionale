@@ -629,7 +629,7 @@ def nuovo_cliente():
 # --- NUOVA FUNZIONE PER ELIMINARE FATTURATO ---
 @app.route('/elimina_fatturato', methods=['POST'])
 @login_required
-def elimina_fatturato():
+def handle_elimina_fatturato():
     """Endpoint per eliminare una riga di fatturato tramite ID."""
     data = request.get_json()
     fatturato_id = data.get('fatturato_id')
@@ -650,7 +650,7 @@ def elimina_fatturato():
 # --- FUNZIONE AGGIORNATA PER MODIFICARE I FATTURATI (già presente nel template) ---
 @app.route('/aggiorna_fatturati', methods=['POST'])
 @login_required
-def aggiorna_fatturati():
+def handle_aggiorna_fatturati():
     """Endpoint per aggiornare gli importi dei fatturati dal modal."""
     data = request.get_json()
     fatturati = data.get('fatturati', [])
