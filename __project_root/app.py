@@ -853,10 +853,13 @@ import calendar
 @login_required
 def cliente_scheda(id):
     oggi = datetime.today()
-    current_month = oggi.month
-    current_year = oggi.year
-    prev_month = 12 if current_month == 1 else current_month - 1
-    prev_year = current_year - 1 if current_month == 1 else current_year
+
+    # 🔥 MESE DA USARE = MESE PRECEDENTE
+    mese_attuale = (oggi.replace(day=1) - relativedelta(months=1)).month
+    anno_attuale = (oggi.replace(day=1) - relativedelta(months=1)).year
+
+    mese_precedente = (oggi.replace(day=1) - relativedelta(months=2)).month
+    anno_precedente = (oggi.replace(day=1) - relativedelta(months=2)).year
 
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
@@ -884,24 +887,18 @@ def cliente_scheda(id):
             WHERE cliente_id=%s
         ''', (id,))
         prodotti_assoc = cur.fetchall()
-        assoc_dict = {p['prodotto_id']: p for p in prodotti_assoc}
 
+        assoc_dict = {p['prodotto_id']: p for p in prodotti_assoc}
         prodotti_lavorati, prezzi_attuali, prezzi_offerta, prodotti_data = [], {}, {}, {}
 
         for p in prodotti:
             pid = p['id']
+            dati = assoc_dict.get(pid, {})
 
-            if pid in assoc_dict:
-                dati = assoc_dict[pid]
-                lavorato = dati['lavorato']
-                prezzo_attuale = dati['prezzo_attuale']
-                prezzo_offerta = dati['prezzo_offerta']
-                data_op = dati['data_operazione']
-            else:
-                lavorato = False
-                prezzo_attuale = None
-                prezzo_offerta = None
-                data_op = None
+            lavorato = dati.get('lavorato', False)
+            prezzo_attuale = dati.get('prezzo_attuale')
+            prezzo_offerta = dati.get('prezzo_offerta')
+            data_op = dati.get('data_operazione')
 
             if lavorato:
                 prodotti_lavorati.append(str(pid))
@@ -922,23 +919,25 @@ def cliente_scheda(id):
         ''', (id,))
         fatturato_totale = cur.fetchone()['totale']
 
-        # Mese corrente
+        # 🔥 Fatturato mese ATTUALE (che è mese precedente nella realtà)
         cur.execute('''
             SELECT COALESCE(SUM(totale),0) AS totale
-            FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s
-        ''', (id, current_month, current_year))
-        totale_corrente = cur.fetchone()['totale']
+            FROM fatturato
+            WHERE cliente_id=%s AND mese=%s AND anno=%s
+        ''', (id, mese_attuale, anno_attuale))
+        fatt_attuale = cur.fetchone()['totale']
 
-        # Mese precedente
+        # 🔥 Fatturato mese PRECEDENTE rispetto a quello selezionato
         cur.execute('''
             SELECT COALESCE(SUM(totale),0) AS totale
-            FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s
-        ''', (id, prev_month, prev_year))
-        totale_prec = cur.fetchone()['totale']
+            FROM fatturato
+            WHERE cliente_id=%s AND mese=%s AND anno=%s
+        ''', (id, mese_precedente, anno_precedente))
+        fatt_precedente = cur.fetchone()['totale']
 
-        # Crescita mensile (%)
-        if totale_prec and totale_prec != 0:
-            crescita_mensile = round(((totale_corrente - totale_prec) / totale_prec) * 100, 2)
+        # 🔥 Crescita (mese attuale VS mese precedente)
+        if fatt_precedente and fatt_precedente != 0:
+            crescita_mensile = round(((fatt_attuale - fatt_precedente) / fatt_precedente) * 100, 2)
         else:
             crescita_mensile = None
 
@@ -958,7 +957,6 @@ def cliente_scheda(id):
             mese = ultimo_fatturato_row['mese']
             ultimo_giorno = calendar.monthrange(anno, mese)[1]
             ultimo_fatturato_date = datetime(anno, mese, ultimo_giorno)
-
             giorni_ult_fatt = (oggi - ultimo_fatturato_date).days
 
             if giorni_ult_fatt <= 60:
@@ -987,7 +985,7 @@ def cliente_scheda(id):
         cur.execute('''
             SELECT descrizione, data
             FROM (
-                SELECT 'Aggiunto prodotto: ' || p.nome AS descrizione, cp.data_operazione AS data
+                SELECT 'Aggiunto prodotto: ' || p.nome, cp.data_operazione
                 FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
                 WHERE cp.cliente_id=%s AND cp.lavorato=TRUE
 
@@ -1014,10 +1012,10 @@ def cliente_scheda(id):
 
         log_cliente = []
         for l in cur.fetchall():
-            log_dict = dict(l)
-            if not log_dict['data']:
-                log_dict['data'] = datetime.min
-            log_cliente.append(log_dict)
+            row = dict(l)
+            if not row['data']:
+                row['data'] = datetime.min
+            log_cliente.append(row)
 
     # ================== RENDER ==================
     return render_template(
@@ -1029,13 +1027,13 @@ def cliente_scheda(id):
         log_cliente=log_cliente,
         fatturato_totale=fatturato_totale,
         crescita_mensile=crescita_mensile,
-        variazione_fatturato_cliente=crescita_mensile,   # compatibilità vecchia variabile
         fatturato_mensile=fatturato_mensile,
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
         prodotti_data=prodotti_data,
         stato_cliente=stato_cliente
     )
+
 
 
 
