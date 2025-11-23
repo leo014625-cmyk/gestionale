@@ -71,15 +71,20 @@
     </button>
   </fieldset>
 
-  <!-- Prodotti con card moderne -->
+  <!-- Prodotti - Layout B: lista tabellare per categoria -->
   <div class="mb-4">
     <h4 class="mb-3">Prodotti</h4>
 
     {% if categorie %}
+      <!-- Tabs categorie -->
       <ul class="nav nav-tabs mb-3" id="prodottiTabs" role="tablist">
         {% for categoria in categorie %}
           <li class="nav-item" role="presentation">
-            <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ categoria.id }}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}" type="button" role="tab">
+            <button class="nav-link {% if loop.first %}active{% endif %}"
+                    id="tab-{{ categoria.id }}"
+                    data-bs-toggle="tab"
+                    data-bs-target="#cat-{{ categoria.id }}"
+                    type="button" role="tab">
               {{ categoria.nome }}
               {% if categoria.id|string in categorie_lavorate %}
                 <i class="bi bi-check-circle-fill text-success ms-1"></i>
@@ -92,33 +97,90 @@
       <div class="tab-content">
         {% for categoria in categorie %}
           <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}" role="tabpanel">
-            {% set prodotti_cat = prodotti|selectattr("categoria_id", "equalto", categoria.id)|list %}
+            {% set prodotti_cat = prodotti|selectattr("categoria_id","equalto",categoria.id)|list %}
             {% if prodotti_cat %}
-              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                {% for prodotto in prodotti_cat %}
-                  <div class="col">
-                    <div class="card h-100 shadow-sm prodotto-card {% if prodotto.id|string in prodotti_lavorati %}bg-success bg-opacity-10{% else %}bg-white{% endif %}">
-                      <div class="card-body d-flex flex-column">
-                        <div class="form-check mb-2">
-                          <input class="form-check-input" type="checkbox" id="prodotto{{ prodotto.id }}" name="prodotti_lavorati[]" value="{{ prodotto.id }}" {% if prodotto.id|string in prodotti_lavorati %}checked{% endif %}>
-                          <label class="form-check-label fw-bold" for="prodotto{{ prodotto.id }}">
-                            {{ prodotto.nome }}
-                          </label>
-                          <span class="badge bg-secondary ms-1">{{ prodotto.categoria_nome }}</span>
-                        </div>
-                        <div class="mt-auto prezzi-wrapper {% if prodotto.id|string in prodotti_lavorati %}d-none{% endif %}" id="prezzi-{{ prodotto.id }}">
-                          <div class="mb-2">
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_attuale[{{ prodotto.id }}]" placeholder="Prezzo attuale €" value="{{ prezzi_attuali.get(prodotto.id|string, '') }}">
-                          </div>
-                          <div>
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_offerta[{{ prodotto.id }}]" placeholder="Prezzo offerta €" value="{{ prezzi_offerta.get(prodotto.id|string, '') }}">
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                {% endfor %}
+
+              <!-- Barra di ricerca prodotti nella categoria -->
+              <div class="mb-2">
+                <input type="text"
+                       class="form-control form-control-sm filtro-prodotto"
+                       data-cat-id="{{ categoria.id }}"
+                       placeholder="Cerca prodotto o fornitore in {{ categoria.nome }}...">
               </div>
+
+              <div class="table-responsive">
+                <table class="table table-sm align-middle table-hover mb-0 tabella-prodotti-cat"
+                       id="tabella-cat-{{ categoria.id }}">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 40px;"></th>
+                      <th>Prodotto</th>
+                      <th style="width: 25%;">Fornitore</th>
+                      <th style="width: 15%;">Prezzo attuale (€)</th>
+                      <th style="width: 15%;">Prezzo offerta (€)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for prodotto in prodotti_cat %}
+                      {% set pid = prodotto.id|string %}
+                      <tr data-prodotto-id="{{ pid }}">
+                        <!-- Checkbox lavorato -->
+                        <td class="text-center">
+                          <input class="form-check-input check-lavorato"
+                                 type="checkbox"
+                                 id="prodotto{{ prodotto.id }}"
+                                 name="prodotti_lavorati[]"
+                                 value="{{ prodotto.id }}"
+                                 {% if pid in prodotti_lavorati %}checked{% endif %}>
+                        </td>
+
+                        <!-- Nome + categoria badge -->
+                        <td>
+                          <label class="fw-semibold mb-0" for="prodotto{{ prodotto.id }}">
+                            {{ prodotto.nome }}
+                          </label><br>
+                          <small class="text-muted">
+                            <i class="bi bi-box-seam"></i> {{ prodotto.categoria_nome }}
+                          </small>
+                        </td>
+
+                        <!-- Fornitore -->
+                        <td>
+                          <input type="text"
+                                 class="form-control form-control-sm"
+                                 name="fornitore[{{ prodotto.id }}]"
+                                 placeholder="Nome fornitore"
+                                 value="{% if fornitori is defined and fornitori.get(pid) %}{{ fornitori.get(pid) }}{% endif %}">
+                        </td>
+
+                        <!-- Prezzo attuale -->
+                        <td>
+                          <input type="number"
+                                 step="0.01" min="0"
+                                 class="form-control form-control-sm"
+                                 name="prezzo_attuale[{{ prodotto.id }}]"
+                                 placeholder="0,00"
+                                 value="{{ prezzi_attuali.get(pid, '') }}">
+                        </td>
+
+                        <!-- Prezzo offerta -->
+                        <td>
+                          <input type="number"
+                                 step="0.01" min="0"
+                                 class="form-control form-control-sm"
+                                 name="prezzo_offerta[{{ prodotto.id }}]"
+                                 placeholder="0,00"
+                                 value="{{ prezzi_offerta.get(pid, '') }}">
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <small class="text-muted d-block mt-2">
+                Seleziona la casella per indicare che il prodotto è lavorato per questo cliente.
+              </small>
             {% else %}
               <p class="text-muted">Nessun prodotto in questa categoria.</p>
             {% endif %}
@@ -130,23 +192,33 @@
     {% endif %}
   </div>
 
-  <!-- Tabelle Prodotti -->
+  <!-- Tabelle riepilogo Prodotti -->
   <hr>
   <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-6 mb-4">
       <h5>Prodotti Lavorati</h5>
-      <table class="table table-bordered table-striped mb-4" id="tabella-lavorati">
+      <table class="table table-bordered table-striped mb-0" id="tabella-lavorati">
         <thead class="table-success">
-          <tr><th>Prodotto</th><th>Categoria</th></tr>
+          <tr>
+            <th>Prodotto</th>
+            <th>Categoria</th>
+            <th>Fornitore</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-6 mb-4">
       <h5>Prodotti Non Lavorati</h5>
-      <table class="table table-bordered table-striped" id="tabella-non-lavorati">
+      <table class="table table-bordered table-striped mb-0" id="tabella-non-lavorati">
         <thead class="table-danger">
-          <tr><th>Prodotto</th><th>Categoria</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
+          <tr>
+            <th>Prodotto</th>
+            <th>Categoria</th>
+            <th>Fornitore</th>
+            <th>Prezzo Attuale</th>
+            <th>Prezzo Offerta</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -212,10 +284,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (isNew) nuovaZonaInput.focus();
   });
 
-  // --- Prodotti ---
+  // --- Prodotti per riepilogo ---
   const prodotti = [
     {% for prodotto in prodotti %}
-      { id: '{{ prodotto.id }}', nome: '{{ prodotto.nome }}', categoria: '{{ prodotto.categoria_nome }}' },
+      {
+        id: '{{ prodotto.id }}',
+        nome: '{{ prodotto.nome|replace("'", "\\'") }}',
+        categoria: '{{ prodotto.categoria_nome|replace("'", "\\'") }}'
+      },
     {% endfor %}
   ];
 
@@ -227,24 +303,65 @@ document.addEventListener('DOMContentLoaded', function () {
     nonLavoratiTbody.innerHTML = '';
 
     prodotti.forEach(p => {
-      const checkbox = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
-      if (checkbox && checkbox.checked) {
-        lavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td></tr>`);
+      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      const fornitoreInput = document.querySelector(`input[name="fornitore[${p.id}]"]`);
+      const prezzoAttualeInput = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`);
+      const prezzoOffertaInput = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`);
+
+      const forn = (fornitoreInput && fornitoreInput.value) ? fornitoreInput.value : '–';
+      const attuale = (prezzoAttualeInput && prezzoAttualeInput.value) ? prezzoAttualeInput.value : '–';
+      const offerta = (prezzoOffertaInput && prezzoOffertaInput.value) ? prezzoOffertaInput.value : '–';
+
+      if (chk && chk.checked) {
+        lavoratiTbody.insertAdjacentHTML(
+          'beforeend',
+          `<tr>
+            <td>${p.nome}</td>
+            <td>${p.categoria}</td>
+            <td>${forn}</td>
+          </tr>`
+        );
       } else {
-        const attuale = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value || '–';
-        const offerta = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value || '–';
-        nonLavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${attuale}</td><td>${offerta}</td></tr>`);
+        nonLavoratiTbody.insertAdjacentHTML(
+          'beforeend',
+          `<tr>
+            <td>${p.nome}</td>
+            <td>${p.categoria}</td>
+            <td>${forn}</td>
+            <td>${attuale}</td>
+            <td>${offerta}</td>
+          </tr>`
+        );
       }
     });
   }
 
   aggiornaTabelle();
 
-  document.querySelectorAll('input[name="prodotti_lavorati[]"]').forEach(chk => {
+  // Gestione check / dettagli prodotto
+  document.querySelectorAll('.check-lavorato').forEach(chk => {
     chk.addEventListener('change', function () {
-      const wrapper = document.getElementById('prezzi-' + this.value);
-      wrapper.classList.toggle('d-none', this.checked);
+      // (Se vuoi aggiungere logica di style per la riga, qui è il punto)
       aggiornaTabelle();
+    });
+  });
+
+  // Filtro per nome prodotto / fornitore per categoria
+  document.querySelectorAll('.filtro-prodotto').forEach(input => {
+    input.addEventListener('keyup', function () {
+      const catId = this.getAttribute('data-cat-id');
+      const filtro = this.value.toLowerCase();
+      const righe = document.querySelectorAll(`#tabella-cat-${catId} tbody tr`);
+
+      righe.forEach(riga => {
+        const testoProd = (riga.cells[1]?.innerText || '').toLowerCase();
+        const testoForn = (riga.cells[2]?.innerText || '').toLowerCase();
+        if (testoProd.includes(filtro) || testoForn.includes(filtro)) {
+          riga.style.display = '';
+        } else {
+          riga.style.display = 'none';
+        }
+      });
     });
   });
 
@@ -254,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const data = [];
 
     inputs.forEach(i => {
-        data.push({ id: i.dataset.fattId, importo: parseFloat(i.value) });
+      data.push({ id: i.dataset.fattId, importo: parseFloat(i.value) });
     });
 
     fetch("{{ url_for('aggiorna_fatturati') }}", {
@@ -280,25 +397,31 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <style>
-/* Card prodotti moderna */
-.prodotto-card {
-  transition: transform 0.2s, box-shadow 0.2s;
+/* Tabella prodotti */
+.tabella-prodotti-cat tbody tr {
+  cursor: pointer;
 }
-.prodotto-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+.tabella-prodotti-cat tbody tr:hover {
+  background-color: #f5f9ff;
 }
-.card .form-check { cursor: pointer; }
-.card .form-check-input { margin-top: 0.2rem; }
-.card .badge { font-size: 0.75rem; }
-.prezzi-wrapper input { width: 100%; }
 
-/* Colore più chiaro per prodotti lavorati */
-.prodotto-card.bg-success.bg-opacity-10 {
-  background-color: #d4edda !important; /* verde chiaro */
+/* Evidenziazione prodotti lavorati (checkbox) – opzionale, puoi aggiungere classe */
+.check-lavorato:checked.closest('tr') {
+  font-weight: 600;
+}
+
+/* Riepilogo tabelle */
+#tabella-lavorati thead,
+#tabella-non-lavorati thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Responsive migliorato */
+.table-responsive {
+  margin-bottom: 0.75rem;
 }
 </style>
 
 {% endblock %}
-
-
