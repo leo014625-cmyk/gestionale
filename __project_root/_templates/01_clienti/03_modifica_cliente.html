@@ -5,182 +5,199 @@
 {% block content %}
 
 {% set mesi = {
-    1: 'Gennaio', 2: 'Febbraio', 3: 'Marzo', 4: 'Aprile',
-    5: 'Maggio', 6: 'Giugno', 7: 'Luglio', 8: 'Agosto',
-    9: 'Settembre', 10: 'Ottobre', 11: 'Novembre', 12: 'Dicembre'
+    1:'Gennaio',2:'Febbraio',3:'Marzo',4:'Aprile',
+    5:'Maggio',6:'Giugno',7:'Luglio',8:'Agosto',
+    9:'Settembre',10:'Ottobre',11:'Novembre',12:'Dicembre'
 } %}
 
 <h1 class="mb-4">Modifica Cliente</h1>
 
 <form method="POST" novalidate>
+
   <!-- Nome cliente -->
   <div class="mb-3">
-    <label for="nome" class="form-label">Nome cliente</label>
-    <input type="text" class="form-control" id="nome" name="nome" value="{{ cliente.nome }}" required autofocus>
+    <label class="form-label">Nome cliente</label>
+    <input type="text" class="form-control" name="nome" value="{{ cliente.nome }}" required>
   </div>
 
   <!-- Zona -->
   <div class="mb-3">
-    <label for="zona" class="form-label">Zona</label>
-    <select class="form-select" id="zona" name="zona" required>
+    <label class="form-label">Zona</label>
+    <select class="form-select" name="zona" id="zona">
       {% for z in zone %}
-        <option value="{{ z.nome }}" {% if z.nome == cliente.zona %}selected{% endif %}>{{ z.nome }}</option>
+        <option value="{{ z.nome }}" {% if cliente.zona == z.nome %}selected{% endif %}>
+          {{ z.nome }}
+        </option>
       {% endfor %}
       <option disabled>──────────</option>
-      <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>+ Aggiungi nuova zona</option>
+      <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>
+        + Aggiungi nuova zona
+      </option>
     </select>
   </div>
 
   <!-- Nuova zona -->
   <div class="mb-3 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
-    <label for="nuova_zona" class="form-label">Nuova Zona</label>
-    <input type="text" class="form-control" id="nuova_zona" name="nuova_zona" placeholder="Inserisci nuova zona" value="{{ nuova_zona_value or '' }}">
+    <label class="form-label">Nuova zona</label>
+    <input type="text" class="form-control" name="nuova_zona"
+           value="{{ nuova_zona_value or '' }}" placeholder="Inserisci nuova zona">
   </div>
 
   <!-- Fatturato -->
   <fieldset class="mb-4">
-    <legend>Fatturato Mensile</legend>
+    <legend>Fatturato mensile</legend>
 
-    <div class="row g-3 align-items-center mb-3">
+    <div class="row g-2 mb-3">
       <div class="col-auto">
-        <label class="col-form-label">Mese</label>
-      </div>
-      <div class="col-auto">
-        <select id="mese" name="mese" class="form-select">
-          {% for k,v in mesi.items() %}
-            <option value="{{ k }}" {% if k == current_month %}selected{% endif %}>{{ v }}</option>
+        <label class="form-label">Mese</label>
+        <select class="form-select" name="mese">
+          {% for m,v in mesi.items() %}
+            <option value="{{ m }}" {% if m == fatturato_mese %}selected{% endif %}>{{ v }}</option>
           {% endfor %}
         </select>
       </div>
 
       <div class="col-auto">
-        <label class="col-form-label">Anno</label>
-      </div>
-      <div class="col-auto">
-        <input type="number" name="anno" class="form-control" value="{{ current_year }}" min="2000" max="2100">
+        <label class="form-label">Anno</label>
+        <input type="number" class="form-control" name="anno"
+               value="{{ fatturato_anno or current_year }}" min="2000" max="2100">
       </div>
     </div>
 
-    <div class="mb-3">
-      <label for="fatturato_mensile" class="form-label">Importo (€)</label>
-      <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile">
-    </div>
+    <label class="form-label">Importo (€)</label>
+    <input type="number" step="0.01" class="form-control" name="fatturato_mensile"
+           value="{{ fatturato_importo or '' }}">
   </fieldset>
 
   <!-- PRODOTTI -->
   <div class="mb-4">
-    <h4 class="mb-3">Prodotti</h4>
+    <h4>Prodotti</h4>
 
     {% if categorie %}
-      <!-- Tabs -->
-      <ul class="nav nav-tabs mb-3">
-        {% for categoria in categorie %}
-        <li class="nav-item">
-          <button class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}">
-            {{ categoria.nome }}
-          </button>
-        </li>
-        {% endfor %}
-      </ul>
+    <ul class="nav nav-tabs mb-3">
+      {% for cat in categorie %}
+      <li class="nav-item">
+        <button class="nav-link {% if loop.first %}active{% endif %}"
+                data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}">
+          {{ cat.nome }}
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
 
-      <div class="tab-content">
-        {% for categoria in categorie %}
-        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}">
+    <div class="tab-content">
+      {% for cat in categorie %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat.id }}">
 
-          <!-- Ricerca -->
-          <input type="text" class="form-control form-control-sm mb-2 filtro-prodotto"
-                 data-cat="{{ categoria.id }}" placeholder="Cerca prodotto o fornitore...">
+        <input type="text" class="form-control form-control-sm mb-2 filtro-prodotto"
+               data-cat="{{ cat.id }}" placeholder="Cerca prodotto o fornitore...">
 
-          <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle tabella-prodotti-cat" id="tabella-cat-{{ categoria.id }}">
-              <thead class="table-light">
-                <tr>
-                  <th></th>
-                  <th>Prodotto</th>
-                  <th>Fornitore</th>
-                  <th>Prezzo Attuale</th>
-                  <th>Prezzo Offerta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for p in prodotti if p.categoria_id == categoria.id %}
-                {% set pid = p.id|string %}
-                <tr>
-                  <!-- Checkbox -->
-                  <td class="text-center">
-                    <input class="form-check-input chk-lavorato"
-                           type="checkbox"
-                           name="prodotti_lavorati[]"
-                           value="{{ p.id }}"
-                           {% if pid in prodotti_lavorati %}checked{% endif %}>
-                  </td>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle tabella-prodotti-cat"
+                 id="tabella-cat-{{ cat.id }}">
+            <thead class="table-light">
+              <tr>
+                <th></th>
+                <th>Prodotto</th>
+                <th>Fornitore</th>
+                <th>Prezzo Attuale</th>
+                <th>Prezzo Offerta</th>
+              </tr>
+            </thead>
+            <tbody>
 
-                  <!-- Nome -->
-                  <td>
-                    <strong>{{ p.nome }}</strong><br>
-                    <small class="text-muted">{{ p.categoria_nome }}</small>
-                  </td>
+              {% for p in prodotti if p.categoria_id == cat.id %}
+              {% set pid = p.id|string %}
+              <tr>
 
-                  <!-- Fornitore -->
-                  <td>
-                    <input type="text" class="form-control form-control-sm"
-                           name="fornitore[{{ p.id }}]"
-                           value="{{ fornitori.get(pid,'') if fornitori is defined }}">
-                  </td>
+                <!-- Checkbox -->
+                <td class="text-center">
+                  <input type="checkbox" class="form-check-input chk-lavorato"
+                         name="prodotti_lavorati[]"
+                         value="{{ p.id }}"
+                         {% if pid in prodotti_lavorati %}checked{% endif %}>
+                </td>
 
-                  <!-- Prezzi -->
-                  <td>
-                    <input type="number" step="0.01" min="0" class="form-control form-control-sm"
-                           name="prezzo_attuale[{{ p.id }}]"
-                           value="{{ prezzi_attuali.get(pid,'') }}">
-                  </td>
+                <!-- Nome -->
+                <td>
+                  <strong>{{ p.nome }}</strong><br>
+                  <small class="text-muted">{{ p.categoria_nome }}</small>
+                </td>
 
-                  <td>
-                    <input type="number" step="0.01" min="0" class="form-control form-control-sm"
-                           name="prezzo_offerta[{{ p.id }}]"
-                           value="{{ prezzi_offerta.get(pid,'') }}">
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+                <!-- Fornitore -->
+                <td>
+                  <input type="text" class="form-control form-control-sm"
+                         name="fornitore[{{ p.id }}]"
+                         value="{{ fornitori.get(pid,'') }}">
+                </td>
 
+                <!-- Prezzo attuale -->
+                <td>
+                  <input type="number" class="form-control form-control-sm"
+                         step="0.01" min="0"
+                         name="prezzo_attuale[{{ p.id }}]"
+                         value="{{ prezzi_attuali.get(pid,'') }}">
+                </td>
+
+                <!-- Prezzo offerta -->
+                <td>
+                  <input type="number" class="form-control form-control-sm"
+                         step="0.01" min="0"
+                         name="prezzo_offerta[{{ p.id }}]"
+                         value="{{ prezzi_offerta.get(pid,'') }}">
+                </td>
+
+              </tr>
+              {% endfor %}
+
+            </tbody>
+          </table>
         </div>
-        {% endfor %}
+
       </div>
+      {% endfor %}
+    </div>
     {% endif %}
   </div>
 
   <!-- RIEPILOGO -->
   <hr>
   <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-6 mb-4">
       <h5>Prodotti Lavorati</h5>
       <table class="table table-bordered" id="tabella-lavorati">
         <thead class="table-success">
-          <tr><th>Prodotto</th><th>Categoria</th><th>Fornitore</th></tr>
+          <tr>
+            <th>Prodotto</th>
+            <th>Categoria</th>
+            <th>Fornitore</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-6 mb-4">
       <h5>Prodotti Non Lavorati</h5>
       <table class="table table-bordered" id="tabella-non-lavorati">
         <thead class="table-danger">
-          <tr><th>Prodotto</th><th>Categoria</th><th>Fornitore</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
+          <tr>
+            <th>Prodotto</th>
+            <th>Categoria</th>
+            <th>Fornitore</th>
+            <th>Prezzo Attuale</th>
+            <th>Prezzo Offerta</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
-  <button class="btn btn-primary mt-3">Salva modifiche</button>
-  <a href="{{ url_for('clienti') }}" class="btn btn-secondary mt-3 ms-2">Annulla</a>
+  <button class="btn btn-primary">Salva modifiche</button>
+  <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
 
 </form>
-
 {% endblock %}
 
 {% block scripts %}
@@ -189,32 +206,31 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-  const listaProdotti = [
+  const lista = [
     {% for p in prodotti %}
-      { id: "{{ p.id }}", nome: "{{ p.nome }}", categoria: "{{ p.categoria_nome }}" },
+      { id:"{{ p.id }}", nome:"{{ p.nome }}", categoria:"{{ p.categoria_nome }}" },
     {% endfor %}
   ];
 
-  const lavoratiBody = document.querySelector("#tabella-lavorati tbody");
-  const nonLavoratiBody = document.querySelector("#tabella-non-lavorati tbody");
+  const tblL = document.querySelector("#tabella-lavorati tbody");
+  const tblN = document.querySelector("#tabella-non-lavorati tbody");
 
   function aggiorna() {
-    lavoratiBody.innerHTML = "";
-    nonLavoratiBody.innerHTML = "";
+    tblL.innerHTML = "";
+    tblN.innerHTML = "";
 
-    listaProdotti.forEach(p => {
-
+    lista.forEach(p => {
       const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
       const forn = document.querySelector(`input[name="fornitore[${p.id}]"]`)?.value || "–";
       const att = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value || "–";
       const off = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value || "–";
 
       if (chk && chk.checked) {
-        lavoratiBody.insertAdjacentHTML("beforeend",
+        tblL.insertAdjacentHTML("beforeend",
           `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
         );
       } else {
-        nonLavoratiBody.insertAdjacentHTML("beforeend",
+        tblN.insertAdjacentHTML("beforeend",
           `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
         );
       }
@@ -223,32 +239,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
   aggiorna();
 
-  document.querySelectorAll(".chk-lavorato").forEach(chk => {
-    chk.addEventListener("change", aggiorna);
-  });
+  document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiorna));
+  document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiorna));
 
-  document.querySelectorAll("input[name^='fornitore'], input[name^='prezzo']")
-    .forEach(inp => inp.addEventListener("input", aggiorna));
-
-  document.querySelectorAll(".filtro-prodotto").forEach(input => {
-    input.addEventListener("keyup", function () {
+  // Filtri
+  document.querySelectorAll(".filtro-prodotto").forEach(inp => {
+    inp.addEventListener("keyup", function () {
       const filtro = this.value.toLowerCase();
       const tab = document.querySelector(`#tabella-cat-${this.dataset.cat}`);
       const righe = tab.querySelectorAll("tbody tr");
-
-      righe.forEach(r => {
-        const testo = r.innerText.toLowerCase();
-        r.style.display = testo.includes(filtro) ? "" : "none";
-      });
+      righe.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(filtro) ? "" : "none"; });
     });
+  });
+
+  // Gestione nuova zona
+  const zonaSelect = document.getElementById("zona");
+  const nuovaZonaWrapper = document.getElementById("nuova-zona-wrapper");
+
+  zonaSelect.addEventListener("change", () => {
+    nuovaZonaWrapper.classList.toggle("d-none", zonaSelect.value !== "nuova_zona");
   });
 
 });
 </script>
 
 <style>
-.tabella-prodotti-cat tr:hover { background: #f5faff; }
-.table-bordered thead { position: sticky; top: 0; background: white; z-index: 5; }
+.tabella-prodotti-cat tr:hover { background:#f5faff; }
+.table-bordered thead { position:sticky; top:0; background:white; z-index:5; }
 </style>
-
 {% endblock %}
