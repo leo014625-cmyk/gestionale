@@ -32,36 +32,58 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 {% endblock %}
 
 {% block content %}
+
 <div class="d-flex align-items-center mb-3">
   <h1 class="mb-0 flex-grow-1">{{ cliente.nome }}
     {% if stato_cliente=='attivo' %}
-      <span class="badge bg-success ms-3" title="Attivo: ultimo fatturato entro 60 giorni"><i class="bi bi-circle-fill"></i> Attivo</span>
+      <span class="badge bg-success ms-3"><i class="bi bi-circle-fill"></i> Attivo</span>
     {% elif stato_cliente=='bloccato' %}
-      <span class="badge bg-danger ms-3" title="Bloccato: ultimo fatturato tra 61 e 91 giorni"><i class="bi bi-circle-fill"></i> Bloccato</span>
+      <span class="badge bg-danger ms-3"><i class="bi bi-circle-fill"></i> Bloccato</span>
     {% else %}
-      <span class="badge bg-secondary ms-3" title="Inattivo: ultimo fatturato oltre 91 giorni"><i class="bi bi-circle-fill"></i> Inattivo</span>
+      <span class="badge bg-secondary ms-3"><i class="bi bi-circle-fill"></i> Inattivo</span>
     {% endif %}
   </h1>
 </div>
 
+<!-- ================== METRICHE ================== -->
 <div class="row g-3 mb-4">
   {% set mesi_totali = fatturato_mensile|length %}
   {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
-  {% for titolo, valore, colore in [
-      ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success'),
-      ('Media Mensile', "%.2f"|format(media)+' €','info'),
-      ('Crescita Mensile', (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
-       'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger'),
-      ('Ultimo Contatto', ultimo_contatto or '–','primary')
+
+  <!-- CICLO CARDS -->
+  {% for titolo, valore, colore, icon in [
+      ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success',''),
+      ('Media Mensile', "%.2f"|format(media)+' €','info',''),
+      (
+        'Crescita Mensile',
+        (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
+        'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger',
+        'arrow'
+      ),
+      ('Ultimo Contatto', ultimo_contatto or '–','primary','')
     ] %}
-    <div class="col-md-3">
-      <div class="card h-100 p-2 text-center">
-        <h6 class="text-muted">{{ titolo }}</h6>
-        <h4 class="fw-bold text-{{ colore }}">{{ valore }}</h4>
-      </div>
+  <div class="col-md-3">
+    <div class="card h-100 p-2 text-center">
+      <h6 class="text-muted">{{ titolo }}</h6>
+
+      <h4 class="fw-bold text-{{ colore }}">
+        {{ valore }}
+
+        {% if icon == 'arrow' and crescita_mensile is defined %}
+          {% if crescita_mensile > 0 %}
+            <i class="bi bi-arrow-up-short text-success"></i>
+          {% elif crescita_mensile < 0 %}
+            <i class="bi bi-arrow-down-short text-danger"></i>
+          {% endif %}
+        {% endif %}
+      </h4>
+
     </div>
+  </div>
   {% endfor %}
 </div>
+
+<!-- ================== GRAFICO + LOG ================== -->
 
 <div class="row g-3 mb-4">
   <div class="col-12 col-lg-6">
@@ -80,6 +102,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   <div class="col-12 col-lg-6">
     <div class="card h-100 p-2">
       <h6>Ultimi Log</h6>
+
       {% if log_cliente %}
         {% set ultimi_log = log_cliente|sort(attribute='data',reverse=true) %}
         <div class="log-container">
@@ -108,6 +131,8 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
+<!-- ================== CATEGORIE + PRODOTTI ================== -->
+
 <div class="row">
   <div class="col-md-3">
     {% for cat in categorie %}
@@ -122,16 +147,22 @@ table tbody tr:hover { background:#f1f3f5 !important; }
       </div>
     {% endfor %}
   </div>
+
   <div class="col-md-9">
     <div id="contenitore-tabella"></div>
   </div>
 </div>
 
+<!-- ================== TEMPLATE PER TABELLE ================== -->
+
 {% for cat in categorie %}
 <template id="tabella-template-{{ cat.id }}">
   <div class="card p-3 mb-3">
     <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
-    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+
+    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..."
+           onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+
     <div class="table-responsive">
       <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
         <thead class="table-light">
@@ -151,13 +182,19 @@ table tbody tr:hover { background:#f1f3f5 !important; }
               <td>
                 {{ p.note or '–' }}
                 {% if prodotti_data.get(pid) %}
-                  <span class="note-data">Ultima operazione: {{ prodotti_data[pid].strftime("%d/%m/%Y") }}</span>
-                {% else %}
-                  <span class="note-data">–</span>
+                  <span class="note-data">
+                    Ultima operazione: {{ prodotti_data[pid].strftime("%d/%m/%Y") }}
+                  </span>
                 {% endif %}
               </td>
               <td>{{ "%.2f"|format(prezzi_attuali.get(pid) or 0) }}</td>
-              <td>{% if prezzi_offerta.get(pid) %}<span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>{% else %}-{% endif %}</td>
+              <td>
+                {% if prezzi_offerta.get(pid) %}
+                  <span class="price-offer">{{ "%.2f"|format(prezzi_offerta[pid]) }}</span>
+                {% else %}
+                  –
+                {% endif %}
+              </td>
               <td>
                 {% if pid in prodotti_lavorati %}
                   <span class="badge bg-success">Lavorato</span>
@@ -167,7 +204,9 @@ table tbody tr:hover { background:#f1f3f5 !important; }
               </td>
             </tr>
           {% else %}
-            <tr><td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td></tr>
+            <tr>
+              <td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td>
+            </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -176,12 +215,16 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 </template>
 {% endfor %}
 
-<a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary mt-3"><i class="bi bi-arrow-left me-1"></i> Torna alla lista clienti</a>
+<a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary mt-3">
+  <i class="bi bi-arrow-left me-1"></i> Torna alla lista clienti
+</a>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 (() => {
   const fatturato = {{ fatturato_mensile|default({})|tojson }};
@@ -190,8 +233,15 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   let chart;
 
   const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-  const formatta = m => { const [anno,mese]=m.split('-'); return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2); };
-  const getData = tipo => { const s=tipo==='ultimi3'?mesi.slice(-3):mesi; return {labels:s.map(formatta), dati:s.map(m=>fatturato[m])}; };
+  const formatta = m => {
+    const [anno,mese]=m.split('-');
+    return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2);
+  };
+
+  const getData = tipo => {
+    const s = tipo==='ultimi3' ? mesi.slice(-3) : mesi;
+    return { labels: s.map(formatta), dati: s.map(m=>fatturato[m]) };
+  };
 
   const gradient = ctx.createLinearGradient(0,0,0,150);
   gradient.addColorStop(0,'rgba(13,110,253,0.8)');
@@ -203,11 +253,11 @@ table tbody tr:hover { background:#f1f3f5 !important; }
     chart=new Chart(ctx,{
       type:'bar',
       data:{labels:d.labels,datasets:[{data:d.dati,backgroundColor:gradient,borderRadius:6,borderSkipped:false}]},
-      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
     });
   };
 
-  document.getElementById('filtro-mesi').addEventListener('change',e=>aggiornaGrafico(e.target.value));
+  document.getElementById('filtro-mesi').addEventListener('change', e => aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
 
   document.querySelectorAll(".categoria-card").forEach(card=>{
@@ -222,8 +272,9 @@ function filtraProdotti(input,catId){
   const filtro=input.value.toLowerCase();
   document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
     const nome=r.querySelector("td")?.innerText.toLowerCase()||"";
-    r.style.display=nome.includes(filtro)?"":"none";
+    r.style.display = nome.includes(filtro) ? "" : "none";
   });
 }
 </script>
+
 {% endblock %}
