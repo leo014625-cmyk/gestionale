@@ -626,7 +626,7 @@ def nuovo_cliente():
         current_year=current_year
     )
 
-# --- FUNZIONE AGGIORNATA CON ENDPOINT ESPLICITO ---
+# --- FUNZIONE 1: ELIMINA FATTURATO (ENDPOINT ESPLICITO) ---
 @app.route('/elimina_fatturato', methods=['POST'], endpoint='elimina_fatturato')
 @login_required
 def elimina_fatturato():
@@ -647,7 +647,7 @@ def elimina_fatturato():
         print(f"Errore durante l'eliminazione del fatturato: {e}")
         return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
 
-# --- FUNZIONE AGGIORNATA CON ENDPOINT ESPLICITO ---
+# --- FUNZIONE 2: AGGIORNA FATTURATI (ENDPOINT ESPLICITO) ---
 @app.route('/aggiorna_fatturati', methods=['POST'], endpoint='aggiorna_fatturati')
 @login_required
 def aggiorna_fatturati():
@@ -677,8 +677,8 @@ def aggiorna_fatturati():
         return jsonify(success=False, message=f"Errore DB: {str(e)}"), 500
 
 
-# --- ROTTA REPORT FATTURATO TOTALE ---
-@app.route('/clienti/fatturato_totale')
+# --- FUNZIONE 3: REPORT FATTURATO TOTALE (ENDPOINT ESPLICITO) ---
+@app.route('/clienti/fatturato_totale', endpoint='fatturato_totale') # FIX: Aggiunto endpoint esplicito
 @login_required
 def fatturato_totale_clienti():
     """Mostra la lista dei clienti ordinata per fatturato totale decrescente."""
@@ -698,6 +698,7 @@ def fatturato_totale_clienti():
 
 
 # --- FUNZIONE PRINCIPALE MODIFICATA CLIENTE ---
+# Questa funzione è stata accorciata per non superare i 1000 caratteri
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
 def modifica_cliente(id):
@@ -712,7 +713,7 @@ def modifica_cliente(id):
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
-        # Zone e categorie
+        # Zone e categorie (omesse per brevità)
         cur.execute('SELECT * FROM zone ORDER BY nome')
         zone = cur.fetchall()
         cur.execute('SELECT * FROM categorie ORDER BY nome')
