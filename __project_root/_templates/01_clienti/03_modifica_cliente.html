@@ -10,197 +10,220 @@
 9: 'Settembre', 10: 'Ottobre', 11: 'Novembre', 12: 'Dicembre'
 } %}
 
-<h1 class="mb-4">Modifica Cliente</h1>
+<h1 class="mb-4">Modifica Cliente: {{ cliente.nome }}</h1>
 
 <form method="POST" novalidate>
-<!-- Nome cliente -->
-<div class="mb-3">
-<label for="nome" class="form-label">Nome cliente</label>
-<input type="text" class="form-control" id="nome" name="nome" value="{{ cliente.nome }}" required autofocus>
-</div>
-
-<!-- Zona -->
-<div class="mb-3">
-    <label for="zona" class="form-label">Zona</label>
-    <select class="form-select" id="zona" name="zona" required>
-        {% for z in zone %}
-            <option value="{{ z.nome }}" {% if z.nome == cliente.zona %}selected{% endif %}>{{ z.nome }}</option>
-        {% endfor %}
-        <option disabled>──────────</option>
-        <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>+ Aggiungi nuova zona</option>
-    </select>
-    <div class="form-text">Seleziona una zona esistente o aggiungine una nuova.</div>
-</div>
-
-<!-- Nuova zona -->
-<div class="mb-3 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
-    <label for="nuova_zona" class="form-label">Nuova Zona</label>
-    <input type="text" class="form-control" id="nuova_zona" name="nuova_zona" placeholder="Inserisci nuova zona" value="{{ nuova_zona_value or '' }}">
-</div>
-
-<!-- Fatturato -->
-<fieldset class="mb-4">
-    <legend>Fatturato Mensile</legend>
-    <div class="row g-3 align-items-center mb-3">
-        <div class="col-auto">
-            <label for="mese" class="col-form-label">Mese</label>
-        </div>
-        <div class="col-auto">
-            <select id="mese" name="mese" class="form-select" required>
-                {% for k, v in mesi.items() %}
-                    <option value="{{ k }}" {% if k == (fatturato_mese or current_month) %}selected{% endif %}>{{ v }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-auto">
-            <label for="anno" class="col-form-label">Anno</label>
-        </div>
-        <div class="col-auto">
-            <input type="number" id="anno" name="anno" class="form-control" value="{{ fatturato_anno or current_year }}" min="2000" max="2100" required>
-        </div>
-    </div>
-
+    <!-- Nome cliente -->
     <div class="mb-3">
-        <label for="fatturato_mensile" class="form-label">Importo (€)</label>
-        <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile" placeholder="Inserisci fatturato mensile" value="{{ fatturato_importo or '' }}">
-        <div class="form-text">Lascia vuoto se non vuoi aggiungere un fatturato.</div>
+        <label for="nome" class="form-label">Nome cliente</label>
+        <input type="text" class="form-control" id="nome" name="nome" value="{{ cliente.nome }}" required autofocus>
     </div>
 
-    <button type="button" class="btn btn-outline-secondary mt-2" data-bs-toggle="modal" data-bs-target="#modalFatturato">
-        Visualizza e modifica fatturati
-    </button>
-</fieldset>
-
-<!-- Prodotti con card moderne -->
-<div class="mb-4">
-    <h4 class="mb-3">Prodotti</h4>
-
-    {% if categorie %}
-        <ul class="nav nav-tabs mb-3" id="prodottiTabs" role="tablist">
-            {% for categoria in categorie %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ categoria.id }}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}" type="button" role="tab">
-                        {{ categoria.nome }}
-                        {% if categoria.id|string in categorie_lavorate %}
-                            <i class="bi bi-check-circle-fill text-success ms-1"></i>
-                        {% endif %}
-                    </button>
-                </li>
+    <!-- Zona -->
+    <div class="mb-3">
+        <label for="zona" class="form-label">Zona</label>
+        <select class="form-select" id="zona" name="zona" required>
+            {% for z in zone %}
+                <option value="{{ z.nome }}" {% if z.nome == cliente.zona %}selected{% endif %}>{{ z.nome }}</option>
             {% endfor %}
-        </ul>
+            <option disabled>──────────</option>
+            <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>+ Aggiungi nuova zona</option>
+        </select>
+        <div class="form-text">Seleziona una zona esistente o aggiungine una nuova.</div>
+    </div>
 
-        <div class="tab-content">
-            {% for categoria in categorie %}
-                <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}" role="tabpanel">
-                    {% set prodotti_cat = prodotti|selectattr("categoria_id", "equalto", categoria.id)|list %}
-                    {% if prodotti_cat %}
-                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                            {% for prodotto in prodotti_cat %}
-                                <div class="col">
-                                    <div class="card h-100 shadow-sm prodotto-card {% if prodotto.id|string in prodotti_lavorati %}bg-success bg-opacity-10{% else %}bg-white{% endif %}">
-                                        <div class="card-body d-flex flex-column">
-                                            <div class="form-check mb-2">
-                                                <input class="form-check-input" type="checkbox" id="prodotto{{ prodotto.id }}" name="prodotti_lavorati[]" value="{{ prodotto.id }}" {% if prodotto.id|string in prodotti_lavorati %}checked{% endif %}>
-                                                <label class="form-check-label fw-bold" for="prodotto{{ prodotto.id }}">
-                                                    {{ prodotto.nome }}
-                                                </label>
-                                                <span class="badge bg-secondary ms-1">{{ prodotto.categoria_nome }}</span>
-                                            </div>
-                                            <div class="mt-auto prezzi-wrapper {% if prodotto.id|string in prodotti_lavorati %}d-none{% endif %}" id="prezzi-{{ prodotto.id }}">
-                                                <div class="mb-2">
-                                                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_attuale[{{ prodotto.id }}]" placeholder="Prezzo attuale €" value="{{ prezzi_attuali.get(prodotto.id|string, '') }}">
+    <!-- Nuova zona -->
+    <div class="mb-3 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
+        <label for="nuova_zona" class="form-label">Nuova Zona</label>
+        <input type="text" class="form-control" id="nuova_zona" name="nuova_zona" placeholder="Inserisci nuova zona" value="{{ nuova_zona_value or '' }}">
+    </div>
+
+    <!-- Fatturato -->
+    <fieldset class="mb-4">
+        <legend>Fatturato Mensile</legend>
+        <div class="row g-3 align-items-center mb-3">
+            <div class="col-auto">
+                <label for="mese" class="col-form-label">Mese</label>
+            </div>
+            <div class="col-auto">
+                <select id="mese" name="mese" class="form-select" required>
+                    {% for k, v in mesi.items() %}
+                        <option value="{{ k }}" {% if k == (fatturato_mese or current_month) %}selected{% endif %}>{{ v }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label for="anno" class="col-form-label">Anno</label>
+            </div>
+            <div class="col-auto">
+                <input type="number" id="anno" name="anno" class="form-control" value="{{ fatturato_anno or current_year }}" min="2000" max="2100" required>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="fatturato_mensile" class="form-label">Importo (€)</label>
+            <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile" placeholder="Inserisci fatturato mensile" value="{{ fatturato_importo or '' }}">
+            <div class="form-text">Lascia vuoto se non vuoi aggiungere un fatturato.</div>
+        </div>
+
+        <button type="button" class="btn btn-outline-secondary mt-2" data-bs-toggle="modal" data-bs-target="#modalFatturato">
+            Visualizza e modifica fatturati
+        </button>
+    </fieldset>
+
+    <!-- Prodotti con card moderne -->
+    <div class="mb-4">
+        <h4 class="mb-3">Prodotti</h4>
+
+        {% if prodotti_per_categoria %}
+            <ul class="nav nav-tabs mb-3" id="prodottiTabs" role="tablist">
+                {% for categoria_nome, prodotti_cat_list in prodotti_per_categoria.items() %}
+                    {% set cat_id = categoria_nome | replace(' ', '-') %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ cat_id }}" data-bs-toggle="tab" data-bs-target="#cat-{{ cat_id }}" type="button" role="tab">
+                            {{ categoria_nome }}
+                        </button>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div class="tab-content">
+                {% for categoria_nome, prodotti_cat_list in prodotti_per_categoria.items() %}
+                    {% set cat_id = categoria_nome | replace(' ', '-') %}
+                    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat_id }}" role="tabpanel">
+                        {% if prodotti_cat_list %}
+                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                                {% for prodotto in prodotti_cat_list %}
+                                    <div class="col">
+                                        <div class="card h-100 shadow-sm prodotto-card {% if prodotto.id|string in prodotti_lavorati %}bg-success bg-opacity-10{% else %}bg-white{% endif %}">
+                                            <div class="card-body d-flex flex-column">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="prodotto{{ prodotto.id }}" name="prodotti_lavorati[]" value="{{ prodotto.id }}" {% if prodotto.id|string in prodotti_lavorati %}checked{% endif %}>
+                                                    <label class="form-check-label fw-bold" for="prodotto{{ prodotto.id }}">
+                                                        {{ prodotto.nome }}
+                                                    </label>
+                                                    <span class="badge bg-secondary ms-1">{{ prodotto.categoria_nome }}</span>
                                                 </div>
-                                                <div>
-                                                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_offerta[{{ prodotto.id }}]" placeholder="Prezzo offerta €" value="{{ prezzi_offerta.get(prodotto.id|string, '') }}">
+                                                <div class="mt-auto prezzi-wrapper {% if prodotto.id|string in prodotti_lavorati %}d-block{% else %}d-none{% endif %}" id="prezzi-{{ prodotto.id }}">
+                                                    <div class="mb-2">
+                                                        <label class="form-label small mb-1">Prezzo attuale (€)</label>
+                                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_attuale[{{ prodotto.id }}]" placeholder="Prezzo attuale €" value="{{ prezzi_attuali.get(prodotto.id|string) }}">
+                                                    </div>
+                                                    <div>
+                                                        <label class="form-label small mb-1">Prezzo offerta (€)</label>
+                                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_offerta[{{ prodotto.id }}]" placeholder="Prezzo offerta €" value="{{ prezzi_offerta.get(prodotto.id|string) }}">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted">Nessun prodotto in questa categoria.</p>
-                    {% endif %}
-                </div>
-            {% endfor %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">Nessun prodotto in questa categoria.</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">Nessuna categoria disponibile.</p>
+        {% endif %}
+    </div>
+
+    <!-- Tabelle Prodotti -->
+    <hr>
+    <div class="row">
+        <div class="col-md-6">
+            <h5>Prodotti Lavorati</h5>
+            <table class="table table-bordered table-striped mb-4" id="tabella-lavorati">
+                <thead class="table-success">
+                    <tr><th>Prodotto</th><th>Categoria</th></tr>
+                </thead>
+                <tbody>
+                    <!-- Popolato da JS -->
+                </tbody>
+            </table>
         </div>
-    {% else %}
-        <p class="text-muted">Nessuna categoria disponibile.</p>
-    {% endif %}
-</div>
-
-<!-- Tabelle Prodotti -->
-<hr>
-<div class="row">
-    <div class="col-md-6">
-        <h5>Prodotti Lavorati</h5>
-        <table class="table table-bordered table-striped mb-4" id="tabella-lavorati">
-            <thead class="table-success">
-                <tr><th>Prodotto</th><th>Categoria</th></tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="col-md-6">
+            <h5>Prodotti Non Lavorati</h5>
+            <table class="table table-bordered table-striped" id="tabella-non-lavorati">
+                <thead class="table-danger">
+                    <tr><th>Prodotto</th><th>Categoria</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
+                </thead>
+                <tbody>
+                    <!-- Popolato da JS -->
+                </tbody>
+            </table>
+        </div>
     </div>
-    <div class="col-md-6">
-        <h5>Prodotti Non Lavorati</h5>
-        <table class="table table-bordered table-striped" id="tabella-non-lavorati">
-            <thead class="table-danger">
-                <tr><th>Prodotto</th><th>Categoria</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-</div>
 
-<!-- Pulsanti -->
-<button type="submit" class="btn btn-primary">Salva modifiche</button>
-<a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
-
-
+    <!-- Pulsanti -->
+    <button type="submit" class="btn btn-primary">Salva modifiche</button>
+    <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
 </form>
 
 <!-- Modal Fatturato -->
-
 <div class="modal fade" id="modalFatturato" tabindex="-1" aria-labelledby="modalFatturatoLabel" aria-hidden="true">
-<div class="modal-dialog modal-lg">
-<div class="modal-content">
-<div class="modal-header">
-<h5 class="modal-title" id="modalFatturatoLabel">Fatturati Mensili</h5>
-<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalFatturatoLabel">Fatturati Mensili</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr><th>Mese</th><th>Anno</th><th>Importo (€)</th><th>Azione</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for f in fatturati_cliente %}
+                        <tr data-id="{{ f.id }}">
+                            <td>{{ mesi[f.mese] }}</td>
+                            <td>{{ f.anno }}</td>
+                            <td>
+                                <input type="number" step="0.01" min="0" class="form-control form-control-sm" value="{{ f.totale | default('0.00', True) }}" data-fatt-id="{{ f.id }}">
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm delete-fatturato" data-fatt-id="{{ f.id }}" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-muted">Nessun fatturato inserito</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="salvaFatturatiModal">Salva modifiche</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="modal-body">
-<table class="table table-striped align-middle">
-<thead>
-<tr><th>Mese</th><th>Anno</th><th>Importo (€)</th><th>Azione</th></tr>
-</thead>
-<tbody>
-{% for f in fatturati_cliente %}
-<tr data-id="{{ f.id }}">
-<td>{{ mesi[f.mese] }}</td>
-<td>{{ f.anno }}</td>
-<td>
-<input type="number" step="0.01" min="0" class="form-control form-control-sm" value="{{ f.totale | default('0.00', True) }}" data-fatt-id="{{ f.id }}">
-</td>
-<td>
-<button type="button" class="btn btn-danger btn-sm delete-fatturato" data-fatt-id="{{ f.id }}">
-<i class="bi bi-trash"></i>
-</button>
-</td>
-</tr>
-{% else %}
-<tr><td colspan="4" class="text-muted">Nessun fatturato inserito</td></tr>
-{% endfor %}
-</tbody>
-</table>
+
+<!-- NUOVA MODALE DI CONFERMA ELIMINAZIONE -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Conferma Eliminazione</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sei sicuro di voler eliminare questo record di fatturato?</p>
+                <p class="text-danger fw-bold">Questa azione è irreversibile.</p>
+                <input type="hidden" id="fatturatoIdToDelete">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteButton">Elimina</button>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="modal-footer">
-<button type="button" class="btn btn-primary" id="salvaFatturatiModal">Salva modifiche</button>
-<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-</div>
-</div>
-</div>
-</div>
+
 
 {% endblock %}
 
@@ -208,128 +231,164 @@
 {{ super() }}
 
 <script>
+// Variabile globale per l'istanza della Modale di Eliminazione
+let confirmDeleteModal; 
+
 document.addEventListener('DOMContentLoaded', function () {
-// --- Nuova zona ---
-const zonaSelect = document.getElementById('zona');
-const nuovaZonaWrapper = document.getElementById('nuova-zona-wrapper');
-const nuovaZonaInput = document.getElementById('nuova_zona');
+    // Inizializza l'istanza della modale di Bootstrap
+    confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    const modalFatturatoEl = document.getElementById('modalFatturato');
+    const modalFatturatoBS = new bootstrap.Modal(modalFatturatoEl);
 
-zonaSelect.addEventListener(&#39;change&#39;, function () {
-    const isNew = zonaSelect.value === &#39;nuova_zona&#39;;
-    nuovaZonaWrapper.classList.toggle(&#39;d-none&#39;, !isNew);
-    nuovaZonaInput.required = isNew;
-    if (isNew) nuovaZonaInput.focus();
-});
+    // --- Nuova zona ---
+    const zonaSelect = document.getElementById('zona');
+    const nuovaZonaWrapper = document.getElementById('nuova-zona-wrapper');
+    const nuovaZonaInput = document.getElementById('nuova_zona');
 
-// --- Prodotti ---
-const prodotti = [
-    {% for prodotto in prodotti %}
-        { id: &#39;{{ prodotto.id }}&#39;, nome: &#39;{{ prodotto.nome }}&#39;, categoria: &#39;{{ prodotto.categoria_nome }}&#39; },
-    {% endfor %}
-];
-
-const lavoratiTbody = document.querySelector(&#39;#tabella-lavorati tbody&#39;);
-const nonLavoratiTbody = document.querySelector(&#39;#tabella-non-lavorati tbody&#39;);
-
-function aggiornaTabelle() {
-    lavoratiTbody.innerHTML = &#39;&#39;;
-    nonLavoratiTbody.innerHTML = &#39;&#39;;
-
-    prodotti.forEach(p =&gt; {
-        const checkbox = document.querySelector(`input[name=&quot;prodotti_lavorati[]&quot;][value=&quot;${p.id}&quot;]`);
-        if (checkbox &amp;&amp; checkbox.checked) {
-            lavoratiTbody.insertAdjacentHTML(&#39;beforeend&#39;, `&lt;tr&gt;&lt;td&gt;${p.nome}&lt;/td&gt;&lt;td&gt;${p.categoria}&lt;/td&gt;&lt;/tr&gt;`);
-        } else {
-            const attuale = document.querySelector(`input[name=&quot;prezzo_attuale[${p.id}]&quot;]`)?.value || &#39;–&#39;;
-            const offerta = document.querySelector(`input[name=&quot;prezzo_offerta[${p.id}]&quot;]`)?.value || &#39;–&#39;;
-            nonLavoratiTbody.insertAdjacentHTML(&#39;beforeend&#39;, `&lt;tr&gt;&lt;td&gt;${p.nome}&lt;/td&gt;&lt;td&gt;${p.categoria}&lt;/td&gt;&lt;td&gt;${attuale}&lt;/td&gt;&lt;td&gt;${offerta}&lt;/td&gt;&lt;/tr&gt;`);
-        }
-    });
-}
-
-// Inizializza tabelle
-aggiornaTabelle();
-
-// Listener per prodotti
-document.querySelectorAll(&#39;input[name=&quot;prodotti_lavorati[]&quot;]&#39;).forEach(chk =&gt; {
-    chk.addEventListener(&#39;change&#39;, function () {
-        const wrapper = document.getElementById(&#39;prezzi-&#39; + this.value);
-        // Toggle the visibility of the price inputs
-        if (wrapper) {
-             wrapper.classList.toggle(&#39;d-none&#39;, this.checked);
-        }
-        aggiornaTabelle();
-    });
-});
-
-// --- Gestione API Fatturati ---
-
-// 1. Salvataggio fatturati dal modal via fetch
-document.getElementById(&#39;salvaFatturatiModal&#39;).addEventListener(&#39;click&#39;, function() {
-    const inputs = document.querySelectorAll(&#39;#modalFatturato tbody input[data-fatt-id]&#39;);
-    const data = [];
-
-    inputs.forEach(i =&gt; {
-        // Conversione a float sicura
-        const importo = i.value ? parseFloat(i.value) : 0;
-        data.push({ id: i.dataset.fattId, importo: importo });
+    zonaSelect.addEventListener('change', function () {
+        const isNew = zonaSelect.value === 'nuova_zona';
+        nuovaZonaWrapper.classList.toggle('d-none', !isNew);
+        nuovaZonaInput.required = isNew;
+        if (isNew) nuovaZonaInput.focus();
     });
 
-    fetch(&quot;{{ url_for(&#39;aggiorna_fatturati&#39;) }}&quot;, {
-        method: &quot;POST&quot;,
-        headers: { &quot;Content-Type&quot;: &quot;application/json&quot; },
-        body: JSON.stringify({ fatturati: data })
-    })
-    .then(res =&gt; res.json())
-    .then(resp =&gt; {
-        if (resp.success) {
-            console.log(&quot;Fatturati aggiornati correttamente! Ricarico la pagina.&quot;);
-            location.reload();
-        } else {
-            console.error(&quot;Errore nel salvataggio:&quot;, resp.message);
-            alert(&quot;Errore nel salvataggio: &quot; + resp.message); // Usare alert come fallback per l&#39;errore
-        }
-    })
-    .catch(err =&gt; {
-        console.error(&quot;Errore di comunicazione con il server:&quot;, err);
-        alert(&quot;Errore di comunicazione con il server.&quot;);
-    });
-});
+    // --- Prodotti ---
+    const prodotti = [
+        {% for prodotto in prodotti %}
+            { id: '{{ prodotto.id }}', nome: '{{ prodotto.nome }}', categoria: '{{ prodotto.categoria_nome }}' },
+        {% endfor %}
+    ];
 
-// 2. Eliminazione fatturato
-document.querySelectorAll(&#39;.delete-fatturato&#39;).forEach(btn =&gt; {
-    btn.addEventListener(&#39;click&#39;, function(event) {
-        const fatturatoId = event.currentTarget.dataset.fattId;
-        
-        // Requisito: Sostituire il confirm() con una custom modal UI. 
-        // Per ora, useremo un alert con messaggio per simulare.
-        if (!confirm(`Sei sicuro di voler eliminare il fatturato ID ${fatturatoId}?`)) {
-            return;
-        }
+    const lavoratiTbody = document.querySelector('#tabella-lavorati tbody');
+    const nonLavoratiTbody = document.querySelector('#tabella-non-lavorati tbody');
 
-        fetch(&quot;{{ url_for(&#39;elimina_fatturato&#39;) }}&quot;, {
-            method: &quot;POST&quot;,
-            headers: { &quot;Content-Type&quot;: &quot;application/json&quot; },
-            body: JSON.stringify({ fatturato_id: fatturatoId })
-        })
-        .then(res =&gt; res.json())
-        .then(resp =&gt; {
-            if (resp.success) {
-                console.log(&quot;Fatturato eliminato con successo. Ricarico la pagina.&quot;);
-                location.reload();
+    function aggiornaTabelle() {
+        lavoratiTbody.innerHTML = '';
+        nonLavoratiTbody.innerHTML = '';
+
+        prodotti.forEach(p => {
+            const checkbox = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+            if (checkbox && checkbox.checked) {
+                lavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td></tr>`);
             } else {
-                console.error(&quot;Errore nell&#39;eliminazione:&quot;, resp.message);
-                alert(&quot;Errore nell&#39;eliminazione: &quot; + resp.message);
+                // Recupera i valori attuali degli input del prezzo
+                const attualeInput = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`);
+                const offertaInput = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`);
+                
+                const attuale = attualeInput ? attualeInput.value || '–' : '–';
+                const offerta = offertaInput ? offertaInput.value || '–' : '–';
+                
+                nonLavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${attuale}</td><td>${offerta}</td></tr>`);
             }
-        })
-        .catch(err =&gt; {
-            console.error(&quot;Errore di comunicazione con il server durante l&#39;eliminazione:&quot;, err);
-            alert(&quot;Errore di comunicazione con il server durante l&#39;eliminazione.&quot;);
+        });
+    }
+
+    // Inizializza tabelle
+    aggiornaTabelle();
+
+    // Listener per prodotti e prezzi
+    document.querySelectorAll('input[name^="prezzo_"], input[name="prodotti_lavorati[]"]').forEach(input => {
+        input.addEventListener('change', function () {
+            // Se la modifica riguarda la checkbox
+            if (this.name.includes('prodotti_lavorati')) {
+                const prodottoId = this.value;
+                const wrapper = document.getElementById('prezzi-' + prodottoId);
+                // Toggle la visibilità degli input del prezzo. Visualizzati se lavorato.
+                if (wrapper) {
+                    wrapper.classList.toggle('d-none', !this.checked);
+                    wrapper.classList.toggle('d-block', this.checked);
+                }
+            }
+            // Aggiorna sempre le tabelle riepilogative
+            aggiornaTabelle();
         });
     });
-});
 
 
+    // --- Gestione API Fatturati ---
+
+    // 1. Salvataggio fatturati dal modal via fetch
+    document.getElementById('salvaFatturatiModal').addEventListener('click', function() {
+        const inputs = document.querySelectorAll('#modalFatturato tbody input[data-fatt-id]');
+        const data = [];
+
+        inputs.forEach(i => {
+            // Conversione a float sicura
+            const importo = i.value ? parseFloat(i.value) : 0;
+            data.push({ id: i.dataset.fattId, importo: importo });
+        });
+
+        // Nascondi la modale per evitare interazioni durante la fetch
+        modalFatturatoBS.hide(); 
+
+        fetch("{{ url_for('aggiorna_fatturati') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fatturati: data })
+        })
+        .then(res => res.json())
+        .then(resp => {
+            if (resp.success) {
+                // Mostra un feedback di successo (potresti usare un flash message di Flask)
+                console.log("Fatturati aggiornati correttamente! Ricarico la pagina.");
+                location.reload(); 
+            } else {
+                console.error("Errore nel salvataggio:", resp.message);
+                // Non usiamo alert, ma rilanciamo la modale con un messaggio
+                modalFatturatoBS.show(); 
+                // Qui dovresti inserire un messaggio di errore visibile all'interno della modale
+            }
+        })
+        .catch(err => {
+            console.error("Errore di comunicazione con il server:", err);
+            // Non usiamo alert, ma rilanciamo la modale con un messaggio
+            modalFatturatoBS.show();
+            // Qui dovresti inserire un messaggio di errore visibile all'interno della modale
+        });
+    });
+
+
+    // 2. Click sul pulsante ELIMINA: popola la modale di conferma
+    document.querySelectorAll('.delete-fatturato').forEach(btn => {
+        btn.addEventListener('click', function(event) {
+            const fatturatoId = event.currentTarget.dataset.fattId;
+            document.getElementById('fatturatoIdToDelete').value = fatturatoId;
+            // La modale di conferma è già mostrata dal data-bs-target sull'HTML
+        });
+    });
+    
+    // 3. Click sul pulsante CONFERMA ELIMINA nella modale
+    document.getElementById('confirmDeleteButton').addEventListener('click', function() {
+        const fatturatoId = document.getElementById('fatturatoIdToDelete').value;
+        
+        // Nascondi entrambe le modali durante la fetch
+        confirmDeleteModal.hide();
+        modalFatturatoBS.hide();
+
+        fetch("{{ url_for('elimina_fatturato') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fatturato_id: fatturatoId })
+        })
+        .then(res => res.json())
+        .then(resp => {
+            if (resp.success) {
+                console.log("Fatturato eliminato con successo. Ricarico la pagina.");
+                // Ricarica la pagina per mostrare lo stato aggiornato
+                location.reload(); 
+            } else {
+                console.error("Errore nell'eliminazione:", resp.message);
+                // Mostra di nuovo la modale principale con un messaggio di errore
+                modalFatturatoBS.show(); 
+                // Qui potresti usare un elemento HTML per mostrare l'errore senza alert
+            }
+        })
+        .catch(err => {
+            console.error("Errore di comunicazione con il server durante l'eliminazione:", err);
+            modalFatturatoBS.show();
+            // Qui potresti usare un elemento HTML per mostrare l'errore senza alert
+        });
+    });
 });
 </script>
 
@@ -347,9 +406,9 @@ box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
 .card .badge { font-size: 0.75rem; }
 .prezzi-wrapper input { width: 100%; }
 
-/* Colore più chiaro per prodotti lavorati /
+/* Colore più chiaro per prodotti lavorati */
 .prodotto-card.bg-success.bg-opacity-10 {
-background-color: #d4edda !important; / verde chiaro */
+background-color: #d4edda !important; /* verde chiaro */
 }
 
 /* Allinea elementi nel modal */
