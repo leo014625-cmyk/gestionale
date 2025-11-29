@@ -126,10 +126,9 @@
 
                 <!-- Fornitore -->
                 <td>
-                  <input type="text"
-                         class="form-control form-control-sm"
+                  <input type="text" class="form-control form-control-sm"
                          name="fornitore[{{ p.id }}]"
-                         value="{% if fornitori.get(pid) %}{{ lista_fornitori[fornitori.get(pid)]|default(fornitori.get(pid)) }}{% endif %}">
+                         value="{{ fornitori.get(pid) }}">
                 </td>
 
                 <!-- Prezzo attuale -->
@@ -257,9 +256,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const zonaSelect = document.getElementById("zona");
   const nuovaZonaWrapper = document.getElementById("nuova-zona-wrapper");
 
-  zonaSelect.addEventListener("change", () => {
-    nuovaZonaWrapper.classList.toggle("d-none", zonaSelect.value !== "nuova_zona");
-  });
+  zonaSelect.addEventListener("change", () =>
+    nuovaZonaWrapper.classList.toggle("d-none", zonaSelect.value !== "nuova_zona")
+  );
 
 });
 </script>
