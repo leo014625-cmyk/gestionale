@@ -1,0 +1,252 @@
+{% extends "01_base.html" %}
+
+{% block title %}BETA Volantino - Gestionale Horeca{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">🧪 BETA – Editor Volantino</h1>
+
+<div class="row">
+
+  <!-- TOOLBAR -->
+  <div class="col-md-3">
+    <div class="card mb-3">
+      <div class="card-header fw-bold">Strumenti</div>
+      <div class="card-body">
+
+        <button class="btn btn-primary w-100 mb-2" id="add-text">➕ Aggiungi Testo</button>
+
+        <button class="btn btn-secondary w-100 mb-2" id="add-image">🖼️ Aggiungi Immagine</button>
+
+        <button class="btn btn-success w-100 mb-2" id="add-product">📦 Aggiungi Prodotto</button>
+
+        <input type="file" id="image-input" class="d-none" accept="image/*">
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-bold">Azioni</div>
+      <div class="card-body">
+        <button class="btn btn-outline-danger w-100 mb-2" id="delete-selected">🗑️ Elimina selezionato</button>
+        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">💾 Salva Volantino</button>
+        <button class="btn btn-outline-dark w-100" id="export-pdf">📄 Esporta PDF</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- AREA VOLANTINO -->
+  <div class="col-md-9">
+    <div id="canvas" class="border bg-white" 
+         style="width: 800px; height: 1100px; position: relative; margin: auto;">
+
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+{{ super() }}
+
+<!-- Interact.js -->
+<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+
+<!-- html2canvas + jsPDF -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const canvas = document.getElementById("canvas");
+  let selected = null;
+
+  /* ------------------------------
+      CREAZIONE ELEMENTI
+  ------------------------------ */
+  function creaElemento(tipo, contenuto = "") {
+    const el = document.createElement("div");
+    el.classList.add("elemento-volantino");
+    el.style.position = "absolute";
+    el.style.left = "100px";
+    el.style.top = "100px";
+    el.style.padding = "8px";
+    el.style.border = "1px dashed #999";
+    el.style.background = "white";
+    el.style.cursor = "move";
+    el.setAttribute("data-type", tipo);
+
+    if (tipo === "text") {
+      el.contentEditable = "true";
+      el.innerText = contenuto || "Testo qui...";
+      el.style.fontSize = "24px";
+    }
+
+    if (tipo === "product") {
+      el.innerHTML = `
+        <strong>Nome Prodotto</strong><br>
+        <small class="text-muted">Categoria</small><br>
+        <span class="text-success fw-bold">€ 0.00</span>
+      `;
+    }
+
+    if (tipo === "image") {
+      el.innerHTML = `<img src="${contenuto}" style="max-width:200px;">`;
+      el.style.padding = "4px";
+    }
+
+    canvas.appendChild(el);
+
+    el.addEventListener("click", () => seleziona(el));
+    seleziona(el);
+
+    attivaInterazione(el);
+  }
+
+  /* ------------------------------
+      SELEZIONE ELEMENTO
+  ------------------------------ */
+  function seleziona(el) {
+    document.querySelectorAll(".elemento-volantino").forEach(e => {
+      e.style.border = "1px dashed #999";
+    });
+
+    el.style.border = "2px solid #007bff";
+    selected = el;
+  }
+
+  /* ------------------------------
+      TOOLBAR
+  ------------------------------ */
+  document.getElementById("add-text").addEventListener("click", () => creaElemento("text"));
+  document.getElementById("add-product").addEventListener("click", () => creaElemento("product"));
+
+  document.getElementById("add-image").addEventListener("click", () => {
+    document.getElementById("image-input").click();
+  });
+
+  document.getElementById("image-input").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => creaElemento("image", reader.result);
+    reader.readAsDataURL(file);
+  });
+
+  /* ------------------------------
+      CANCELLA ELEMENTO
+  ------------------------------ */
+  document.getElementById("delete-selected").addEventListener("click", () => {
+    if (selected) selected.remove();
+    selected = null;
+  });
+
+  /* ------------------------------
+      DRAG & RESIZE
+  ------------------------------ */
+  function attivaInterazione(el) {
+    interact(el)
+      .draggable({
+        listeners: {
+          move(event) {
+            const x = (parseFloat(event.target.getAttribute("data-x")) || 0) + event.dx;
+            const y = (parseFloat(event.target.getAttribute("data-y")) || 0) + event.dy;
+
+            event.target.style.transform = `translate(${x}px, ${y}px)`;
+            event.target.setAttribute("data-x", x);
+            event.target.setAttribute("data-y", y);
+          }
+        }
+      })
+      .resizable({
+        edges: { left: true, right: true, bottom: true, top: true }
+      })
+      .on("resizemove", event => {
+        let { x, y } = event.target.dataset;
+
+        Object.assign(event.target.style, {
+          width: `${event.rect.width}px`,
+          height: `${event.rect.height}px`
+        });
+
+        x = (parseFloat(x) || 0) + event.deltaRect.left;
+        y = (parseFloat(y) || 0) + event.deltaRect.top;
+
+        event.target.style.transform = `translate(${x}px, ${y}px)`;
+        event.target.dataset.x = x;
+        event.target.dataset.y = y;
+      });
+  }
+
+  /* ------------------------------
+      SALVATAGGIO VOLANTINO
+  ------------------------------ */
+  document.getElementById("save-layout").addEventListener("click", () => {
+
+    const elementi = [];
+
+    document.querySelectorAll(".elemento-volantino").forEach(el => {
+      elementi.push({
+        tipo: el.getAttribute("data-type"),
+        x: el.getAttribute("data-x") || 0,
+        y: el.getAttribute("data-y") || 0,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+        html: el.innerHTML
+      });
+    });
+
+    fetch("/salva-volantino-beta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout: elementi })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert("Volantino salvato!");
+    });
+
+  });
+
+  /* ------------------------------
+      ESPORTAZIONE PDF
+  ------------------------------ */
+  document.getElementById("export-pdf").addEventListener("click", async () => {
+
+    const canvasDiv = document.getElementById("canvas");
+
+    html2canvas(canvasDiv, { scale: 2 }).then(canvas => {
+
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jspdf.jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [800, 1100]
+      });
+
+      pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
+
+      pdf.save("volantino.pdf");
+    });
+
+  });
+
+});
+</script>
+
+<style>
+#canvas {
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
+}
+
+.elemento-volantino:focus {
+  outline: none;
+}
+</style>
+
+{% endblock %}
