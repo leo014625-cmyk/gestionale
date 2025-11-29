@@ -2568,6 +2568,12 @@ def debug_template():
     Template path: {app.jinja_loader.searchpath}
     """
 
+@app.route('/init-db')
+def init_db():
+    from app import db  # assicura import corretto
+    db.create_all()
+    return "Tabelle create!"
+
 
 # ============================
 # AVVIO APP
