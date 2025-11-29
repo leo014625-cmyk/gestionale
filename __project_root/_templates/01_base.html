@@ -197,50 +197,66 @@
   <nav class="sidebar" id="sidebar" aria-label="Sidebar principale">
     <a class="navbar-brand" href="/"><span>Gestionale Horeca</span></a>
     <ul class="nav flex-column">
+
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/clienti') %}active{% endif %}" 
-           href="{{ url_for('clienti') }}" aria-current="{% if request.path.startswith('/clienti') %}page{% endif %}">
+           href="{{ url_for('clienti') }}">
           <i class="bi bi-people-fill"></i> <span>Clienti</span>
         </a>
       </li>
+
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/prodotti') %}active{% endif %}" 
-           href="{{ url_for('prodotti') }}" aria-current="{% if request.path.startswith('/prodotti') %}page{% endif %}">
+           href="{{ url_for('prodotti') }}">
           <i class="bi bi-box-seam"></i> <span>Prodotti</span>
         </a>
       </li>
+
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/volantini') %}active{% endif %}" 
-           href="{{ url_for('lista_volantini') }}" aria-current="{% if request.path.startswith('/volantini') %}page{% endif %}">
+           href="{{ url_for('lista_volantini') }}">
           <i class="bi bi-file-earmark-image"></i> <span>Volantini</span>
         </a>
       </li>
+
+      <!-- ⭐ AGGIUNTA: BETA VOLANTINO -->
+      <li class="nav-item">
+        <a class="nav-link {% if request.path.startswith('/beta-volantino') %}active{% endif %}" 
+           href="{{ url_for('beta_volantino') }}">
+          <i class="bi bi-pencil-square"></i> <span>🧪 BETA Volantino</span>
+        </a>
+      </li>
+      <!-- FINE AGGIUNTA -->
+
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/fatturato') %}active{% endif %}" 
-           href="{{ url_for('fatturato') }}" aria-current="{% if request.path.startswith('/fatturato') %}page{% endif %}">
+           href="{{ url_for('fatturato') }}">
           <i class="bi bi-currency-euro"></i> <span>Fatturato</span>
         </a>
       </li>
+
       <li class="nav-item mt-3">
-        <button id="toggle-dark-mode" title="Toggle modalità scura" aria-pressed="false" aria-label="Attiva modalità scura">
+        <button id="toggle-dark-mode">
           <i class="bi bi-moon-fill"></i> <span>Modalità Scura</span>
         </button>
       </li>
+
       <li class="nav-item mt-3">
         <a href="{{ url_for('logout') }}" class="btn btn-outline-light w-100 logout-btn">
           <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
         </a>
       </li>
+
     </ul>
   </nav>
 
-  <main class="container" role="main">
+  <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ category }} alert-dismissible fade show">
             {{ message }}
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Chiudi"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
           </div>
         {% endfor %}
       {% endif %}
@@ -273,7 +289,6 @@
           ? '<i class="bi bi-sun-fill"></i> <span>Modalità Chiara</span>'
           : '<i class="bi bi-moon-fill"></i> <span>Modalità Scura</span>';
         btn.setAttribute('aria-pressed', isDark);
-        btn.setAttribute('aria-label', isDark ? 'Attiva modalità chiara' : 'Attiva modalità scura');
       }
 
       if (localStorage.getItem('darkMode') === 'enabled') {
@@ -288,5 +303,6 @@
       });
     })();
   </script>
+
 </body>
 </html>
