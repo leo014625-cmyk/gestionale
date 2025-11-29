@@ -6,43 +6,83 @@
 
 <h1 class="mb-4">🧪 Volantini BETA salvati</h1>
 
-<div class="d-flex justify-content-between mb-3">
-  <h4 class="m-0">Elenco volantini</h4>
-  <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary">
-    ➕ Crea nuovo volantino
-  </a>
+<div class="row mb-3">
+  <div class="col-md-6 d-flex align-items-center">
+    <h4 class="m-0">Elenco volantini</h4>
+  </div>
+  <div class="col-md-4 mt-2 mt-md-0">
+    <input type="text" class="form-control form-control-sm" id="search-volantini"
+           placeholder="Cerca per nome o ID...">
+  </div>
+  <div class="col-md-2 text-md-end mt-2 mt-md-0">
+    <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary w-100">
+      ➕ Crea nuovo
+    </a>
+  </div>
 </div>
 
 <div class="card shadow-sm">
   <div class="card-body p-0">
 
-    <table class="table table-hover table-bordered m-0">
+    <table class="table table-hover table-bordered m-0" id="tabella-volantini-beta">
       <thead class="table-dark">
         <tr>
           <th style="width:60px;">ID</th>
+          <th style="width:150px;">Anteprima</th>
           <th>Nome</th>
           <th style="width:200px;">Creato il</th>
-          <th style="width:200px;">Azioni</th>
+          <th style="width:260px;">Azioni</th>
         </tr>
       </thead>
 
       <tbody>
         {% for v in lista %}
-        <tr>
-          <td class="text-center">{{ v.id }}</td>
-          <td>{{ v.nome }}</td>
-          <td>{{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}</td>
-          <td class="text-center">
+        <tr class="data-row">
+          <td class="text-center align-middle">{{ v.id }}</td>
+
+          <!-- MINIATURA -->
+          <td class="text-center align-middle">
+            {% if v.thumbnail %}
+              <img src="{{ v.thumbnail }}" alt="Anteprima volantino {{ v.id }}"
+                   class="img-thumbnail"
+                   style="max-width: 130px; max-height: 90px; object-fit: cover;">
+            {% else %}
+              <span class="text-muted small">Nessuna<br>anteprima</span>
+            {% endif %}
+          </td>
+
+          <!-- NOME + BADGE ULTIMA MODIFICA -->
+          <td class="align-middle">
+            <strong>{{ v.nome }}</strong>
+            {% if v.aggiornato_il and v.aggiornato_il > v.creato_il %}
+              <br>
+              <span class="badge bg-info text-dark mt-1">
+                Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') }}
+              </span>
+            {% endif %}
+          </td>
+
+          <td class="align-middle">
+            {{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}
+          </td>
+
+          <td class="text-center align-middle">
 
             <!-- APRI -->
             <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}" 
-               class="btn btn-sm btn-primary me-1">
+               class="btn btn-sm btn-primary me-1 mb-1">
               ✏️ Apri / Modifica
+            </a>
+
+            <!-- DUPLICA -->
+            <a href="{{ url_for('beta_volantino_duplica', id=v.id) }}" 
+               class="btn btn-sm btn-outline-secondary me-1 mb-1">
+              📄 Duplica
             </a>
 
             <!-- ELIMINA -->
             <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" 
-               class="btn btn-sm btn-danger"
+               class="btn btn-sm btn-danger mb-1"
                onclick="return confirm('Sei sicuro di voler eliminare questo volantino?')">
               🗑️ Elimina
             </a>
@@ -51,7 +91,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="4" class="text-center text-muted py-4">
+          <td colspan="5" class="text-center text-muted py-4">
             Nessun volantino salvato.<br>
             <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary mt-2">
               ➕ Crea il primo volantino
@@ -63,7 +103,105 @@
     </table>
 
   </div>
+
+  <!-- PAGINAZIONE -->
+  <div class="d-flex justify-content-between align-items-center px-3 py-2" id="pagination-wrapper">
+    <small id="pagination-info" class="text-muted"></small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item">
+          <button class="page-link" id="prev-page" type="button">&laquo; Prec</button>
+        </li>
+        <li class="page-item">
+          <button class="page-link" id="next-page" type="button">Succ &raquo;</button>
+        </li>
+      </ul>
+    </nav>
+  </div>
+
 </div>
 
 {% endblock %}
 
+
+{% block scripts %}
+{{ super() }}
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const searchInput = document.getElementById("search-volantini");
+  const table = document.getElementById("tabella-volantini-beta");
+  const rows = Array.from(table.querySelectorAll("tbody tr.data-row"));
+
+  const perPage = 10;
+  let currentPage = 1;
+
+  const paginationInfo = document.getElementById("pagination-info");
+  const prevBtn = document.getElementById("prev-page");
+  const nextBtn = document.getElementById("next-page");
+  const paginationWrapper = document.getElementById("pagination-wrapper");
+
+  function getFilteredRows() {
+    const term = (searchInput.value || "").toLowerCase().trim();
+    if (!term) return rows;
+
+    return rows.filter(row => {
+      const idText = row.children[0].innerText.toLowerCase();
+      const nameText = row.children[2].innerText.toLowerCase();
+      return idText.includes(term) || nameText.includes(term);
+    });
+  }
+
+  function render() {
+    const filtered = getFilteredRows();
+
+    // se sto cercando → niente paginazione
+    if (searchInput.value.trim() !== "") {
+      rows.forEach(r => r.style.display = "none");
+      filtered.forEach(r => r.style.display = "");
+      paginationWrapper.style.display = "none";
+      paginationInfo.textContent = `${filtered.length} risultato/i`;
+      return;
+    }
+
+    // con paginazione
+    paginationWrapper.style.display = "";
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    rows.forEach(r => r.style.display = "none");
+
+    const start = (currentPage - 1) * perPage;
+    const end = start + perPage;
+    filtered.slice(start, end).forEach(r => r.style.display = "");
+
+    paginationInfo.textContent = `Pagina ${currentPage} di ${totalPages} — ${total} volantino/i`;
+
+    prevBtn.disabled = (currentPage <= 1);
+    nextBtn.disabled = (currentPage >= totalPages);
+  }
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      render();
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    currentPage++;
+    render();
+  });
+
+  searchInput.addEventListener("input", () => {
+    currentPage = 1;
+    render();
+  });
+
+  render();
+});
+</script>
+
+{% endblock %}
