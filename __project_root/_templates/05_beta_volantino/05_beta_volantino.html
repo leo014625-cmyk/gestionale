@@ -4,731 +4,233 @@
 
 {% block content %}
 
-<style>
-  body { background:#f5f5f5; }
-</style>
+<h1 class="mb-4">🧪 BETA – Editor Volantino (Stile InPublish)</h1>
 
-<h1 class="mb-4">🧪 BETA – Editor Volantino (Nuova Versione)</h1>
+<div class="row">
 
-<div class="editor-container d-flex">
+  <!-- TOOLBAR LATERALE -->
+  <div class="col-md-3">
 
-  <!-- ============================
-          SIDEBAR SINISTRA
-  ============================= -->
-  <div class="sidebar-left">
-
-    <div class="panel">
-      <h5>📄 Pagine</h5>
-      <div id="lista-pagine"></div>
-
-      <button id="aggiungi-pagina" class="btn btn-primary w-100 mt-2">
-        ➕ Aggiungi pagina
-      </button>
-
-      <button id="duplica-pagina" class="btn btn-outline-primary w-100 mt-2">
-        📄 Duplica pagina
-      </button>
+    <!-- Nome volantino -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-card-text me-1"></i> Nome volantino
+      </div>
+      <div class="card-body">
+        <input type="text" id="volantino-nome" class="form-control form-control-sm"
+               placeholder="Es. VOLANTINO ITTICO NOVEMBRE"
+               value="{{ nome_volantino or '' }}">
+      </div>
     </div>
 
-    <div class="panel">
-      <h5>🔲 Layout griglie</h5>
-      <button class="btn btn-light w-100 mb-2" data-grid="2x3">Griglia 2x3</button>
-      <button class="btn btn-light w-100 mb-2" data-grid="3x3">Griglia 3x3</button>
-      <button class="btn btn-light w-100 mb-2" data-grid="4x3">Griglia 4x3</button>
+    <!-- Pagine -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-journal-text me-1"></i> Pagine</span>
+      </div>
+      <div class="card-body">
+        <div id="lista-pagine" class="mb-2"></div>
+        <div class="d-grid gap-2">
+          <button class="btn btn-primary btn-sm" id="aggiungi-pagina">
+            ➕ Aggiungi pagina
+          </button>
+          <button class="btn btn-outline-primary btn-sm" id="duplica-pagina">
+            📄 Duplica pagina corrente
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="panel">
-      <h5>📦 Azioni Cella</h5>
-      <button id="duplica-cella" class="btn btn-outline-secondary w-100 mb-2">Duplica</button>
-      <button id="elimina-cella" class="btn btn-outline-danger w-100">Elimina</button>
+    <!-- Layout griglia -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-grid-3x3-gap-fill me-1"></i> Layout griglia pagina
+      </div>
+      <div class="card-body">
+        <button class="btn btn-outline-primary w-100 mb-2" data-grid="2x3">Griglia 2 × 3</button>
+        <button class="btn btn-outline-primary w-100 mb-2" data-grid="3x3">Griglia 3 × 3</button>
+        <button class="btn btn-outline-primary w-100 mb-2" data-grid="4x3">Griglia 4 × 3</button>
+        <small class="text-muted d-block mt-1">
+          Scegli la griglia: ogni cella può essere poi modificata.
+        </small>
+      </div>
     </div>
 
-    <div class="panel">
-      <h5>💾 Volantino</h5>
-      <input id="volantino-nome" class="form-control mb-2" placeholder="Nome volantino" value="{{ nome_volantino or '' }}">
-      <button id="save-layout" class="btn btn-primary w-100">Salva</button>
-      <button id="export-pdf" class="btn btn-dark w-100 mt-2">Esporta PDF</button>
+    <!-- Formato celle -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-bounding-box-circles me-1"></i> Formato cella selezionata
+      </div>
+      <div class="card-body d-grid gap-2">
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x1">1 × 1 (normale)</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x1">2 × 1 (larga)</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x2">1 × 2 (alta)</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x2">2 × 2 (grande)</button>
+        <small class="text-muted">
+          Seleziona una box nel volantino e poi scegli il formato.
+        </small>
+      </div>
+    </div>
+
+    <!-- Stile prezzo (shortcut rapido) -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-tag-fill me-1"></i> Stile prezzo (rapido)
+      </div>
+      <div class="card-body d-grid gap-2">
+        <button class="btn btn-warning btn-sm" data-price-style="yellow">Cartellino giallo</button>
+        <button class="btn btn-danger btn-sm" data-price-style="red">Cartellino rosso</button>
+        <button class="btn btn-info btn-sm" data-price-style="blue">Cartellino blu</button>
+        <button class="btn btn-outline-secondary btn-sm" data-price-style="base">Semplice</button>
+        <small class="text-muted">
+          Puoi anche gestire il prezzo nel popup della box.
+        </small>
+      </div>
+    </div>
+
+    <!-- Azioni celle / volantino -->
+    <div class="card shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-tools me-1"></i> Azioni
+      </div>
+      <div class="card-body d-grid gap-2">
+        <button class="btn btn-outline-secondary btn-sm" id="duplica-cella">
+          📄 Duplica cella selezionata
+        </button>
+        <button class="btn btn-outline-danger btn-sm" id="elimina-cella">
+          🗑️ Elimina cella selezionata
+        </button>
+        <hr>
+        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">
+          💾 Salva Volantino
+        </button>
+        <button class="btn btn-outline-dark w-100" id="export-pdf">
+          📄 Esporta PDF
+        </button>
+      </div>
     </div>
 
   </div>
 
-  <!-- ============================
-            CANVAS CENTRALE
-  ============================= -->
-  <div class="canvas-wrapper">
-    <div id="pagine-container"></div>
-  </div>
-
-  <!-- ============================
-          SIDEBAR DESTRA (NUOVA)
-  ============================= -->
-  <div class="sidebar-right" id="sidebar-dx">
-
-    <h4 class="sidebar-title">Modifica Cella</h4>
-
-    <div class="sidebar-section">
-      <label class="fw-bold">📷 Immagine prodotto</label>
-      <button id="btn-cambia-immagine" class="btn btn-light w-100">
-        Cambia immagine
-      </button>
+  <!-- AREA VOLANTINO -->
+  <div class="col-md-9">
+    <div id="pagine-container" style="width: 800px; margin:auto;">
+      <!-- Le pagine verranno iniettate via JS -->
     </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold">🏷️ Titolo</label>
-      <input id="edit-titolo" class="form-control">
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold">📄 Descrizione</label>
-      <textarea id="edit-descrizione" class="form-control"></textarea>
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold">💶 Prezzo</label>
-      <input id="edit-prezzo" class="form-control">
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold">🎨 Stile prezzo</label>
-      <select id="edit-prezzo-stile" class="form-select">
-        <option value="base">Base</option>
-        <option value="yellow">Giallo</option>
-        <option value="red">Rosso</option>
-        <option value="blue">Blu</option>
-      </select>
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold">📐 Dimensioni</label>
-      <select id="edit-dimensioni" class="form-select">
-        <option value="1x1">1 × 1</option>
-        <option value="2x1">2 × 1</option>
-        <option value="1x2">1 × 2</option>
-        <option value="2x2">2 × 2</option>
-      </select>
-    </div>
-
-    <button id="save-cella-popup" class="btn btn-success w-100 mt-3">✔ Salva modifiche</button>
   </div>
 
 </div>
 
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/html2canvas"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-/* ============================================================
-    SIDEBAR DESTRA – POPUP EDITOR CELLA
-============================================================ */
-const sidebarDx = document.getElementById("sidebar-dx");
-
-let cellaSelezionata = null;
-
-/* ---------------------------
-    APRI EDITOR A DESTRA
---------------------------- */
-function apriEditorCella(cella) {
-    cellaSelezionata = cella;
-    sidebarDx.classList.add("open");
-
-    // Precompila i campi
-    document.getElementById("edit-titolo").value =
-        cella.querySelector(".titolo")?.innerText || "";
-
-    document.getElementById("edit-descrizione").value =
-        cella.querySelector(".descrizione")?.innerText || "";
-
-    document.getElementById("edit-prezzo").value =
-        cella.querySelector(".prezzo")?.innerText || "";
-
-    document.getElementById("edit-prezzo-stile").value =
-        cella.dataset.priceStyle || "base";
-
-    const cs = cella.dataset.colspan || "1";
-    const rs = cella.dataset.rowspan || "1";
-    document.getElementById("edit-dimensioni").value = cs + "x" + rs;
-}
-
-/* ---------------------------
-    CHIUDI EDITOR A DESTRA
---------------------------- */
-function chiudiEditor() {
-    sidebarDx.classList.remove("open");
-    cellaSelezionata = null;
-}
-
-/* ---------------------------
-    CLICK FUORI → CHIUDI
---------------------------- */
-document.addEventListener("click", (e) => {
-    if (!sidebarDx.contains(e.target) &&
-        !e.target.classList.contains("cella-prodotto")) {
-        chiudiEditor();
-    }
-});
-
-/* ============================================================
-    CAMBIO IMMAGINE
-============================================================ */
-document.getElementById("btn-cambia-immagine").addEventListener("click", () => {
-    if (!cellaSelezionata) return;
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-
-    input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const r = new FileReader();
-        r.onload = () => {
-            const box = cellaSelezionata.querySelector(".img-box");
-            box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
-        };
-        r.readAsDataURL(file);
-    };
-
-    input.click();
-});
-
-/* ============================================================
-    SALVA MODIFICHE DELLA CELLA
-============================================================ */
-document.getElementById("save-cella-popup").addEventListener("click", () => {
-    if (!cellaSelezionata) return;
-
-    // Aggiorna testo
-    cellaSelezionata.querySelector(".titolo").innerText =
-        document.getElementById("edit-titolo").value;
-
-    cellaSelezionata.querySelector(".descrizione").innerText =
-        document.getElementById("edit-descrizione").value;
-
-    cellaSelezionata.querySelector(".prezzo").innerText =
-        document.getElementById("edit-prezzo").value;
-
-    // Aggiorna stile prezzo
-    const style = document.getElementById("edit-prezzo-stile").value;
-    cellaSelezionata.dataset.priceStyle = style;
-
-    const prezzoEl = cellaSelezionata.querySelector(".prezzo");
-    prezzoEl.classList.remove("prezzo-base", "prezzo-red", "prezzo-blue", "prezzo-yellow");
-    prezzoEl.classList.add("prezzo-" + style);
-
-    // Aggiorna dimensioni
-    const dim = document.getElementById("edit-dimensioni").value.split("x");
-    cellaSelezionata.dataset.colspan = dim[0];
-    cellaSelezionata.dataset.rowspan = dim[1];
-
-    cellaSelezionata.style.gridColumn = `span ${dim[0]}`;
-    cellaSelezionata.style.gridRow = `span ${dim[1]}`;
-
-    chiudiEditor();
-});
-
-/* ============================================================
-    CLICK SU CELLA PRODOTTO → APRE EDITOR
-============================================================ */
-function attivaClickCella(cella) {
-    cella.addEventListener("click", (e) => {
-        e.stopPropagation();
-        apriEditorCella(cella);
-    });
-}
-/* ============================================================
-    STRUTTURA PAGINE E CELLE
-============================================================ */
-
-let pagine = [];
-let paginaCorrente = 0;
-
-const pagineContainer = document.getElementById("pagine-container");
-const listaPagine = document.getElementById("lista-pagine");
-const inputNome = document.getElementById("volantino-nome");
-
-/* ----------------------------------------------------------
-   HELPER: UPLOAD IMMAGINE SU HEADER/FOOTER O CELLA
------------------------------------------------------------ */
-function attachImageUpload(box) {
-    box.addEventListener("click", () => {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = "image/*";
-
-        input.onchange = e => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const r = new FileReader();
-            r.onload = () => {
-                box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
-            };
-            r.readAsDataURL(file);
-        };
-
-        input.click();
-    });
-}
-
-/* ----------------------------------------------------------
-   CREA UNA CELLA PRODOTTO
------------------------------------------------------------ */
-function creaCella() {
-    const cell = document.createElement("div");
-    cell.classList.add("cella-prodotto");
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-    cell.dataset.priceStyle = "base";
-
-    cell.innerHTML = `
-      <div class="img-box img-drop">
-        <span class="placeholder-text">Clicca per inserire immagine</span>
+<!-- ============================================
+     MODAL EDITOR CELLA (stile InPublish)
+============================================= -->
+<div class="modal fade" id="cellEditorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          ✏️ Modifica box prodotto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="Chiudi"></button>
       </div>
-      <div class="contenuto-cella">
-        <div class="titolo">TITOLO PRODOTTO</div>
-        <div class="descrizione">Descrizione prodotto</div>
-        <div class="prezzo prezzo-base">€ 0,00</div>
+      <div class="modal-body">
+
+        <div class="row g-3">
+
+          <!-- Colonna immagine -->
+          <div class="col-md-5">
+            <label class="form-label small text-muted">Immagine prodotto</label>
+            <div id="modal-image-preview"
+                 class="border rounded d-flex align-items-center justify-content-center mb-2 ratio ratio-4x3 bg-light"
+                 style="overflow:hidden; cursor:pointer;">
+              <span class="text-muted small">Clicca per caricare immagine</span>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
+              🖼️ Cambia immagine
+            </button>
+            <input type="file" id="modal-image-input" class="d-none" accept="image/*">
+          </div>
+
+          <!-- Colonna dati -->
+          <div class="col-md-7">
+            <div class="mb-2">
+              <label class="form-label small">Nome prodotto</label>
+              <input type="text" id="modal-title" class="form-control form-control-sm"
+                     placeholder="Es. Salmone norvegese intero">
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small">Descrizione</label>
+              <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
+                        placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small">Prezzo</label>
+                <input type="text" id="modal-price" class="form-control form-control-sm"
+                       placeholder="Es. € 9,90">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Stile prezzo</label>
+                <select id="modal-price-style" class="form-select form-select-sm">
+                  <option value="base">Semplice</option>
+                  <option value="yellow">Cartellino giallo</option>
+                  <option value="red">Cartellino rosso</option>
+                  <option value="blue">Cartellino blu</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small">Layout box</label>
+                <select id="modal-layout" class="form-select form-select-sm">
+                  <option value="image-top">Immagine sopra, testo sotto</option>
+                  <option value="image-left">Immagine sinistra, testo destra</option>
+                  <option value="full-image-price">Immagine piena con cartellino prezzo</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Allineamento testo</label>
+                <select id="modal-align" class="form-select form-select-sm">
+                  <option value="start">Sinistra</option>
+                  <option value="center">Centro</option>
+                  <option value="end">Destra</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
-    `;
-
-    const imgBox = cell.querySelector(".img-box");
-    attachImageUpload(imgBox);
-
-    // dimensione iniziale 1x1
-    cell.style.gridColumn = "span 1";
-    cell.style.gridRow = "span 1";
-
-    // click = apre editor destra
-    attivaClickCella(cell);
-
-    return cell;
-}
-
-/* ----------------------------------------------------------
-   CREA UNA NUOVA PAGINA
------------------------------------------------------------ */
-function creaPagina(cols = 3) {
-    const page = document.createElement("div");
-    page.classList.add("pagina-volantino");
-    page.dataset.cols = cols;
-
-    page.innerHTML = `
-      <div class="page-header img-drop">
-        <span class="placeholder-text">Clicca per inserire header (immagine/logo)</span>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Annulla
+        </button>
+        <button type="button" class="btn btn-primary" id="modal-save">
+          💾 Salva box
+        </button>
       </div>
-      <div class="page-grid"></div>
-      <div class="page-footer img-drop">
-        <span class="placeholder-text">Clicca per inserire footer (immagine/info)</span>
-      </div>
-    `;
-
-    const header = page.querySelector(".page-header");
-    const footer = page.querySelector(".page-footer");
-    const grid = page.querySelector(".page-grid");
-
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridAutoRows = "1fr";
-    grid.style.gap = "10px";
-
-    return page;
-}
-
-/* ----------------------------------------------------------
-   MOSTRA PAGINA CORRENTE
------------------------------------------------------------ */
-function mostraPaginaCorrente() {
-    pagineContainer.innerHTML = "";
-    if (pagine[paginaCorrente]) {
-        pagineContainer.appendChild(pagine[paginaCorrente]);
-    }
-}
-
-/* ----------------------------------------------------------
-   AGGIORNA LISTA PULSANTI PAGINE
------------------------------------------------------------ */
-function aggiornaListaPagine() {
-    listaPagine.innerHTML = "";
-
-    pagine.forEach((_, i) => {
-        const btn = document.createElement("button");
-        btn.classList.add("btn", "btn-sm", "w-100", "mb-1", "btn-page-selector");
-
-        if (i === paginaCorrente) {
-            btn.classList.add("btn-primary");
-        } else {
-            btn.classList.add("btn-outline-primary");
-        }
-
-        btn.innerText = "Pagina " + (i + 1);
-
-        btn.onclick = () => {
-            paginaCorrente = i;
-            mostraPaginaCorrente();
-            aggiornaListaPagine();
-        };
-
-        listaPagine.appendChild(btn);
-    });
-}
-
-/* ============================================================
-    PAGINE: AGGIUNGI / DUPLICA
-============================================================ */
-document.getElementById("aggiungi-pagina").addEventListener("click", () => {
-    const nuova = creaPagina(3);
-    pagine.push(nuova);
-    paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-});
-
-document.getElementById("duplica-pagina").addEventListener("click", () => {
-    if (!pagine[paginaCorrente]) return;
-
-    const originale = pagine[paginaCorrente];
-    const clone = originale.cloneNode(true);
-
-    // riattacca comportamenti
-    const header = clone.querySelector(".page-header");
-    const footer = clone.querySelector(".page-footer");
-    const grid = clone.querySelector(".page-grid");
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
-    grid.querySelectorAll(".cella-prodotto").forEach(cella => {
-        const imgBox = cella.querySelector(".img-box");
-        if (imgBox) attachImageUpload(imgBox);
-        attivaClickCella(cella);
-    });
-
-    pagine.push(clone);
-    paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-});
-
-/* ============================================================
-    LAYOUT GRIGLIE: 2x3, 3x3, 4x3
-============================================================ */
-document.querySelectorAll("[data-grid]").forEach(btn => {
-    btn.addEventListener("click", () => {
-        if (!pagine[paginaCorrente]) return;
-
-        const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
-        const page = pagine[paginaCorrente];
-        const grid = page.querySelector(".page-grid");
-
-        grid.innerHTML = "";
-        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-        page.dataset.cols = cols;
-
-        for (let i = 0; i < cols * rows; i++) {
-            grid.appendChild(creaCella());
-        }
-    });
-});
-
-/* ============================================================
-    DUPLICA / ELIMINA CELLA
-============================================================ */
-document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) {
-        alert("Seleziona una cella da duplicare");
-        return;
-    }
-    const clone = cellaSelezionata.cloneNode(true);
-    const imgBox = clone.querySelector(".img-box");
-    if (imgBox) attachImageUpload(imgBox);
-    attivaClickCella(clone);
-    cellaSelezionata.parentElement.appendChild(clone);
-});
-
-document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) {
-        alert("Seleziona una cella da eliminare");
-        return;
-    }
-    cellaSelezionata.remove();
-    cellaSelezionata = null;
-    chiudiEditor();
-});
-
-/* ============================================================
-    SALVATAGGIO LAYOUT → /salva-volantino-beta
-============================================================ */
-document.getElementById("save-layout").addEventListener("click", () => {
-    const data = pagine.map(page => {
-        const grid = page.querySelector(".page-grid");
-        const header = page.querySelector(".page-header");
-        const footer = page.querySelector(".page-footer");
-
-        const headerImg = header.querySelector("img")?.src || "";
-        const footerImg = footer.querySelector("img")?.src || "";
-        const cols = parseInt(page.dataset.cols || "3", 10);
-
-        const cells = [];
-        grid.querySelectorAll(".cella-prodotto").forEach(c => {
-            cells.push({
-                img: c.querySelector(".img-box img")?.src || "",
-                titolo: c.querySelector(".titolo")?.innerText || "",
-                descrizione: c.querySelector(".descrizione")?.innerText || "",
-                prezzo: c.querySelector(".prezzo")?.innerText || "",
-                colSpan: parseInt(c.dataset.colspan || "1", 10),
-                rowSpan: parseInt(c.dataset.rowspan || "1", 10),
-                priceStyle: c.dataset.priceStyle || "base"
-            });
-        });
-
-        return { cols, headerImg, footerImg, cells };
-    });
-
-    fetch("/salva-volantino-beta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            id: {{ volantino_id or "null" }},
-            nome: inputNome.value || "Volantino BETA",
-            layout: data
-        })
-    })
-    .then(r => r.json())
-    .then(d => {
-        alert("Volantino salvato!");
-    })
-    .catch(() => alert("Errore nel salvataggio"));
-});
-
-/* ============================================================
-    CARICAMENTO LAYOUT SALVATO (layout_json)
-============================================================ */
-(function initFromSaved() {
-    {% if layout_json %}
-      const salvato = {{ layout_json | safe }};
-    {% else %}
-      const salvato = null;
-    {% endif %}
-
-    if (Array.isArray(salvato) && salvato.length > 0) {
-        salvato.forEach(pData => {
-            const page = creaPagina(pData.cols || 3);
-            const grid = page.querySelector(".page-grid");
-            const header = page.querySelector(".page-header");
-            const footer = page.querySelector(".page-footer");
-
-            if (pData.headerImg) {
-                header.innerHTML = `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
-            }
-            if (pData.footerImg) {
-                footer.innerHTML = `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
-            }
-
-            grid.style.gridTemplateColumns = `repeat(${pData.cols || 3}, 1fr)`;
-            grid.style.gridAutoRows = "1fr";
-
-            (pData.cells || []).forEach(item => {
-                const cell = creaCella();
-
-                if (item.img) {
-                    const box = cell.querySelector(".img-box");
-                    box.innerHTML = `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
-                }
-
-                cell.querySelector(".titolo").innerText = item.titolo || "";
-                cell.querySelector(".descrizione").innerText = item.descrizione || "";
-                cell.querySelector(".prezzo").innerText = item.prezzo || "";
-
-                cell.dataset.colspan = item.colSpan || 1;
-                cell.dataset.rowspan = item.rowSpan || 1;
-                cell.dataset.priceStyle = item.priceStyle || "base";
-
-                cell.style.gridColumn = `span ${cell.dataset.colspan}`;
-                cell.style.gridRow = `span ${cell.dataset.rowspan}`;
-
-                const prezzoEl = cell.querySelector(".prezzo");
-                prezzoEl.classList.remove("prezzo-base", "prezzo-red", "prezzo-blue", "prezzo-yellow");
-                prezzoEl.classList.add("prezzo-" + (cell.dataset.priceStyle || "base"));
-
-                grid.appendChild(cell);
-            });
-
-            pagine.push(page);
-        });
-    }
-
-    if (pagine.length === 0) {
-        pagine.push(creaPagina(3));
-    }
-
-    paginaCorrente = 0;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-})();
-
-/* ============================================================
-    ESPORTA PDF MULTIPAGINA
-============================================================ */
-document.getElementById("export-pdf").addEventListener("click", async () => {
-    if (pagine.length === 0) return;
-
-    const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-    const nome = inputNome.value || "volantino";
-
-    const paginaOriginale = paginaCorrente;
-
-    for (let i = 0; i < pagine.length; i++) {
-        if (i > 0) pdf.addPage();
-        paginaCorrente = i;
-        mostraPaginaCorrente();
-
-        const pageEl = pagine[i];
-        const canvasImg = await html2canvas(pageEl, { scale: 2 });
-        const imgData = canvasImg.toDataURL("image/png");
-        pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
-    }
-
-    paginaCorrente = paginaOriginale;
-    mostraPaginaCorrente();
-
-    pdf.save(nome + ".pdf");
-});
-{% extends "01_base.html" %}
-
-{% block title %}BETA Volantino - Gestionale Horeca{% endblock %}
-
-{% block content %}
-
-<h1 class="mb-4">🧪 BETA – Editor Volantino (Nuova Versione)</h1>
-
-<div class="editor-container d-flex">
-
-  <!-- ============================
-          SIDEBAR SINISTRA
-  ============================= -->
-  <div class="sidebar-left">
-
-    <div class="panel">
-      <h5>📄 Pagine</h5>
-      <div id="lista-pagine"></div>
-
-      <button id="aggiungi-pagina" class="btn btn-primary w-100 mt-2">
-        ➕ Aggiungi pagina
-      </button>
-
-      <button id="duplica-pagina" class="btn btn-outline-primary w-100 mt-2">
-        📄 Duplica pagina
-      </button>
     </div>
-
-    <div class="panel">
-      <h5>🔲 Layout griglie</h5>
-      <button class="btn btn-light w-100 mb-2" data-grid="2x3">Griglia 2 × 3</button>
-      <button class="btn btn-light w-100 mb-2" data-grid="3x3">Griglia 3 × 3</button>
-      <button class="btn btn-light w-100 mb-2" data-grid="4x3">Griglia 4 × 3</button>
-    </div>
-
-    <div class="panel">
-      <h5>📦 Azioni cella</h5>
-      <button id="duplica-cella" class="btn btn-outline-secondary w-100 mb-2">📄 Duplica cella</button>
-      <button id="elimina-cella" class="btn btn-outline-danger w-100">🗑️ Elimina cella</button>
-    </div>
-
-    <div class="panel">
-      <h5>💾 Volantino</h5>
-      <input id="volantino-nome" class="form-control mb-2"
-             placeholder="Nome volantino"
-             value="{{ nome_volantino or '' }}">
-      <button id="save-layout" class="btn btn-primary w-100">💾 Salva volantino</button>
-      <button id="export-pdf" class="btn btn-dark w-100 mt-2">📄 Esporta PDF</button>
-    </div>
-
   </div>
-
-  <!-- ============================
-            CANVAS CENTRALE
-  ============================= -->
-  <div class="canvas-wrapper">
-    <div id="pagine-container"></div>
-  </div>
-
-  <!-- ============================
-          SIDEBAR DESTRA (EDITOR)
-  ============================= -->
-  <div class="sidebar-right" id="sidebar-dx">
-
-    <h4 class="sidebar-title">Modifica cella</h4>
-
-    <div class="sidebar-section">
-      <label class="fw-bold mb-1">📷 Immagine prodotto</label>
-      <button id="btn-cambia-immagine" class="btn btn-light w-100">
-        Cambia immagine
-      </button>
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold mb-1">🏷️ Titolo</label>
-      <input id="edit-titolo" class="form-control">
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold mb-1">📄 Descrizione</label>
-      <textarea id="edit-descrizione" class="form-control" rows="3"></textarea>
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold mb-1">💶 Prezzo</label>
-      <input id="edit-prezzo" class="form-control">
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold mb-1">🎨 Stile prezzo</label>
-      <select id="edit-prezzo-stile" class="form-select">
-        <option value="base">Base</option>
-        <option value="yellow">Cartellino giallo</option>
-        <option value="red">Cartellino rosso</option>
-        <option value="blue">Cartellino blu</option>
-      </select>
-    </div>
-
-    <div class="sidebar-section">
-      <label class="fw-bold mb-1">📐 Dimensioni cella</label>
-      <select id="edit-dimensioni" class="form-select">
-        <option value="1x1">1 × 1</option>
-        <option value="2x1">2 × 1</option>
-        <option value="1x2">1 × 2</option>
-        <option value="2x2">2 × 2</option>
-      </select>
-    </div>
-
-    <button id="save-cella-popup" class="btn btn-success w-100 mt-3">
-      ✔ Salva modifiche cella
-    </button>
-  </div>
-
 </div>
-
-{% endblock %}
-
 {% block scripts %}
 {{ super() }}
 
-<!-- html2canvas + jsPDF -->
+<!-- Sortable per drag & drop celle -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+<!-- html2canvas + jsPDF per esportazione PDF -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* ============================================================
-      VARIABILI GLOBALI
-  ============================================================= */
   let pagine = [];
   let paginaCorrente = 0;
   let cellaSelezionata = null;
@@ -736,168 +238,70 @@ document.addEventListener("DOMContentLoaded", () => {
   const pagineContainer = document.getElementById("pagine-container");
   const listaPagine = document.getElementById("lista-pagine");
   const inputNome = document.getElementById("volantino-nome");
-  const sidebarDx = document.getElementById("sidebar-dx");
 
+  // Modal editor
+  const cellEditorModalEl = document.getElementById("cellEditorModal");
+  const cellEditorModal = new bootstrap.Modal(cellEditorModalEl);
+  const modalImagePreview = document.getElementById("modal-image-preview");
+  const modalChangeImage = document.getElementById("modal-change-image");
+  const modalImageInput = document.getElementById("modal-image-input");
+  const modalTitle = document.getElementById("modal-title");
+  const modalDesc = document.getElementById("modal-desc");
+  const modalPrice = document.getElementById("modal-price");
+  const modalPriceStyle = document.getElementById("modal-price-style");
+  const modalLayout = document.getElementById("modal-layout");
+  const modalAlign = document.getElementById("modal-align");
+  const modalSave = document.getElementById("modal-save");
 
-  /* ============================================================
-      EDITOR CELLA (SIDEBAR DESTRA)
-  ============================================================= */
+  let modalImageData = "";   // base64 img per la cella attuale
 
-  function apriEditorCella(cella) {
-    cellaSelezionata = cella;
-    sidebarDx.classList.add("open");
-
-    document.getElementById("edit-titolo").value =
-      cella.querySelector(".titolo")?.innerText || "";
-
-    document.getElementById("edit-descrizione").value =
-      cella.querySelector(".descrizione")?.innerText || "";
-
-    document.getElementById("edit-prezzo").value =
-      cella.querySelector(".prezzo")?.innerText || "";
-
-    document.getElementById("edit-prezzo-stile").value =
-      cella.dataset.priceStyle || "base";
-
-    const cs = cella.dataset.colspan || "1";
-    const rs = cella.dataset.rowspan || "1";
-    document.getElementById("edit-dimensioni").value = cs + "x" + rs;
-  }
-
-  function chiudiEditor() {
-    sidebarDx.classList.remove("open");
-    cellaSelezionata = null;
-  }
-
-  document.addEventListener("click", (e) => {
-    // se clicco fuori dalla sidebar e fuori dalle celle → chiudi
-    if (!sidebarDx.contains(e.target) &&
-        !e.target.closest(".cella-prodotto")) {
-      chiudiEditor();
-    }
-  });
-
-  document.getElementById("btn-cambia-immagine").addEventListener("click", () => {
-    if (!cellaSelezionata) return;
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-
-    input.onchange = e => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const r = new FileReader();
-      r.onload = () => {
-        const box = cellaSelezionata.querySelector(".img-box");
-        box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
-      };
-      r.readAsDataURL(file);
-    };
-
-    input.click();
-  });
-
-  document.getElementById("save-cella-popup").addEventListener("click", () => {
-    if (!cellaSelezionata) return;
-
-    // testo
-    cellaSelezionata.querySelector(".titolo").innerText =
-      document.getElementById("edit-titolo").value;
-
-    cellaSelezionata.querySelector(".descrizione").innerText =
-      document.getElementById("edit-descrizione").value;
-
-    cellaSelezionata.querySelector(".prezzo").innerText =
-      document.getElementById("edit-prezzo").value;
-
-    // stile prezzo
-    const style = document.getElementById("edit-prezzo-stile").value;
-    cellaSelezionata.dataset.priceStyle = style;
-
-    const prezzoEl = cellaSelezionata.querySelector(".prezzo");
-    prezzoEl.classList.remove("prezzo-base", "prezzo-red", "prezzo-blue", "prezzo-yellow");
-    prezzoEl.classList.add("prezzo-" + style);
-
-    // dimensioni
-    const dim = document.getElementById("edit-dimensioni").value.split("x");
-    const cs = dim[0];
-    const rs = dim[1];
-
-    cellaSelezionata.dataset.colspan = cs;
-    cellaSelezionata.dataset.rowspan = rs;
-    cellaSelezionata.style.gridColumn = `span ${cs}`;
-    cellaSelezionata.style.gridRow = `span ${rs}`;
-
-    chiudiEditor();
-  });
-
-  function attivaClickCella(cella) {
-    cella.addEventListener("click", (e) => {
-      e.stopPropagation();
-      apriEditorCella(cella);
-    });
-  }
-
-
-  /* ============================================================
-      HELPER IMMAGINI (HEADER/FOOTER/CELLE)
-  ============================================================= */
+  /* ----------------------------------------------------------
+     HELPERS: UPLOAD IMMAGINI (HEADER/FOOTER, MODAL)
+  -----------------------------------------------------------*/
   function attachImageUpload(box) {
     box.addEventListener("click", () => {
       const input = document.createElement("input");
       input.type = "file";
       input.accept = "image/*";
-
       input.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
-
         const r = new FileReader();
         r.onload = () => {
           box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
         };
         r.readAsDataURL(file);
       };
-
       input.click();
     });
   }
 
-
-  /* ============================================================
-      CELLE E PAGINE
-  ============================================================= */
-  function creaCella() {
-    const cell = document.createElement("div");
-    cell.classList.add("cella-prodotto");
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-    cell.dataset.priceStyle = "base";
-
-    cell.innerHTML = `
-      <div class="img-box img-drop">
-        <span class="placeholder-text">Clicca per inserire immagine</span>
-      </div>
-      <div class="contenuto-cella">
-        <div class="titolo">TITOLO PRODOTTO</div>
-        <div class="descrizione">Descrizione prodotto</div>
-        <div class="prezzo prezzo-base">€ 0,00</div>
-      </div>
-    `;
-
-    const imgBox = cell.querySelector(".img-box");
-    attachImageUpload(imgBox);
-
-    cell.style.gridColumn = "span 1";
-    cell.style.gridRow = "span 1";
-
-    attivaClickCella(cell);
-
-    return cell;
+  // Per il modal (immagine box prodotto)
+  function setModalImage(src) {
+    modalImageData = src || "";
+    if (!src) {
+      modalImagePreview.innerHTML = `<span class="text-muted small">Clicca per caricare immagine</span>`;
+    } else {
+      modalImagePreview.innerHTML =
+        `<img src="${src}" style="width:100%; height:100%; object-fit:cover;">`;
+    }
   }
 
+  modalImagePreview.addEventListener("click", () => modalChangeImage.click());
+  modalChangeImage.addEventListener("click", () => modalImageInput.click());
+
+  modalImageInput.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => setModalImage(r.result);
+    r.readAsDataURL(file);
+  });
+
+
+  /* ----------------------------------------------------------
+     CREAZIONE PAGINA
+  -----------------------------------------------------------*/
   function creaPagina(cols = 3) {
     const page = document.createElement("div");
     page.classList.add("pagina-volantino");
@@ -905,34 +309,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
     page.innerHTML = `
       <div class="page-header img-drop">
-        <span class="placeholder-text">Clicca per inserire header (immagine/logo)</span>
+        <span class="small text-muted">Clicca per inserire header</span>
       </div>
       <div class="page-grid"></div>
       <div class="page-footer img-drop">
-        <span class="placeholder-text">Clicca per inserire footer (immagine/info)</span>
+        <span class="small text-muted">Clicca per inserire footer</span>
       </div>
     `;
 
     const header = page.querySelector(".page-header");
     const footer = page.querySelector(".page-footer");
-    const grid = page.querySelector(".page-grid");
+    const grid   = page.querySelector(".page-grid");
 
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
+    // Stile griglia
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridAutoRows = "1fr";
     grid.style.gap = "10px";
+
+    // Upload immagini header/footer
+    attachImageUpload(header);
+    attachImageUpload(footer);
+
+    // Drag & drop celle
+    Sortable.create(grid, {
+      animation: 150,
+      ghostClass: "sortable-ghost"
+    });
 
     return page;
   }
 
   function mostraPaginaCorrente() {
     pagineContainer.innerHTML = "";
-    if (pagine[paginaCorrente]) {
-      pagineContainer.appendChild(pagine[paginaCorrente]);
-    }
+    pagineContainer.appendChild(pagine[paginaCorrente]);
   }
 
   function aggiornaListaPagine() {
@@ -940,14 +350,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pagine.forEach((_, i) => {
       const btn = document.createElement("button");
-      btn.classList.add("btn", "btn-sm", "w-100", "mb-1");
-
+      btn.classList.add("btn", "btn-sm", "w-100", "mb-2");
       if (i === paginaCorrente) {
         btn.classList.add("btn-primary");
       } else {
         btn.classList.add("btn-outline-primary");
       }
-
       btn.innerText = "Pagina " + (i + 1);
 
       btn.onclick = () => {
@@ -961,9 +369,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 
-  /* ============================================================
-      PAGINE: AGGIUNGI / DUPLICA
-  ============================================================= */
+  /* ----------------------------------------------------------
+     PAGINE: AGGIUNGI / DUPLICA
+  -----------------------------------------------------------*/
   document.getElementById("aggiungi-pagina").addEventListener("click", () => {
     const nuova = creaPagina(3);
     pagine.push(nuova);
@@ -973,23 +381,33 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("duplica-pagina").addEventListener("click", () => {
-    if (!pagine[paginaCorrente]) return;
-
+    if (!pagine.length) return;
     const originale = pagine[paginaCorrente];
     const clone = originale.cloneNode(true);
 
+    // Riattacca comportamenti
     const header = clone.querySelector(".page-header");
     const footer = clone.querySelector(".page-footer");
-    const grid = clone.querySelector(".page-grid");
-
     attachImageUpload(header);
     attachImageUpload(footer);
 
-    grid.querySelectorAll(".cella-prodotto").forEach(cella => {
-      const imgBox = cella.querySelector(".img-box");
-      if (imgBox) attachImageUpload(imgBox);
-      attivaClickCella(cella);
+    const grid = clone.querySelector(".page-grid");
+    const cols = originale.dataset.cols || 3;
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridAutoRows = "1fr";
+    grid.style.gap = "10px";
+
+    Sortable.create(grid, {
+      animation: 150,
+      ghostClass: "sortable-ghost"
     });
+
+    clone.querySelectorAll(".cella-prodotto").forEach(c => {
+      initCellaEvents(c);
+    });
+
+    clone.dataset.cols = originale.dataset.cols;
 
     pagine.push(clone);
     paginaCorrente = pagine.length - 1;
@@ -998,58 +416,285 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 
-  /* ============================================================
-      LAYOUT GRIGLIE: 2x3, 3x3, 4x3
-  ============================================================= */
+  /* ----------------------------------------------------------
+     CELLA PRODOTTO
+  -----------------------------------------------------------*/
+  function applyCellSize(cell) {
+    const colSpan = parseInt(cell.dataset.colspan || "1", 10);
+    const rowSpan = parseInt(cell.dataset.rowspan || "1", 10);
+    cell.style.gridColumn = `span ${colSpan}`;
+    cell.style.gridRow = `span ${rowSpan}`;
+  }
+
+  function applyPriceStyle(cell) {
+    const prezzoEl = cell.querySelector(".prezzo");
+    if (!prezzoEl) return;
+
+    prezzoEl.classList.remove("prezzo-yellow", "prezzo-red", "prezzo-blue", "prezzo-base");
+    const style = cell.dataset.priceStyle || "base";
+    prezzoEl.classList.add("prezzo-" + style);
+  }
+
+  function applyLayout(cell) {
+    const layout = cell.dataset.layout || "image-top";
+    const wrapper = cell.querySelector(".cella-inner");
+    const imgBox = cell.querySelector(".img-box");
+    const textBox = cell.querySelector(".testo-box");
+
+    cell.classList.remove("cella-layout-image-top", "cella-layout-image-left", "cella-layout-full-image-price");
+    cell.classList.add("cella-layout-" + layout);
+
+    // reset
+    wrapper.style.display = "";
+    wrapper.style.flexDirection = "";
+    imgBox.style.width = "";
+    imgBox.style.height = "";
+    textBox.style.position = "";
+    textBox.style.bottom = "";
+    textBox.style.left = "";
+    textBox.style.right = "";
+    const prezzoEl = cell.querySelector(".prezzo");
+    if (prezzoEl) {
+      prezzoEl.style.position = "";
+      prezzoEl.style.top = "";
+      prezzoEl.style.right = "";
+    }
+
+    if (layout === "image-top") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      imgBox.style.height = "55%";
+    } else if (layout === "image-left") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "row";
+      imgBox.style.width = "50%";
+    } else if (layout === "full-image-price") {
+      wrapper.style.position = "relative";
+      imgBox.style.height = "100%";
+      textBox.style.position = "absolute";
+      textBox.style.bottom = "6px";
+      textBox.style.left = "6px";
+      textBox.style.right = "6px";
+      if (prezzoEl) {
+        prezzoEl.style.position = "absolute";
+        prezzoEl.style.top = "6px";
+        prezzoEl.style.right = "6px";
+      }
+    }
+  }
+
+  function applyTextAlign(cell) {
+    const align = cell.dataset.textAlign || "start";
+    const textBox = cell.querySelector(".testo-box");
+    if (!textBox) return;
+    textBox.classList.remove("text-start", "text-center", "text-end");
+    if (align === "center") textBox.classList.add("text-center");
+    else if (align === "end") textBox.classList.add("text-end");
+    else textBox.classList.add("text-start");
+  }
+
+  function initCellaEvents(cell) {
+    cell.addEventListener("click", e => {
+      e.stopPropagation();
+      selezionaCella(cell);
+      apriEditorCella(cell);
+    });
+  }
+
+  function creaCella() {
+    const cell = document.createElement("div");
+    cell.classList.add("cella-prodotto");
+    cell.dataset.colspan = "1";
+    cell.dataset.rowspan = "1";
+    cell.dataset.priceStyle = "base";
+    cell.dataset.layout = "image-top";
+    cell.dataset.textAlign = "start";
+
+    cell.innerHTML = `
+      <div class="cella-inner">
+        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
+             style="height: 120px; overflow:hidden;">
+          <span class="text-muted small">Clicca per modificare la box</span>
+        </div>
+        <div class="testo-box">
+          <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
+          <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
+          <div class="prezzo text-success fw-bold prezzo-base">€ 0,00</div>
+        </div>
+      </div>
+    `;
+
+    initCellaEvents(cell);
+    applyCellSize(cell);
+    applyPriceStyle(cell);
+    applyLayout(cell);
+    applyTextAlign(cell);
+
+    return cell;
+  }
+
+  function selezionaCella(c) {
+    document.querySelectorAll(".cella-prodotto").forEach(el => {
+      el.classList.remove("cella-selezionata");
+    });
+    c.classList.add("cella-selezionata");
+    cellaSelezionata = c;
+  }
+
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".cella-prodotto").forEach(el => {
+      el.classList.remove("cella-selezionata");
+    });
+    cellaSelezionata = null;
+  });
+
+
+  /* ----------------------------------------------------------
+     TOOLBAR: FORMATO CELLA
+  -----------------------------------------------------------*/
+  document.querySelectorAll("[data-cell-size]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!cellaSelezionata) {
+        alert("Seleziona una cella per cambiarne il formato");
+        return;
+      }
+      const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
+      cellaSelezionata.dataset.colspan = cs;
+      cellaSelezionata.dataset.rowspan = rs;
+      applyCellSize(cellaSelezionata);
+    });
+  });
+
+  /* ----------------------------------------------------------
+     TOOLBAR: STILE PREZZO RAPIDO
+  -----------------------------------------------------------*/
+  document.querySelectorAll("[data-price-style]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!cellaSelezionata) {
+        alert("Seleziona una cella per cambiarne lo stile prezzo");
+        return;
+      }
+      const style = btn.getAttribute("data-price-style");
+      cellaSelezionata.dataset.priceStyle = style;
+      applyPriceStyle(cellaSelezionata);
+    });
+  });
+
+
+  /* ----------------------------------------------------------
+     GENERA GRIGLIA PAGINA (2x3, 3x3, 4x3)
+  -----------------------------------------------------------*/
   document.querySelectorAll("[data-grid]").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!pagine[paginaCorrente]) return;
-
+      if (!pagine.length) return;
       const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
       const page = pagine[paginaCorrente];
       const grid = page.querySelector(".page-grid");
 
       grid.innerHTML = "";
       grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      grid.style.gridAutoRows = "1fr";
       page.dataset.cols = cols;
 
       for (let i = 0; i < cols * rows; i++) {
         grid.appendChild(creaCella());
       }
+
+      Sortable.create(grid, {
+        animation: 150,
+        ghostClass: "sortable-ghost"
+      });
     });
   });
 
 
-  /* ============================================================
-      DUPLICA / ELIMINA CELLA
-  ============================================================= */
+  /* ----------------------------------------------------------
+     DUPLICA / ELIMINA CELLA
+  -----------------------------------------------------------*/
   document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) {
-      alert("Seleziona una cella da duplicare");
-      return;
-    }
+    if (!cellaSelezionata) return alert("Seleziona una cella da duplicare");
     const clone = cellaSelezionata.cloneNode(true);
-    const imgBox = clone.querySelector(".img-box");
-    if (imgBox) attachImageUpload(imgBox);
-    attivaClickCella(clone);
+    initCellaEvents(clone);
     cellaSelezionata.parentElement.appendChild(clone);
   });
 
   document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) {
-      alert("Seleziona una cella da eliminare");
-      return;
-    }
+    if (!cellaSelezionata) return alert("Seleziona una cella da eliminare");
     cellaSelezionata.remove();
     cellaSelezionata = null;
-    chiudiEditor();
   });
 
 
-  /* ============================================================
-      SALVATAGGIO LAYOUT → /salva-volantino-beta
-  ============================================================= */
+  /* ----------------------------------------------------------
+     POPUP EDITOR CELLA
+  -----------------------------------------------------------*/
+  function apriEditorCella(cell) {
+    cellaSelezionata = cell;
+
+    const img = cell.querySelector(".img-box img")?.src || "";
+    const titolo = cell.querySelector(".titolo")?.innerText || "";
+    const descrizione = cell.querySelector(".descrizione")?.innerText || "";
+    const prezzo = cell.querySelector(".prezzo")?.innerText || "";
+
+    const layout = cell.dataset.layout || "image-top";
+    const priceStyle = cell.dataset.priceStyle || "base";
+    const textAlign = cell.dataset.textAlign || "start";
+
+    setModalImage(img);
+    modalTitle.value = titolo;
+    modalDesc.value = descrizione;
+    modalPrice.value = prezzo;
+    modalPriceStyle.value = priceStyle;
+    modalLayout.value = layout;
+    modalAlign.value = textAlign;
+
+    cellEditorModal.show();
+  }
+
+  modalSave.addEventListener("click", () => {
+    if (!cellaSelezionata) return;
+
+    const titolo = modalTitle.value || "";
+    const descrizione = modalDesc.value || "";
+    const prezzo = modalPrice.value || "";
+    const layout = modalLayout.value || "image-top";
+    const priceStyle = modalPriceStyle.value || "base";
+    const textAlign = modalAlign.value || "start";
+
+    const imgBox = cellaSelezionata.querySelector(".img-box");
+    const titoloEl = cellaSelezionata.querySelector(".titolo");
+    const descEl = cellaSelezionata.querySelector(".descrizione");
+    const prezzoEl = cellaSelezionata.querySelector(".prezzo");
+
+    if (modalImageData) {
+      imgBox.innerHTML =
+        `<img src="${modalImageData}" style="width:100%; height:100%; object-fit:cover;">`;
+    } else {
+      imgBox.innerHTML =
+        `<span class="text-muted small">Clicca per modificare la box</span>`;
+    }
+
+    if (titoloEl) titoloEl.innerText = titolo;
+    if (descEl)   descEl.innerText = descrizione;
+    if (prezzoEl) prezzoEl.innerText = prezzo || "€ 0,00";
+
+    cellaSelezionata.dataset.layout = layout;
+    cellaSelezionata.dataset.priceStyle = priceStyle;
+    cellaSelezionata.dataset.textAlign = textAlign;
+
+    applyLayout(cellaSelezionata);
+    applyPriceStyle(cellaSelezionata);
+    applyTextAlign(cellaSelezionata);
+
+    cellEditorModal.hide();
+  });
+
+
+  /* ----------------------------------------------------------
+     SALVATAGGIO LAYOUT
+  -----------------------------------------------------------*/
   document.getElementById("save-layout").addEventListener("click", () => {
+
     const data = pagine.map(page => {
       const grid = page.querySelector(".page-grid");
       const header = page.querySelector(".page-header");
@@ -1068,7 +713,9 @@ document.addEventListener("DOMContentLoaded", () => {
           prezzo: c.querySelector(".prezzo")?.innerText || "",
           colSpan: parseInt(c.dataset.colspan || "1", 10),
           rowSpan: parseInt(c.dataset.rowspan || "1", 10),
-          priceStyle: c.dataset.priceStyle || "base"
+          priceStyle: c.dataset.priceStyle || "base",
+          layout: c.dataset.layout || "image-top",
+          textAlign: c.dataset.textAlign || "start"
         });
       });
 
@@ -1087,21 +734,15 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(r => r.json())
     .then(d => {
       alert("Volantino salvato!");
-    })
-    .catch(() => alert("Errore nel salvataggio"));
+    });
   });
 
 
-  /* ============================================================
-      CARICAMENTO LAYOUT SALVATO
-  ============================================================= */
-  (function initFromSaved() {
-    {% if layout_json %}
-      const salvato = {{ layout_json | safe }};
-    {% else %}
-      const salvato = null;
-    {% endif %}
-
+  /* ----------------------------------------------------------
+     CARICAMENTO LAYOUT SALVATO (EDIT)
+  -----------------------------------------------------------*/
+  {% if layout_json %}
+    const salvato = {{ layout_json | safe }};
     if (Array.isArray(salvato) && salvato.length > 0) {
       salvato.forEach(pData => {
         const page = creaPagina(pData.cols || 3);
@@ -1123,8 +764,8 @@ document.addEventListener("DOMContentLoaded", () => {
           const cell = creaCella();
 
           if (item.img) {
-            const box = cell.querySelector(".img-box");
-            box.innerHTML = `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
+            cell.querySelector(".img-box").innerHTML =
+              `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
           }
 
           cell.querySelector(".titolo").innerText = item.titolo || "";
@@ -1134,13 +775,13 @@ document.addEventListener("DOMContentLoaded", () => {
           cell.dataset.colspan = item.colSpan || 1;
           cell.dataset.rowspan = item.rowSpan || 1;
           cell.dataset.priceStyle = item.priceStyle || "base";
+          cell.dataset.layout = item.layout || "image-top";
+          cell.dataset.textAlign = item.textAlign || "start";
 
-          cell.style.gridColumn = `span ${cell.dataset.colspan}`;
-          cell.style.gridRow = `span ${cell.dataset.rowspan}`;
-
-          const prezzoEl = cell.querySelector(".prezzo");
-          prezzoEl.classList.remove("prezzo-base", "prezzo-red", "prezzo-blue", "prezzo-yellow");
-          prezzoEl.classList.add("prezzo-" + (cell.dataset.priceStyle || "base"));
+          applyCellSize(cell);
+          applyPriceStyle(cell);
+          applyLayout(cell);
+          applyTextAlign(cell);
 
           grid.appendChild(cell);
         });
@@ -1148,25 +789,21 @@ document.addEventListener("DOMContentLoaded", () => {
         pagine.push(page);
       });
     }
+  {% endif %}
 
-    if (pagine.length === 0) {
-      pagine.push(creaPagina(3));
-    }
+  if (pagine.length === 0) {
+    pagine.push(creaPagina(3));
+  }
 
-    paginaCorrente = 0;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-  })();
+  mostraPaginaCorrente();
+  aggiornaListaPagine();
 
 
-  /* ============================================================
-      ESPORTA PDF MULTIPAGINA
-  ============================================================= */
+  /* ----------------------------------------------------------
+     ESPORTA PDF MULTIPAGINA
+  -----------------------------------------------------------*/
   document.getElementById("export-pdf").addEventListener("click", async () => {
-    if (pagine.length === 0) return;
-
     const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-    const nome = inputNome.value || "volantino";
 
     const paginaOriginale = paginaCorrente;
 
@@ -1176,75 +813,30 @@ document.addEventListener("DOMContentLoaded", () => {
       mostraPaginaCorrente();
 
       const pageEl = pagine[i];
-      const canvasImg = await html2canvas(pageEl, { scale: 2 });
-      const imgData = canvasImg.toDataURL("image/png");
+      const canvas = await html2canvas(pageEl, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
       pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
     }
 
     paginaCorrente = paginaOriginale;
     mostraPaginaCorrente();
 
-    pdf.save(nome + ".pdf");
+    pdf.save((inputNome.value || "volantino") + ".pdf");
   });
 
 });
 </script>
 
 <style>
-.editor-container {
-  gap: 1.5rem;
-  align-items: flex-start;
-}
-
-/* Sidebar sinistra */
-.sidebar-left {
-  width: 260px;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.sidebar-left .panel {
-  border-radius: 10px;
-  border: 1px solid #e3e6ef;
-  padding: 10px;
-  margin-bottom: 5px;
-}
-
-.sidebar-left .panel h5 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-/* Canvas centrale */
-.canvas-wrapper {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-#pagine-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* Pagina volantino */
 .pagina-volantino {
   width: 800px;
   height: 1100px;
   background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e3e6ef;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  border: 1px solid #ddd;
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
   display: grid;
   grid-template-rows: auto 1fr auto;
-  padding: 12px;
+  padding: 10px;
   margin-bottom: 40px;
   position: relative;
 }
@@ -1252,15 +844,13 @@ document.addEventListener("DOMContentLoaded", () => {
 .page-header,
 .page-footer {
   height: 80px;
-  border-radius: 8px;
-  border: 1px dashed #cbd2e3;
+  border: 1px dashed #ccc;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
-  background: #f9fafb;
 }
 
 .page-footer {
@@ -1273,59 +863,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /* Celle prodotto */
 .cella-prodotto {
-  background: #ffffff;
-  border-radius: 10px;
-  border: 1px solid #e3e6ef;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 6px;
   cursor: pointer;
-  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .cella-prodotto:hover {
-  box-shadow: 0 4px 14px rgba(15,23,42,0.18);
-  transform: translateY(-2px);
-  border-color: #4a90e2;
+  box-shadow: 0 0 8px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.cella-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .img-box {
-  height: 120px;
-  background: #f1f5f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  border-radius: 4px;
 }
 
-.img-box img {
-  display: block;
+.testo-box {
+  padding-top: 3px;
 }
 
-.placeholder-text {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.contenuto-cella {
-  padding: 6px 8px 8px 8px;
-}
-
-.contenuto-cella .titolo {
-  font-size: 0.9rem;
-  font-weight: 700;
-  margin-bottom: 2px;
-}
-
-.contenuto-cella .descrizione {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-bottom: 4px;
-}
-
-.contenuto-cella .prezzo {
-  font-size: 1.05rem;
-  font-weight: 800;
+/* Selezione */
+.cella-selezionata {
+  outline: 3px solid #007bff;
+  outline-offset: 2px;
 }
 
 /* Stili prezzo */
@@ -1333,7 +900,6 @@ document.addEventListener("DOMContentLoaded", () => {
   background: transparent;
   padding: 2px 4px;
   border-radius: 4px;
-  color: #16a34a;
 }
 
 .prezzo-yellow {
@@ -1344,90 +910,60 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .prezzo-red {
-  background: #ef4444;
+  background: #f44336;
   color: #fff;
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 .prezzo-blue {
-  background: #3b82f6;
+  background: #2196f3;
   color: #fff;
   padding: 2px 6px;
   border-radius: 4px;
 }
 
-/* Sidebar destra (editor cella) */
-.sidebar-right {
-  width: 320px;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.18);
-  padding: 14px;
-  position: fixed;
-  right: 20px;
-  top: 110px;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
-  transform: translateX(110%);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  z-index: 1050;
+/* Layout vari */
+.cella-layout-image-top .cella-inner {
+  flex-direction: column;
 }
 
-.sidebar-right.open {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
+.cella-layout-image-left .cella-inner {
+  flex-direction: row;
 }
 
-.sidebar-title {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 10px;
+.cella-layout-image-left .img-box {
+  width: 50%;
+  margin-right: 4px;
 }
 
-.sidebar-section {
-  margin-bottom: 10px;
+.cella-layout-full-image-price .cella-inner {
+  position: relative;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .editor-container {
-    flex-direction: column;
-  }
-
-  .sidebar-left {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .canvas-wrapper {
-    width: 100%;
-  }
-
-  .pagina-volantino {
-    transform: scale(0.8);
-    transform-origin: top center;
-  }
-
-  .sidebar-right {
-    right: 10px;
-    top: 130px;
-    width: 280px;
-  }
+.cella-layout-full-image-price .img-box {
+  height: 100%;
 }
 
-@media (max-width: 768px) {
-  .pagina-volantino {
-    transform: scale(0.6);
-    transform-origin: top center;
-  }
+.cella-layout-full-image-price .testo-box {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  text-shadow: 0 0 3px rgba(0,0,0,0.6);
+  color: #fff;
+}
+
+/* Sortable ghost */
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+/* Modal immagine */
+#modal-image-preview img {
+  display: block;
 }
 </style>
 
 {% endblock %}
 
-      
