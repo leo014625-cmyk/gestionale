@@ -31,8 +31,12 @@
       <div class="card-body">
         <div id="lista-pagine" class="mb-2"></div>
         <div class="d-grid gap-2">
-          <button class="btn btn-primary btn-sm" id="aggiungi-pagina">➕ Aggiungi pagina</button>
-          <button class="btn btn-outline-primary btn-sm" id="duplica-pagina">📄 Duplica pagina corrente</button>
+          <button class="btn btn-primary btn-sm" id="aggiungi-pagina">
+            ➕ Aggiungi pagina
+          </button>
+          <button class="btn btn-outline-primary btn-sm" id="duplica-pagina">
+            📄 Duplica pagina corrente
+          </button>
         </div>
       </div>
     </div>
@@ -46,6 +50,9 @@
         <button class="btn btn-outline-primary w-100 mb-2" data-grid="2x3">Griglia 2 × 3</button>
         <button class="btn btn-outline-primary w-100 mb-2" data-grid="3x3">Griglia 3 × 3</button>
         <button class="btn btn-outline-primary w-100 mb-2" data-grid="4x3">Griglia 4 × 3</button>
+        <small class="text-muted d-block mt-1">
+          Scegli la griglia: ogni cella può essere poi modificata.
+        </small>
       </div>
     </div>
 
@@ -55,23 +62,33 @@
         <i class="bi bi-bounding-box-circles me-1"></i> Formato cella selezionata
       </div>
       <div class="card-body d-grid gap-2">
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x1">1 × 1</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x1">2 × 1</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x2">1 × 2</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x2">2 × 2</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x1">1 × 1 (normale)</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x1">2 × 1 (larga)</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x2">1 × 2 (alta)</button>
+        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x2">2 × 2 (grande)</button>
+        <small class="text-muted">
+          Seleziona una box nel volantino e poi scegli il formato<br>
+          (oppure trascina l’angolo in basso a destra della box).
+        </small>
       </div>
     </div>
 
-    <!-- Stile prezzo -->
+    <!-- Stile prezzo (shortcut rapido) -->
     <div class="card mb-3 shadow-sm">
       <div class="card-header fw-bold">
-        <i class="bi bi-tag-fill me-1"></i> Stile prezzo
+        <i class="bi bi-tag-fill me-1"></i> Stile prezzo (rapido)
       </div>
       <div class="card-body d-grid gap-2">
         <button class="btn btn-warning btn-sm" data-price-style="yellow">Cartellino giallo</button>
         <button class="btn btn-danger btn-sm" data-price-style="red">Cartellino rosso</button>
         <button class="btn btn-info btn-sm" data-price-style="blue">Cartellino blu</button>
+        <button class="btn btn-outline-secondary btn-sm" data-price-style="round">Tondo</button>
+        <button class="btn btn-outline-secondary btn-sm" data-price-style="angle">Angolo promo</button>
+        <button class="btn btn-outline-secondary btn-sm" data-price-style="strike">Barrato + nuovo</button>
         <button class="btn btn-outline-secondary btn-sm" data-price-style="base">Semplice</button>
+        <small class="text-muted">
+          Puoi anche gestire il prezzo nel popup della box.
+        </small>
       </div>
     </div>
 
@@ -81,11 +98,22 @@
         <i class="bi bi-tools me-1"></i> Azioni
       </div>
       <div class="card-body d-grid gap-2">
-        <button class="btn btn-outline-secondary btn-sm" id="duplica-cella">📄 Duplica cella selezionata</button>
-        <button class="btn btn-outline-danger btn-sm" id="elimina-cella">🗑️ Elimina cella selezionata</button>
+        <button class="btn btn-outline-secondary btn-sm" id="duplica-cella">
+          📄 Duplica cella selezionata
+        </button>
+        <button class="btn btn-outline-danger btn-sm" id="elimina-cella">
+          🗑️ Elimina cella selezionata
+        </button>
         <hr>
-        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">💾 Salva Volantino</button>
-        <button class="btn btn-outline-dark w-100" id="export-pdf">📄 Esporta PDF</button>
+        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">
+          💾 Salva Volantino
+        </button>
+        <button class="btn btn-outline-dark w-100 mb-2" id="export-pdf">
+          📄 Esporta PDF
+        </button>
+        <button class="btn btn-outline-success w-100" id="export-png">
+          🖼️ Esporta pagina corrente PNG
+        </button>
       </div>
     </div>
 
@@ -94,28 +122,30 @@
   <!-- AREA VOLANTINO -->
   <div class="col-md-9">
     <div id="pagine-container" style="width: 800px; margin:auto;">
-      <!-- Le pagine vengono caricate via JS -->
+      <!-- Le pagine verranno iniettate via JS -->
     </div>
   </div>
 
 </div>
 
-<!-- ===========================
-     MODAL EDITOR CELLA
-=========================== -->
+<!-- ============================================
+     MODAL EDITOR CELLA (stile InPublish)
+============================================= -->
 <div class="modal fade" id="cellEditorModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
-
       <div class="modal-header">
-        <h5 class="modal-title">✏️ Modifica box prodotto</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h5 class="modal-title">
+          ✏️ Modifica box prodotto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="Chiudi"></button>
       </div>
-
       <div class="modal-body">
+
         <div class="row g-3">
 
-          <!-- COLONNA IMG -->
+          <!-- Colonna immagine -->
           <div class="col-md-5">
             <label class="form-label small text-muted">Immagine prodotto</label>
             <div id="modal-image-preview"
@@ -123,33 +153,43 @@
                  style="overflow:hidden; cursor:pointer;">
               <span class="text-muted small">Clicca per caricare immagine</span>
             </div>
-
             <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
               🖼️ Cambia immagine
             </button>
-
             <input type="file" id="modal-image-input" class="d-none" accept="image/*">
+
+            <div class="mt-3">
+              <label class="form-label small text-muted">Effetto immagine</label>
+              <select id="modal-image-filter" class="form-select form-select-sm">
+                <option value="none">Nessuno</option>
+                <option value="bw">Bianco e nero</option>
+                <option value="warm">Caldo</option>
+                <option value="cool">Freddo</option>
+                <option value="contrast">Contrasto forte</option>
+              </select>
+            </div>
           </div>
 
-          <!-- COLONNA DATI -->
+          <!-- Colonna dati -->
           <div class="col-md-7">
-
             <div class="mb-2">
               <label class="form-label small">Nome prodotto</label>
-              <input type="text" id="modal-title" class="form-control form-control-sm">
+              <input type="text" id="modal-title" class="form-control form-control-sm"
+                     placeholder="Es. Salmone norvegese intero">
             </div>
 
             <div class="mb-2">
               <label class="form-label small">Descrizione</label>
-              <textarea id="modal-desc" class="form-control form-control-sm" rows="3"></textarea>
+              <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
+                        placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
             </div>
 
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small">Prezzo</label>
-                <input type="text" id="modal-price" class="form-control form-control-sm">
+                <input type="text" id="modal-price" class="form-control form-control-sm"
+                       placeholder="Es. € 9,90">
               </div>
-
               <div class="col-6">
                 <label class="form-label small">Stile prezzo</label>
                 <select id="modal-price-style" class="form-select form-select-sm">
@@ -157,6 +197,9 @@
                   <option value="yellow">Cartellino giallo</option>
                   <option value="red">Cartellino rosso</option>
                   <option value="blue">Cartellino blu</option>
+                  <option value="round">Tondo</option>
+                  <option value="angle">Angolo promo</option>
+                  <option value="strike">Barrato + nuovo</option>
                 </select>
               </div>
             </div>
@@ -165,12 +208,11 @@
               <div class="col-6">
                 <label class="form-label small">Layout box</label>
                 <select id="modal-layout" class="form-select form-select-sm">
-                  <option value="image-top">Immagine sopra</option>
-                  <option value="image-left">Immagine sinistra</option>
-                  <option value="full-image-price">Full image + prezzo</option>
+                  <option value="image-top">Immagine sopra, testo sotto</option>
+                  <option value="image-left">Immagine sinistra, testo destra</option>
+                  <option value="full-image-price">Immagine piena con cartellino prezzo</option>
                 </select>
               </div>
-
               <div class="col-6">
                 <label class="form-label small">Allineamento testo</label>
                 <select id="modal-align" class="form-select form-select-sm">
@@ -179,31 +221,132 @@
                   <option value="end">Destra</option>
                 </select>
               </div>
+            </div>
 
+            <!-- Tipografia -->
+            <div class="border rounded p-2 mb-2 bg-light-subtle">
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small">Font</label>
+                  <select id="modal-font-family" class="form-select form-select-sm">
+                    <option value="">Default</option>
+                    <option value="Roboto, sans-serif">Roboto</option>
+                    <option value="'Open Sans', sans-serif">Open Sans</option>
+                    <option value="Montserrat, sans-serif">Montserrat</option>
+                    <option value="'Lato', sans-serif">Lato</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">Colore testo</label>
+                  <input type="color" id="modal-font-color" class="form-control form-control-sm" value="#000000">
+                </div>
+              </div>
+
+              <div class="row g-2 mt-2">
+                <div class="col-4">
+                  <label class="form-label small">Titolo (px)</label>
+                  <input type="number" id="modal-title-size" class="form-control form-control-sm" min="8" max="40" value="14">
+                </div>
+                <div class="col-4">
+                  <label class="form-label small">Descrizione (px)</label>
+                  <input type="number" id="modal-desc-size" class="form-control form-control-sm" min="8" max="30" value="11">
+                </div>
+                <div class="col-4">
+                  <label class="form-label small">Prezzo (px)</label>
+                  <input type="number" id="modal-price-size" class="form-control form-control-sm" min="8" max="40" value="16">
+                </div>
+              </div>
+
+              <div class="mt-2 d-flex flex-wrap gap-3">
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-title-bold">
+                  <label class="form-check-label small" for="modal-title-bold">Titolo grassetto</label>
+                </div>
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-desc-italic">
+                  <label class="form-check-label small" for="modal-desc-italic">Descrizione corsivo</label>
+                </div>
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-price-bold">
+                  <label class="form-check-label small" for="modal-price-bold">Prezzo grassetto</label>
+                </div>
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-text-uppercase">
+                  <label class="form-check-label small" for="modal-text-uppercase">TUTTO MAIUSCOLO</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stile box -->
+            <div class="border rounded p-2 mb-2 bg-light-subtle">
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small">Bordo</label>
+                  <select id="modal-border-style" class="form-select form-select-sm">
+                    <option value="solid">Solido</option>
+                    <option value="dashed">Tratteggiato</option>
+                    <option value="none">Nessuno</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">Colore bordo</label>
+                  <input type="color" id="modal-border-color" class="form-control form-control-sm" value="#dddddd">
+                </div>
+              </div>
+              <div class="row g-2 mt-2">
+                <div class="col-4">
+                  <label class="form-label small">Radius (px)</label>
+                  <input type="number" id="modal-radius" class="form-control form-control-sm" min="0" max="30" value="4">
+                </div>
+                <div class="col-4">
+                  <label class="form-label small">Sfondo</label>
+                  <input type="color" id="modal-bgcolor" class="form-control form-control-sm" value="#ffffff">
+                </div>
+                <div class="col-4 d-flex align-items-end">
+                  <div class="form-check form-check-sm">
+                    <input class="form-check-input" type="checkbox" id="modal-shadow">
+                    <label class="form-check-label small" for="modal-shadow">Ombra</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Libreria prodotti demo -->
+            <div class="border rounded p-2 bg-light-subtle">
+              <label class="form-label small">Libreria prodotti demo</label>
+              <select id="modal-product-library" class="form-select form-select-sm">
+                <option value="">-- scegli un prodotto demo --</option>
+                <option value="salmone">Salmone norvegese intero</option>
+                <option value="gamberi">Gamberi argentini sgusciati</option>
+                <option value="polpo">Polpo mediterraneo decongelato</option>
+              </select>
+              <small class="text-muted d-block mt-1">
+                Serve solo come scorciatoia: non è collegato ai prodotti Metro.
+              </small>
             </div>
 
           </div>
 
         </div>
-      </div>
 
+      </div>
       <div class="modal-footer d-flex justify-content-between">
-        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button class="btn btn-primary" id="modal-save">💾 Salva box</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Annulla
+        </button>
+        <button type="button" class="btn btn-primary" id="modal-save">
+          💾 Salva box
+        </button>
       </div>
-
     </div>
   </div>
 </div>
-
 {% endblock %}
+
 {% block scripts %}
 {{ super() }}
 
-<!-- Sortable per drag & drop celle -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-
-<!-- html2canvas + jsPDF -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -218,12 +361,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const listaPagine = document.getElementById("lista-pagine");
   const inputNome = document.getElementById("volantino-nome");
 
-  /* ----------------------------------------------------------
-     MODAL
-  -----------------------------------------------------------*/
+  // Modal editor
   const cellEditorModalEl = document.getElementById("cellEditorModal");
   const cellEditorModal = new bootstrap.Modal(cellEditorModalEl);
-
   const modalImagePreview = document.getElementById("modal-image-preview");
   const modalChangeImage = document.getElementById("modal-change-image");
   const modalImageInput = document.getElementById("modal-image-input");
@@ -233,18 +373,80 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalPriceStyle = document.getElementById("modal-price-style");
   const modalLayout = document.getElementById("modal-layout");
   const modalAlign = document.getElementById("modal-align");
+  const modalFontFamily = document.getElementById("modal-font-family");
+  const modalFontColor = document.getElementById("modal-font-color");
+  const modalTitleSize = document.getElementById("modal-title-size");
+  const modalDescSize = document.getElementById("modal-desc-size");
+  const modalPriceSize = document.getElementById("modal-price-size");
+  const modalTitleBold = document.getElementById("modal-title-bold");
+  const modalDescItalic = document.getElementById("modal-desc-italic");
+  const modalPriceBold = document.getElementById("modal-price-bold");
+  const modalTextUpper = document.getElementById("modal-text-uppercase");
+  const modalBorderStyle = document.getElementById("modal-border-style");
+  const modalBorderColor = document.getElementById("modal-border-color");
+  const modalRadius = document.getElementById("modal-radius");
+  const modalBgColor = document.getElementById("modal-bgcolor");
+  const modalShadow = document.getElementById("modal-shadow");
+  const modalImageFilter = document.getElementById("modal-image-filter");
+  const modalProductLibrary = document.getElementById("modal-product-library");
   const modalSave = document.getElementById("modal-save");
 
   let modalImageData = "";
 
-  /* Upload immagine nel modal */
+  // Libreria demo prodotti
+  const productLibrary = {
+    "salmone": {
+      titolo: "Salmone norvegese intero",
+      descrizione: "Salmone allevato in Norvegia, ideale per forno o carpaccio.",
+      prezzo: "€ 9,90"
+    },
+    "gamberi": {
+      titolo: "Gamberi argentini sgusciati",
+      descrizione: "Gamberi argentini decongelati, pronti da cucinare.",
+      prezzo: "€ 12,50"
+    },
+    "polpo": {
+      titolo: "Polpo mediterraneo decongelato",
+      descrizione: "Polpo tenero ideale per insalate e secondi piatti.",
+      prezzo: "€ 15,90"
+    }
+  };
+
+  modalProductLibrary.addEventListener("change", () => {
+    const key = modalProductLibrary.value;
+    if (!key || !productLibrary[key]) return;
+    const p = productLibrary[key];
+    modalTitle.value = p.titolo;
+    modalDesc.value = p.descrizione;
+    modalPrice.value = p.prezzo;
+  });
+
+  /* ---------- IMMAGINI (header/footer e modal) ---------- */
+  function attachImageUpload(box) {
+    box.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = () => {
+          box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
+        };
+        r.readAsDataURL(file);
+      };
+      input.click();
+    });
+  }
+
   function setModalImage(src) {
     modalImageData = src || "";
     if (!src) {
       modalImagePreview.innerHTML = `<span class="text-muted small">Clicca per caricare immagine</span>`;
     } else {
       modalImagePreview.innerHTML =
-        `<img src="${src}" style="width:100%;height:100%;object-fit:cover;">`;
+        `<img src="${src}" style="width:100%; height:100%; object-fit:cover;">`;
     }
   }
 
@@ -259,28 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
     r.readAsDataURL(file);
   });
 
-  /* ----------------------------------------------------------
-     CREAZIONE PAGINA
-  -----------------------------------------------------------*/
-  function attachImageUpload(box) {
-    box.addEventListener("click", () => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const r = new FileReader();
-        r.onload = () => {
-          box.innerHTML =
-            `<img src="${r.result}" style="width:100%;height:100%;object-fit:cover;">`;
-        };
-        r.readAsDataURL(file);
-      };
-      input.click();
-    });
-  }
-
+  /* ---------- PAGINE ---------- */
   function creaPagina(cols = 3) {
     const page = document.createElement("div");
     page.classList.add("pagina-volantino");
@@ -300,13 +481,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const footer = page.querySelector(".page-footer");
     const grid   = page.querySelector(".page-grid");
 
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
     grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridAutoRows = "1fr";
     grid.style.gap = "10px";
+
+    attachImageUpload(header);
+    attachImageUpload(footer);
 
     Sortable.create(grid, {
       animation: 150,
@@ -326,25 +507,24 @@ document.addEventListener("DOMContentLoaded", () => {
     pagine.forEach((_, i) => {
       const btn = document.createElement("button");
       btn.classList.add("btn", "btn-sm", "w-100", "mb-2");
+      if (i === paginaCorrente) {
+        btn.classList.add("btn-primary");
+      } else {
+        btn.classList.add("btn-outline-primary");
+      }
       btn.innerText = "Pagina " + (i + 1);
-      if (i === paginaCorrente) btn.classList.add("btn-primary");
-      else btn.classList.add("btn-outline-primary");
-
       btn.onclick = () => {
         paginaCorrente = i;
         mostraPaginaCorrente();
         aggiornaListaPagine();
       };
-
       listaPagine.appendChild(btn);
     });
   }
 
-  /* ----------------------------------------------------------
-     PAGINE: AGGIUNGI / DUPLICA
-  -----------------------------------------------------------*/
   document.getElementById("aggiungi-pagina").addEventListener("click", () => {
-    pagine.push(creaPagina(3));
+    const nuova = creaPagina(3);
+    pagine.push(nuova);
     paginaCorrente = pagine.length - 1;
     mostraPaginaCorrente();
     aggiornaListaPagine();
@@ -352,82 +532,214 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("duplica-pagina").addEventListener("click", () => {
     if (!pagine.length) return;
-    const clone = pagine[paginaCorrente].cloneNode(true);
+    const originale = pagine[paginaCorrente];
+    const clone = originale.cloneNode(true);
 
-    clone.querySelectorAll(".page-header,.page-footer").forEach(attachImageUpload);
-    clone.querySelectorAll(".cella-prodotto").forEach(initCellaEvents);
+    const header = clone.querySelector(".page-header");
+    const footer = clone.querySelector(".page-footer");
+    attachImageUpload(header);
+    attachImageUpload(footer);
 
     const grid = clone.querySelector(".page-grid");
-    Sortable.create(grid, { animation:150, ghostClass:"sortable-ghost" });
+    const cols = originale.dataset.cols || 3;
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridAutoRows = "1fr";
+    grid.style.gap = "10px";
 
+    Sortable.create(grid, {
+      animation: 150,
+      ghostClass: "sortable-ghost"
+    });
+
+    clone.querySelectorAll(".cella-prodotto").forEach(c => {
+      initCellaEvents(c);
+      initResize(c);
+    });
+
+    clone.dataset.cols = originale.dataset.cols;
     pagine.push(clone);
     paginaCorrente = pagine.length - 1;
     mostraPaginaCorrente();
     aggiornaListaPagine();
   });
 
-  /* ----------------------------------------------------------
-     CELLE
-  -----------------------------------------------------------*/
+  /* ---------- CELLE: APPLY FUNZIONI STILE ---------- */
   function applyCellSize(cell) {
-    cell.style.gridColumn = `span ${cell.dataset.colspan}`;
-    cell.style.gridRow = `span ${cell.dataset.rowspan}`;
+    const colSpan = parseInt(cell.dataset.colspan || "1", 10);
+    const rowSpan = parseInt(cell.dataset.rowspan || "1", 10);
+    cell.style.gridColumn = `span ${colSpan}`;
+    cell.style.gridRow = `span ${rowSpan}`;
   }
 
   function applyPriceStyle(cell) {
     const prezzoEl = cell.querySelector(".prezzo");
-    prezzoEl.classList.remove("prezzo-yellow","prezzo-red","prezzo-blue","prezzo-base");
-    prezzoEl.classList.add(`prezzo-${cell.dataset.priceStyle}`);
+    if (!prezzoEl) return;
+    prezzoEl.className = "prezzo fw-bold"; // reset base
+    const style = cell.dataset.priceStyle || "base";
+    prezzoEl.classList.add("prezzo-" + style);
   }
 
   function applyLayout(cell) {
-    cell.classList.remove(
-      "cella-layout-image-top",
-      "cella-layout-image-left",
-      "cella-layout-full-image-price"
-    );
-    cell.classList.add("cella-layout-" + cell.dataset.layout);
+    const layout = cell.dataset.layout || "image-top";
+    const wrapper = cell.querySelector(".cella-inner");
+    const imgBox = cell.querySelector(".img-box");
+    const textBox = cell.querySelector(".testo-box");
+    const prezzoEl = cell.querySelector(".prezzo");
+
+    cell.classList.remove("cella-layout-image-top", "cella-layout-image-left", "cella-layout-full-image-price");
+    cell.classList.add("cella-layout-" + layout);
+
+    wrapper.style.position = "";
+    wrapper.style.display = "";
+    wrapper.style.flexDirection = "";
+    imgBox.style.width = "";
+    imgBox.style.height = "";
+    textBox.style.position = "";
+    textBox.style.bottom = "";
+    textBox.style.left = "";
+    textBox.style.right = "";
+    if (prezzoEl) {
+      prezzoEl.style.position = "";
+      prezzoEl.style.top = "";
+      prezzoEl.style.right = "";
+    }
+
+    if (layout === "image-top") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      imgBox.style.height = "55%";
+    } else if (layout === "image-left") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "row";
+      imgBox.style.width = "50%";
+    } else if (layout === "full-image-price") {
+      wrapper.style.position = "relative";
+      imgBox.style.height = "100%";
+      textBox.style.position = "absolute";
+      textBox.style.bottom = "6px";
+      textBox.style.left = "6px";
+      textBox.style.right = "6px";
+      if (prezzoEl) {
+        prezzoEl.style.position = "absolute";
+        prezzoEl.style.top = "6px";
+        prezzoEl.style.right = "6px";
+      }
+    }
   }
 
   function applyTextAlign(cell) {
+    const align = cell.dataset.textAlign || "start";
     const textBox = cell.querySelector(".testo-box");
-    textBox.classList.remove("text-start","text-center","text-end");
-    textBox.classList.add("text-" + cell.dataset.textAlign);
+    if (!textBox) return;
+    textBox.classList.remove("text-start", "text-center", "text-end");
+    if (align === "center") textBox.classList.add("text-center");
+    else if (align === "end") textBox.classList.add("text-end");
+    else textBox.classList.add("text-start");
   }
 
-  /* NEW — struttura cella */
-  function creaCella() {
-    const cell = document.createElement("div");
-    cell.classList.add("cella-prodotto");
+  function applyTypography(cell) {
+    const titoloEl = cell.querySelector(".titolo");
+    const descEl = cell.querySelector(".descrizione");
+    const prezzoEl = cell.querySelector(".prezzo");
 
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-    cell.dataset.priceStyle = "base";
-    cell.dataset.layout = "image-top";
-    cell.dataset.textAlign = "start";
+    const fontFamily = cell.dataset.fontFamily || "";
+    const fontColor = cell.dataset.fontColor || "#000000";
+    const titleSize = cell.dataset.titleSize || "14";
+    const descSize = cell.dataset.descSize || "11";
+    const priceSize = cell.dataset.priceSize || "16";
+    const textUpper = cell.dataset.textUpper === "1";
+    const titleBold = cell.dataset.titleBold === "1";
+    const descItalic = cell.dataset.descItalic === "1";
+    const priceBold = cell.dataset.priceBold !== "0"; // default bold
 
-    cell.innerHTML = `
-      <div class="cella-inner">
-        <div class="img-box bg-light d-flex align-items-center justify-content-center"
-             style="height:120px;overflow:hidden;border-radius:4px;">
-          <span class="small text-muted">Clicca per modificare</span>
-        </div>
+    [titoloEl, descEl, prezzoEl].forEach(el => {
+      if (!el) return;
+      el.style.fontFamily = fontFamily || "";
+      el.style.color = fontColor || "#000000";
+      el.style.textTransform = textUpper ? "uppercase" : "none";
+    });
 
-        <div class="testo-box mt-1">
-          <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
-          <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
-          <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
-        </div>
-      </div>
-    `;
+    if (titoloEl) {
+      titoloEl.style.fontSize = titleSize + "px";
+      titoloEl.classList.toggle("fw-bold", titleBold);
+    }
+    if (descEl) {
+      descEl.style.fontSize = descSize + "px";
+      descEl.style.fontStyle = descItalic ? "italic" : "normal";
+    }
+    if (prezzoEl) {
+      prezzoEl.style.fontSize = priceSize + "px";
+      prezzoEl.classList.toggle("fw-bold", priceBold);
+    }
+  }
 
-    initCellaEvents(cell);
-    applyCellSize(cell);
-    applyPriceStyle(cell);
-    applyLayout(cell);
-    applyTextAlign(cell);
+  function applyBoxStyle(cell) {
+    const borderStyle = cell.dataset.borderStyle || "solid";
+    const borderColor = cell.dataset.borderColor || "#dddddd";
+    const radius = cell.dataset.radius || "4";
+    const bgColor = cell.dataset.bgColor || "#ffffff";
+    const shadow = cell.dataset.shadow === "1";
 
-    return cell;
+    cell.style.borderStyle = borderStyle;
+    cell.style.borderColor = borderColor;
+    cell.style.borderRadius = radius + "px";
+    cell.style.backgroundColor = bgColor;
+    cell.classList.toggle("cella-shadow", shadow);
+  }
+
+  function applyImageFilter(cell) {
+    const filter = cell.dataset.imageFilter || "none";
+    const img = cell.querySelector(".img-box img");
+    if (!img) return;
+    let css = "none";
+    if (filter === "bw") css = "grayscale(1)";
+    else if (filter === "warm") css = "contrast(1.05) saturate(1.2)";
+    else if (filter === "cool") css = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)";
+    else if (filter === "contrast") css = "contrast(1.3) saturate(1.2)";
+    img.style.filter = css;
+  }
+
+  /* ---------- CELLA: CREAZIONE / EVENTI ---------- */
+  function initResize(cell) {
+    const handle = cell.querySelector(".resize-handle");
+    if (!handle) return;
+
+    handle.addEventListener("mousedown", e => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startCol = parseInt(cell.dataset.colspan || "1", 10);
+      const startRow = parseInt(cell.dataset.rowspan || "1", 10);
+      const page = cell.closest(".pagina-volantino");
+      const cols = parseInt(page?.dataset.cols || "3", 10);
+      const grid = page.querySelector(".page-grid");
+      const rect = grid.getBoundingClientRect();
+      const colW = rect.width / cols;
+      const rowH = colW;
+
+      function onMove(ev) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        let newCol = startCol + Math.round(dx / colW);
+        let newRow = startRow + Math.round(dy / rowH);
+        newCol = Math.max(1, Math.min(cols, newCol));
+        newRow = Math.max(1, Math.max(1, newRow));
+        cell.dataset.colspan = newCol;
+        cell.dataset.rowspan = newRow;
+        applyCellSize(cell);
+      }
+
+      function onUp() {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
   }
 
   function initCellaEvents(cell) {
@@ -438,146 +750,319 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function selezionaCella(cell) {
-    document.querySelectorAll(".cella-prodotto").forEach(c =>
-      c.classList.remove("cella-selezionata")
-    );
-    cell.classList.add("cella-selezionata");
-    cellaSelezionata = cell;
+  function creaCella() {
+    const cell = document.createElement("div");
+    cell.classList.add("cella-prodotto");
+    cell.dataset.colspan = "1";
+    cell.dataset.rowspan = "1";
+    cell.dataset.priceStyle = "base";
+    cell.dataset.layout = "image-top";
+    cell.dataset.textAlign = "start";
+    cell.dataset.fontFamily = "";
+    cell.dataset.fontColor = "#000000";
+    cell.dataset.titleSize = "14";
+    cell.dataset.descSize = "11";
+    cell.dataset.priceSize = "16";
+    cell.dataset.textUpper = "0";
+    cell.dataset.titleBold = "1";
+    cell.dataset.descItalic = "0";
+    cell.dataset.priceBold = "1";
+    cell.dataset.borderStyle = "solid";
+    cell.dataset.borderColor = "#dddddd";
+    cell.dataset.radius = "4";
+    cell.dataset.bgColor = "#ffffff";
+    cell.dataset.shadow = "0";
+    cell.dataset.imageFilter = "none";
+
+    cell.innerHTML = `
+      <div class="cella-inner">
+        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
+             style="height: 120px; overflow:hidden;">
+          <span class="text-muted small">Clicca per modificare la box</span>
+        </div>
+        <div class="testo-box">
+          <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
+          <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
+          <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
+        </div>
+      </div>
+      <div class="resize-handle"></div>
+    `;
+
+    initCellaEvents(cell);
+    initResize(cell);
+    applyCellSize(cell);
+    applyPriceStyle(cell);
+    applyLayout(cell);
+    applyTextAlign(cell);
+    applyTypography(cell);
+    applyBoxStyle(cell);
+    applyImageFilter(cell);
+
+    return cell;
   }
 
-  /* Deseleziona clic esterno */
+  function selezionaCella(c) {
+    document.querySelectorAll(".cella-prodotto").forEach(el => {
+      el.classList.remove("cella-selezionata");
+    });
+    c.classList.add("cella-selezionata");
+    cellaSelezionata = c;
+  }
+
   document.addEventListener("click", () => {
-    document.querySelectorAll(".cella-prodotto").forEach(c =>
-      c.classList.remove("cella-selezionata")
-    );
+    document.querySelectorAll(".cella-prodotto").forEach(el => {
+      el.classList.remove("cella-selezionata");
+    });
     cellaSelezionata = null;
   });
 
-  /* ----------------------------------------------------------
-     EDITOR CELLA (MODAL)
-  -----------------------------------------------------------*/
-  function apriEditorCella(cell) {
-    cellaSelezionata = cell;
-
-    /* Carica dati */
-    setModalImage(cell.querySelector(".img-box img")?.src || "");
-    modalTitle.value = cell.querySelector(".titolo").innerText;
-    modalDesc.value = cell.querySelector(".descrizione").innerText;
-    modalPrice.value = cell.querySelector(".prezzo").innerText;
-
-    modalPriceStyle.value = cell.dataset.priceStyle;
-    modalLayout.value = cell.dataset.layout;
-    modalAlign.value = cell.dataset.textAlign;
-
-    cellEditorModal.show();
-  }
-
-  /* 🔥 FIX SALVATAGGIO CELLA */
-  modalSave.addEventListener("click", () => {
-    if (!cellaSelezionata) return;
-
-    const titolo = modalTitle.value.trim();
-    const descrizione = modalDesc.value.trim();
-    const prezzo = modalPrice.value.trim() || "€ 0,00";
-
-    cellaSelezionata.querySelector(".titolo").innerText = titolo;
-    cellaSelezionata.querySelector(".descrizione").innerText = descrizione;
-    cellaSelezionata.querySelector(".prezzo").innerText = prezzo;
-
-    if (modalImageData) {
-      cellaSelezionata.querySelector(".img-box").innerHTML =
-        `<img src="${modalImageData}" style="width:100%;height:100%;object-fit:cover;">`;
-    }
-
-    /* Attributi */
-    cellaSelezionata.dataset.priceStyle = modalPriceStyle.value;
-    cellaSelezionata.dataset.layout = modalLayout.value;
-    cellaSelezionata.dataset.textAlign = modalAlign.value;
-
-    /* Applica stili */
-    applyPriceStyle(cellaSelezionata);
-    applyLayout(cellaSelezionata);
-    applyTextAlign(cellaSelezionata);
-
-    cellEditorModal.hide();
-  });
-
-  /* ----------------------------------------------------------
-     TOOLBAR
-  -----------------------------------------------------------*/
+  /* ---------- TOOLBAR: FORMATO / PREZZO ---------- */
   document.querySelectorAll("[data-cell-size]").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!cellaSelezionata) return alert("Seleziona una cella");
-      const [w,h] = btn.dataset.cellSize.split("x");
-      cellaSelezionata.dataset.colspan = w;
-      cellaSelezionata.dataset.rowspan = h;
+      if (!cellaSelezionata) {
+        alert("Seleziona una cella per cambiarne il formato");
+        return;
+      }
+      const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
+      cellaSelezionata.dataset.colspan = cs;
+      cellaSelezionata.dataset.rowspan = rs;
       applyCellSize(cellaSelezionata);
     });
   });
 
   document.querySelectorAll("[data-price-style]").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!cellaSelezionata) return alert("Seleziona una cella");
-      cellaSelezionata.dataset.priceStyle = btn.dataset.priceStyle;
+      if (!cellaSelezionata) {
+        alert("Seleziona una cella per cambiarne lo stile prezzo");
+        return;
+      }
+      const style = btn.getAttribute("data-price-style");
+      cellaSelezionata.dataset.priceStyle = style;
       applyPriceStyle(cellaSelezionata);
     });
   });
 
+  /* ---------- GRIGLIA PAGINA ---------- */
   document.querySelectorAll("[data-grid]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const [cols, rows] = btn.dataset.grid.split("x");
+      if (!pagine.length) return;
+      const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
       const page = pagine[paginaCorrente];
       const grid = page.querySelector(".page-grid");
 
       grid.innerHTML = "";
-      grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      grid.style.gridAutoRows = "1fr";
       page.dataset.cols = cols;
 
       for (let i = 0; i < cols * rows; i++) {
         grid.appendChild(creaCella());
       }
 
-      Sortable.create(grid, { animation:150, ghostClass:"sortable-ghost" });
+      Sortable.create(grid, {
+        animation: 150,
+        ghostClass: "sortable-ghost"
+      });
     });
   });
 
+  /* ---------- DUPLICA / ELIMINA CELLA ---------- */
   document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella");
+    if (!cellaSelezionata) return alert("Seleziona una cella da duplicare");
     const clone = cellaSelezionata.cloneNode(true);
     initCellaEvents(clone);
+    initResize(clone);
+    applyTypography(clone);
+    applyBoxStyle(clone);
+    applyImageFilter(clone);
     cellaSelezionata.parentElement.appendChild(clone);
   });
 
   document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella");
+    if (!cellaSelezionata) return alert("Seleziona una cella da eliminare");
     cellaSelezionata.remove();
     cellaSelezionata = null;
   });
 
-  /* ----------------------------------------------------------
-     SALVATAGGIO
-  -----------------------------------------------------------*/
-  document.getElementById("save-layout").addEventListener("click", () => {
+  /* ---------- POPUP EDITOR CELLA ---------- */
+  function apriEditorCella(cell) {
+    cellaSelezionata = cell;
 
+    const img = cell.querySelector(".img-box img")?.src || "";
+    const titolo = cell.querySelector(".titolo")?.innerText || "";
+    const descrizione = cell.querySelector(".descrizione")?.innerText || "";
+    const prezzo = cell.querySelector(".prezzo")?.innerText || "";
+
+    const layout = cell.dataset.layout || "image-top";
+    const priceStyle = cell.dataset.priceStyle || "base";
+    const textAlign = cell.dataset.textAlign || "start";
+
+    const fontFamily = cell.dataset.fontFamily || "";
+    const fontColor = cell.dataset.fontColor || "#000000";
+    const titleSize = cell.dataset.titleSize || "14";
+    const descSize = cell.dataset.descSize || "11";
+    const priceSize = cell.dataset.priceSize || "16";
+    const textUpper = cell.dataset.textUpper === "1";
+    const titleBold = cell.dataset.titleBold !== "0";
+    const descItalic = cell.dataset.descItalic === "1";
+    const priceBold = cell.dataset.priceBold !== "0";
+
+    const borderStyle = cell.dataset.borderStyle || "solid";
+    const borderColor = cell.dataset.borderColor || "#dddddd";
+    const radius = cell.dataset.radius || "4";
+    const bgColor = cell.dataset.bgColor || "#ffffff";
+    const shadow = cell.dataset.shadow === "1";
+    const imageFilter = cell.dataset.imageFilter || "none";
+
+    setModalImage(img);
+    modalTitle.value = titolo;
+    modalDesc.value = descrizione;
+    modalPrice.value = prezzo;
+    modalPriceStyle.value = priceStyle;
+    modalLayout.value = layout;
+    modalAlign.value = textAlign;
+
+    modalFontFamily.value = fontFamily;
+    modalFontColor.value = fontColor;
+    modalTitleSize.value = parseInt(titleSize, 10) || 14;
+    modalDescSize.value = parseInt(descSize, 10) || 11;
+    modalPriceSize.value = parseInt(priceSize, 10) || 16;
+    modalTextUpper.checked = textUpper;
+    modalTitleBold.checked = titleBold;
+    modalDescItalic.checked = descItalic;
+    modalPriceBold.checked = priceBold;
+
+    modalBorderStyle.value = borderStyle;
+    modalBorderColor.value = borderColor;
+    modalRadius.value = parseInt(radius, 10) || 4;
+    modalBgColor.value = bgColor;
+    modalShadow.checked = shadow;
+
+    modalImageFilter.value = imageFilter;
+    modalProductLibrary.value = "";
+
+    cellEditorModal.show();
+  }
+
+  modalSave.addEventListener("click", () => {
+    if (!cellaSelezionata) return;
+
+    const titolo = modalTitle.value || "";
+    const descrizione = modalDesc.value || "";
+    const prezzo = modalPrice.value || "";
+    const layout = modalLayout.value || "image-top";
+    const priceStyle = modalPriceStyle.value || "base";
+    const textAlign = modalAlign.value || "start";
+
+    const fontFamily = modalFontFamily.value || "";
+    const fontColor = modalFontColor.value || "#000000";
+    const titleSize = modalTitleSize.value || "14";
+    const descSize = modalDescSize.value || "11";
+    const priceSize = modalPriceSize.value || "16";
+    const textUpper = modalTextUpper.checked ? "1" : "0";
+    const titleBold = modalTitleBold.checked ? "1" : "0";
+    const descItalic = modalDescItalic.checked ? "1" : "0";
+    const priceBold = modalPriceBold.checked ? "1" : "0";
+
+    const borderStyle = modalBorderStyle.value || "solid";
+    const borderColor = modalBorderColor.value || "#dddddd";
+    const radius = modalRadius.value || "4";
+    const bgColor = modalBgColor.value || "#ffffff";
+    const shadow = modalShadow.checked ? "1" : "0";
+    const imageFilter = modalImageFilter.value || "none";
+
+    const imgBox = cellaSelezionata.querySelector(".img-box");
+    const titoloEl = cellaSelezionata.querySelector(".titolo");
+    const descEl = cellaSelezionata.querySelector(".descrizione");
+    const prezzoEl = cellaSelezionata.querySelector(".prezzo");
+
+    if (modalImageData) {
+      imgBox.innerHTML =
+        `<img src="${modalImageData}" style="width:100%; height:100%; object-fit:cover;">`;
+    } else {
+      imgBox.innerHTML =
+        `<span class="text-muted small">Clicca per modificare la box</span>`;
+    }
+
+    if (titoloEl) titoloEl.innerText = titolo;
+    if (descEl)   descEl.innerText = descrizione;
+    if (prezzoEl) prezzoEl.innerText = prezzo || "€ 0,00";
+
+    cellaSelezionata.dataset.layout = layout;
+    cellaSelezionata.dataset.priceStyle = priceStyle;
+    cellaSelezionata.dataset.textAlign = textAlign;
+
+    cellaSelezionata.dataset.fontFamily = fontFamily;
+    cellaSelezionata.dataset.fontColor = fontColor;
+    cellaSelezionata.dataset.titleSize = titleSize;
+    cellaSelezionata.dataset.descSize = descSize;
+    cellaSelezionata.dataset.priceSize = priceSize;
+    cellaSelezionata.dataset.textUpper = textUpper;
+    cellaSelezionata.dataset.titleBold = titleBold;
+    cellaSelezionata.dataset.descItalic = descItalic;
+    cellaSelezionata.dataset.priceBold = priceBold;
+
+    cellaSelezionata.dataset.borderStyle = borderStyle;
+    cellaSelezionata.dataset.borderColor = borderColor;
+    cellaSelezionata.dataset.radius = radius;
+    cellaSelezionata.dataset.bgColor = bgColor;
+    cellaSelezionata.dataset.shadow = shadow;
+
+    cellaSelezionata.dataset.imageFilter = imageFilter;
+
+    applyLayout(cellaSelezionata);
+    applyPriceStyle(cellaSelezionata);
+    applyTextAlign(cellaSelezionata);
+    applyTypography(cellaSelezionata);
+    applyBoxStyle(cellaSelezionata);
+    applyImageFilter(cellaSelezionata);
+
+    cellEditorModal.hide();
+  });
+
+  /* ---------- SALVATAGGIO VOLANTINO ---------- */
+  document.getElementById("save-layout").addEventListener("click", () => {
     const data = pagine.map(page => {
       const grid = page.querySelector(".page-grid");
-      return {
-        cols: page.dataset.cols,
-        headerImg: page.querySelector(".page-header img")?.src || "",
-        footerImg: page.querySelector(".page-footer img")?.src || "",
-        cells: [...grid.querySelectorAll(".cella-prodotto")].map(c => ({
+      const header = page.querySelector(".page-header");
+      const footer = page.querySelector(".page-footer");
+
+      const headerImg = header.querySelector("img")?.src || "";
+      const footerImg = footer.querySelector("img")?.src || "";
+      const cols = parseInt(page.dataset.cols || "3", 10);
+
+      const cells = [];
+      grid.querySelectorAll(".cella-prodotto").forEach(c => {
+        cells.push({
           img: c.querySelector(".img-box img")?.src || "",
-          titolo: c.querySelector(".titolo").innerText,
-          descrizione: c.querySelector(".descrizione").innerText,
-          prezzo: c.querySelector(".prezzo").innerText,
-          colSpan: c.dataset.colspan,
-          rowSpan: c.dataset.rowspan,
-          priceStyle: c.dataset.priceStyle,
-          layout: c.dataset.layout,
-          textAlign: c.dataset.textAlign
-        }))
-      };
+          titolo: c.querySelector(".titolo")?.innerText || "",
+          descrizione: c.querySelector(".descrizione")?.innerText || "",
+          prezzo: c.querySelector(".prezzo")?.innerText || "",
+          colSpan: parseInt(c.dataset.colspan || "1", 10),
+          rowSpan: parseInt(c.dataset.rowspan || "1", 10),
+          priceStyle: c.dataset.priceStyle || "base",
+          layout: c.dataset.layout || "image-top",
+          textAlign: c.dataset.textAlign || "start",
+          fontFamily: c.dataset.fontFamily || "",
+          fontColor: c.dataset.fontColor || "#000000",
+          titleSize: c.dataset.titleSize || "14",
+          descSize: c.dataset.descSize || "11",
+          priceSize: c.dataset.priceSize || "16",
+          textUpper: c.dataset.textUpper || "0",
+          titleBold: c.dataset.titleBold || "1",
+          descItalic: c.dataset.descItalic || "0",
+          priceBold: c.dataset.priceBold || "1",
+          borderStyle: c.dataset.borderStyle || "solid",
+          borderColor: c.dataset.borderColor || "#dddddd",
+          radius: c.dataset.radius || "4",
+          bgColor: c.dataset.bgColor || "#ffffff",
+          shadow: c.dataset.shadow || "0",
+          imageFilter: c.dataset.imageFilter || "none"
+        });
+      });
+
+      return { cols, headerImg, footerImg, cells };
     });
 
     fetch("/salva-volantino-beta", {
@@ -590,52 +1075,81 @@ document.addEventListener("DOMContentLoaded", () => {
       })
     })
     .then(r => r.json())
-    .then(() => alert("Volantino salvato!"));
+    .then(d => {
+      alert("Volantino salvato!");
+    });
   });
 
-  /* ----------------------------------------------------------
-     CARICAMENTO LAYOUT SALVATO
-  -----------------------------------------------------------*/
+  /* ---------- CARICAMENTO VOLANTINO (EDIT) ---------- */
   {% if layout_json %}
     const salvato = {{ layout_json | safe }};
-    salvato.forEach(p => {
-      const page = creaPagina(p.cols);
-      const grid = page.querySelector(".page-grid");
+    if (Array.isArray(salvato) && salvato.length > 0) {
+      salvato.forEach(pData => {
+        const page = creaPagina(pData.cols || 3);
+        const grid = page.querySelector(".page-grid");
+        const header = page.querySelector(".page-header");
+        const footer = page.querySelector(".page-footer");
 
-      if (p.headerImg)
-        page.querySelector(".page-header").innerHTML =
-          `<img src="${p.headerImg}" style="width:100%;height:100%;object-fit:cover;">`;
+        if (pData.headerImg) {
+          header.innerHTML = `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
+        }
+        if (pData.footerImg) {
+          footer.innerHTML = `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
+        }
 
-      if (p.footerImg)
-        page.querySelector(".page-footer").innerHTML =
-          `<img src="${p.footerImg}" style="width:100%;height:100%;object-fit:cover;">`;
+        grid.style.gridTemplateColumns = `repeat(${pData.cols || 3}, 1fr)`;
+        grid.style.gridAutoRows = "1fr";
 
-      (p.cells || []).forEach(c => {
-        const cell = creaCella();
-        if (c.img)
-          cell.querySelector(".img-box").innerHTML =
-            `<img src="${c.img}" style="width:100%;height:100%;object-fit:cover;">`;
+        (pData.cells || []).forEach(item => {
+          const cell = creaCella();
 
-        cell.querySelector(".titolo").innerText = c.titolo;
-        cell.querySelector(".descrizione").innerText = c.descrizione;
-        cell.querySelector(".prezzo").innerText = c.prezzo;
+          if (item.img) {
+            cell.querySelector(".img-box").innerHTML =
+              `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
+          }
 
-        cell.dataset.colspan = c.colSpan;
-        cell.dataset.rowspan = c.rowSpan;
-        cell.dataset.priceStyle = c.priceStyle;
-        cell.dataset.layout = c.layout;
-        cell.dataset.textAlign = c.textAlign;
+          cell.querySelector(".titolo").innerText = item.titolo || "";
+          cell.querySelector(".descrizione").innerText = item.descrizione || "";
+          cell.querySelector(".prezzo").innerText = item.prezzo || "";
 
-        applyCellSize(cell);
-        applyPriceStyle(cell);
-        applyLayout(cell);
-        applyTextAlign(cell);
+          cell.dataset.colspan = item.colSpan || 1;
+          cell.dataset.rowspan = item.rowSpan || 1;
+          cell.dataset.priceStyle = item.priceStyle || "base";
+          cell.dataset.layout = item.layout || "image-top";
+          cell.dataset.textAlign = item.textAlign || "start";
 
-        grid.appendChild(cell);
+          cell.dataset.fontFamily = item.fontFamily || "";
+          cell.dataset.fontColor = item.fontColor || "#000000";
+          cell.dataset.titleSize = item.titleSize || "14";
+          cell.dataset.descSize = item.descSize || "11";
+          cell.dataset.priceSize = item.priceSize || "16";
+          cell.dataset.textUpper = item.textUpper || "0";
+          cell.dataset.titleBold = item.titleBold || "1";
+          cell.dataset.descItalic = item.descItalic || "0";
+          cell.dataset.priceBold = item.priceBold || "1";
+
+          cell.dataset.borderStyle = item.borderStyle || "solid";
+          cell.dataset.borderColor = item.borderColor || "#dddddd";
+          cell.dataset.radius = item.radius || "4";
+          cell.dataset.bgColor = item.bgColor || "#ffffff";
+          cell.dataset.shadow = item.shadow || "0";
+
+          cell.dataset.imageFilter = item.imageFilter || "none";
+
+          applyCellSize(cell);
+          applyPriceStyle(cell);
+          applyLayout(cell);
+          applyTextAlign(cell);
+          applyTypography(cell);
+          applyBoxStyle(cell);
+          applyImageFilter(cell);
+
+          grid.appendChild(cell);
+        });
+
+        pagine.push(page);
       });
-
-      pagine.push(page);
-    });
+    }
   {% endif %}
 
   if (pagine.length === 0) {
@@ -645,27 +1159,39 @@ document.addEventListener("DOMContentLoaded", () => {
   mostraPaginaCorrente();
   aggiornaListaPagine();
 
-  /* ----------------------------------------------------------
-     EXPORT PDF MULTIPAGINE
-  -----------------------------------------------------------*/
+  /* ---------- EXPORT PDF MULTIPAGINA ---------- */
   document.getElementById("export-pdf").addEventListener("click", async () => {
     const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-
-    const original = paginaCorrente;
+    const paginaOriginale = paginaCorrente;
 
     for (let i = 0; i < pagine.length; i++) {
       if (i > 0) pdf.addPage();
       paginaCorrente = i;
       mostraPaginaCorrente();
 
-      const canvas = await html2canvas(pagine[i], { scale: 2 });
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 800, 1100);
+      const pageEl = pagine[i];
+      const canvas = await html2canvas(pageEl, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
+      pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
     }
 
-    paginaCorrente = original;
+    paginaCorrente = paginaOriginale;
     mostraPaginaCorrente();
 
     pdf.save((inputNome.value || "volantino") + ".pdf");
+  });
+
+  /* ---------- EXPORT PNG PAGINA CORRENTE ---------- */
+  document.getElementById("export-png").addEventListener("click", async () => {
+    const pageEl = pagine[paginaCorrente];
+    const canvas = await html2canvas(pageEl, { scale: 2 });
+    const dataUrl = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = (inputNome.value || "volantino") + "_pag" + (paginaCorrente + 1) + ".png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   });
 
 });
@@ -675,9 +1201,9 @@ document.addEventListener("DOMContentLoaded", () => {
 .pagina-volantino {
   width: 800px;
   height: 1100px;
-  background: #fff;
+  background: #ffffff;
   border: 1px solid #ddd;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
   display: grid;
   grid-template-rows: auto 1fr auto;
   padding: 10px;
@@ -688,31 +1214,36 @@ document.addEventListener("DOMContentLoaded", () => {
 .page-header,
 .page-footer {
   height: 80px;
-  border: 1px dashed #bbb;
+  border: 1px dashed #ccc;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
-  border-radius: 4px;
 }
 
+.page-footer {
+  margin-top: 8px;
+}
+
+.page-grid {
+  min-height: 0;
+}
+
+/* Celle prodotto */
 .cella-prodotto {
   background: #fff;
   border: 1px solid #ddd;
   padding: 6px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: 0.15s ease;
-}
-.cella-prodotto:hover {
-  box-shadow: 0 0 6px rgba(0,0,0,0.15);
-  transform: translateY(-1px);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  position: relative;
 }
 
-.cella-selected,
-.cella-selezionata {
-  outline: 3px solid #0d6efd;
+.cella-prodotto:hover {
+  box-shadow: 0 0 8px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
 }
 
 .cella-inner {
@@ -721,30 +1252,141 @@ document.addEventListener("DOMContentLoaded", () => {
   flex-direction: column;
 }
 
-.cella-layout-image-top .cella-inner { flex-direction: column; }
-.cella-layout-image-left .cella-inner { flex-direction: row; }
-.cella-layout-image-left .img-box { width: 50%; margin-right: 4px; }
+.img-box {
+  border-radius: 4px;
+}
 
-.cella-layout-full-image-price .cella-inner { position: relative; }
+.testo-box {
+  padding-top: 3px;
+}
+
+/* Selezione */
+.cella-selezionata {
+  outline: 3px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Ombra extra box */
+.cella-shadow {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+}
+
+/* Stili prezzo base + avanzati */
+.prezzo-base {
+  background: transparent;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.prezzo-yellow {
+  background: #ffeb3b;
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.prezzo-red {
+  background: #f44336;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.prezzo-blue {
+  background: #2196f3;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.prezzo-round {
+  background: #ff9800;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.prezzo-angle {
+  position: relative;
+  padding: 4px 10px;
+  background: #e91e63;
+  color: #fff;
+  border-radius: 0;
+}
+
+.prezzo-angle::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 0;
+  border-top: 14px solid #e91e63;
+  border-left: 10px solid transparent;
+}
+
+.prezzo-strike {
+  display: inline-block;
+}
+
+.prezzo-strike::before {
+  content: attr(data-old);
+  display: block;
+  text-decoration: line-through;
+  font-size: 0.7em;
+  opacity: 0.8;
+}
+
+/* Layout vari */
+.cella-layout-image-top .cella-inner {
+  flex-direction: column;
+}
+
+.cella-layout-image-left .cella-inner {
+  flex-direction: row;
+}
+
+.cella-layout-image-left .img-box {
+  width: 50%;
+  margin-right: 4px;
+}
+
+.cella-layout-full-image-price .cella-inner {
+  position: relative;
+}
+
+.cella-layout-full-image-price .img-box {
+  height: 100%;
+}
+
 .cella-layout-full-image-price .testo-box {
-  position: absolute; bottom: 6px; left: 6px; right: 6px;
-  color: #fff; text-shadow: 0 0 4px rgba(0,0,0,0.7);
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  text-shadow: 0 0 3px rgba(0,0,0,0.6);
+  color: #fff;
 }
-.cella-layout-full-image-price .prezzo {
-  position: absolute; top: 6px; right: 6px;
+
+/* Sortable ghost */
+.sortable-ghost {
+  opacity: 0.4;
 }
 
-/* Stili prezzo */
-.prezzo-base { background:none; }
-.prezzo-yellow { background:#ffeb3b; padding:2px 6px; border-radius:4px; }
-.prezzo-red { background:#f44336; padding:2px 6px; border-radius:4px; color:#fff; }
-.prezzo-blue { background:#2196f3; padding:2px 6px; border-radius:4px; color:#fff; }
+/* Modal immagine */
+#modal-image-preview img {
+  display: block;
+}
 
-/* Modal */
-#modal-image-preview img { width:100%;height:100%;object-fit:cover; }
-
-/* Drag ghost */
-.sortable-ghost { opacity: 0.4; }
+/* Handle resize */
+.resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  right: 2px;
+  bottom: 2px;
+  background: #007bff;
+  border-radius: 3px;
+  cursor: se-resize;
+}
 </style>
 
 {% endblock %}
