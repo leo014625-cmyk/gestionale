@@ -62,6 +62,8 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # limite upload 16MB
 # Secret key per session
 app.secret_key = 'la_tua_chiave_segreta_sicura'
 
+db = SQLAlchemy(app)
+
 
 # ============================
 # UPLOAD CATEGORIE
