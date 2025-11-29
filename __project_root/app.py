@@ -67,6 +67,10 @@ app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///local.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+# CREA LE TABELLE SE NON ESISTONO (Render + locale)
+with app.app_context():
+    db.create_all()
+
 
 # Config upload
 app.config["UPLOAD_FOLDER_VOLANTINI"] = UPLOAD_FOLDER_VOLANTINI
