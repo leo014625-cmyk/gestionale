@@ -700,157 +700,160 @@ document.addEventListener("DOMContentLoaded", () => {
     img.style.filter = css;
   }
 
-  /* ---------- CELLA: CREAZIONE / EVENTI ---------- */
-  function initResize(cell) {
-    const handle = cell.querySelector(".resize-handle");
-    if (!handle) return;
+/* ---------- CELLA: CREAZIONE / EVENTI ---------- */
+function initResize(cell) {
+  const handle = cell.querySelector(".resize-handle");
+  if (!handle) return;
 
-    handle.addEventListener("mousedown", e => {
-      e.stopPropagation();
-      e.preventDefault();
+  handle.addEventListener("mousedown", e => {
+    e.stopPropagation();
+    e.preventDefault();
 
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startCol = parseInt(cell.dataset.colspan || "1", 10);
-      const startRow = parseInt(cell.dataset.rowspan || "1", 10);
-      const page = cell.closest(".pagina-volantino");
-      const cols = parseInt(page?.dataset.cols || "3", 10);
-      const grid = page.querySelector(".page-grid");
-      const rect = grid.getBoundingClientRect();
-      const colW = rect.width / cols;
-      const rowH = colW;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startCol = parseInt(cell.dataset.colspan || "1", 10);
+    const startRow = parseInt(cell.dataset.rowspan || "1", 10);
+    const page = cell.closest(".pagina-volantino");
+    const cols = parseInt(page?.dataset.cols || "3", 10);
+    const grid = page.querySelector(".page-grid");
+    const rect = grid.getBoundingClientRect();
+    const colW = rect.width / cols;
+    const rowH = colW;
 
-      function onMove(ev) {
-        const dx = ev.clientX - startX;
-        const dy = ev.clientY - startY;
-        let newCol = startCol + Math.round(dx / colW);
-        let newRow = startRow + Math.round(dy / rowH);
-        newCol = Math.max(1, Math.min(cols, newCol));
-        newRow = Math.max(1, Math.max(1, newRow));
-        cell.dataset.colspan = newCol;
-        cell.dataset.rowspan = newRow;
-        applyCellSize(cell);
-      }
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      let newCol = startCol + Math.round(dx / colW);
+      let newRow = startRow + Math.round(dy / rowH);
+      newCol = Math.max(1, Math.min(cols, newCol));
+      newRow = Math.max(1, Math.max(1, newRow));
+      cell.dataset.colspan = newCol;
+      cell.dataset.rowspan = newRow;
+      applyCellSize(cell);
+    }
 
-      function onUp() {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
 
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    });
-  }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  });
+}
 
-  function initCellaEvents(cell) {
-    cell.addEventListener("click", e => {
-      e.stopPropagation();
-      selezionaCella(cell);
-      apriEditorCella(cell);
-    });
-  }
+function initCellaEvents(cell) {
+  cell.addEventListener("click", e => {
+    e.stopPropagation();
+    selezionaCella(cell);
+    apriEditorCella(cell);
+  });
+}
 
-  function creaCella() {
-    const cell = document.createElement("div");
-    cell.classList.add("cella-prodotto");
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-    cell.dataset.priceStyle = "base";
-    cell.dataset.layout = "image-top";
-    cell.dataset.textAlign = "start";
-    cell.dataset.fontFamily = "";
-    cell.dataset.fontColor = "#000000";
-    cell.dataset.titleSize = "14";
-    cell.dataset.descSize = "11";
-    cell.dataset.priceSize = "16";
-    cell.dataset.textUpper = "0";
-    cell.dataset.titleBold = "1";
-    cell.dataset.descItalic = "0";
-    cell.dataset.priceBold = "1";
-    cell.dataset.borderStyle = "solid";
-    cell.dataset.borderColor = "#dddddd";
-    cell.dataset.radius = "4";
-    cell.dataset.bgColor = "#ffffff";
-    cell.dataset.shadow = "0";
-    cell.dataset.imageFilter = "none";
+function creaCella() {
+  const cell = document.createElement("div");
+  cell.classList.add("cella-prodotto");
+  cell.dataset.colspan = "1";
+  cell.dataset.rowspan = "1";
+  cell.dataset.priceStyle = "base";
+  cell.dataset.layout = "image-top";
+  cell.dataset.textAlign = "start";
+  cell.dataset.fontFamily = "";
+  cell.dataset.fontColor = "#000000";
+  cell.dataset.titleSize = "14";
+  cell.dataset.descSize = "11";
+  cell.dataset.priceSize = "16";
+  cell.dataset.textUpper = "0";
+  cell.dataset.titleBold = "1";
+  cell.dataset.descItalic = "0";
+  cell.dataset.priceBold = "1";
+  cell.dataset.borderStyle = "solid";
+  cell.dataset.borderColor = "#dddddd";
+  cell.dataset.radius = "4";
+  cell.dataset.bgColor = "#ffffff";
+  cell.dataset.shadow = "0";
+  cell.dataset.imageFilter = "none";
 
-    cell.innerHTML = `
-      <div class="cella-inner">
-        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
-             style="height: 120px; overflow:hidden;">
-          <span class="text-muted small">Clicca per modificare la box</span>
-        </div>
-        <div class="testo-box">
-          <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
-          <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
-          <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
-        </div>
+  cell.innerHTML = `
+    <div class="cella-inner">
+      <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
+            style="height: 120px; overflow:hidden;">
+        <span class="text-muted small">Clicca per modificare la box</span>
       </div>
-      <div class="resize-handle"></div>
-    `;
+      <div class="testo-box">
+        <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
+        <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
+        <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  `;
 
-    initCellaEvents(cell);
-    initResize(cell);
-    applyCellSize(cell);
-    applyPriceStyle(cell);
-    applyLayout(cell);
-    applyTextAlign(cell);
-    applyTypography(cell);
-    applyBoxStyle(cell);
-    applyImageFilter(cell);
+  initCellaEvents(cell);
+  initResize(cell);
+  applyCellSize(cell);
+  applyPriceStyle(cell);
+  applyLayout(cell);
+  applyTextAlign(cell);
+  applyTypography(cell);
+  applyBoxStyle(cell);
+  applyImageFilter(cell);
 
-    return cell;
-  }
+  return cell;
+}
 
-  function selezionaCella(c) {
-   document.addEventListener("click", (e) => {
+function selezionaCella(c) {
+  document.querySelectorAll(".cella-prodotto").forEach(el => {
+    el.classList.remove("cella-selezionata");
+  });
+  c.classList.add("cella-selezionata");
+  cellaSelezionata = c;
+}
+
+
+/* ---------- FIX: CLICK GLOBALE (NON DESLEZIONA PIÙ QUANDO CLICCHI SUL MODAL) ---------- */
+document.addEventListener("click", (e) => {
 
   // Se il click è dentro al modal → NON deselezionare la cella
   if (e.target.closest('#cellEditorModal')) return;
 
-  // Se clicchi su una cella, la selezione viene gestita da selezionaCella()
+  // Se il click è su una cella, NON deselezionare (lo fa già selezionaCella)
   if (e.target.closest('.cella-prodotto')) return;
 
-  // Click fuori dalle celle e fuori dal modal → deseleziona
+  // Click fuori da tutto → deseleziona
   document.querySelectorAll(".cella-prodotto").forEach(el => {
     el.classList.remove("cella-selezionata");
-   });
-  
+  });
+
   cellaSelezionata = null;
- });
+});
 
-  document.addEventListener("click", () => {
-    document.querySelectorAll(".cella-prodotto").forEach(el => {
-      el.classList.remove("cella-selezionata");
-    });
-    cellaSelezionata = null;
-  });
 
-  /* ---------- TOOLBAR: FORMATO / PREZZO ---------- */
-  document.querySelectorAll("[data-cell-size]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!cellaSelezionata) {
-        alert("Seleziona una cella per cambiarne il formato");
-        return;
-      }
-      const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
-      cellaSelezionata.dataset.colspan = cs;
-      cellaSelezionata.dataset.rowspan = rs;
-      applyCellSize(cellaSelezionata);
-    });
+/* ---------- TOOLBAR: FORMATO / PREZZO ---------- */
+document.querySelectorAll("[data-cell-size]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (!cellaSelezionata) {
+      alert("Seleziona una cella per cambiarne il formato");
+      return;
+    }
+    const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
+    cellaSelezionata.dataset.colspan = cs;
+    cellaSelezionata.dataset.rowspan = rs;
+    applyCellSize(cellaSelezionata);
   });
+});
 
-  document.querySelectorAll("[data-price-style]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!cellaSelezionata) {
-        alert("Seleziona una cella per cambiarne lo stile prezzo");
-        return;
-      }
-      const style = btn.getAttribute("data-price-style");
-      cellaSelezionata.dataset.priceStyle = style;
-      applyPriceStyle(cellaSelezionata);
-    });
+document.querySelectorAll("[data-price-style]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (!cellaSelezionata) {
+      alert("Seleziona una cella per cambiarne lo stile prezzo");
+      return;
+    }
+    const style = btn.getAttribute("data-price-style");
+    cellaSelezionata.dataset.priceStyle = style;
+    applyPriceStyle(cellaSelezionata);
   });
+});
 
   /* ---------- GRIGLIA PAGINA ---------- */
   document.querySelectorAll("[data-grid]").forEach(btn => {
