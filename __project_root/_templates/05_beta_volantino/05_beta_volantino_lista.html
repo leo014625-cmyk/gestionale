@@ -1,1 +1,69 @@
+{% extends "01_base.html" %}
+
+{% block title %}Volantini BETA - Gestionale Horeca{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">🧪 Volantini BETA salvati</h1>
+
+<div class="d-flex justify-content-between mb-3">
+  <h4 class="m-0">Elenco volantini</h4>
+  <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary">
+    ➕ Crea nuovo volantino
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+
+    <table class="table table-hover table-bordered m-0">
+      <thead class="table-dark">
+        <tr>
+          <th style="width:60px;">ID</th>
+          <th>Nome</th>
+          <th style="width:200px;">Creato il</th>
+          <th style="width:200px;">Azioni</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for v in lista %}
+        <tr>
+          <td class="text-center">{{ v.id }}</td>
+          <td>{{ v.nome }}</td>
+          <td>{{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="text-center">
+
+            <!-- APRI -->
+            <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}" 
+               class="btn btn-sm btn-primary me-1">
+              ✏️ Apri / Modifica
+            </a>
+
+            <!-- ELIMINA -->
+            <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" 
+               class="btn btn-sm btn-danger"
+               onclick="return confirm('Sei sicuro di voler eliminare questo volantino?')">
+              🗑️ Elimina
+            </a>
+
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">
+            Nessun volantino salvato.<br>
+            <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary mt-2">
+              ➕ Crea il primo volantino
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+</div>
+
+{% endblock %}
 
