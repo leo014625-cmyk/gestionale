@@ -9,7 +9,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
-from models import VolantinoBeta
 
 
 # ============================
@@ -2414,6 +2413,17 @@ def salva_layout_promo_lampo(promo_id):
     
     except Exception as e:
         return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
+
+# -------------------------------
+# MODELLO
+# -------------------------------
+class VolantinoBeta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(255), nullable=False)
+    layout_json = db.Column(db.Text, nullable=False)
+    thumbnail = db.Column(db.Text)
+    creato_il = db.Column(db.DateTime, default=datetime.utcnow)
+    aggiornato_il = db.Column(db.DateTime)
 
 
 # ----------------------------------------------------------------------
