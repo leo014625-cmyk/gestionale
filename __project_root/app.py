@@ -9,6 +9,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
+from models import VolantinoBeta
 
 
 # ============================
@@ -2424,32 +2425,42 @@ def beta_volantino():
         '05_beta_volantino/05_beta_volantino.html',
         volantino_id=None,
         nome_volantino="",
-        layout_json="[]"
+        layout_json="[]",
+        thumbnail=""
     )
 
 
 # ----------------------------------------------------------------------
-#  SALVA / AGGIORNA VOLANTINO (POST)
+#  SALVA / AGGIORNA VOLANTINO  (con miniatura)
 # ----------------------------------------------------------------------
 @app.route('/salva-volantino-beta', methods=['POST'])
 def salva_volantino_beta():
     data = request.get_json()
+
     vol_id = data.get("id")
     nome = data.get("nome", "Volantino BETA")
     layout_json = json.dumps(data["layout"])
+    thumbnail = data.get("thumbnail")   # base64 da html2canvas
 
     if vol_id:
         # Aggiorna esistente
         vol = VolantinoBeta.query.get_or_404(vol_id)
         vol.nome = nome
         vol.layout_json = layout_json
+        if thumbnail:
+            vol.thumbnail = thumbnail
+        vol.aggiornato_il = datetime.utcnow()
     else:
-        # Crea nuovo
-        vol = VolantinoBeta(nome=nome, layout_json=layout_json)
+        # Nuovo volantino
+        vol = VolantinoBeta(
+            nome=nome,
+            layout_json=layout_json,
+            thumbnail=thumbnail
+        )
         db.session.add(vol)
 
     db.session.commit()
-    return {"ok": True, "id": vol.id}
+    return jsonify({"ok": True, "id": vol.id})
 
 
 # ----------------------------------------------------------------------
@@ -2463,7 +2474,8 @@ def beta_volantino_modifica(id):
         '05_beta_volantino/05_beta_volantino.html',
         volantino_id=id,
         nome_volantino=vol.nome,
-        layout_json=vol.layout_json
+        layout_json=vol.layout_json,
+        thumbnail=vol.thumbnail
     )
 
 
@@ -2480,6 +2492,25 @@ def lista_volantini_beta():
 
 
 # ----------------------------------------------------------------------
+#  DUPLICA VOLANTINO
+# ----------------------------------------------------------------------
+@app.route('/beta-volantino/duplica/<int:id>')
+def beta_volantino_duplica(id):
+    vol = VolantinoBeta.query.get_or_404(id)
+
+    nuovo = VolantinoBeta(
+        nome=vol.nome + " (Copia)",
+        layout_json=vol.layout_json,
+        thumbnail=vol.thumbnail
+    )
+
+    db.session.add(nuovo)
+    db.session.commit()
+
+    return redirect(url_for('beta_volantino_modifica', id=nuovo.id))
+
+
+# ----------------------------------------------------------------------
 #  ELIMINA VOLANTINO
 # ----------------------------------------------------------------------
 @app.route('/beta-volantino/elimina/<int:id>')
@@ -2488,6 +2519,7 @@ def beta_volantino_elimina(id):
     db.session.delete(vol)
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
+
 
 
 
