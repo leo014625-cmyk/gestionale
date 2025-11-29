@@ -53,6 +53,21 @@ app = Flask(
     static_folder=STATIC_DIR
 )
 
+# ----------------------------------------------------------------------
+# CONFIG DATABASE (Render + Local)
+# ----------------------------------------------------------------------
+
+# Compatibilità: Render usa DATABASE_URL ma SQLAlchemy vuole postgres:// → postgresql://
+db_url = os.environ.get("DATABASE_URL", "")
+
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///local.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+
 # Config upload
 app.config["UPLOAD_FOLDER_VOLANTINI"] = UPLOAD_FOLDER_VOLANTINI
 app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"] = UPLOAD_FOLDER_VOLANTINI_PRODOTTI
