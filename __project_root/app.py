@@ -2414,10 +2414,6 @@ def salva_layout_promo_lampo(promo_id):
     except Exception as e:
         return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
 
-import json
-from flask import request, jsonify, render_template
-from models import VolantinoBeta   # se usi models.py
-
 
 # ----------------------------------------------------------------------
 #  CREA NUOVO VOLANTINO (pagina editor vuota)
