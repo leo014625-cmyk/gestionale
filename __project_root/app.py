@@ -2414,6 +2414,11 @@ def salva_layout_promo_lampo(promo_id):
     except Exception as e:
         return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
 
+@app.route('/beta-volantino')
+def beta_volantino():
+    return render_template('05_beta_volantino.html')
+
+
 
 # ============================
 # ROUTE DI TEST TEMPLATE
