@@ -219,14 +219,17 @@
         </a>
       </li>
 
-      <!-- ⭐ AGGIUNTA: BETA VOLANTINO -->
+      <!-- ⭐ LINK VOLANTINO BETA (AGGIORNATO) -->
       <li class="nav-item">
-        <a class="nav-link {% if request.path.startswith('/beta-volantino') %}active{% endif %}" 
-           href="{{ url_for('beta_volantino') }}">
-          <i class="bi bi-pencil-square"></i> <span>🧪 BETA Volantino</span>
+        <a class="nav-link 
+          {% if request.path.startswith('/beta-volantini')
+                or request.path.startswith('/beta-volantino') %}active{% endif %}"
+          href="{{ url_for('lista_volantini_beta') }}">
+          <i class="bi bi-pencil-square"></i> 
+          <span>🧪 BETA Volantino</span>
         </a>
       </li>
-      <!-- FINE AGGIUNTA -->
+      <!-- ⭐ FINE -->
 
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/fatturato') %}active{% endif %}" 
