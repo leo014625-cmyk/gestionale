@@ -77,7 +77,7 @@
     <ul class="nav nav-tabs mb-3">
       {% for cat in categorie %}
       <li class="nav-item">
-        <button class="nav-link {% if loop.first %}active{% endif %}"
+        <button type="button" class="nav-link {% if loop.first %}active{% endif %}"
                 data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}">
           {{ cat.nome }}
         </button>
