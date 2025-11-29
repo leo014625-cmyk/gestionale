@@ -29,6 +29,7 @@
       <div class="card-header fw-bold">Azioni</div>
       <div class="card-body">
         <button class="btn btn-outline-danger w-100 mb-2" id="delete-selected">🗑️ Elimina selezionato</button>
+        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">💾 Salva Volantino</button>
         <button class="btn btn-outline-dark w-100" id="export-pdf">📄 Esporta PDF</button>
       </div>
     </div>
@@ -39,8 +40,6 @@
   <div class="col-md-9">
     <div id="canvas" class="border bg-white" 
          style="width: 800px; height: 1100px; position: relative; margin: auto;">
-
-      <!-- Gli elementi verranno inseriti via JS -->
 
     </div>
   </div>
@@ -53,8 +52,12 @@
 {% block scripts %}
 {{ super() }}
 
-<!-- Interact.js per drag & resize -->
+<!-- Interact.js -->
 <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+
+<!-- html2canvas + jsPDF -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -62,7 +65,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const canvas = document.getElementById("canvas");
   let selected = null;
 
-  // Funzione generica per creare elementi
+  /* ------------------------------
+      CREAZIONE ELEMENTI
+  ------------------------------ */
   function creaElemento(tipo, contenuto = "") {
     const el = document.createElement("div");
     el.classList.add("elemento-volantino");
@@ -95,14 +100,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     canvas.appendChild(el);
-    attivaInterazione(el);
 
     el.addEventListener("click", () => seleziona(el));
-
     seleziona(el);
+
+    attivaInterazione(el);
   }
 
-  // Selezione
+  /* ------------------------------
+      SELEZIONE ELEMENTO
+  ------------------------------ */
   function seleziona(el) {
     document.querySelectorAll(".elemento-volantino").forEach(e => {
       e.style.border = "1px dashed #999";
@@ -112,14 +119,11 @@ document.addEventListener("DOMContentLoaded", () => {
     selected = el;
   }
 
-  // Tasti toolbar
-  document.getElementById("add-text").addEventListener("click", () => {
-    creaElemento("text");
-  });
-
-  document.getElementById("add-product").addEventListener("click", () => {
-    creaElemento("product");
-  });
+  /* ------------------------------
+      TOOLBAR
+  ------------------------------ */
+  document.getElementById("add-text").addEventListener("click", () => creaElemento("text"));
+  document.getElementById("add-product").addEventListener("click", () => creaElemento("product"));
 
   document.getElementById("add-image").addEventListener("click", () => {
     document.getElementById("image-input").click();
@@ -133,15 +137,17 @@ document.addEventListener("DOMContentLoaded", () => {
     reader.readAsDataURL(file);
   });
 
-  // Delete
+  /* ------------------------------
+      CANCELLA ELEMENTO
+  ------------------------------ */
   document.getElementById("delete-selected").addEventListener("click", () => {
-    if (selected) {
-      selected.remove();
-      selected = null;
-    }
+    if (selected) selected.remove();
+    selected = null;
   });
 
-  // Drag & Resize
+  /* ------------------------------
+      DRAG & RESIZE
+  ------------------------------ */
   function attivaInterazione(el) {
     interact(el)
       .draggable({
@@ -151,7 +157,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const y = (parseFloat(event.target.getAttribute("data-y")) || 0) + event.dy;
 
             event.target.style.transform = `translate(${x}px, ${y}px)`;
-
             event.target.setAttribute("data-x", x);
             event.target.setAttribute("data-y", y);
           }
@@ -177,9 +182,58 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // TODO: Funzione esportazione PDF
-  document.getElementById("export-pdf").addEventListener("click", () => {
-    alert("⚠️ Integrazione PDF in arrivo (html2canvas + jsPDF)");
+  /* ------------------------------
+      SALVATAGGIO VOLANTINO
+  ------------------------------ */
+  document.getElementById("save-layout").addEventListener("click", () => {
+
+    const elementi = [];
+
+    document.querySelectorAll(".elemento-volantino").forEach(el => {
+      elementi.push({
+        tipo: el.getAttribute("data-type"),
+        x: el.getAttribute("data-x") || 0,
+        y: el.getAttribute("data-y") || 0,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+        html: el.innerHTML
+      });
+    });
+
+    fetch("/salva-volantino", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout: elementi })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert("Volantino salvato!");
+    });
+
+  });
+
+  /* ------------------------------
+      ESPORTAZIONE PDF
+  ------------------------------ */
+  document.getElementById("export-pdf").addEventListener("click", async () => {
+
+    const canvasDiv = document.getElementById("canvas");
+
+    html2canvas(canvasDiv, { scale: 2 }).then(canvas => {
+
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jspdf.jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [800, 1100]
+      });
+
+      pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
+
+      pdf.save("volantino.pdf");
+    });
+
   });
 
 });
@@ -196,4 +250,3 @@ document.addEventListener("DOMContentLoaded", () => {
 </style>
 
 {% endblock %}
-
