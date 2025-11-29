@@ -4,11 +4,13 @@
 
 {% block content %}
 
-<h1 class="mb-4">🧪 BETA – Editor Volantino (Stile InPublish)</h1>
+<h1 class="mb-4">🧪 BETA – Editor Volantino Avanzato</h1>
 
 <div class="row">
 
-  <!-- TOOLBAR -->
+  <!-- ----------------------------------------------- -->
+  <!-- SIDEBAR SINISTRA -->
+  <!-- ----------------------------------------------- -->
   <div class="col-md-3">
 
     <!-- Nome volantino -->
@@ -23,36 +25,34 @@
 
     <!-- Pagine -->
     <div class="card mb-3">
-      <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-        <span>Pagine</span>
-      </div>
+      <div class="card-header fw-bold">Pagine</div>
       <div class="card-body">
         <div id="lista-pagine" class="mb-2"></div>
-        <div class="d-grid gap-2">
-          <button class="btn btn-primary btn-sm" id="aggiungi-pagina">➕ Aggiungi pagina</button>
-          <button class="btn btn-outline-primary btn-sm" id="duplica-pagina">📄 Duplica pagina</button>
-        </div>
+        <button class="btn btn-primary btn-sm w-100 mb-2" id="aggiungi-pagina">➕ Aggiungi pagina</button>
+        <button class="btn btn-outline-primary btn-sm w-100" id="duplica-pagina">📄 Duplica pagina</button>
       </div>
     </div>
 
-    <!-- Layout griglie -->
+    <!-- Layout griglia -->
     <div class="card mb-3">
-      <div class="card-header fw-bold">Layout griglia pagina</div>
+      <div class="card-header fw-bold">Layout griglia</div>
       <div class="card-body">
-        <button class="btn btn-primary w-100 mb-2" data-grid="2x3">Griglia 2 × 3</button>
-        <button class="btn btn-primary w-100 mb-2" data-grid="3x3">Griglia 3 × 3</button>
-        <button class="btn btn-primary w-100 mb-2" data-grid="4x3">Griglia 4 × 3</button>
+        <button class="btn btn-primary w-100 mb-2" data-grid="2x3">Griglia 2×3</button>
+        <button class="btn btn-primary w-100 mb-2" data-grid="3x3">Griglia 3×3</button>
+        <button class="btn btn-primary w-100 mb-2" data-grid="4x3">Griglia 4×3</button>
       </div>
     </div>
 
-    <!-- Formato celle -->
+    <!-- Formato cella -->
     <div class="card mb-3">
-      <div class="card-header fw-bold">Formato cella selezionata</div>
-      <div class="card-body d-grid gap-2">
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x1">1 × 1</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x1">2 × 1</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x2">1 × 2</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x2">2 × 2</button>
+      <div class="card-header fw-bold">Formato cella</div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x1">1×1</button>
+          <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x1">2×1</button>
+          <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x2">1×2</button>
+          <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x2">2×2</button>
+        </div>
       </div>
     </div>
 
@@ -67,109 +67,203 @@
       </div>
     </div>
 
-    <!-- Azioni celle / volantino -->
+    <!-- Azioni -->
     <div class="card">
       <div class="card-header fw-bold">Azioni</div>
       <div class="card-body d-grid gap-2">
         <button class="btn btn-outline-secondary btn-sm" id="duplica-cella">📄 Duplica cella</button>
         <button class="btn btn-outline-danger btn-sm" id="elimina-cella">🗑️ Elimina cella</button>
         <hr>
-        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">💾 Salva Volantino</button>
+        <button class="btn btn-outline-primary w-100" id="save-layout">💾 Salva Volantino</button>
         <button class="btn btn-outline-dark w-100" id="export-pdf">📄 Esporta PDF</button>
       </div>
     </div>
 
   </div>
 
+  <!-- ----------------------------------------------- -->
   <!-- AREA VOLANTINO -->
+  <!-- ----------------------------------------------- -->
   <div class="col-md-9">
-    <div id="pagine-container" style="width: 800px; margin:auto;">
-      <!-- Le pagine verranno iniettate qui -->
+    <div id="pagine-container" style="width:800px; margin:auto;">
+      <!-- Le pagine saranno inserite qui -->
     </div>
   </div>
 
 </div>
 
+
+<!-- ====================================================================== -->
+<!-- POPUP MODERNO PER MODIFICA CELLA (stile Canva / InPublish) -->
+<!-- ====================================================================== -->
+<div id="popup-editor" class="popup-overlay d-none">
+  <div class="popup-window">
+    <h5 class="fw-bold mb-3">Modifica Box Prodotto</h5>
+
+    <!-- Immagine -->
+    <label class="fw-bold">Immagine</label>
+    <div id="popup-img-box"
+         class="popup-img mb-3">
+      <span class="text-muted">Clicca per caricare</span>
+    </div>
+
+    <label class="fw-bold mt-2">Titolo</label>
+    <input type="text" id="popup-titolo" class="form-control mb-2">
+
+    <label class="fw-bold">Descrizione</label>
+    <textarea id="popup-descrizione" class="form-control mb-2"></textarea>
+
+    <label class="fw-bold">Prezzo</label>
+    <input type="text" id="popup-prezzo" class="form-control mb-3">
+
+    <div class="text-end">
+      <button class="btn btn-secondary" id="popup-annulla">Annulla</button>
+      <button class="btn btn-primary" id="popup-salva">Salva</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
+
+
 
 
 {% block scripts %}
 {{ super() }}
 
-<!-- Sortable per drag & drop -->
+<!-- Sortable drag&drop -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
-<!-- html2canvas + jsPDF -->
+<!-- html2canvas e jsPDF -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
+/* ======================================================================
+   LOGICA COMPLETA DEL NUOVO EDITOR VOLANTINO
+   MODERNO, INTUITIVO, CON POPUP EDITOR
+====================================================================== */
+
 document.addEventListener("DOMContentLoaded", () => {
 
+  /* -------------------------------------------------------------
+     VARIABILI GLOBALI
+  ------------------------------------------------------------- */
   let pagine = [];
   let paginaCorrente = 0;
   let cellaSelezionata = null;
 
   const pagineContainer = document.getElementById("pagine-container");
   const listaPagine = document.getElementById("lista-pagine");
-  const inputNome = document.getElementById("volantino-nome");
 
-
-  /* ----------------------------------------------------------
-     HELPERS UPLOAD IMMAGINI
-  -----------------------------------------------------------*/
-  function attachImageUpload(box) {
-    box.addEventListener("click", () => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const r = new FileReader();
-        r.onload = () => {
-          box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
-        };
-        r.readAsDataURL(file);
-      };
-      input.click();
-    });
+  /* -------------------------------------------------------------
+     FUNZIONE UPLOAD IMMAGINI (riutilizzabile)
+  ------------------------------------------------------------- */
+  function uploadImage(callback) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => callback(reader.result);
+      reader.readAsDataURL(file);
+    };
+    input.click();
   }
 
+  /* -------------------------------------------------------------
+     POPUP EDITOR
+  ------------------------------------------------------------- */
+  const popup = document.getElementById("popup-editor");
+  const popupImgBox = document.getElementById("popup-img-box");
+  const popupTitolo = document.getElementById("popup-titolo");
+  const popupDescrizione = document.getElementById("popup-descrizione");
+  const popupPrezzo = document.getElementById("popup-prezzo");
+  const popupAnnulla = document.getElementById("popup-annulla");
+  const popupSalva = document.getElementById("popup-salva");
 
-  /* ----------------------------------------------------------
+  function apriPopup(cella) {
+    cellaSelezionata = cella;
+
+    popupTitolo.value = cella.querySelector(".titolo")?.innerText || "";
+    popupDescrizione.value = cella.querySelector(".descrizione")?.innerText || "";
+    popupPrezzo.value = cella.querySelector(".prezzo")?.innerText || "";
+
+    const img = cella.querySelector(".img-box img")?.src;
+    popupImgBox.innerHTML = img
+      ? `<img src="${img}" style="width:100%; height:100%; object-fit:cover;">`
+      : `<span class="text-muted small">Clicca per caricare</span>`;
+
+    popup.classList.remove("d-none");
+  }
+
+  popupImgBox.addEventListener("click", () => {
+    uploadImage(src => {
+      popupImgBox.innerHTML =
+        `<img src="${src}" style="width:100%; height:100%; object-fit:cover;">`;
+    });
+  });
+
+  popupAnnulla.onclick = () => popup.classList.add("d-none");
+
+  popupSalva.onclick = () => {
+    if (!cellaSelezionata) return;
+
+    // Salva contenuti nella cella
+    cellaSelezionata.querySelector(".titolo").innerText = popupTitolo.value;
+    cellaSelezionata.querySelector(".descrizione").innerText = popupDescrizione.value;
+    cellaSelezionata.querySelector(".prezzo").innerText = popupPrezzo.value;
+
+    const img = popupImgBox.querySelector("img")?.src;
+    if (img) {
+      cellaSelezionata.querySelector(".img-box").innerHTML =
+        `<img src="${img}" style="width:100%; height:100%; object-fit:cover;">`;
+    }
+
+    popup.classList.add("d-none");
+  };
+
+
+  /* -------------------------------------------------------------
+     CELLA PRODOTTO
+  ------------------------------------------------------------- */
+  function creaCella() {
+    const cell = document.createElement("div");
+    cell.classList.add("cella-prodotto");
+
+    cell.innerHTML = `
+      <div class="img-box cell-img">
+        <span class="text-muted small">Clicca per aggiungere</span>
+      </div>
+      <div class="titolo fw-bold">Titolo prodotto</div>
+      <div class="descrizione small text-muted">Descrizione prodotto</div>
+      <div class="prezzo text-success fw-bold prezzo-base">€ 0,00</div>
+    `;
+
+    cell.onclick = e => {
+      e.stopPropagation();
+      apriPopup(cell);
+    };
+
+    return cell;
+  }
+
+  /* -------------------------------------------------------------
      CREAZIONE PAGINA
-  -----------------------------------------------------------*/
+  ------------------------------------------------------------- */
   function creaPagina(cols = 3) {
     const page = document.createElement("div");
     page.classList.add("pagina-volantino");
     page.dataset.cols = cols;
 
     page.innerHTML = `
-      <div class="page-header img-drop">
-        <span class="small text-muted">Clicca per inserire header</span>
-      </div>
-      <div class="page-grid"></div>
-      <div class="page-footer img-drop">
-        <span class="small text-muted">Clicca per inserire footer</span>
-      </div>
+      <div class="page-grid"
+           style="display:grid; grid-template-columns:repeat(${cols},1fr); gap:10px;"></div>
     `;
 
-    const header = page.querySelector(".page-header");
-    const footer = page.querySelector(".page-footer");
-    const grid = page.querySelector(".page-grid");
-
-    // Stile griglia iniziale
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridAutoRows = "1fr";
-    grid.style.gap = "10px";
-
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
-    // Drag & drop celle nel grid
-    Sortable.create(grid, {
+    Sortable.create(page.querySelector(".page-grid"), {
       animation: 150,
       ghostClass: "sortable-ghost"
     });
@@ -177,262 +271,109 @@ document.addEventListener("DOMContentLoaded", () => {
     return page;
   }
 
-
-  function mostraPaginaCorrente() {
+  function mostraPagina() {
     pagineContainer.innerHTML = "";
     pagineContainer.appendChild(pagine[paginaCorrente]);
   }
 
-
   function aggiornaListaPagine() {
     listaPagine.innerHTML = "";
-
     pagine.forEach((_, i) => {
       const btn = document.createElement("button");
-      btn.classList.add("btn", "btn-sm", "w-100", "mb-2");
-      if (i === paginaCorrente) {
-        btn.classList.add("btn-primary");
-      } else {
-        btn.classList.add("btn-outline-primary");
-      }
-      btn.innerText = "Pagina " + (i + 1);
-
+      btn.classList.add("btn", "btn-sm", "w-100", "mb-2", i === paginaCorrente ? "btn-primary" : "btn-outline-primary");
+      btn.innerText = `Pagina ${i + 1}`;
       btn.onclick = () => {
         paginaCorrente = i;
-        mostraPaginaCorrente();
+        mostraPagina();
         aggiornaListaPagine();
       };
-
       listaPagine.appendChild(btn);
     });
   }
 
-
-  /* ----------------------------------------------------------
-     PAGINE: AGGIUNGI / DUPLICA
-  -----------------------------------------------------------*/
-  document.getElementById("aggiungi-pagina").addEventListener("click", () => {
-    const nuova = creaPagina(3);
-    pagine.push(nuova);
+  /* -------------------------------------------------------------
+     BOTTONI: AGGIUNGI PAGINA
+  ------------------------------------------------------------- */
+  document.getElementById("aggiungi-pagina").onclick = () => {
+    pagine.push(creaPagina(3));
     paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
+    mostraPagina();
     aggiornaListaPagine();
-  });
+  };
 
-  document.getElementById("duplica-pagina").addEventListener("click", () => {
-    const originale = pagine[paginaCorrente];
-    const clone = originale.cloneNode(true);
-
-    // Riattacca comportamenti
-    const header = clone.querySelector(".page-header");
-    const footer = clone.querySelector(".page-footer");
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
-    const grid = clone.querySelector(".page-grid");
-    const cols = originale.dataset.cols || 3;
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridAutoRows = "1fr";
-    grid.style.gap = "10px";
-
-    Sortable.create(grid, {
-      animation: 150,
-      ghostClass: "sortable-ghost"
-    });
-
-    // Fix events sulle celle
-    clone.querySelectorAll(".cella-prodotto").forEach(c => {
-      initCellaEvents(c);
-    });
-
-    clone.dataset.cols = originale.dataset.cols;
-
+  document.getElementById("duplica-pagina").onclick = () => {
+    const clone = pagine[paginaCorrente].cloneNode(true);
     pagine.push(clone);
     paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
+    mostraPagina();
     aggiornaListaPagine();
-  });
+  };
 
-
-  /* ----------------------------------------------------------
-     CELLA PRODOTTO
-  -----------------------------------------------------------*/
-  function initCellaEvents(cell) {
-    const imgBox = cell.querySelector(".img-box");
-    if (imgBox) attachImageUpload(imgBox);
-
-    cell.addEventListener("click", e => {
-      e.stopPropagation();
-      selezionaCella(cell);
-    });
-  }
-
-  function creaCella() {
-    const cell = document.createElement("div");
-    cell.classList.add("cella-prodotto");
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-    cell.dataset.priceStyle = "base";
-
-    cell.innerHTML = `
-      <div class="img-box" style="height:120px; border:1px solid #ccc; margin-bottom:5px; cursor:pointer;">
-        <span class="text-muted small">Clicca per inserire immagine</span>
-      </div>
-
-      <div contenteditable="true" class="titolo fw-bold">TITOLO PRODOTTO</div>
-      <div contenteditable="true" class="descrizione small text-muted">Descrizione prodotto</div>
-      <div contenteditable="true" class="prezzo text-success fw-bold prezzo-base">€ 0,00</div>
-    `;
-
-    initCellaEvents(cell);
-    applyCellSize(cell);      // applica 1x1
-    applyPriceStyle(cell);    // stile base
-
-    return cell;
-  }
-
-
-  /* ----------------------------------------------------------
-     SELEZIONE CELLA
-  -----------------------------------------------------------*/
-  function selezionaCella(c) {
-    document.querySelectorAll(".cella-prodotto").forEach(el => {
-      el.classList.remove("cella-selezionata");
-    });
-    c.classList.add("cella-selezionata");
-    cellaSelezionata = c;
-  }
-
-  document.addEventListener("click", () => {
-    document.querySelectorAll(".cella-prodotto").forEach(el => {
-      el.classList.remove("cella-selezionata");
-    });
-    cellaSelezionata = null;
-  });
-
-
-  /* ----------------------------------------------------------
-     APPLICA FORMATO CELLA (1x1, 2x1, 1x2, 2x2)
-  -----------------------------------------------------------*/
-  function applyCellSize(cell) {
-    const colSpan = parseInt(cell.dataset.colspan || "1", 10);
-    const rowSpan = parseInt(cell.dataset.rowspan || "1", 10);
-    cell.style.gridColumn = `span ${colSpan}`;
-    cell.style.gridRow = `span ${rowSpan}`;
-  }
-
-  document.querySelectorAll("[data-cell-size]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!cellaSelezionata) {
-        alert("Seleziona una cella per cambiarne il formato");
-        return;
-      }
-      const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
-      cellaSelezionata.dataset.colspan = cs;
-      cellaSelezionata.dataset.rowspan = rs;
-      applyCellSize(cellaSelezionata);
-    });
-  });
-
-
-  /* ----------------------------------------------------------
-     STILE PREZZO
-  -----------------------------------------------------------*/
-  function applyPriceStyle(cell) {
-    const prezzoEl = cell.querySelector(".prezzo");
-    if (!prezzoEl) return;
-
-    prezzoEl.classList.remove("prezzo-yellow", "prezzo-red", "prezzo-blue", "prezzo-base");
-
-    const style = cell.dataset.priceStyle || "base";
-    prezzoEl.classList.add("prezzo-" + style);
-  }
-
-  document.querySelectorAll("[data-price-style]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!cellaSelezionata) {
-        alert("Seleziona una cella per cambiarne lo stile prezzo");
-        return;
-      }
-      const style = btn.getAttribute("data-price-style");
-      cellaSelezionata.dataset.priceStyle = style;
-      applyPriceStyle(cellaSelezionata);
-    });
-  });
-
-
-  /* ----------------------------------------------------------
-     GENERA GRIGLIA PAGINA (2x3, 3x3, 4x3)
-  -----------------------------------------------------------*/
+  /* -------------------------------------------------------------
+     GRIGLIE
+  ------------------------------------------------------------- */
   document.querySelectorAll("[data-grid]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
+    btn.onclick = () => {
+      const [cols, rows] = btn.dataset.grid.split("x").map(Number);
       const page = pagine[paginaCorrente];
       const grid = page.querySelector(".page-grid");
-
-      grid.innerHTML = "";
-      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      grid.style.gridAutoRows = "1fr";
       page.dataset.cols = cols;
 
-      for (let i = 0; i < cols * rows; i++) {
-        grid.appendChild(creaCella());
-      }
+      grid.innerHTML = "";
+      grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
 
-      Sortable.create(grid, {
-        animation: 150,
-        ghostClass: "sortable-ghost"
-      });
-    });
+      for (let i = 0; i < cols * rows; i++) grid.appendChild(creaCella());
+    };
+  });
+
+  /* -------------------------------------------------------------
+     FORMATO CELLA
+  ------------------------------------------------------------- */
+  document.querySelectorAll("[data-cell-size]").forEach(btn => {
+    btn.onclick = () => {
+      if (!cellaSelezionata) return alert("Seleziona una cella!");
+      const [c, r] = btn.dataset.cellSize.split("x");
+      cellaSelezionata.style.gridColumn = `span ${c}`;
+      cellaSelezionata.style.gridRow = `span ${r}`;
+    };
+  });
+
+  /* -------------------------------------------------------------
+     STILE PREZZO
+  ------------------------------------------------------------- */
+  document.querySelectorAll("[data-price-style]").forEach(btn => {
+    btn.onclick = () => {
+      if (!cellaSelezionata) return alert("Seleziona una cella!");
+      const style = btn.dataset.priceStyle;
+
+      const p = cellaSelezionata.querySelector(".prezzo");
+      p.className = "prezzo fw-bold prezzo-" + style;
+    };
   });
 
 
-  /* ----------------------------------------------------------
-     DUPLICA / ELIMINA CELLA
-  -----------------------------------------------------------*/
-  document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella da duplicare");
-    const clone = cellaSelezionata.cloneNode(true);
-    initCellaEvents(clone);
-    cellaSelezionata.parentElement.appendChild(clone);
-  });
-
-  document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella da eliminare");
-    cellaSelezionata.remove();
-    cellaSelezionata = null;
-  });
-
-
-  /* ----------------------------------------------------------
+  /* -------------------------------------------------------------
      SALVATAGGIO LAYOUT
-  -----------------------------------------------------------*/
-  document.getElementById("save-layout").addEventListener("click", () => {
-
+  ------------------------------------------------------------- */
+  document.getElementById("save-layout").onclick = () => {
     const data = pagine.map(page => {
       const grid = page.querySelector(".page-grid");
-      const header = page.querySelector(".page-header");
-      const footer = page.querySelector(".page-footer");
-
-      const headerImg = header.querySelector("img")?.src || "";
-      const footerImg = footer.querySelector("img")?.src || "";
-      const cols = parseInt(page.dataset.cols || "3", 10);
+      const cols = parseInt(page.dataset.cols || "3");
 
       const cells = [];
       grid.querySelectorAll(".cella-prodotto").forEach(c => {
         cells.push({
           img: c.querySelector(".img-box img")?.src || "",
-          titolo: c.querySelector(".titolo")?.innerText || "",
-          descrizione: c.querySelector(".descrizione")?.innerText || "",
-          prezzo: c.querySelector(".prezzo")?.innerText || "",
-          colSpan: parseInt(c.dataset.colspan || "1", 10),
-          rowSpan: parseInt(c.dataset.rowspan || "1", 10),
-          priceStyle: c.dataset.priceStyle || "base"
+          titolo: c.querySelector(".titolo").innerText,
+          descrizione: c.querySelector(".descrizione").innerText,
+          prezzo: c.querySelector(".prezzo").innerText,
+          colSpan: c.style.gridColumn.replace("span", "").trim() || "1",
+          rowSpan: c.style.gridRow.replace("span", "").trim() || "1",
+          priceStyle: [...c.querySelector(".prezzo").classList].find(k => k.includes("prezzo-")) || "prezzo-base"
         });
       });
 
-      return { cols, headerImg, footerImg, cells };
+      return { cols, cells };
     });
 
     fetch("/salva-volantino-beta", {
@@ -440,189 +381,152 @@ document.addEventListener("DOMContentLoaded", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: {{ volantino_id or "null" }},
-        nome: inputNome.value || "Volantino BETA",
+        nome: document.getElementById("volantino-nome").value || "Volantino BETA",
         layout: data
       })
     })
     .then(r => r.json())
-    .then(d => {
-      alert("Volantino salvato!");
-      if (!{{ volantino_id or "null" }}) {
-        // se è nuovo, potresti voler ricaricare la pagina con l'id
-        // ma per ora lasciamo solo l'alert
-      }
-    });
-  });
+    .then(() => alert("Volantino salvato!"));
+  };
 
 
-  /* ----------------------------------------------------------
-     CARICAMENTO LAYOUT SALVATO
-  -----------------------------------------------------------*/
+  /* -------------------------------------------------------------
+     CARICA LAYOUT SALVATO
+  ------------------------------------------------------------- */
   {% if layout_json %}
-    const salvato = {{ layout_json | safe }};
-    if (Array.isArray(salvato) && salvato.length > 0) {
-      salvato.forEach(pData => {
-        const page = creaPagina(pData.cols || 3);
-        const grid = page.querySelector(".page-grid");
-        const header = page.querySelector(".page-header");
-        const footer = page.querySelector(".page-footer");
+  const salvato = {{ layout_json | safe }};
+  salvato.forEach(pData => {
+    const page = creaPagina(pData.cols || 3);
+    const grid = page.querySelector(".page-grid");
 
-        if (pData.headerImg) {
-          header.innerHTML = `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
-        }
-        if (pData.footerImg) {
-          footer.innerHTML = `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
-        }
+    (pData.cells || []).forEach(c => {
+      const cell = creaCella();
+      if (c.img) cell.querySelector(".img-box").innerHTML =
+        `<img src="${c.img}" style="width:100%; height:100%; object-fit:cover;">`;
 
-        grid.style.gridTemplateColumns = `repeat(${pData.cols || 3}, 1fr)`;
-        grid.style.gridAutoRows = "1fr";
+      cell.querySelector(".titolo").innerText = c.titolo;
+      cell.querySelector(".descrizione").innerText = c.descrizione;
+      cell.querySelector(".prezzo").innerText = c.prezzo;
 
-        (pData.cells || []).forEach(item => {
-          const cell = creaCella();
-          if (item.img) {
-            cell.querySelector(".img-box").innerHTML =
-              `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
-          }
-          cell.querySelector(".titolo").innerText = item.titolo || "";
-          cell.querySelector(".descrizione").innerText = item.descrizione || "";
-          cell.querySelector(".prezzo").innerText = item.prezzo || "";
+      cell.style.gridColumn = `span ${c.colSpan}`;
+      cell.style.gridRow = `span ${c.rowSpan}`;
+      cell.querySelector(".prezzo").className = "prezzo fw-bold " + c.priceStyle;
 
-          cell.dataset.colspan = item.colSpan || 1;
-          cell.dataset.rowspan = item.rowSpan || 1;
-          cell.dataset.priceStyle = item.priceStyle || "base";
-          applyCellSize(cell);
-          applyPriceStyle(cell);
+      grid.appendChild(cell);
+    });
 
-          grid.appendChild(cell);
-        });
-
-        pagine.push(page);
-      });
-    }
+    pagine.push(page);
+  });
   {% endif %}
 
-  if (pagine.length === 0) {
-    pagine.push(creaPagina(3));
-  }
+  if (pagine.length === 0) pagine.push(creaPagina(3));
 
-  mostraPaginaCorrente();
+  mostraPagina();
   aggiornaListaPagine();
 
-
-  /* ----------------------------------------------------------
+  /* -------------------------------------------------------------
      ESPORTA PDF MULTIPAGINA
-  -----------------------------------------------------------*/
-  document.getElementById("export-pdf").addEventListener("click", async () => {
+  ------------------------------------------------------------- */
+  document.getElementById("export-pdf").onclick = async () => {
     const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-
-    const paginaOriginale = paginaCorrente;
 
     for (let i = 0; i < pagine.length; i++) {
       if (i > 0) pdf.addPage();
-      paginaCorrente = i;
-      mostraPaginaCorrente();
-
-      const pageEl = pagine[i];
-      const canvas = await html2canvas(pageEl, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
+      pagineContainer.innerHTML = "";
+      pagineContainer.appendChild(pagine[i]);
+      const canvas = await html2canvas(pagine[i], { scale: 2 });
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 800, 1100);
     }
 
-    paginaCorrente = paginaOriginale;
-    mostraPaginaCorrente();
+    // ripristina pagina attuale
+    mostraPagina();
 
-    pdf.save((inputNome.value || "volantino") + ".pdf");
-  });
-
+    pdf.save((document.getElementById("volantino-nome").value || "volantino") + ".pdf");
+  };
 });
 </script>
 
+
+<!-- ====================================================================== -->
+<!-- STILI -->
+<!-- ====================================================================== -->
 <style>
 .pagina-volantino {
   width: 800px;
   height: 1100px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #ddd;
-  box-shadow: 0 0 10px rgba(0,0,0,0.15);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
   padding: 10px;
   margin-bottom: 40px;
-  position: relative;
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
 }
 
-.page-header,
-.page-footer {
-  height: 80px;
-  border: 1px dashed #ccc;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.page-footer {
-  margin-top: 8px;
-}
-
-.page-grid {
-  min-height: 0;
-}
-
-/* Celle prodotto */
+/* ---------------------------------------------------------------------------------------------------------------- */
+/* CELLE */
+/* ---------------------------------------------------------------------------------------------------------------- */
 .cella-prodotto {
-  background: #fff;
+  background: #ffffff;
   border: 1px solid #ddd;
   padding: 6px;
   cursor: pointer;
+  transition: 0.15s;
 }
 
-.cella-prodotto .titolo {
-  margin-bottom: 2px;
+.cella-prodotto:hover {
+  transform: scale(1.01);
 }
 
-.cella-prodotto .descrizione {
-  margin-bottom: 2px;
+.cell-img {
+  width: 100%;
+  height: 150px;
+  border: 1px dashed #bbb;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
 }
 
-/* Selezione */
-.cella-selezionata {
-  outline: 3px solid #007bff;
+/* PRICE STYLES */
+.prezzo-base { background:none; color:green; }
+.prezzo-yellow { background:#ffeb3b; color:#000; padding:3px 6px; border-radius:4px; }
+.prezzo-red { background:#f44336; color:#fff; padding:3px 6px; border-radius:4px; }
+.prezzo-blue { background:#2196f3; color:#fff; padding:3px 6px; border-radius:4px; }
+
+/* POPUP */
+.popup-overlay {
+  position:fixed;
+  left:0; top:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
 }
 
-/* Stili prezzo */
-.prezzo-base {
-  background: transparent;
-  padding: 2px 4px;
-  border-radius: 4px;
+.popup-window {
+  width:420px;
+  background:#fff;
+  padding:20px;
+  border-radius:10px;
+  box-shadow:0 0 20px rgba(0,0,0,0.3);
+  animation:popup 0.2s ease-out;
 }
 
-.prezzo-yellow {
-  background: #ffeb3b;
-  color: #000;
-  padding: 2px 6px;
-  border-radius: 4px;
+@keyframes popup {
+  from { transform:scale(0.8); opacity:0; }
+  to { transform:scale(1); opacity:1; }
 }
 
-.prezzo-red {
-  background: #f44336;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.prezzo-blue {
-  background: #2196f3;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Sortable ghost */
-.sortable-ghost {
-  opacity: 0.4;
+.popup-img {
+  width:100%;
+  height:150px;
+  border:1px dashed #bbb;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+  cursor:pointer;
 }
 </style>
 
