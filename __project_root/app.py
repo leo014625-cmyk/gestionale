@@ -2414,9 +2414,48 @@ def salva_layout_promo_lampo(promo_id):
     except Exception as e:
         return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
 
+import json
+from flask import request, jsonify, render_template
+from app import app, db
+from models import VolantinoBeta   # se usi models.py
+
+
 @app.route('/beta-volantino')
 def beta_volantino():
     return render_template('05_beta_volantino.html')
+
+@app.route('/salva-volantino-beta', methods=['POST'])
+def salva_volantino_beta():
+    data = request.get_json()
+
+    if "layout" not in data:
+        return {"ok": False, "error": "Nessun layout ricevuto"}, 400
+
+    layout_json = json.dumps(data["layout"])
+
+    nuovo = VolantinoBeta(
+        nome=data.get("nome", "Volantino BETA"),
+        layout_json=layout_json
+    )
+
+    db.session.add(nuovo)
+    db.session.commit()
+
+    return {"ok": True, "id": nuovo.id}
+
+@app.route('/beta-volantino/<int:id>')
+def apri_volantino(id):
+    vol = VolantinoBeta.query.get_or_404(id)
+    return render_template(
+        '05_beta_volantino.html',
+        volantino=vol,
+        layout=vol.layout_json
+    )
+
+@app.route('/beta-volantini')
+def lista_volantini_beta():
+    lista = VolantinoBeta.query.order_by(VolantinoBeta.creato_il.desc()).all()
+    return render_template('lista_volantini_beta.html', lista=lista)
 
 
 
