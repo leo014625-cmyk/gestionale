@@ -720,28 +720,39 @@ document.querySelectorAll("[data-price-style]").forEach(btn => {
 });
 
   /* ---------- GRIGLIA PAGINA ---------- */
-  document.querySelectorAll("[data-grid]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!pagine.length) return;
-      const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
-      const page = pagine[paginaCorrente];
-      const grid = page.querySelector(".page-grid");
+document.querySelectorAll("[data-grid]").forEach(btn => {
+  btn.addEventListener("click", () => {
 
-      grid.innerHTML = "";
-      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      grid.style.gridAutoRows = "1fr";
-      page.dataset.cols = cols;
+    // Se non esiste ancora una pagina, creane una automaticamente
+    if (pagine.length === 0) {
+      pagine.push(creaPagina(3));
+      paginaCorrente = 0;
+      mostraPaginaCorrente();
+      aggiornaListaPagine();
+    }
 
-      for (let i = 0; i < cols * rows; i++) {
-        grid.appendChild(creaCella());
-      }
+    const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
+    const page = pagine[paginaCorrente];
+    const grid = page.querySelector(".page-grid");
 
-      Sortable.create(grid, {
-        animation: 150,
-        ghostClass: "sortable-ghost"
-      });
+    // Svuota griglia e applica nuovo layout
+    grid.innerHTML = "";
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridAutoRows = "1fr";
+    page.dataset.cols = cols;
+
+    // Genera le celle della griglia
+    for (let i = 0; i < cols * rows; i++) {
+      grid.appendChild(creaCella());
+    }
+
+    // Riattiva il drag&drop
+    Sortable.create(grid, {
+      animation: 150,
+      ghostClass: "sortable-ghost"
     });
   });
+});
 
   /* ---------- DUPLICA / ELIMINA CELLA ---------- */
   document.getElementById("duplica-cella").addEventListener("click", () => {
