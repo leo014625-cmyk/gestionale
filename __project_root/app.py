@@ -63,7 +63,16 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # limite upload 16MB
 app.secret_key = 'la_tua_chiave_segreta_sicura'
 
 db = SQLAlchemy(app)
-
+# -------------------------------
+# MODELLO
+# -------------------------------
+class VolantinoBeta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(255), nullable=False)
+    layout_json = db.Column(db.Text, nullable=False)
+    thumbnail = db.Column(db.Text)
+    creato_il = db.Column(db.DateTime, default=datetime.utcnow)
+    aggiornato_il = db.Column(db.DateTime)
 
 # ============================
 # UPLOAD CATEGORIE
@@ -2416,16 +2425,6 @@ def salva_layout_promo_lampo(promo_id):
     except Exception as e:
         return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
 
-# -------------------------------
-# MODELLO
-# -------------------------------
-class VolantinoBeta(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(255), nullable=False)
-    layout_json = db.Column(db.Text, nullable=False)
-    thumbnail = db.Column(db.Text)
-    creato_il = db.Column(db.DateTime, default=datetime.utcnow)
-    aggiornato_il = db.Column(db.DateTime)
 
 
 # ----------------------------------------------------------------------
