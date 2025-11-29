@@ -2419,42 +2419,79 @@ from flask import request, jsonify, render_template
 from models import VolantinoBeta   # se usi models.py
 
 
+# ----------------------------------------------------------------------
+#  CREA NUOVO VOLANTINO (pagina editor vuota)
+# ----------------------------------------------------------------------
 @app.route('/beta-volantino')
 def beta_volantino():
-    return render_template('05_beta_volantino.html')
+    return render_template(
+        '05_beta_volantino/05_beta_volantino.html',
+        volantino_id=None,
+        nome_volantino="",
+        layout_json="[]"
+    )
 
+
+# ----------------------------------------------------------------------
+#  SALVA / AGGIORNA VOLANTINO (POST)
+# ----------------------------------------------------------------------
 @app.route('/salva-volantino-beta', methods=['POST'])
 def salva_volantino_beta():
     data = request.get_json()
-
-    if "layout" not in data:
-        return {"ok": False, "error": "Nessun layout ricevuto"}, 400
-
+    vol_id = data.get("id")
+    nome = data.get("nome", "Volantino BETA")
     layout_json = json.dumps(data["layout"])
 
-    nuovo = VolantinoBeta(
-        nome=data.get("nome", "Volantino BETA"),
-        layout_json=layout_json
-    )
+    if vol_id:
+        # Aggiorna esistente
+        vol = VolantinoBeta.query.get_or_404(vol_id)
+        vol.nome = nome
+        vol.layout_json = layout_json
+    else:
+        # Crea nuovo
+        vol = VolantinoBeta(nome=nome, layout_json=layout_json)
+        db.session.add(vol)
 
-    db.session.add(nuovo)
     db.session.commit()
+    return {"ok": True, "id": vol.id}
 
-    return {"ok": True, "id": nuovo.id}
 
+# ----------------------------------------------------------------------
+#  APRI / MODIFICA VOLANTINO
+# ----------------------------------------------------------------------
 @app.route('/beta-volantino/<int:id>')
-def apri_volantino(id):
+def beta_volantino_modifica(id):
     vol = VolantinoBeta.query.get_or_404(id)
+
     return render_template(
-        '05_beta_volantino.html',
-        volantino=vol,
-        layout=vol.layout_json
+        '05_beta_volantino/05_beta_volantino.html',
+        volantino_id=id,
+        nome_volantino=vol.nome,
+        layout_json=vol.layout_json
     )
 
+
+# ----------------------------------------------------------------------
+#  LISTA VOLANTINI
+# ----------------------------------------------------------------------
 @app.route('/beta-volantini')
 def lista_volantini_beta():
     lista = VolantinoBeta.query.order_by(VolantinoBeta.creato_il.desc()).all()
-    return render_template('lista_volantini_beta.html', lista=lista)
+    return render_template(
+        '05_beta_volantino/05_beta_volantino_lista.html',
+        lista=lista
+    )
+
+
+# ----------------------------------------------------------------------
+#  ELIMINA VOLANTINO
+# ----------------------------------------------------------------------
+@app.route('/beta-volantino/elimina/<int:id>')
+def beta_volantino_elimina(id):
+    vol = VolantinoBeta.query.get_or_404(id)
+    db.session.delete(vol)
+    db.session.commit()
+    return redirect(url_for('lista_volantini_beta'))
 
 
 
