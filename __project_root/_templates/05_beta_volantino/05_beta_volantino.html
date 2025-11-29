@@ -1021,8 +1021,13 @@ document.addEventListener("DOMContentLoaded", () => {
     cellEditorModal.hide();
   });
 
-  /* ---------- SALVATAGGIO VOLANTINO ---------- */
-  document.getElementById("save-layout").addEventListener("click", () => {
+ /* ---------- SALVATAGGIO VOLANTINO ---------- */
+
+// ID del volantino passato da Flask (stringa sicura)
+let volantinoID = "{{ volantino_id or '' }}";
+
+document.getElementById("save-layout").addEventListener("click", () => {
+
     const data = pagine.map(page => {
       const grid = page.querySelector(".page-grid");
       const header = page.querySelector(".page-header");
@@ -1069,7 +1074,7 @@ document.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: "{{ volantino_id or '' }}",
+        id: volantinoID || null,
         nome: inputNome.value || "Volantino BETA",
         layout: data
       })
@@ -1077,8 +1082,18 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(r => r.json())
     .then(d => {
       alert("Volantino salvato!");
+
+      // Se il server ha generato un nuovo ID, lo aggiorniamo
+      if (d.id) {
+        volantinoID = d.id;
+      }
+    })
+    .catch(err => {
+      console.error("Errore salvataggio:", err);
+      alert("Errore durante il salvataggio (controlla la console).");
     });
-  });
+
+});
 
   /* ---------- CARICAMENTO VOLANTINO (EDIT) ---------- */
   {% if layout_json %}
