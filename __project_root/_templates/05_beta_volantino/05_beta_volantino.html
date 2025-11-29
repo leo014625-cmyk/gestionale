@@ -803,12 +803,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function selezionaCella(c) {
-    document.querySelectorAll(".cella-prodotto").forEach(el => {
-      el.classList.remove("cella-selezionata");
-    });
-    c.classList.add("cella-selezionata");
-    cellaSelezionata = c;
-  }
+   document.addEventListener("click", (e) => {
+
+  // Se il click è dentro al modal → NON deselezionare la cella
+  if (e.target.closest('#cellEditorModal')) return;
+
+  // Se clicchi su una cella, la selezione viene gestita da selezionaCella()
+  if (e.target.closest('.cella-prodotto')) return;
+
+  // Click fuori dalle celle e fuori dal modal → deseleziona
+  document.querySelectorAll(".cella-prodotto").forEach(el => {
+    el.classList.remove("cella-selezionata");
+   });
+  
+  cellaSelezionata = null;
+ });
 
   document.addEventListener("click", () => {
     document.querySelectorAll(".cella-prodotto").forEach(el => {
