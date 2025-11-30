@@ -145,187 +145,209 @@
 
         <div class="row g-3">
 
-          <!-- Colonna immagine -->
-          <div class="col-md-5">
-            <label class="form-label small text-muted">Immagine prodotto</label>
-            <div id="modal-image-preview"
-                 class="border rounded d-flex align-items-center justify-content-center mb-2 ratio ratio-4x3 bg-light"
-                 style="overflow:hidden; cursor:pointer;">
-              <span class="text-muted small">Clicca per caricare immagine</span>
-            </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
-              🖼️ Cambia immagine
-            </button>
-            <input type="file" id="modal-image-input" class="d-none" accept="image/*">
+<!-- 🔥 COLONNA IMMAGINE — VERSIONE AGGIORNATA -->
+<div class="col-md-5">
+  <label class="form-label small text-muted">Immagine prodotto</label>
 
-            <div class="mt-3">
-              <label class="form-label small text-muted">Effetto immagine</label>
-              <select id="modal-image-filter" class="form-select form-select-sm">
-                <option value="none">Nessuno</option>
-                <option value="bw">Bianco e nero</option>
-                <option value="warm">Caldo</option>
-                <option value="cool">Freddo</option>
-                <option value="contrast">Contrasto forte</option>
-              </select>
-            </div>
-          </div>
+  <div id="modal-image-preview"
+       class="border rounded d-flex align-items-center justify-content-center mb-2 ratio ratio-4x3 bg-light"
+       style="overflow:hidden; cursor:pointer;">
+    <span class="text-muted small">Clicca per caricare immagine</span>
+  </div>
 
-          <!-- Colonna dati -->
-          <div class="col-md-7">
-            <div class="mb-2">
-              <label class="form-label small">Nome prodotto</label>
-              <input type="text" id="modal-title" class="form-control form-control-sm"
-                     placeholder="Es. Salmone norvegese intero">
-            </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
+    🖼️ Cambia immagine
+  </button>
 
-            <div class="mb-2">
-              <label class="form-label small">Descrizione</label>
-              <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
-                        placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
-            </div>
+  <input type="file" id="modal-image-input" class="d-none" accept="image/*">
 
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label small">Prezzo</label>
-                <input type="text" id="modal-price" class="form-control form-control-sm"
-                       placeholder="Es. € 9,90">
-              </div>
-              <div class="col-6">
-                <label class="form-label small">Stile prezzo</label>
-                <select id="modal-price-style" class="form-select form-select-sm">
-                  <option value="base">Semplice</option>
-                  <option value="yellow">Cartellino giallo</option>
-                  <option value="red">Cartellino rosso</option>
-                  <option value="blue">Cartellino blu</option>
-                  <option value="round">Tondo</option>
-                  <option value="angle">Angolo promo</option>
-                  <option value="strike">Barrato + nuovo</option>
-                </select>
-              </div>
-            </div>
+  <!-- Controllo Zoom -->
+  <div class="mt-2">
+    <label class="form-label small text-muted">Zoom immagine</label>
+    <input type="range" id="modal-image-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
+  </div>
 
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label small">Layout box</label>
-                <select id="modal-layout" class="form-select form-select-sm">
-                  <option value="image-top">Immagine sopra, testo sotto</option>
-                  <option value="image-left">Immagine sinistra, testo destra</option>
-                  <option value="full-image-price">Immagine piena con cartellino prezzo</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label small">Allineamento testo</label>
-                <select id="modal-align" class="form-select form-select-sm">
-                  <option value="start">Sinistra</option>
-                  <option value="center">Centro</option>
-                  <option value="end">Destra</option>
-                </select>
-              </div>
-            </div>
+  <div class="mt-3">
+    <label class="form-label small text-muted">Effetto immagine</label>
+    <select id="modal-image-filter" class="form-select form-select-sm">
+      <option value="none">Nessuno</option>
+      <option value="bw">Bianco e nero</option>
+      <option value="warm">Caldo</option>
+      <option value="cool">Freddo</option>
+      <option value="contrast">Contrasto forte</option>
+    </select>
+  </div>
+</div>
+<!-- 🔥 FINE BLOCCO IMMAGINE -->
 
-            <!-- Tipografia -->
-            <div class="border rounded p-2 mb-2 bg-light-subtle">
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label small">Font</label>
-                  <select id="modal-font-family" class="form-select form-select-sm">
-                    <option value="">Default</option>
-                    <option value="Roboto, sans-serif">Roboto</option>
-                    <option value="'Open Sans', sans-serif">Open Sans</option>
-                    <option value="Montserrat, sans-serif">Montserrat</option>
-                    <option value="'Lato', sans-serif">Lato</option>
-                  </select>
-                </div>
-                <div class="col-6">
-                  <label class="form-label small">Colore testo</label>
-                  <input type="color" id="modal-font-color" class="form-control form-control-sm" value="#000000">
-                </div>
-              </div>
 
-              <div class="row g-2 mt-2">
-                <div class="col-4">
-                  <label class="form-label small">Titolo (px)</label>
-                  <input type="number" id="modal-title-size" class="form-control form-control-sm" min="8" max="40" value="14">
-                </div>
-                <div class="col-4">
-                  <label class="form-label small">Descrizione (px)</label>
-                  <input type="number" id="modal-desc-size" class="form-control form-control-sm" min="8" max="30" value="11">
-                </div>
-                <div class="col-4">
-                  <label class="form-label small">Prezzo (px)</label>
-                  <input type="number" id="modal-price-size" class="form-control form-control-sm" min="8" max="40" value="16">
-                </div>
-              </div>
+<!-- COLONNA DATI PRODOTTO (come tua versione) -->
+<div class="col-md-7">
 
-              <div class="mt-2 d-flex flex-wrap gap-3">
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-title-bold">
-                  <label class="form-check-label small" for="modal-title-bold">Titolo grassetto</label>
-                </div>
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-desc-italic">
-                  <label class="form-check-label small" for="modal-desc-italic">Descrizione corsivo</label>
-                </div>
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-price-bold">
-                  <label class="form-check-label small" for="modal-price-bold">Prezzo grassetto</label>
-                </div>
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-text-uppercase">
-                  <label class="form-check-label small" for="modal-text-uppercase">TUTTO MAIUSCOLO</label>
-                </div>
-              </div>
-            </div>
+  <div class="mb-2">
+    <label class="form-label small">Nome prodotto</label>
+    <input type="text" id="modal-title" class="form-control form-control-sm"
+           placeholder="Es. Salmone norvegese intero">
+  </div>
 
-            <!-- Stile box -->
-            <div class="border rounded p-2 mb-2 bg-light-subtle">
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label small">Bordo</label>
-                  <select id="modal-border-style" class="form-select form-select-sm">
-                    <option value="solid">Solido</option>
-                    <option value="dashed">Tratteggiato</option>
-                    <option value="none">Nessuno</option>
-                  </select>
-                </div>
-                <div class="col-6">
-                  <label class="form-label small">Colore bordo</label>
-                  <input type="color" id="modal-border-color" class="form-control form-control-sm" value="#dddddd">
-                </div>
-              </div>
-              <div class="row g-2 mt-2">
-                <div class="col-4">
-                  <label class="form-label small">Radius (px)</label>
-                  <input type="number" id="modal-radius" class="form-control form-control-sm" min="0" max="30" value="4">
-                </div>
-                <div class="col-4">
-                  <label class="form-label small">Sfondo</label>
-                  <input type="color" id="modal-bgcolor" class="form-control form-control-sm" value="#ffffff">
-                </div>
-                <div class="col-4 d-flex align-items-end">
-                  <div class="form-check form-check-sm">
-                    <input class="form-check-input" type="checkbox" id="modal-shadow">
-                    <label class="form-check-label small" for="modal-shadow">Ombra</label>
-                  </div>
-                </div>
-              </div>
-            </div>
+  <div class="mb-2">
+    <label class="form-label small">Descrizione</label>
+    <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
+              placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
+  </div>
 
-            <!-- Libreria prodotti demo -->
-            <div class="border rounded p-2 bg-light-subtle">
-              <label class="form-label small">Libreria prodotti demo</label>
-              <select id="modal-product-library" class="form-select form-select-sm">
-                <option value="">-- scegli un prodotto demo --</option>
-                <option value="salmone">Salmone norvegese intero</option>
-                <option value="gamberi">Gamberi argentini sgusciati</option>
-                <option value="polpo">Polpo mediterraneo decongelato</option>
-              </select>
-              <small class="text-muted d-block mt-1">
-                Serve solo come scorciatoia: non è collegato ai prodotti Metro.
-              </small>
-            </div>
+  <div class="row g-2 mb-2">
+    <div class="col-6">
+      <label class="form-label small">Prezzo</label>
+      <input type="text" id="modal-price" class="form-control form-control-sm"
+             placeholder="Es. € 9,90">
+    </div>
+    <div class="col-6">
+      <label class="form-label small">Stile prezzo</label>
+      <select id="modal-price-style" class="form-select form-select-sm">
+        <option value="base">Semplice</option>
+        <option value="yellow">Cartellino giallo</option>
+        <option value="red">Cartellino rosso</option>
+        <option value="blue">Cartellino blu</option>
+        <option value="round">Tondo</option>
+        <option value="angle">Angolo promo</option>
+        <option value="strike">Barrato + nuovo</option>
+      </select>
+    </div>
+  </div>
 
-          </div>
+  <div class="row g-2 mb-2">
+    <div class="col-6">
+      <label class="form-label small">Layout box</label>
+      <select id="modal-layout" class="form-select form-select-sm">
+        <option value="image-top">Immagine sopra, testo sotto</option>
+        <option value="image-left">Immagine sinistra, testo destra</option>
+        <option value="full-image-price">Immagine piena con prezzo</option>
+      </select>
+    </div>
+    <div class="col-6">
+      <label class="form-label small">Allineamento testo</label>
+      <select id="modal-align" class="form-select form-select-sm">
+        <option value="start">Sinistra</option>
+        <option value="center">Centro</option>
+        <option value="end">Destra</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tipografia -->
+  <div class="border rounded p-2 mb-2 bg-light-subtle">
+
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label small">Font</label>
+        <select id="modal-font-family" class="form-select form-select-sm">
+          <option value="">Default</option>
+          <option value="Roboto, sans-serif">Roboto</option>
+          <option value="'Open Sans', sans-serif">Open Sans</option>
+          <option value="Montserrat, sans-serif">Montserrat</option>
+          <option value="'Lato', sans-serif">Lato</option>
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label small">Colore testo</label>
+        <input type="color" id="modal-font-color" class="form-control form-control-sm"
+               value="#000000">
+      </div>
+    </div>
+
+    <div class="row g-2 mt-2">
+      <div class="col-4">
+        <label class="form-label small">Titolo (px)</label>
+        <input type="number" id="modal-title-size" class="form-control form-control-sm"
+               min="8" max="40" value="14">
+      </div>
+      <div class="col-4">
+        <label class="form-label small">Descrizione (px)</label>
+        <input type="number" id="modal-desc-size" class="form-control form-control-sm"
+               min="8" max="30" value="11">
+      </div>
+      <div class="col-4">
+        <label class="form-label small">Prezzo (px)</label>
+        <input type="number" id="modal-price-size" class="form-control form-control-sm"
+               min="8" max="40" value="16">
+      </div>
+    </div>
+
+    <div class="mt-2 d-flex flex-wrap gap-3">
+      <div class="form-check form-check-sm">
+        <input class="form-check-input" type="checkbox" id="modal-title-bold">
+        <label class="form-check-label small">Titolo grassetto</label>
+      </div>
+      <div class="form-check form-check-sm">
+        <input class="form-check-input" type="checkbox" id="modal-desc-italic">
+        <label class="form-check-label small">Descrizione corsivo</label>
+      </div>
+      <div class="form-check form-check-sm">
+        <input class="form-check-input" type="checkbox" id="modal-price-bold">
+        <label class="form-check-label small">Prezzo grassetto</label>
+      </div>
+      <div class="form-check form-check-sm">
+        <input class="form-check-input" type="checkbox" id="modal-text-uppercase">
+        <label class="form-check-label small">TUTTO MAIUSCOLO</label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Stile box -->
+  <div class="border rounded p-2 mb-2 bg-light-subtle">
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label small">Bordo</label>
+        <select id="modal-border-style" class="form-select form-select-sm">
+          <option value="solid">Solido</option>
+          <option value="dashed">Tratteggiato</option>
+          <option value="none">Nessuno</option>
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label small">Colore bordo</label>
+        <input type="color" id="modal-border-color" class="form-control form-control-sm"
+               value="#dddddd">
+      </div>
+    </div>
+
+    <div class="row g-2 mt-2">
+      <div class="col-4">
+        <label class="form-label small">Radius (px)</label>
+        <input type="number" id="modal-radius" class="form-control form-control-sm"
+               min="0" max="30" value="4">
+      </div>
+      <div class="col-4">
+        <label class="form-label small">Sfondo</label>
+        <input type="color" id="modal-bgcolor" class="form-control form-control-sm"
+               value="#ffffff">
+      </div>
+      <div class="col-4 d-flex align-items-end">
+        <div class="form-check form-check-sm">
+          <input class="form-check-input" type="checkbox" id="modal-shadow">
+          <label class="form-check-label small">Ombra</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Libreria demo -->
+  <div class="border rounded p-2 bg-light-subtle">
+    <label class="form-label small">Libreria prodotti demo</label>
+    <select id="modal-product-library" class="form-select form-select-sm">
+      <option value="">-- scegli --</option>
+      <option value="salmone">Salmone norvegese intero</option>
+      <option value="gamberi">Gamberi argentini sgusciati</option>
+      <option value="polpo">Polpo mediterraneo decongelato</option>
+    </select>
+    <small class="text-muted d-block mt-1">
+      Solo esempio: non collegato al gestionale
+    </small>
+  </div>
+
+</div> <!-- fine col 7 -->
 
         </div>
 
@@ -341,8 +363,8 @@
     </div>
   </div>
 </div>
-{% endblock %}
 
+{% endblock %}
 {% block scripts %}
 {{ super() }}
 
@@ -361,18 +383,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const listaPagine = document.getElementById("lista-pagine");
   const inputNome = document.getElementById("volantino-nome");
 
-  // Modal editor
+  /* ----------------------
+       VARIABILI MODAL
+  -----------------------*/
   const cellEditorModalEl = document.getElementById("cellEditorModal");
   const cellEditorModal = new bootstrap.Modal(cellEditorModalEl);
+
   const modalImagePreview = document.getElementById("modal-image-preview");
   const modalChangeImage = document.getElementById("modal-change-image");
   const modalImageInput = document.getElementById("modal-image-input");
+  const modalImageZoom = document.getElementById("modal-image-zoom");
+  const modalImageFilter = document.getElementById("modal-image-filter");
+
   const modalTitle = document.getElementById("modal-title");
   const modalDesc = document.getElementById("modal-desc");
   const modalPrice = document.getElementById("modal-price");
   const modalPriceStyle = document.getElementById("modal-price-style");
+
   const modalLayout = document.getElementById("modal-layout");
   const modalAlign = document.getElementById("modal-align");
+
   const modalFontFamily = document.getElementById("modal-font-family");
   const modalFontColor = document.getElementById("modal-font-color");
   const modalTitleSize = document.getElementById("modal-title-size");
@@ -382,18 +412,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalDescItalic = document.getElementById("modal-desc-italic");
   const modalPriceBold = document.getElementById("modal-price-bold");
   const modalTextUpper = document.getElementById("modal-text-uppercase");
+
   const modalBorderStyle = document.getElementById("modal-border-style");
   const modalBorderColor = document.getElementById("modal-border-color");
   const modalRadius = document.getElementById("modal-radius");
   const modalBgColor = document.getElementById("modal-bgcolor");
   const modalShadow = document.getElementById("modal-shadow");
-  const modalImageFilter = document.getElementById("modal-image-filter");
+
   const modalProductLibrary = document.getElementById("modal-product-library");
   const modalSave = document.getElementById("modal-save");
 
   let modalImageData = "";
+  let modalZoomValue = 1;
 
-  // Libreria demo prodotti
+  /* ----------------------
+     LIBRERIA PRODOTTI DEMO
+  -----------------------*/
   const productLibrary = {
     "salmone": {
       titolo: "Salmone norvegese intero",
@@ -414,14 +448,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   modalProductLibrary.addEventListener("change", () => {
     const key = modalProductLibrary.value;
-    if (!key || !productLibrary[key]) return;
-    const p = productLibrary[key];
-    modalTitle.value = p.titolo;
-    modalDesc.value = p.descrizione;
-    modalPrice.value = p.prezzo;
+    if (!productLibrary[key]) return;
+    modalTitle.value = productLibrary[key].titolo;
+    modalDesc.value = productLibrary[key].descrizione;
+    modalPrice.value = productLibrary[key].prezzo;
   });
 
-  /* ---------- IMMAGINI (header/footer e modal) ---------- */
+  /* ----------------------
+        UPLOAD IMMAGINI
+  -----------------------*/
   function attachImageUpload(box) {
     box.addEventListener("click", () => {
       const input = document.createElement("input");
@@ -446,9 +481,15 @@ document.addEventListener("DOMContentLoaded", () => {
       modalImagePreview.innerHTML = `<span class="text-muted small">Clicca per caricare immagine</span>`;
     } else {
       modalImagePreview.innerHTML =
-        `<img src="${src}" style="width:100%; height:100%; object-fit:cover;">`;
+        `<img id="modal-img" src="${src}" style="width:100%; height:100%; object-fit:cover; transform:scale(${modalZoomValue});">`;
     }
   }
+
+  modalImageZoom.addEventListener("input", () => {
+    modalZoomValue = modalImageZoom.value;
+    const img = document.querySelector("#modal-img");
+    if (img) img.style.transform = `scale(${modalZoomValue})`;
+  });
 
   modalImagePreview.addEventListener("click", () => modalChangeImage.click());
   modalChangeImage.addEventListener("click", () => modalImageInput.click());
@@ -461,7 +502,10 @@ document.addEventListener("DOMContentLoaded", () => {
     r.readAsDataURL(file);
   });
 
-  /* ---------- PAGINE ---------- */
+
+  /* ----------------------
+           PAGINE
+  -----------------------*/
   function creaPagina(cols = 3) {
     const page = document.createElement("div");
     page.classList.add("pagina-volantino");
@@ -507,11 +551,9 @@ document.addEventListener("DOMContentLoaded", () => {
     pagine.forEach((_, i) => {
       const btn = document.createElement("button");
       btn.classList.add("btn", "btn-sm", "w-100", "mb-2");
-      if (i === paginaCorrente) {
-        btn.classList.add("btn-primary");
-      } else {
-        btn.classList.add("btn-outline-primary");
-      }
+      if (i === paginaCorrente) btn.classList.add("btn-primary");
+      else btn.classList.add("btn-outline-primary");
+
       btn.innerText = "Pagina " + (i + 1);
       btn.onclick = () => {
         paginaCorrente = i;
@@ -542,10 +584,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const grid = clone.querySelector(".page-grid");
     const cols = originale.dataset.cols || 3;
-    grid.style.display = "grid";
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridAutoRows = "1fr";
-    grid.style.gap = "10px";
 
     Sortable.create(grid, {
       animation: 150,
@@ -557,330 +597,326 @@ document.addEventListener("DOMContentLoaded", () => {
       initResize(c);
     });
 
-    clone.dataset.cols = originale.dataset.cols;
     pagine.push(clone);
     paginaCorrente = pagine.length - 1;
     mostraPaginaCorrente();
     aggiornaListaPagine();
   });
 
-/* ---------- CELLE: APPLY FUNZIONI STILE ---------- */
-function applyCellSize(cell) {
-  const colSpan = parseInt(cell.dataset.colspan || "1", 10);
-  const rowSpan = parseInt(cell.dataset.rowspan || "1", 10);
-  cell.style.gridColumn = `span ${colSpan}`;
-  cell.style.gridRow = `span ${rowSpan}`;
-}
 
-function applyPriceStyle(cell) {
-  const prezzoEl = cell.querySelector(".prezzo");
-  if (!prezzoEl) return;
-  prezzoEl.className = "prezzo fw-bold"; // reset base
-  const style = cell.dataset.priceStyle || "base";
-  prezzoEl.classList.add("prezzo-" + style);
-}
-
-/* ---------- applyLayout FIXATO ---------- */
-function applyLayout(cell) {
-  const layout = cell.dataset.layout || "image-top";
-  const wrapper = cell.querySelector(".cella-inner");
-  const imgBox = cell.querySelector(".img-box");
-  const textBox = cell.querySelector(".testo-box");
-  const prezzoEl = cell.querySelector(".prezzo");
-
-  cell.classList.remove(
-    "cella-layout-image-top",
-    "cella-layout-image-left",
-    "cella-layout-full-image-price"
-  );
-
-  cell.classList.add("cella-layout-" + layout);
-
-  // SAFE GUARD — Se mancano elementi, evita crash JS
-  if (!wrapper || !imgBox || !textBox) return;
-
-  wrapper.style.position = "";
-  wrapper.style.display = "";
-  wrapper.style.flexDirection = "";
-  imgBox.style.width = "";
-  imgBox.style.height = "";
-  textBox.style.position = "";
-  textBox.style.bottom = "";
-  textBox.style.left = "";
-  textBox.style.right = "";
-
-  if (prezzoEl) {
-    prezzoEl.style.position = "";
-    prezzoEl.style.top = "";
-    prezzoEl.style.right = "";
+  /* ----------------------
+      FUNZIONI STILE CELLE
+  -----------------------*/
+  function applyCellSize(cell) {
+    const colSpan = parseInt(cell.dataset.colspan || "1", 10);
+    const rowSpan = parseInt(cell.dataset.rowspan || "1", 10);
+    cell.style.gridColumn = `span ${colSpan}`;
+    cell.style.gridRow = `span ${rowSpan}`;
   }
 
-  if (layout === "image-top") {
-    wrapper.style.display = "flex";
-    wrapper.style.flexDirection = "column";
-    imgBox.style.height = "55%";
-  }
-  else if (layout === "image-left") {
-    wrapper.style.display = "flex";
-    wrapper.style.flexDirection = "row";
-    imgBox.style.width = "50%";
-  }
-  else if (layout === "full-image-price") {
-    wrapper.style.position = "relative";
-    imgBox.style.height = "100%";
+  function applyPriceStyle(cell) {
+    const prezzoEl = cell.querySelector(".prezzo");
+    if (!prezzoEl) return;
 
-    textBox.style.position = "absolute";
-    textBox.style.bottom = "6px";
-    textBox.style.left = "6px";
-    textBox.style.right = "6px";
+    prezzoEl.className = "prezzo fw-bold";
+    const style = cell.dataset.priceStyle || "base";
+    prezzoEl.classList.add("prezzo-" + style);
+  }
+
+  function applyLayout(cell) {
+    const layout = cell.dataset.layout || "image-top";
+    const wrapper = cell.querySelector(".cella-inner");
+    const imgBox = cell.querySelector(".img-box");
+    const textBox = cell.querySelector(".testo-box");
+    const prezzoEl = cell.querySelector(".prezzo");
+
+    cell.classList.remove(
+      "cella-layout-image-top",
+      "cella-layout-image-left",
+      "cella-layout-full-image-price"
+    );
+
+    cell.classList.add("cella-layout-" + layout);
+
+    if (!wrapper || !imgBox || !textBox) return;
+
+    wrapper.style = "";
+    imgBox.style = "";
+    textBox.style = "";
+    if (prezzoEl) prezzoEl.style = "";
+
+    if (layout === "image-top") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      imgBox.style.height = "55%";
+    }
+    else if (layout === "image-left") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "row";
+      imgBox.style.width = "50%";
+    }
+    else if (layout === "full-image-price") {
+      wrapper.style.position = "relative";
+      imgBox.style.height = "100%";
+
+      textBox.style.position = "absolute";
+      textBox.style.bottom = "6px";
+      textBox.style.left = "6px";
+      textBox.style.right = "6px";
+
+      if (prezzoEl) {
+        prezzoEl.style.position = "absolute";
+        prezzoEl.style.top = "6px";
+        prezzoEl.style.right = "6px";
+      }
+    }
+  }
+
+  function applyTextAlign(cell) {
+    const textBox = cell.querySelector(".testo-box");
+    if (!textBox) return;
+
+    textBox.classList.remove("text-start", "text-center", "text-end");
+
+    const align = cell.dataset.textAlign || "start";
+    if (align === "center") textBox.classList.add("text-center");
+    else if (align === "end") textBox.classList.add("text-end");
+    else textBox.classList.add("text-start");
+  }
+
+  function applyTypography(cell) {
+    const titoloEl = cell.querySelector(".titolo");
+    const descEl = cell.querySelector(".descrizione");
+    const prezzoEl = cell.querySelector(".prezzo");
+
+    const fontFamily = cell.dataset.fontFamily || "";
+    const fontColor = cell.dataset.fontColor || "#000000";
+    const titleSize = cell.dataset.titleSize || "14";
+    const descSize = cell.dataset.descSize || "11";
+    const priceSize = cell.dataset.priceSize || "16";
+
+    const textUpper = cell.dataset.textUpper === "1";
+    const titleBold = cell.dataset.titleBold === "1";
+    const descItalic = cell.dataset.descItalic === "1";
+    const priceBold = cell.dataset.priceBold !== "0";
+
+    [titoloEl, descEl, prezzoEl].forEach(el => {
+      if (!el) return;
+      el.style.fontFamily = fontFamily;
+      el.style.color = fontColor;
+      el.style.textTransform = textUpper ? "uppercase" : "none";
+    });
+
+    if (titoloEl) {
+      titoloEl.style.fontSize = titleSize + "px";
+      titoloEl.classList.toggle("fw-bold", titleBold);
+    }
+
+    if (descEl) {
+      descEl.style.fontSize = descSize + "px";
+      descEl.style.fontStyle = descItalic ? "italic" : "normal";
+    }
 
     if (prezzoEl) {
-      prezzoEl.style.position = "absolute";
-      prezzoEl.style.top = "6px";
-      prezzoEl.style.right = "6px";
+      prezzoEl.style.fontSize = priceSize + "px";
+      prezzoEl.classList.toggle("fw-bold", priceBold);
     }
   }
-}
 
-/* ---------- applyTextAlign FIXATO ---------- */
-function applyTextAlign(cell) {
-  const textBox = cell.querySelector(".testo-box");
-  if (!textBox) return;
-
-  textBox.classList.remove("text-start", "text-center", "text-end");
-
-  const align = cell.dataset.textAlign || "start";
-
-  if (align === "center") textBox.classList.add("text-center");
-  else if (align === "end") textBox.classList.add("text-end");
-  else textBox.classList.add("text-start");
-}
-
-function applyTypography(cell) {
-  const titoloEl = cell.querySelector(".titolo");
-  const descEl = cell.querySelector(".descrizione");
-  const prezzoEl = cell.querySelector(".prezzo");
-
-  const fontFamily = cell.dataset.fontFamily || "";
-  const fontColor = cell.dataset.fontColor || "#000000";
-  const titleSize = cell.dataset.titleSize || "14";
-  const descSize = cell.dataset.descSize || "11";
-  const priceSize = cell.dataset.priceSize || "16";
-  const textUpper = cell.dataset.textUpper === "1";
-  const titleBold = cell.dataset.titleBold === "1";
-  const descItalic = cell.dataset.descItalic === "1";
-  const priceBold = cell.dataset.priceBold !== "0"; // default bold
-
-  [titoloEl, descEl, prezzoEl].forEach(el => {
-    if (!el) return;
-    el.style.fontFamily = fontFamily || "";
-    el.style.color = fontColor || "#000000";
-    el.style.textTransform = textUpper ? "uppercase" : "none";
-  });
-
-  if (titoloEl) {
-    titoloEl.style.fontSize = titleSize + "px";
-    titoloEl.classList.toggle("fw-bold", titleBold);
+  function applyBoxStyle(cell) {
+    cell.style.borderStyle = cell.dataset.borderStyle || "solid";
+    cell.style.borderColor = cell.dataset.borderColor || "#dddddd";
+    cell.style.borderRadius = (cell.dataset.radius || "4") + "px";
+    cell.style.backgroundColor = cell.dataset.bgColor || "#ffffff";
+    cell.classList.toggle("cella-shadow", cell.dataset.shadow === "1");
   }
-  if (descEl) {
-    descEl.style.fontSize = descSize + "px";
-    descEl.style.fontStyle = descItalic ? "italic" : "normal";
-  }
-  if (prezzoEl) {
-    prezzoEl.style.fontSize = priceSize + "px";
-    prezzoEl.classList.toggle("fw-bold", priceBold);
-  }
-}
 
-function applyBoxStyle(cell) {
-  const borderStyle = cell.dataset.borderStyle || "solid";
-  const borderColor = cell.dataset.borderColor || "#dddddd";
-  const radius = cell.dataset.radius || "4";
-  const bgColor = cell.dataset.bgColor || "#ffffff";
-  const shadow = cell.dataset.shadow === "1";
+  function applyImageFilter(cell) {
+    const img = cell.querySelector(".img-box img");
+    if (!img) return;
 
-  cell.style.borderStyle = borderStyle;
-  cell.style.borderColor = borderColor;
-  cell.style.borderRadius = radius + "px";
-  cell.style.backgroundColor = bgColor;
-  cell.classList.toggle("cella-shadow", shadow);
-}
-
-function applyImageFilter(cell) {
-  const filter = cell.dataset.imageFilter || "none";
-  const img = cell.querySelector(".img-box img");
-  if (!img) return;
-
-  let css = "none";
-  if (filter === "bw") css = "grayscale(1)";
-  else if (filter === "warm") css = "contrast(1.05) saturate(1.2)";
-  else if (filter === "cool") css = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)";
-  else if (filter === "contrast") css = "contrast(1.3) saturate(1.2)";
-
-  img.style.filter = css;
-}
-
-
-/* ---------- CELLA: CREAZIONE / EVENTI ---------- */
-function initResize(cell) {
-  const handle = cell.querySelector(".resize-handle");
-  if (!handle) return;
-
-  handle.addEventListener("mousedown", e => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startCol = parseInt(cell.dataset.colspan || "1", 10);
-    const startRow = parseInt(cell.dataset.rowspan || "1", 10);
-    const page = cell.closest(".pagina-volantino");
-    const cols = parseInt(page?.dataset.cols || "3", 10);
-    const grid = page.querySelector(".page-grid");
-    const rect = grid.getBoundingClientRect();
-    const colW = rect.width / cols;
-    const rowH = colW;
-
-    function onMove(ev) {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      let newCol = startCol + Math.round(dx / colW);
-      let newRow = startRow + Math.round(dy / rowH);
-      newCol = Math.max(1, Math.min(cols, newCol));
-      newRow = Math.max(1, Math.max(1, newRow));
-      cell.dataset.colspan = newCol;
-      cell.dataset.rowspan = newRow;
-      applyCellSize(cell);
+    let f = "none";
+    switch (cell.dataset.imageFilter) {
+      case "bw": f = "grayscale(1)"; break;
+      case "warm": f = "contrast(1.05) saturate(1.2)"; break;
+      case "cool": f = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)"; break;
+      case "contrast": f = "contrast(1.3) saturate(1.2)"; break;
     }
+    img.style.filter = f;
+  }
 
-    function onUp() {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  });
-}
+  /* ----------------------
+   EVENTI CELLA + CREAZIONE
+  -----------------------*/
+  function initResize(cell) {
+    const handle = cell.querySelector(".resize-handle");
+    if (!handle) return;
 
-function initCellaEvents(cell) {
-  cell.addEventListener("click", e => {
-    e.stopPropagation();
-    selezionaCella(cell);
-    apriEditorCella(cell);
-  });
-}
+    handle.addEventListener("mousedown", e => {
+      e.stopPropagation();
+      e.preventDefault();
 
-function creaCella() {
-  const cell = document.createElement("div");
-  cell.classList.add("cella-prodotto");
-  cell.dataset.colspan = "1";
-  cell.dataset.rowspan = "1";
-  cell.dataset.priceStyle = "base";
-  cell.dataset.layout = "image-top";
-  cell.dataset.textAlign = "start";
-  cell.dataset.fontFamily = "";
-  cell.dataset.fontColor = "#000000";
-  cell.dataset.titleSize = "14";
-  cell.dataset.descSize = "11";
-  cell.dataset.priceSize = "16";
-  cell.dataset.textUpper = "0";
-  cell.dataset.titleBold = "1";
-  cell.dataset.descItalic = "0";
-  cell.dataset.priceBold = "1";
-  cell.dataset.borderStyle = "solid";
-  cell.dataset.borderColor = "#dddddd";
-  cell.dataset.radius = "4";
-  cell.dataset.bgColor = "#ffffff";
-  cell.dataset.shadow = "0";
-  cell.dataset.imageFilter = "none";
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startCol = parseInt(cell.dataset.colspan);
+      const startRow = parseInt(cell.dataset.rowspan);
 
-  cell.innerHTML = `
-    <div class="cella-inner">
-      <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
-            style="height: 120px; overflow:hidden;">
-        <span class="text-muted small">Clicca per modificare la box</span>
+      const page = cell.closest(".pagina-volantino");
+      const cols = parseInt(page.dataset.cols);
+      const grid = page.querySelector(".page-grid");
+      const rect = grid.getBoundingClientRect();
+
+      const colW = rect.width / cols;
+      const rowH = colW;
+
+      function onMove(ev) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+
+        let newCol = startCol + Math.round(dx / colW);
+        let newRow = startRow + Math.round(dy / rowH);
+
+        newCol = Math.max(1, Math.min(cols, newCol));
+        newRow = Math.max(1, newRow);
+
+        cell.dataset.colspan = newCol;
+        cell.dataset.rowspan = newRow;
+
+        applyCellSize(cell);
+      }
+
+      function onUp() {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+  }
+
+  function initCellaEvents(cell) {
+    cell.addEventListener("click", e => {
+      e.stopPropagation();
+      selezionaCella(cell);
+      apriEditorCella(cell);
+    });
+  }
+
+  function creaCella() {
+    const cell = document.createElement("div");
+    cell.classList.add("cella-prodotto");
+
+    cell.dataset.colspan = "1";
+    cell.dataset.rowspan = "1";
+    cell.dataset.priceStyle = "base";
+    cell.dataset.layout = "image-top";
+    cell.dataset.textAlign = "start";
+
+    cell.dataset.fontFamily = "";
+    cell.dataset.fontColor = "#000000";
+    cell.dataset.titleSize = "14";
+    cell.dataset.descSize = "11";
+    cell.dataset.priceSize = "16";
+    cell.dataset.textUpper = "0";
+    cell.dataset.titleBold = "1";
+    cell.dataset.descItalic = "0";
+    cell.dataset.priceBold = "1";
+
+    cell.dataset.borderStyle = "solid";
+    cell.dataset.borderColor = "#dddddd";
+    cell.dataset.radius = "4";
+    cell.dataset.bgColor = "#ffffff";
+    cell.dataset.shadow = "0";
+
+    cell.dataset.imageFilter = "none";
+
+    cell.innerHTML = `
+      <div class="cella-inner">
+        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
+             style="height: 120px; overflow:hidden;">
+          <span class="text-muted small">Clicca per modificare la box</span>
+        </div>
+        <div class="testo-box">
+          <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
+          <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
+          <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
+        </div>
       </div>
-      <div class="testo-box">
-        <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
-        <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
-        <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
-      </div>
-    </div>
-    <div class="resize-handle"></div>
-  `;
+      <div class="resize-handle"></div>
+    `;
 
-  initCellaEvents(cell);
-  initResize(cell);
-  applyCellSize(cell);
-  applyPriceStyle(cell);
-  applyLayout(cell);
-  applyTextAlign(cell);
-  applyTypography(cell);
-  applyBoxStyle(cell);
-  applyImageFilter(cell);
+    initCellaEvents(cell);
+    initResize(cell);
 
-  return cell;
-}
+    applyCellSize(cell);
+    applyPriceStyle(cell);
+    applyLayout(cell);
+    applyTextAlign(cell);
+    applyTypography(cell);
+    applyBoxStyle(cell);
+    applyImageFilter(cell);
 
-function selezionaCella(c) {
-  document.querySelectorAll(".cella-prodotto").forEach(el => {
-    el.classList.remove("cella-selezionata");
-  });
-  c.classList.add("cella-selezionata");
-  cellaSelezionata = c;
-}
+    return cell;
+  }
 
+  function selezionaCella(c) {
+    document.querySelectorAll(".cella-prodotto").forEach(el => {
+      el.classList.remove("cella-selezionata");
+    });
+    c.classList.add("cella-selezionata");
+    cellaSelezionata = c;
+  }
 
-/* ---------- FIX: CLICK GLOBALE (NON DESLEZIONA PIÙ QUANDO CLICCHI SUL MODAL) ---------- */
-document.addEventListener("click", (e) => {
+  /* FIX: non deseleziona quando clicchi dentro al modal */
+  document.addEventListener("click", e => {
+    if (e.target.closest("#cellEditorModal")) return;
+    if (e.target.closest(".cella-prodotto")) return;
 
-  // Se il click è dentro al modal → NON deselezionare la cella
-  if (e.target.closest('#cellEditorModal')) return;
+    document.querySelectorAll(".cella-prodotto")
+      .forEach(el => el.classList.remove("cella-selezionata"));
 
-  // Se il click è su una cella, NON deselezionare (lo fa già selezionaCella)
-  if (e.target.closest('.cella-prodotto')) return;
-
-  // Click fuori da tutto → deseleziona
-  document.querySelectorAll(".cella-prodotto").forEach(el => {
-    el.classList.remove("cella-selezionata");
+    cellaSelezionata = null;
   });
 
-  cellaSelezionata = null;
-});
 
+  /* ----------------------
+     TOOLBAR FORMATI CELLE
+  -----------------------*/
+  document.querySelectorAll("[data-cell-size]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!cellaSelezionata) return alert("Seleziona una cella");
 
-/* ---------- TOOLBAR: FORMATO / PREZZO ---------- */
-document.querySelectorAll("[data-cell-size]").forEach(btn => {
-  btn.addEventListener("click", () => {
-    if (!cellaSelezionata) {
-      alert("Seleziona una cella per cambiarne il formato");
-      return;
-    }
-    const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
-    cellaSelezionata.dataset.colspan = cs;
-    cellaSelezionata.dataset.rowspan = rs;
-    applyCellSize(cellaSelezionata);
+      const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
+      cellaSelezionata.dataset.colspan = cs;
+      cellaSelezionata.dataset.rowspan = rs;
+
+      applyCellSize(cellaSelezionata);
+    });
   });
-});
 
-document.querySelectorAll("[data-price-style]").forEach(btn => {
-  btn.addEventListener("click", () => {
-    if (!cellaSelezionata) {
-      alert("Seleziona una cella per cambiarne lo stile prezzo");
-      return;
-    }
-    const style = btn.getAttribute("data-price-style");
-    cellaSelezionata.dataset.priceStyle = style;
-    applyPriceStyle(cellaSelezionata);
+  document.querySelectorAll("[data-price-style]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!cellaSelezionata) return alert("Seleziona una cella");
+
+      const style = btn.dataset.priceStyle;
+      cellaSelezionata.dataset.priceStyle = style;
+
+      applyPriceStyle(cellaSelezionata);
+    });
   });
-});
 
-  /* ---------- GRIGLIA PAGINA ---------- */
+
+  /* ----------------------
+       GRIGLIA PAGINA
+  -----------------------*/
   document.querySelectorAll("[data-grid]").forEach(btn => {
     btn.addEventListener("click", () => {
+
       if (!pagine.length) return;
-      const [cols, rows] = btn.getAttribute("data-grid").split("x").map(Number);
+
+      const [cols, rows] = btn.dataset.grid.split("x").map(Number);
       const page = pagine[paginaCorrente];
       const grid = page.querySelector(".page-grid");
 
@@ -900,25 +936,35 @@ document.querySelectorAll("[data-price-style]").forEach(btn => {
     });
   });
 
-  /* ---------- DUPLICA / ELIMINA CELLA ---------- */
+
+  /* ----------------------
+   DUPLICA / ELIMINA CELLA
+  -----------------------*/
   document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella da duplicare");
+    if (!cellaSelezionata) return alert("Seleziona una cella");
+
     const clone = cellaSelezionata.cloneNode(true);
+
     initCellaEvents(clone);
     initResize(clone);
     applyTypography(clone);
     applyBoxStyle(clone);
     applyImageFilter(clone);
+
     cellaSelezionata.parentElement.appendChild(clone);
   });
 
   document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella da eliminare");
+    if (!cellaSelezionata) return alert("Seleziona una cella");
+
     cellaSelezionata.remove();
     cellaSelezionata = null;
   });
 
-  /* ---------- POPUP EDITOR CELLA ---------- */
+
+  /* ----------------------
+      APRI EDITOR CELLA
+  -----------------------*/
   function apriEditorCella(cell) {
     cellaSelezionata = cell;
 
@@ -927,83 +973,48 @@ document.querySelectorAll("[data-price-style]").forEach(btn => {
     const descrizione = cell.querySelector(".descrizione")?.innerText || "";
     const prezzo = cell.querySelector(".prezzo")?.innerText || "";
 
-    const layout = cell.dataset.layout || "image-top";
-    const priceStyle = cell.dataset.priceStyle || "base";
-    const textAlign = cell.dataset.textAlign || "start";
-
-    const fontFamily = cell.dataset.fontFamily || "";
-    const fontColor = cell.dataset.fontColor || "#000000";
-    const titleSize = cell.dataset.titleSize || "14";
-    const descSize = cell.dataset.descSize || "11";
-    const priceSize = cell.dataset.priceSize || "16";
-    const textUpper = cell.dataset.textUpper === "1";
-    const titleBold = cell.dataset.titleBold !== "0";
-    const descItalic = cell.dataset.descItalic === "1";
-    const priceBold = cell.dataset.priceBold !== "0";
-
-    const borderStyle = cell.dataset.borderStyle || "solid";
-    const borderColor = cell.dataset.borderColor || "#dddddd";
-    const radius = cell.dataset.radius || "4";
-    const bgColor = cell.dataset.bgColor || "#ffffff";
-    const shadow = cell.dataset.shadow === "1";
-    const imageFilter = cell.dataset.imageFilter || "none";
+    modalZoomValue = 1;
+    modalImageZoom.value = 1;
 
     setModalImage(img);
+
     modalTitle.value = titolo;
     modalDesc.value = descrizione;
     modalPrice.value = prezzo;
-    modalPriceStyle.value = priceStyle;
-    modalLayout.value = layout;
-    modalAlign.value = textAlign;
 
-    modalFontFamily.value = fontFamily;
-    modalFontColor.value = fontColor;
-    modalTitleSize.value = parseInt(titleSize, 10) || 14;
-    modalDescSize.value = parseInt(descSize, 10) || 11;
-    modalPriceSize.value = parseInt(priceSize, 10) || 16;
-    modalTextUpper.checked = textUpper;
-    modalTitleBold.checked = titleBold;
-    modalDescItalic.checked = descItalic;
-    modalPriceBold.checked = priceBold;
+    modalPriceStyle.value = cell.dataset.priceStyle;
+    modalLayout.value = cell.dataset.layout;
+    modalAlign.value = cell.dataset.textAlign;
 
-    modalBorderStyle.value = borderStyle;
-    modalBorderColor.value = borderColor;
-    modalRadius.value = parseInt(radius, 10) || 4;
-    modalBgColor.value = bgColor;
-    modalShadow.checked = shadow;
+    modalFontFamily.value = cell.dataset.fontFamily;
+    modalFontColor.value = cell.dataset.fontColor;
+    modalTitleSize.value = cell.dataset.titleSize;
+    modalDescSize.value = cell.dataset.descSize;
+    modalPriceSize.value = cell.dataset.priceSize;
+    modalTextUpper.checked = cell.dataset.textUpper === "1";
+    modalTitleBold.checked = cell.dataset.titleBold === "1";
+    modalDescItalic.checked = cell.dataset.descItalic === "1";
+    modalPriceBold.checked = cell.dataset.priceBold !== "0";
 
-    modalImageFilter.value = imageFilter;
+    modalBorderStyle.value = cell.dataset.borderStyle;
+    modalBorderColor.value = cell.dataset.borderColor;
+    modalRadius.value = cell.dataset.radius;
+    modalBgColor.value = cell.dataset.bgColor;
+    modalShadow.checked = cell.dataset.shadow === "1";
+
+    modalImageFilter.value = cell.dataset.imageFilter;
+
     modalProductLibrary.value = "";
 
     cellEditorModal.show();
   }
 
+
+  /* ----------------------
+       SALVA MODIFICHE CELLA
+  -----------------------*/
   modalSave.addEventListener("click", () => {
     if (!cellaSelezionata) return;
-
-    const titolo = modalTitle.value || "";
-    const descrizione = modalDesc.value || "";
-    const prezzo = modalPrice.value || "";
-    const layout = modalLayout.value || "image-top";
-    const priceStyle = modalPriceStyle.value || "base";
-    const textAlign = modalAlign.value || "start";
-
-    const fontFamily = modalFontFamily.value || "";
-    const fontColor = modalFontColor.value || "#000000";
-    const titleSize = modalTitleSize.value || "14";
-    const descSize = modalDescSize.value || "11";
-    const priceSize = modalPriceSize.value || "16";
-    const textUpper = modalTextUpper.checked ? "1" : "0";
-    const titleBold = modalTitleBold.checked ? "1" : "0";
-    const descItalic = modalDescItalic.checked ? "1" : "0";
-    const priceBold = modalPriceBold.checked ? "1" : "0";
-
-    const borderStyle = modalBorderStyle.value || "solid";
-    const borderColor = modalBorderColor.value || "#dddddd";
-    const radius = modalRadius.value || "4";
-    const bgColor = modalBgColor.value || "#ffffff";
-    const shadow = modalShadow.checked ? "1" : "0";
-    const imageFilter = modalImageFilter.value || "none";
 
     const imgBox = cellaSelezionata.querySelector(".img-box");
     const titoloEl = cellaSelezionata.querySelector(".titolo");
@@ -1012,37 +1023,35 @@ document.querySelectorAll("[data-price-style]").forEach(btn => {
 
     if (modalImageData) {
       imgBox.innerHTML =
-        `<img src="${modalImageData}" style="width:100%; height:100%; object-fit:cover;">`;
-    } else {
-      imgBox.innerHTML =
-        `<span class="text-muted small">Clicca per modificare la box</span>`;
+        `<img src="${modalImageData}" style="width:100%; height:100%; object-fit:cover; transform:scale(${modalZoomValue});">`;
     }
 
-    if (titoloEl) titoloEl.innerText = titolo;
-    if (descEl)   descEl.innerText = descrizione;
-    if (prezzoEl) prezzoEl.innerText = prezzo || "€ 0,00";
+    titoloEl.innerText = modalTitle.value;
+    descEl.innerText = modalDesc.value;
+    prezzoEl.innerText = modalPrice.value;
 
-    cellaSelezionata.dataset.layout = layout;
-    cellaSelezionata.dataset.priceStyle = priceStyle;
-    cellaSelezionata.dataset.textAlign = textAlign;
+    cellaSelezionata.dataset.priceStyle = modalPriceStyle.value;
+    cellaSelezionata.dataset.layout = modalLayout.value;
+    cellaSelezionata.dataset.textAlign = modalAlign.value;
 
-    cellaSelezionata.dataset.fontFamily = fontFamily;
-    cellaSelezionata.dataset.fontColor = fontColor;
-    cellaSelezionata.dataset.titleSize = titleSize;
-    cellaSelezionata.dataset.descSize = descSize;
-    cellaSelezionata.dataset.priceSize = priceSize;
-    cellaSelezionata.dataset.textUpper = textUpper;
-    cellaSelezionata.dataset.titleBold = titleBold;
-    cellaSelezionata.dataset.descItalic = descItalic;
-    cellaSelezionata.dataset.priceBold = priceBold;
+    cellaSelezionata.dataset.fontFamily = modalFontFamily.value;
+    cellaSelezionata.dataset.fontColor = modalFontColor.value;
+    cellaSelezionata.dataset.titleSize = modalTitleSize.value;
+    cellaSelezionata.dataset.descSize = modalDescSize.value;
+    cellaSelezionata.dataset.priceSize = modalPriceSize.value;
 
-    cellaSelezionata.dataset.borderStyle = borderStyle;
-    cellaSelezionata.dataset.borderColor = borderColor;
-    cellaSelezionata.dataset.radius = radius;
-    cellaSelezionata.dataset.bgColor = bgColor;
-    cellaSelezionata.dataset.shadow = shadow;
+    cellaSelezionata.dataset.textUpper = modalTextUpper.checked ? "1" : "0";
+    cellaSelezionata.dataset.titleBold = modalTitleBold.checked ? "1" : "0";
+    cellaSelezionata.dataset.descItalic = modalDescItalic.checked ? "1" : "0";
+    cellaSelezionata.dataset.priceBold = modalPriceBold.checked ? "1" : "0";
 
-    cellaSelezionata.dataset.imageFilter = imageFilter;
+    cellaSelezionata.dataset.borderStyle = modalBorderStyle.value;
+    cellaSelezionata.dataset.borderColor = modalBorderColor.value;
+    cellaSelezionata.dataset.radius = modalRadius.value;
+    cellaSelezionata.dataset.bgColor = modalBgColor.value;
+    cellaSelezionata.dataset.shadow = modalShadow.checked ? "1" : "0";
+
+    cellaSelezionata.dataset.imageFilter = modalImageFilter.value;
 
     applyLayout(cellaSelezionata);
     applyPriceStyle(cellaSelezionata);
@@ -1054,12 +1063,13 @@ document.querySelectorAll("[data-price-style]").forEach(btn => {
     cellEditorModal.hide();
   });
 
- /* ---------- SALVATAGGIO VOLANTINO ---------- */
 
-// ID del volantino passato da Flask (stringa sicura)
-let volantinoID = "{{ volantino_id or '' }}";
+  /* ----------------------
+       SALVATAGGIO VOLANTINO
+  -----------------------*/
+  let volantinoID = "{{ volantino_id or '' }}";
 
-document.getElementById("save-layout").addEventListener("click", () => {
+  document.getElementById("save-layout").addEventListener("click", () => {
 
     const data = pagine.map(page => {
       const grid = page.querySelector(".page-grid");
@@ -1068,7 +1078,7 @@ document.getElementById("save-layout").addEventListener("click", () => {
 
       const headerImg = header.querySelector("img")?.src || "";
       const footerImg = footer.querySelector("img")?.src || "";
-      const cols = parseInt(page.dataset.cols || "3", 10);
+      const cols = parseInt(page.dataset.cols);
 
       const cells = [];
       grid.querySelectorAll(".cella-prodotto").forEach(c => {
@@ -1077,26 +1087,26 @@ document.getElementById("save-layout").addEventListener("click", () => {
           titolo: c.querySelector(".titolo")?.innerText || "",
           descrizione: c.querySelector(".descrizione")?.innerText || "",
           prezzo: c.querySelector(".prezzo")?.innerText || "",
-          colSpan: parseInt(c.dataset.colspan || "1", 10),
-          rowSpan: parseInt(c.dataset.rowspan || "1", 10),
-          priceStyle: c.dataset.priceStyle || "base",
-          layout: c.dataset.layout || "image-top",
-          textAlign: c.dataset.textAlign || "start",
-          fontFamily: c.dataset.fontFamily || "",
-          fontColor: c.dataset.fontColor || "#000000",
-          titleSize: c.dataset.titleSize || "14",
-          descSize: c.dataset.descSize || "11",
-          priceSize: c.dataset.priceSize || "16",
-          textUpper: c.dataset.textUpper || "0",
-          titleBold: c.dataset.titleBold || "1",
-          descItalic: c.dataset.descItalic || "0",
-          priceBold: c.dataset.priceBold || "1",
-          borderStyle: c.dataset.borderStyle || "solid",
-          borderColor: c.dataset.borderColor || "#dddddd",
-          radius: c.dataset.radius || "4",
-          bgColor: c.dataset.bgColor || "#ffffff",
-          shadow: c.dataset.shadow || "0",
-          imageFilter: c.dataset.imageFilter || "none"
+          colSpan: c.dataset.colspan,
+          rowSpan: c.dataset.rowspan,
+          priceStyle: c.dataset.priceStyle,
+          layout: c.dataset.layout,
+          textAlign: c.dataset.textAlign,
+          fontFamily: c.dataset.fontFamily,
+          fontColor: c.dataset.fontColor,
+          titleSize: c.dataset.titleSize,
+          descSize: c.dataset.descSize,
+          priceSize: c.dataset.priceSize,
+          textUpper: c.dataset.textUpper,
+          titleBold: c.dataset.titleBold,
+          descItalic: c.dataset.descItalic,
+          priceBold: c.dataset.priceBold,
+          borderStyle: c.dataset.borderStyle,
+          borderColor: c.dataset.borderColor,
+          radius: c.dataset.radius,
+          bgColor: c.dataset.bgColor,
+          shadow: c.dataset.shadow,
+          imageFilter: c.dataset.imageFilter
         });
       });
 
@@ -1115,40 +1125,37 @@ document.getElementById("save-layout").addEventListener("click", () => {
     .then(r => r.json())
     .then(d => {
       alert("Volantino salvato!");
-
-      // Se il server ha generato un nuovo ID, lo aggiorniamo
-      if (d.id) {
-        volantinoID = d.id;
-      }
+      if (d.id) volantinoID = d.id;
     })
     .catch(err => {
       console.error("Errore salvataggio:", err);
-      alert("Errore durante il salvataggio (controlla la console).");
+      alert("Errore durante il salvataggio. Guarda la console.");
     });
 
-});
+  });
 
-  /* ---------- CARICAMENTO VOLANTINO (EDIT) ---------- */
+
+  /* ----------------------
+     RICOSTRUZIONE VOLANTINO
+  -----------------------*/
   {% if layout_json %}
     const salvato = {{ layout_json | safe }};
-    if (Array.isArray(salvato) && salvato.length > 0) {
+    if (Array.isArray(salvato)) {
       salvato.forEach(pData => {
-        const page = creaPagina(pData.cols || 3);
+        const page = creaPagina(pData.cols);
         const grid = page.querySelector(".page-grid");
-        const header = page.querySelector(".page-header");
-        const footer = page.querySelector(".page-footer");
 
         if (pData.headerImg) {
-          header.innerHTML = `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
+          page.querySelector(".page-header").innerHTML =
+            `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
         }
+
         if (pData.footerImg) {
-          footer.innerHTML = `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
+          page.querySelector(".page-footer").innerHTML =
+            `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
         }
 
-        grid.style.gridTemplateColumns = `repeat(${pData.cols || 3}, 1fr)`;
-        grid.style.gridAutoRows = "1fr";
-
-        (pData.cells || []).forEach(item => {
+        pData.cells.forEach(item => {
           const cell = creaCella();
 
           if (item.img) {
@@ -1156,33 +1163,32 @@ document.getElementById("save-layout").addEventListener("click", () => {
               `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
           }
 
-          cell.querySelector(".titolo").innerText = item.titolo || "";
-          cell.querySelector(".descrizione").innerText = item.descrizione || "";
-          cell.querySelector(".prezzo").innerText = item.prezzo || "";
+          cell.querySelector(".titolo").innerText = item.titolo;
+          cell.querySelector(".descrizione").innerText = item.descrizione;
+          cell.querySelector(".prezzo").innerText = item.prezzo;
 
-          cell.dataset.colspan = item.colSpan || 1;
-          cell.dataset.rowspan = item.rowSpan || 1;
-          cell.dataset.priceStyle = item.priceStyle || "base";
-          cell.dataset.layout = item.layout || "image-top";
-          cell.dataset.textAlign = item.textAlign || "start";
-
-          cell.dataset.fontFamily = item.fontFamily || "";
-          cell.dataset.fontColor = item.fontColor || "#000000";
-          cell.dataset.titleSize = item.titleSize || "14";
-          cell.dataset.descSize = item.descSize || "11";
-          cell.dataset.priceSize = item.priceSize || "16";
-          cell.dataset.textUpper = item.textUpper || "0";
-          cell.dataset.titleBold = item.titleBold || "1";
-          cell.dataset.descItalic = item.descItalic || "0";
-          cell.dataset.priceBold = item.priceBold || "1";
-
-          cell.dataset.borderStyle = item.borderStyle || "solid";
-          cell.dataset.borderColor = item.borderColor || "#dddddd";
-          cell.dataset.radius = item.radius || "4";
-          cell.dataset.bgColor = item.bgColor || "#ffffff";
-          cell.dataset.shadow = item.shadow || "0";
-
-          cell.dataset.imageFilter = item.imageFilter || "none";
+          Object.assign(cell.dataset, {
+            colspan: item.colSpan,
+            rowspan: item.rowSpan,
+            priceStyle: item.priceStyle,
+            layout: item.layout,
+            textAlign: item.textAlign,
+            fontFamily: item.fontFamily,
+            fontColor: item.fontColor,
+            titleSize: item.titleSize,
+            descSize: item.descSize,
+            priceSize: item.priceSize,
+            textUpper: item.textUpper,
+            titleBold: item.titleBold,
+            descItalic: item.descItalic,
+            priceBold: item.priceBold,
+            borderStyle: item.borderStyle,
+            borderColor: item.borderColor,
+            radius: item.radius,
+            bgColor: item.bgColor,
+            shadow: item.shadow,
+            imageFilter: item.imageFilter
+          });
 
           applyCellSize(cell);
           applyPriceStyle(cell);
@@ -1200,50 +1206,50 @@ document.getElementById("save-layout").addEventListener("click", () => {
     }
   {% endif %}
 
-  if (pagine.length === 0) {
-    pagine.push(creaPagina(3));
-  }
+  if (!pagine.length) pagine.push(creaPagina(3));
 
   mostraPaginaCorrente();
   aggiornaListaPagine();
 
-  /* ---------- EXPORT PDF MULTIPAGINA ---------- */
+
+  /* ----------------------
+        EXPORT PDF
+  -----------------------*/
   document.getElementById("export-pdf").addEventListener("click", async () => {
     const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-    const paginaOriginale = paginaCorrente;
+
+    const originalPage = paginaCorrente;
 
     for (let i = 0; i < pagine.length; i++) {
       if (i > 0) pdf.addPage();
+
       paginaCorrente = i;
       mostraPaginaCorrente();
 
-      const pageEl = pagine[i];
-      const canvas = await html2canvas(pageEl, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, 800, 1100);
+      const canvas = await html2canvas(pagine[i], { scale: 2 });
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 800, 1100);
     }
 
-    paginaCorrente = paginaOriginale;
+    paginaCorrente = originalPage;
     mostraPaginaCorrente();
 
     pdf.save((inputNome.value || "volantino") + ".pdf");
   });
 
-  /* ---------- EXPORT PNG PAGINA CORRENTE ---------- */
+  /* ----------------------
+        EXPORT PNG
+  -----------------------*/
   document.getElementById("export-png").addEventListener("click", async () => {
-    const pageEl = pagine[paginaCorrente];
-    const canvas = await html2canvas(pageEl, { scale: 2 });
-    const dataUrl = canvas.toDataURL("image/png");
+    const canvas = await html2canvas(pagine[paginaCorrente], { scale: 2 });
     const a = document.createElement("a");
-    a.href = dataUrl;
+    a.href = canvas.toDataURL("image/png");
     a.download = (inputNome.value || "volantino") + "_pag" + (paginaCorrente + 1) + ".png";
-    document.body.appendChild(a);
     a.click();
-    a.remove();
   });
 
 });
 </script>
+
 
 <style>
 .pagina-volantino {
@@ -1314,12 +1320,12 @@ document.getElementById("save-layout").addEventListener("click", () => {
   outline-offset: 2px;
 }
 
-/* Ombra extra box */
+/* Ombra extra */
 .cella-shadow {
   box-shadow: 0 4px 10px rgba(0,0,0,0.18);
 }
 
-/* Stili prezzo base + avanzati */
+/* Prezzi */
 .prezzo-base {
   background: transparent;
   padding: 2px 4px;
@@ -1359,7 +1365,6 @@ document.getElementById("save-layout").addEventListener("click", () => {
   padding: 4px 10px;
   background: #e91e63;
   color: #fff;
-  border-radius: 0;
 }
 
 .prezzo-angle::before {
@@ -1383,7 +1388,7 @@ document.getElementById("save-layout").addEventListener("click", () => {
   opacity: 0.8;
 }
 
-/* Layout vari */
+/* Layout */
 .cella-layout-image-top .cella-inner {
   flex-direction: column;
 }
