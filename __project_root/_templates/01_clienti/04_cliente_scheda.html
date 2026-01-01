@@ -50,14 +50,18 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% set mesi_totali = fatturato_mensile|length %}
   {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
 
+  {# ===== FIX CRESCITA_MENSILE (NORMALIZZAZIONE SICURA) ===== #}
+  {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
+  {% set cm = crescita_mensile if cm_defined else 0 %}
+
   <!-- CICLO CARDS -->
   {% for titolo, valore, colore, icon in [
       ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success',''),
       ('Media Mensile', "%.2f"|format(media)+' €','info',''),
       (
         'Crescita Mensile',
-        (crescita_mensile ~ ' %') if crescita_mensile is defined else '–',
-        'success' if (crescita_mensile is defined and crescita_mensile >= 0) else 'danger',
+        (crescita_mensile ~ ' %') if cm_defined else '–',
+        'success' if cm >= 0 else 'danger',
         'arrow'
       ),
       ('Ultimo Contatto', ultimo_contatto or '–','primary','')
@@ -69,10 +73,10 @@ table tbody tr:hover { background:#f1f3f5 !important; }
       <h4 class="fw-bold text-{{ colore }}">
         {{ valore }}
 
-        {% if icon == 'arrow' and crescita_mensile is defined %}
-          {% if crescita_mensile > 0 %}
+        {% if icon == 'arrow' and cm_defined %}
+          {% if cm > 0 %}
             <i class="bi bi-arrow-up-short text-success"></i>
-          {% elif crescita_mensile < 0 %}
+          {% elif cm < 0 %}
             <i class="bi bi-arrow-down-short text-danger"></i>
           {% endif %}
         {% endif %}
