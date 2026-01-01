@@ -33,8 +33,12 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 
 {% block content %}
 
-{# === STATO CLIENTE: IDENTICO ALLA LISTA CLIENTI === #}
-{% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
+{# === STATO CLIENTE: come lista, ma con fallback se stati_clienti non è passato === #}
+{% if stati_clienti is defined and stati_clienti %}
+  {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
+{% else %}
+  {% set stato = stato_cliente if stato_cliente is defined and stato_cliente else 'inattivo' %}
+{% endif %}
 
 <div class="d-flex align-items-center mb-3">
   <h1 class="mb-0 flex-grow-1">{{ cliente.nome }}
@@ -53,10 +57,11 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% set mesi_totali = fatturato_mensile|length %}
   {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
 
-  {# === FIX CRESCITA_MENSILE === #}
+  {# ===== FIX CRESCITA_MENSILE (NORMALIZZAZIONE SICURA) ===== #}
   {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
   {% set cm = crescita_mensile if cm_defined else 0 %}
 
+  <!-- CICLO CARDS -->
   {% for titolo, valore, colore, icon in [
       ('Fatturato Totale', "%.2f"|format(fatturato_totale or 0)+' €','success',''),
       ('Media Mensile', "%.2f"|format(media)+' €','info',''),
@@ -71,8 +76,10 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   <div class="col-md-3">
     <div class="card h-100 p-2 text-center">
       <h6 class="text-muted">{{ titolo }}</h6>
+
       <h4 class="fw-bold text-{{ colore }}">
         {{ valore }}
+
         {% if icon == 'arrow' and cm_defined %}
           {% if cm > 0 %}
             <i class="bi bi-arrow-up-short text-success"></i>
@@ -81,6 +88,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
           {% endif %}
         {% endif %}
       </h4>
+
     </div>
   </div>
   {% endfor %}
@@ -105,6 +113,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   <div class="col-12 col-lg-6">
     <div class="card h-100 p-2">
       <h6>Ultimi Log</h6>
+
       {% if log_cliente %}
         {% set ultimi_log = log_cliente|sort(attribute='data',reverse=true) %}
         <div class="log-container">
@@ -112,6 +121,13 @@ table tbody tr:hover { background:#f1f3f5 !important; }
             {% for log in ultimi_log[:5] %}
               <li class="d-flex justify-content-between border-bottom py-1">
                 <div>
+                  {% if 'Aggiornato fatturato' in log.descrizione %}
+                    <i class="bi bi-currency-euro text-primary me-1"></i>
+                  {% elif 'Nota' in log.descrizione %}
+                    <i class="bi bi-info-circle-fill text-secondary me-1"></i>
+                  {% else %}
+                    <i class="bi bi-pencil-fill text-warning me-1"></i>
+                  {% endif %}
                   {{ log.descrizione }}
                 </div>
                 <small class="text-muted">{{ log.data.strftime("%d/%m/%Y %H:%M") if log.data else '–' }}</small>
@@ -227,24 +243,49 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
   let chart;
 
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const formatta = m => {
+    const [anno,mese]=m.split('-');
+    return mesiNomi[parseInt(mese)-1]+" '"+anno.slice(2);
+  };
+
   const getData = tipo => {
     const s = tipo==='ultimi3' ? mesi.slice(-3) : mesi;
-    return { labels: s, dati: s.map(m=>fatturato[m]) };
+    return { labels: s.map(formatta), dati: s.map(m=>fatturato[m]) };
   };
+
+  const gradient = ctx.createLinearGradient(0,0,0,150);
+  gradient.addColorStop(0,'rgba(13,110,253,0.8)');
+  gradient.addColorStop(1,'rgba(13,110,253,0.2)');
 
   const aggiornaGrafico = tipo => {
     const d=getData(tipo);
     if(chart) chart.destroy();
     chart=new Chart(ctx,{
       type:'bar',
-      data:{labels:d.labels,datasets:[{data:d.dati}]},
+      data:{labels:d.labels,datasets:[{data:d.dati,backgroundColor:gradient,borderRadius:6,borderSkipped:false}]},
       options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
     });
   };
 
   document.getElementById('filtro-mesi').addEventListener('change', e => aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
+
+  document.querySelectorAll(".categoria-card").forEach(card=>{
+    card.addEventListener("click",()=> {
+      const t=document.getElementById(`tabella-template-${card.dataset.catId}`);
+      document.getElementById("contenitore-tabella").innerHTML=t.innerHTML;
+    });
+  });
 })();
+
+function filtraProdotti(input,catId){
+  const filtro=input.value.toLowerCase();
+  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
+    const nome=r.querySelector("td")?.innerText.toLowerCase()||"";
+    r.style.display = nome.includes(filtro) ? "" : "none";
+  });
+}
 </script>
 
 {% endblock %}
