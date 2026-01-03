@@ -10,192 +10,380 @@
     9:'Settembre',10:'Ottobre',11:'Novembre',12:'Dicembre'
 } %}
 
-<h1 class="mb-4">Modifica Cliente</h1>
-
-<form method="POST" novalidate>
-
-  <!-- Nome cliente -->
-  <div class="mb-3">
-    <label class="form-label">Nome cliente</label>
-    <input type="text" class="form-control" name="nome" value="{{ cliente.nome }}" required>
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="mb-0">Modifica Cliente</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Indietro
+    </a>
+    <button form="form-modifica-cliente" class="btn btn-primary">
+      <i class="bi bi-save"></i> Salva
+    </button>
   </div>
+</div>
 
-  <!-- Zona -->
-  <div class="mb-3">
-    <label class="form-label">Zona</label>
-    <select class="form-select" name="zona" id="zona">
-      {% for z in zone %}
-        <option value="{{ z.nome }}" {% if cliente.zona == z.nome %}selected{% endif %}>
-          {{ z.nome }}
-        </option>
-      {% endfor %}
-      <option disabled>──────────</option>
-      <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>
-        + Aggiungi nuova zona
-      </option>
-    </select>
-  </div>
+<form id="form-modifica-cliente" method="POST" novalidate>
 
-  <!-- Nuova zona -->
-  <div class="mb-3 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
-    <label class="form-label">Nuova zona</label>
-    <input type="text" class="form-control" name="nuova_zona"
-           value="{{ nuova_zona_value or '' }}" placeholder="Inserisci nuova zona">
-  </div>
+  <!-- DATI BASE -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-body">
 
-  <!-- Fatturato -->
-  <fieldset class="mb-4">
-    <legend>Fatturato mensile</legend>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Nome cliente</label>
+          <input type="text" class="form-control" name="nome" value="{{ cliente.nome }}" required>
+        </div>
 
-    <div class="row g-2 mb-3">
-      <div class="col-auto">
-        <label class="form-label">Mese</label>
-        <select class="form-select" name="mese">
-          {% for m,v in mesi.items() %}
-            <option value="{{ m }}" {% if m == fatturato_mese %}selected{% endif %}>{{ v }}</option>
-          {% endfor %}
-        </select>
+        <div class="col-md-6">
+          <label class="form-label">Zona</label>
+          <select class="form-select" name="zona" id="zona">
+            {% for z in zone %}
+              <option value="{{ z.nome }}" {% if cliente.zona == z.nome %}selected{% endif %}>
+                {{ z.nome }}
+              </option>
+            {% endfor %}
+            <option disabled>──────────</option>
+            <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>
+              + Aggiungi nuova zona
+            </option>
+          </select>
+        </div>
+
+        <div class="col-12 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
+          <label class="form-label">Nuova zona</label>
+          <input type="text" class="form-control" name="nuova_zona"
+                 value="{{ nuova_zona_value or '' }}" placeholder="Inserisci nuova zona">
+        </div>
       </div>
 
-      <div class="col-auto">
-        <label class="form-label">Anno</label>
-        <input type="number" class="form-control" name="anno"
-               value="{{ fatturato_anno or current_year }}" min="2000" max="2100">
+    </div>
+  </div>
+
+  <!-- FATTURATO -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Fatturato mensile</h5>
+          <div class="text-muted small">Aggiungi/aggiorna un mese e gestisci lo storico in tabella.</div>
+        </div>
       </div>
     </div>
 
-    <label class="form-label">Importo (€)</label>
-    <input type="number" step="0.01" class="form-control" name="fatturato_mensile"
-           value="{{ fatturato_importo or '' }}">
-  </fieldset>
+    <div class="card-body px-4 pb-4">
 
-  <!-- PRODOTTI -->
-  <div class="mb-4">
-    <h4>Prodotti</h4>
+      <!-- Inserimento rapido (compatibile con il tuo backend attuale) -->
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Mese</label>
+          <select class="form-select" name="mese">
+            {% for m,v in mesi.items() %}
+              <option value="{{ m }}" {% if m == fatturato_mese %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-    {% if categorie %}
-    <ul class="nav nav-tabs mb-3">
-      {% for cat in categorie %}
-      <li class="nav-item">
-        <button type="button" class="nav-link {% if loop.first %}active{% endif %}"
-                data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}">
-          {{ cat.nome }}
-        </button>
-      </li>
-      {% endfor %}
-    </ul>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Anno</label>
+          <input type="number" class="form-control" name="anno"
+                 value="{{ fatturato_anno or current_year }}" min="2000" max="2100">
+        </div>
 
-    <div class="tab-content">
-      {% for cat in categorie %}
-      <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat.id }}">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Importo (€)</label>
+          <input type="number" step="0.01" class="form-control" name="fatturato_mensile"
+                 value="{{ fatturato_importo or '' }}" placeholder="Es. 1250.00">
+        </div>
 
-        <input type="text" class="form-control form-control-sm mb-2 filtro-prodotto"
-               data-cat="{{ cat.id }}" placeholder="Cerca prodotto o fornitore...">
+        <div class="col-12 col-md-2 d-grid">
+          <button type="button" class="btn btn-outline-primary" id="btn-add-fatturato">
+            <i class="bi bi-plus-circle"></i> Aggiungi
+          </button>
+        </div>
+      </div>
+
+      <!-- Storico fatturato (opzionale se passi fatturati_storico) -->
+      <div class="border rounded-4 p-3 bg-light-subtle">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fw-semibold">Storico fatturato</div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="fatturato-sort">
+              <i class="bi bi-sort-down"></i> Ordina
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="fatturato-clear">
+              <i class="bi bi-trash"></i> Svuota tabella
+            </button>
+          </div>
+        </div>
 
         <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle tabella-prodotti-cat"
-                 id="tabella-cat-{{ cat.id }}">
-            <thead class="table-light">
+          <table class="table table-sm align-middle mb-0" id="tabella-fatturato">
+            <thead class="table-light sticky-top">
               <tr>
-                <th></th>
-                <th>Prodotto</th>
-                <th>Fornitore</th>
-                <th>Prezzo Attuale</th>
-                <th>Prezzo Offerta</th>
+                <th style="width:140px;">Mese</th>
+                <th style="width:120px;">Anno</th>
+                <th>Importo (€)</th>
+                <th style="width:90px;" class="text-end">Azioni</th>
               </tr>
             </thead>
-            <tbody>
-
-              {% for p in prodotti if p.categoria_id == cat.id %}
-              {% set pid = p.id|string %}
-              <tr>
-
-                <!-- Checkbox -->
-                <td class="text-center">
-                  <input type="checkbox" class="form-check-input chk-lavorato"
-                         name="prodotti_lavorati[]"
-                         value="{{ p.id }}"
-                         {% if pid in prodotti_lavorati %}checked{% endif %}>
-                </td>
-
-                <!-- Nome -->
-                <td>
-                  <strong>{{ p.nome }}</strong><br>
-                  <small class="text-muted">{{ p.categoria_nome }}</small>
-                </td>
-
-                <!-- Fornitore -->
-                <td>
-                  <input type="text" class="form-control form-control-sm"
-                         name="fornitore[{{ p.id }}]"
-                         value="{{ fornitori.get(pid) }}">
-                </td>
-
-                <!-- Prezzo attuale -->
-                <td>
-                  <input type="number" class="form-control form-control-sm"
-                         step="0.01" min="0"
-                         name="prezzo_attuale[{{ p.id }}]"
-                         value="{{ prezzi_attuali.get(pid,'') }}">
-                </td>
-
-                <!-- Prezzo offerta -->
-                <td>
-                  <input type="number" class="form-control form-control-sm"
-                         step="0.01" min="0"
-                         name="prezzo_offerta[{{ p.id }}]"
-                         value="{{ prezzi_offerta.get(pid,'') }}">
-                </td>
-
-              </tr>
-              {% endfor %}
-
+            <tbody id="fatturato-body">
+              {% if fatturati_storico is defined and fatturati_storico %}
+                {% for f in fatturati_storico %}
+                <tr>
+                  <td>
+                    <select class="form-select form-select-sm fatt-mese">
+                      {% for m,v in mesi.items() %}
+                        <option value="{{ m }}" {% if m == f.mese %}selected{% endif %}>{{ v }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input type="number" class="form-control form-control-sm fatt-anno" value="{{ f.anno }}" min="2000" max="2100"></td>
+                  <td><input type="number" class="form-control form-control-sm fatt-importo" step="0.01" min="0" value="{{ f.importo }}"></td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger fatt-del">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr class="text-muted">
+                  <td colspan="4" class="py-3">
+                    Nessuno storico disponibile (se vuoi, passa <code>fatturati_storico</code> dal backend).
+                  </td>
+                </tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
 
+        {# Hidden input: JSON che il backend può leggere se vuoi (non rompe nulla se lo ignori) #}
+        <input type="hidden" name="fatturato_storico_json" id="fatturato_storico_json" value="">
+
+        <div class="small text-muted mt-2">
+          Suggerimento: puoi gestire mesi/anni direttamente qui. Al salvataggio invio anche un JSON (campo nascosto).
+        </div>
       </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
 
-  <!-- RIEPILOGO -->
-  <hr>
-  <div class="row">
-    <div class="col-md-6 mb-4">
-      <h5>Prodotti Lavorati</h5>
-      <table class="table table-bordered" id="tabella-lavorati">
-        <thead class="table-success">
-          <tr>
-            <th>Prodotto</th>
-            <th>Categoria</th>
-            <th>Fornitore</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="col-md-6 mb-4">
-      <h5>Prodotti Non Lavorati</h5>
-      <table class="table table-bordered" id="tabella-non-lavorati">
-        <thead class="table-danger">
-          <tr>
-            <th>Prodotto</th>
-            <th>Categoria</th>
-            <th>Fornitore</th>
-            <th>Prezzo Attuale</th>
-            <th>Prezzo Offerta</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
     </div>
   </div>
 
-  <button class="btn btn-primary">Salva modifiche</button>
-  <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
+  <!-- PRODOTTI -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+          <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Prodotti</h5>
+          <div class="text-muted small">
+            Spunta “Lavorato”, inserisci fornitore e prezzi. Usa filtri e azioni massive.
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <input id="search-global" type="text" class="form-control form-control-sm" style="min-width:240px"
+                 placeholder="Cerca su tutti i prodotti...">
+          <button type="button" class="btn btn-sm btn-outline-success" id="btn-show-lavorati">
+            <i class="bi bi-check2-circle"></i> Solo lavorati
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger" id="btn-show-non-lavorati">
+            <i class="bi bi-x-circle"></i> Solo non lavorati
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-show-tutti">
+            <i class="bi bi-collection"></i> Tutti
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+
+      {% if categorie %}
+      <ul class="nav nav-pills mb-3 flex-wrap" id="tabs-categorie" role="tablist">
+        {% for cat in categorie %}
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link {% if loop.first %}active{% endif %}"
+                  data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}" role="tab">
+            {{ cat.nome }}
+            <span class="badge text-bg-light ms-2" id="badge-cat-{{ cat.id }}">0</span>
+          </button>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <div class="tab-content">
+        {% for cat in categorie %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat.id }}" role="tabpanel">
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <input type="text" class="form-control form-control-sm filtro-prodotto"
+                   data-cat="{{ cat.id }}" placeholder="Cerca prodotto o fornitore nella categoria...">
+
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary bulk-all" data-cat="{{ cat.id }}">
+                Seleziona tutti
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary bulk-none" data-cat="{{ cat.id }}">
+                Nessuno
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary bulk-visible" data-cat="{{ cat.id }}">
+                Solo visibili
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle tabella-prodotti-cat"
+                   id="tabella-cat-{{ cat.id }}">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th class="text-center" style="width:70px;">Stato</th>
+                  <th>Prodotto</th>
+                  <th style="width:220px;">Fornitore</th>
+                  <th style="width:160px;">Prezzo Attuale</th>
+                  <th style="width:160px;">Prezzo Offerta</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                {% for p in prodotti if p.categoria_id == cat.id %}
+                {% set pid = p.id|string %}
+                <tr data-cat="{{ cat.id }}" data-pid="{{ p.id }}" class="riga-prodotto">
+
+                  <!-- Checkbox + badge -->
+                  <td class="text-center">
+                    <div class="d-flex flex-column align-items-center gap-1">
+                      <input type="checkbox" class="form-check-input chk-lavorato"
+                             name="prodotti_lavorati[]"
+                             value="{{ p.id }}"
+                             {% if pid in prodotti_lavorati %}checked{% endif %}>
+                      <span class="badge badge-stato {% if pid in prodotti_lavorati %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                        {% if pid in prodotti_lavorati %}Lavorato{% else %}No{% endif %}
+                      </span>
+                    </div>
+                  </td>
+
+                  <!-- Nome -->
+                  <td>
+                    <div class="fw-semibold">{{ p.nome }}</div>
+                    <div class="text-muted small">{{ p.categoria_nome }}</div>
+                  </td>
+
+                  <!-- Fornitore -->
+                  <td>
+                    <input type="text" class="form-control form-control-sm inp-fornitore"
+                           name="fornitore[{{ p.id }}]"
+                           value="{{ fornitori.get(pid) }}">
+                  </td>
+
+                  <!-- Prezzo attuale -->
+                  <td>
+                    <input type="number" class="form-control form-control-sm inp-prezzo"
+                           step="0.01" min="0"
+                           name="prezzo_attuale[{{ p.id }}]"
+                           value="{{ prezzi_attuali.get(pid,'') }}"
+                           placeholder="—">
+                  </td>
+
+                  <!-- Prezzo offerta -->
+                  <td>
+                    <input type="number" class="form-control form-control-sm inp-prezzo"
+                           step="0.01" min="0"
+                           name="prezzo_offerta[{{ p.id }}]"
+                           value="{{ prezzi_offerta.get(pid,'') }}"
+                           placeholder="—">
+                  </td>
+
+                </tr>
+                {% endfor %}
+
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- RIEPILOGO (MIGLIORATO) -->
+  <div class="row g-3 mb-4">
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <div class="d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">
+              <i class="bi bi-check2-circle me-2 text-success"></i>Prodotti Lavorati
+            </h5>
+            <span class="badge text-bg-success" id="count-lavorati">0</span>
+          </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+          <input id="search-lavorati" type="text" class="form-control form-control-sm mb-2"
+                 placeholder="Cerca tra i lavorati...">
+          <div class="table-responsive riepilogo-table">
+            <table class="table table-sm table-bordered mb-0" id="tabella-lavorati">
+              <thead class="table-success sticky-top">
+                <tr>
+                  <th>Prodotto</th>
+                  <th>Categoria</th>
+                  <th>Fornitore</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <div class="d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">
+              <i class="bi bi-x-circle me-2 text-danger"></i>Prodotti Non Lavorati
+            </h5>
+            <span class="badge text-bg-danger" id="count-non-lavorati">0</span>
+          </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+          <input id="search-non-lavorati" type="text" class="form-control form-control-sm mb-2"
+                 placeholder="Cerca tra i non lavorati...">
+          <div class="table-responsive riepilogo-table">
+            <table class="table table-sm table-bordered mb-0" id="tabella-non-lavorati">
+              <thead class="table-danger sticky-top">
+                <tr>
+                  <th>Prodotto</th>
+                  <th>Categoria</th>
+                  <th>Fornitore</th>
+                  <th>Prezzo Attuale</th>
+                  <th>Prezzo Offerta</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">
+            Tip: puoi compilare prezzi anche senza spuntare “Lavorato”. Il riepilogo li mostra comunque.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary">
+      <i class="bi bi-save"></i> Salva modifiche
+    </button>
+    <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">
+      Annulla
+    </a>
+  </div>
 
 </form>
 {% endblock %}
@@ -206,43 +394,91 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
+  // ---------- DATI PRODOTTI PER RIEPILOGO ----------
   const lista = [
     {% for p in prodotti %}
-      { id:"{{ p.id }}", nome:"{{ p.nome }}", categoria:"{{ p.categoria_nome }}" },
+      { id:"{{ p.id }}", nome:"{{ p.nome|e }}", categoria:"{{ p.categoria_nome|e }}", catId:"{{ p.categoria_id }}" },
     {% endfor %}
   ];
 
   const tblL = document.querySelector("#tabella-lavorati tbody");
   const tblN = document.querySelector("#tabella-non-lavorati tbody");
 
-  function aggiorna() {
+  const countL = document.getElementById("count-lavorati");
+  const countN = document.getElementById("count-non-lavorati");
+
+  function norm(v){ return (v ?? "").toString().trim(); }
+
+  function aggiornaRiepilogo() {
     tblL.innerHTML = "";
     tblN.innerHTML = "";
 
+    let nL = 0, nN = 0;
+
     lista.forEach(p => {
       const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
-      const forn = document.querySelector(`input[name="fornitore[${p.id}]"]`)?.value || "–";
-      const att = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value || "–";
-      const off = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value || "–";
+      const forn = norm(document.querySelector(`input[name="fornitore[${p.id}]"]`)?.value) || "–";
+      const att = norm(document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value) || "–";
+      const off = norm(document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value) || "–";
 
       if (chk && chk.checked) {
+        nL++;
         tblL.insertAdjacentHTML("beforeend",
           `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
         );
       } else {
+        nN++;
         tblN.insertAdjacentHTML("beforeend",
           `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
         );
       }
+
+      // Aggiorna badge stato in tabella principale
+      const row = document.querySelector(`tr.riga-prodotto[data-pid="${p.id}"]`);
+      if (row) {
+        const badge = row.querySelector(".badge-stato");
+        if (badge) {
+          if (chk && chk.checked) {
+            badge.className = "badge badge-stato text-bg-success";
+            badge.textContent = "Lavorato";
+          } else {
+            badge.className = "badge badge-stato text-bg-secondary";
+            badge.textContent = "No";
+          }
+        }
+      }
+    });
+
+    countL.textContent = nL;
+    countN.textContent = nN;
+
+    aggiornaBadgeCategorie();
+  }
+
+  function aggiornaBadgeCategorie() {
+    // Badge per tab categoria: quanti lavorati in quella categoria / totale visibile
+    const cats = new Map();
+    lista.forEach(p => {
+      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      const key = p.catId;
+      if (!cats.has(key)) cats.set(key, { tot:0, lav:0 });
+      const obj = cats.get(key);
+      obj.tot++;
+      if (chk && chk.checked) obj.lav++;
+    });
+
+    cats.forEach((v, k) => {
+      const b = document.getElementById(`badge-cat-${k}`);
+      if (b) b.textContent = `${v.lav}/${v.tot}`;
     });
   }
 
-  aggiorna();
+  // Aggiorna su change/input
+  aggiornaRiepilogo();
+  document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiornaRiepilogo));
+  document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiornaRiepilogo));
 
-  document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiorna));
-  document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiorna));
-
-  // Filtri
+  // ---------- FILTRO PER CATEGORIA ----------
   document.querySelectorAll(".filtro-prodotto").forEach(inp => {
     inp.addEventListener("keyup", function () {
       const filtro = this.value.toLowerCase();
@@ -252,11 +488,155 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Gestione nuova zona
+  // ---------- FILTRO GLOBALE ----------
+  const searchGlobal = document.getElementById("search-global");
+  if (searchGlobal) {
+    searchGlobal.addEventListener("input", () => {
+      const q = searchGlobal.value.toLowerCase().trim();
+      document.querySelectorAll("tr.riga-prodotto").forEach(r => {
+        r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none";
+      });
+    });
+  }
+
+  // ---------- TOGGLE SOLO LAVORATI / NON LAVORATI / TUTTI ----------
+  function showMode(mode) {
+    document.querySelectorAll("tr.riga-prodotto").forEach(r => {
+      const pid = r.dataset.pid;
+      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${pid}"]`);
+      const isLav = !!(chk && chk.checked);
+
+      if (mode === "lavorati") r.style.display = isLav ? "" : "none";
+      else if (mode === "non") r.style.display = !isLav ? "" : "none";
+      else r.style.display = "";
+    });
+  }
+  document.getElementById("btn-show-lavorati")?.addEventListener("click", () => showMode("lavorati"));
+  document.getElementById("btn-show-non-lavorati")?.addEventListener("click", () => showMode("non"));
+  document.getElementById("btn-show-tutti")?.addEventListener("click", () => showMode("all"));
+
+  // ---------- BULK ACTIONS PER CATEGORIA ----------
+  function getCatRows(catId) {
+    return Array.from(document.querySelectorAll(`#tabella-cat-${catId} tbody tr`));
+  }
+  function setRowsChecked(rows, checked) {
+    rows.forEach(r => {
+      if (r.style.display === "none") return;
+      const chk = r.querySelector(".chk-lavorato");
+      if (chk) chk.checked = checked;
+    });
+    aggiornaRiepilogo();
+  }
+
+  document.querySelectorAll(".bulk-all").forEach(btn => {
+    btn.addEventListener("click", () => setRowsChecked(getCatRows(btn.dataset.cat), true));
+  });
+  document.querySelectorAll(".bulk-none").forEach(btn => {
+    btn.addEventListener("click", () => setRowsChecked(getCatRows(btn.dataset.cat), false));
+  });
+  document.querySelectorAll(".bulk-visible").forEach(btn => {
+    setRowsChecked(getCatRows(btn.dataset.cat).filter(r => r.style.display !== "none"), true);
+  });
+
+  // ---------- RICERCA NEL RIEPILOGO ----------
+  function filterTable(inputId, tableBodySel) {
+    const inp = document.getElementById(inputId);
+    const body = document.querySelector(tableBodySel);
+    if (!inp || !body) return;
+
+    inp.addEventListener("input", () => {
+      const q = inp.value.toLowerCase().trim();
+      body.querySelectorAll("tr").forEach(tr => {
+        tr.style.display = tr.innerText.toLowerCase().includes(q) ? "" : "none";
+      });
+    });
+  }
+  filterTable("search-lavorati", "#tabella-lavorati tbody");
+  filterTable("search-non-lavorati", "#tabella-non-lavorati tbody");
+
+  // ---------- FATTURATO: gestione tabella e JSON ----------
+  const btnAddFat = document.getElementById("btn-add-fatturato");
+  const fatBody = document.getElementById("fatturato-body");
+  const fatJson = document.getElementById("fatturato_storico_json");
+
+  function rowToObj(tr) {
+    const mese = tr.querySelector(".fatt-mese")?.value;
+    const anno = tr.querySelector(".fatt-anno")?.value;
+    const importo = tr.querySelector(".fatt-importo")?.value;
+    return { mese: parseInt(mese || "0", 10), anno: parseInt(anno || "0", 10), importo: parseFloat(importo || "0") };
+  }
+
+  function syncFatturatoJson() {
+    if (!fatBody || !fatJson) return;
+    const rows = Array.from(fatBody.querySelectorAll("tr")).filter(r => r.querySelector(".fatt-mese"));
+    const data = rows.map(rowToObj).filter(o => o.mese && o.anno);
+    fatJson.value = JSON.stringify(data);
+  }
+
+  function bindRow(tr) {
+    tr.querySelector(".fatt-del")?.addEventListener("click", () => {
+      tr.remove();
+      syncFatturatoJson();
+    });
+    tr.querySelectorAll("input,select").forEach(el => el.addEventListener("input", syncFatturatoJson));
+  }
+
+  // Bind righe iniziali (se presenti)
+  document.querySelectorAll("#fatturato-body tr").forEach(tr => {
+    if (tr.querySelector(".fatt-mese")) bindRow(tr);
+  });
+  syncFatturatoJson();
+
+  if (btnAddFat && fatBody) {
+    btnAddFat.addEventListener("click", () => {
+      const meseSel = document.querySelector("select[name='mese']");
+      const annoInp = document.querySelector("input[name='anno']");
+      const impInp  = document.querySelector("input[name='fatturato_mensile']");
+      const meseVal = meseSel?.value || "";
+      const annoVal = annoInp?.value || "";
+      const impVal  = impInp?.value || "";
+
+      const newRow = document.createElement("tr");
+      newRow.innerHTML = `
+        <td>
+          <select class="form-select form-select-sm fatt-mese">
+            ${Array.from(meseSel.options).map(o => `<option value="${o.value}" ${o.value===meseVal?'selected':''}>${o.text}</option>`).join("")}
+          </select>
+        </td>
+        <td><input type="number" class="form-control form-control-sm fatt-anno" value="${annoVal}" min="2000" max="2100"></td>
+        <td><input type="number" class="form-control form-control-sm fatt-importo" step="0.01" min="0" value="${impVal}"></td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger fatt-del"><i class="bi bi-x-lg"></i></button>
+        </td>
+      `;
+      fatBody.appendChild(newRow);
+      bindRow(newRow);
+      syncFatturatoJson();
+    });
+  }
+
+  document.getElementById("fatturato-clear")?.addEventListener("click", () => {
+    if (!fatBody) return;
+    fatBody.innerHTML = "";
+    syncFatturatoJson();
+  });
+
+  document.getElementById("fatturato-sort")?.addEventListener("click", () => {
+    if (!fatBody) return;
+    const rows = Array.from(fatBody.querySelectorAll("tr")).filter(r => r.querySelector(".fatt-mese"));
+    rows.sort((a,b) => {
+      const A = rowToObj(a), B = rowToObj(b);
+      return (B.anno - A.anno) || (B.mese - A.mese);
+    });
+    fatBody.innerHTML = "";
+    rows.forEach(r => fatBody.appendChild(r));
+    syncFatturatoJson();
+  });
+
+  // ---------- NUOVA ZONA ----------
   const zonaSelect = document.getElementById("zona");
   const nuovaZonaWrapper = document.getElementById("nuova-zona-wrapper");
-
-  zonaSelect.addEventListener("change", () =>
+  zonaSelect?.addEventListener("change", () =>
     nuovaZonaWrapper.classList.toggle("d-none", zonaSelect.value !== "nuova_zona")
   );
 
@@ -264,7 +644,13 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
-.tabella-prodotti-cat tr:hover { background:#f5faff; }
-.table-bordered thead { position:sticky; top:0; background:white; z-index:5; }
+/* Piccoli miglioramenti UI */
+.table-hover tbody tr:hover { background:#f5faff; }
+.sticky-top { top: 0; z-index: 5; }
+.riepilogo-table { max-height: 360px; overflow:auto; border-radius: 0.75rem; }
+.card { border-radius: 1rem; }
+.nav-pills .nav-link { border-radius: 999px; }
+.badge-stato { font-weight: 600; }
 </style>
 {% endblock %}
+
