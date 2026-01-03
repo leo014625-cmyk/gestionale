@@ -758,7 +758,6 @@ def parse_decimal(value):
         return Decimal(s)
     except (InvalidOperation, ValueError):
         return None
-
 # --- FUNZIONE PRINCIPALE MODIFICA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -908,31 +907,32 @@ def modifica_cliente(id):
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
             # ---------------------------
-            # FATTURATO (storico da tabella JSON)
+            # FATTURATO (priorità: campi form fatt_*[])
             # ---------------------------
-            fatt_json = (request.form.get("fatturato_storico_json") or "").strip()
             salvato_storico = False
 
-            if fatt_json:
-                try:
-                    righe = json.loads(fatt_json)
-                    if isinstance(righe, list):
-                        # normalizza e tieni solo righe valide
-                        cleaned = []
-                        for r in righe:
-                            mese = parse_int(r.get("mese"))
-                            anno = parse_int(r.get("anno"))
-                            importo = parse_decimal(r.get("importo"))
-                            if mese and anno:
-                                cleaned.append((mese, anno, importo))
+            mesi_list = request.form.getlist("fatt_mese[]")
+            anni_list = request.form.getlist("fatt_anno[]")
+            importi_list = request.form.getlist("fatt_importo[]")
 
-                        # stato DB attuale
+            # 1) Se arrivano le liste (template nuovo) -> usa quelle
+            if mesi_list or anni_list or importi_list:
+                try:
+                    righe = []
+                    for m, a, imp in zip(mesi_list, anni_list, importi_list):
+                        mese_i = parse_int(m)
+                        anno_i = parse_int(a)
+                        imp_d = parse_decimal(imp)  # None se vuoto
+                        if mese_i and anno_i:
+                            righe.append((mese_i, anno_i, imp_d))
+
+                    if righe:
                         cur.execute('SELECT mese, anno FROM fatturato WHERE cliente_id=%s', (id,))
                         existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
 
-                        incoming = {(m, a) for (m, a, _) in cleaned}
+                        incoming = {(m, a) for (m, a, _) in righe}
 
-                        # cancella righe rimosse dalla tabella
+                        # cancella quelli rimossi dalla tabella
                         to_delete = existing - incoming
                         if to_delete:
                             cur.executemany(
@@ -940,8 +940,8 @@ def modifica_cliente(id):
                                 [(id, m, a) for (m, a) in to_delete]
                             )
 
-                        # upsert (update se esiste, insert se no)
-                        for (m, a, imp) in cleaned:
+                        # upsert
+                        for (m, a, imp) in righe:
                             cur.execute('''
                                 SELECT id FROM fatturato
                                 WHERE cliente_id=%s AND mese=%s AND anno=%s
@@ -956,12 +956,60 @@ def modifica_cliente(id):
                                 ''', (id, m, a, imp))
 
                         salvato_storico = True
-                except Exception:
-                    flash("Errore nello storico fatturato (JSON non valido).", "warning")
 
-            # ---------------------------
-            # FATTURATO (fallback: inserimento singolo come prima)
-            # ---------------------------
+                except Exception as e:
+                    flash(f"Errore storico fatturato (campi): {e}", "warning")
+                    salvato_storico = False
+
+            # 2) Se NON ci sono liste, prova JSON (backup)
+            if not salvato_storico:
+                fatt_json = (request.form.get("fatturato_storico_json") or "").strip()
+                if fatt_json:
+                    try:
+                        righe = json.loads(fatt_json)
+                        cleaned = []
+                        if isinstance(righe, list):
+                            for r in righe:
+                                mese = parse_int(r.get("mese"))
+                                anno = parse_int(r.get("anno"))
+                                importo = parse_decimal(r.get("importo"))
+                                if mese and anno:
+                                    cleaned.append((mese, anno, importo))
+
+                        # ✅ se JSON presente ma vuoto/non valido -> NON bloccare fallback
+                        if cleaned:
+                            cur.execute('SELECT mese, anno FROM fatturato WHERE cliente_id=%s', (id,))
+                            existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
+
+                            incoming = {(m, a) for (m, a, _) in cleaned}
+
+                            to_delete = existing - incoming
+                            if to_delete:
+                                cur.executemany(
+                                    'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                    [(id, m, a) for (m, a) in to_delete]
+                                )
+
+                            for (m, a, imp) in cleaned:
+                                cur.execute('''
+                                    SELECT id FROM fatturato
+                                    WHERE cliente_id=%s AND mese=%s AND anno=%s
+                                ''', (id, m, a))
+                                ex = cur.fetchone()
+                                if ex:
+                                    cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (imp, ex["id"]))
+                                else:
+                                    cur.execute('''
+                                        INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                                        VALUES (%s,%s,%s,%s)
+                                    ''', (id, m, a, imp))
+
+                            salvato_storico = True
+
+                    except Exception as e:
+                        flash(f"Errore storico fatturato (JSON): {e}", "warning")
+
+            # 3) Fallback: inserimento singolo come prima
             if not salvato_storico:
                 mese = request.form.get('mese')
                 anno = request.form.get('anno')
@@ -989,8 +1037,8 @@ def modifica_cliente(id):
                                 INSERT INTO fatturato (cliente_id,mese,anno,totale)
                                 VALUES (%s,%s,%s,%s)
                             ''', (id, mese_i, anno_i, imp_d))
-                    except Exception:
-                        flash("Errore importo fatturato", "warning")
+                    except Exception as e:
+                        flash(f"Errore importo fatturato: {e}", "warning")
 
             db.commit()
             flash("Cliente aggiornato con successo!", "success")
@@ -1039,11 +1087,12 @@ def modifica_cliente(id):
         fatturato_mese=mese,
         fatturato_anno=anno,
         fatturato_importo=importo,
-        fatturati_cliente=fatturati_cliente,      # compatibilità vecchia
-        fatturati_storico=fatturati_storico,      # nuovo per tabella storico
+        fatturati_cliente=fatturati_cliente,
+        fatturati_storico=fatturati_storico,
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
+
 
 
 import calendar
