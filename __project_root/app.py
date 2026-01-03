@@ -741,6 +741,24 @@ def nuovo_cliente():
         prodotti=prodotti,
         current_year=current_year
     )
+
+from decimal import Decimal, InvalidOperation
+
+def parse_decimal(value):
+    """
+    Converte input tipo '9,90', '€ 9.90', '' in Decimal o None.
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    s = s.replace("€", "").replace(" ", "").replace(",", ".")
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
+
 # --- FUNZIONE PRINCIPALE MODIFICA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
