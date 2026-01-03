@@ -72,6 +72,9 @@
 
     <div class="card-body px-4 pb-4">
 
+      <!-- ✅ FLAG CRITICO: evita fallback che reinserisce fatturato quando svuoti/modifichi lo storico -->
+      <input type="hidden" name="fatturato_use_storico" value="1">
+
       <!-- Inserimento rapido -->
       <div class="row g-2 align-items-end mb-3">
         <div class="col-12 col-md-3">
