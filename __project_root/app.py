@@ -740,6 +740,19 @@ def nuovo_cliente():
     )
 
 from decimal import Decimal, InvalidOperation
+import json
+from datetime import datetime
+
+def parse_int(value):
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
 
 def parse_decimal(value):
     """
@@ -755,6 +768,8 @@ def parse_decimal(value):
         return Decimal(s)
     except (InvalidOperation, ValueError):
         return None
+
+
 # --- FUNZIONE PRINCIPALE MODIFICA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -904,53 +919,66 @@ def modifica_cliente(id):
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
             # ---------------------------
-            # FATTURATO (priorità: campi form fatt_*[])
+            # FATTURATO (PRIORITÀ: storico tabella)
+            # FIX: supporta modifica, eliminazione, svuota tutto, e rimuove duplicati
             # ---------------------------
             salvato_storico = False
+            use_storico = (request.form.get("fatturato_use_storico") == "1")
 
             mesi_list = request.form.getlist("fatt_mese[]")
             anni_list = request.form.getlist("fatt_anno[]")
             importi_list = request.form.getlist("fatt_importo[]")
 
-            # 1) Se arrivano le liste (template nuovo) -> usa quelle
+            # 1) Se arrivano campi fatt_* -> usa quelli
             if mesi_list or anni_list or importi_list:
                 try:
                     righe = []
-                    for m, a, imp in zip(mesi_list, anni_list, importi_list):
+                    n = max(len(mesi_list), len(anni_list), len(importi_list))
+                    for i in range(n):
+                        m = mesi_list[i] if i < len(mesi_list) else None
+                        a = anni_list[i] if i < len(anni_list) else None
+                        imp = importi_list[i] if i < len(importi_list) else None
+
                         mese_i = parse_int(m)
                         anno_i = parse_int(a)
                         imp_d = parse_decimal(imp)  # None se vuoto
+
                         if mese_i and anno_i:
                             righe.append((mese_i, anno_i, imp_d))
 
-                    if righe:
-                        cur.execute('SELECT mese, anno FROM fatturato WHERE cliente_id=%s', (id,))
-                        existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
+                    # DISTINCT esistenti (così gestisci duplicati già presenti)
+                    cur.execute('''
+                        SELECT DISTINCT mese, anno
+                        FROM fatturato
+                        WHERE cliente_id=%s
+                    ''', (id,))
+                    existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
 
-                        incoming = {(m, a) for (m, a, _) in righe}
+                    incoming = {(m, a) for (m, a, _) in righe}
 
-                        # cancella quelli rimossi dalla tabella
+                    # Se l'utente sta usando lo storico e ha svuotato tutto -> cancella tutto
+                    if use_storico and not righe:
+                        cur.execute('DELETE FROM fatturato WHERE cliente_id=%s', (id,))
+                        salvato_storico = True
+                    else:
+                        # elimina quelli rimossi dalla tabella
                         to_delete = existing - incoming
-                        if to_delete:
-                            cur.executemany(
+                        for (m, a) in to_delete:
+                            cur.execute(
                                 'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                                [(id, m, a) for (m, a) in to_delete]
+                                (id, m, a)
                             )
 
-                        # upsert
+                        # PER OGNI (mese,anno) incoming: delete totale + insert 1 riga (elimina duplicati e aggiorna sempre)
                         for (m, a, imp) in righe:
+                            cur.execute(
+                                'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                (id, m, a)
+                            )
                             cur.execute('''
-                                SELECT id FROM fatturato
-                                WHERE cliente_id=%s AND mese=%s AND anno=%s
-                            ''', (id, m, a))
-                            ex = cur.fetchone()
-                            if ex:
-                                cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (imp, ex["id"]))
-                            else:
-                                cur.execute('''
-                                    INSERT INTO fatturato (cliente_id, mese, anno, totale)
-                                    VALUES (%s,%s,%s,%s)
-                                ''', (id, m, a, imp))
+                                INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                                VALUES (%s,%s,%s,%s)
+                            ''', (id, m, a, imp))
 
                         salvato_storico = True
 
@@ -958,7 +986,7 @@ def modifica_cliente(id):
                     flash(f"Errore storico fatturato (campi): {e}", "warning")
                     salvato_storico = False
 
-            # 2) Se NON ci sono liste, prova JSON (backup)
+            # 2) Se NON salvato con campi, prova JSON (backup)
             if not salvato_storico:
                 fatt_json = (request.form.get("fatturato_storico_json") or "").strip()
                 if fatt_json:
@@ -973,41 +1001,42 @@ def modifica_cliente(id):
                                 if mese and anno:
                                     cleaned.append((mese, anno, importo))
 
-                        # ✅ se JSON presente ma vuoto/non valido -> NON bloccare fallback
-                        if cleaned:
-                            cur.execute('SELECT mese, anno FROM fatturato WHERE cliente_id=%s', (id,))
-                            existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
+                        cur.execute('''
+                            SELECT DISTINCT mese, anno
+                            FROM fatturato
+                            WHERE cliente_id=%s
+                        ''', (id,))
+                        existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
 
-                            incoming = {(m, a) for (m, a, _) in cleaned}
+                        incoming = {(m, a) for (m, a, _) in cleaned}
 
+                        if use_storico and not cleaned:
+                            cur.execute('DELETE FROM fatturato WHERE cliente_id=%s', (id,))
+                            salvato_storico = True
+                        elif cleaned:
                             to_delete = existing - incoming
-                            if to_delete:
-                                cur.executemany(
+                            for (m, a) in to_delete:
+                                cur.execute(
                                     'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                                    [(id, m, a) for (m, a) in to_delete]
+                                    (id, m, a)
                                 )
 
                             for (m, a, imp) in cleaned:
+                                cur.execute(
+                                    'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                    (id, m, a)
+                                )
                                 cur.execute('''
-                                    SELECT id FROM fatturato
-                                    WHERE cliente_id=%s AND mese=%s AND anno=%s
-                                ''', (id, m, a))
-                                ex = cur.fetchone()
-                                if ex:
-                                    cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (imp, ex["id"]))
-                                else:
-                                    cur.execute('''
-                                        INSERT INTO fatturato (cliente_id, mese, anno, totale)
-                                        VALUES (%s,%s,%s,%s)
-                                    ''', (id, m, a, imp))
-
+                                    INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                                    VALUES (%s,%s,%s,%s)
+                                ''', (id, m, a, imp))
                             salvato_storico = True
 
                     except Exception as e:
                         flash(f"Errore storico fatturato (JSON): {e}", "warning")
 
-            # 3) Fallback: inserimento singolo come prima
-            if not salvato_storico:
+            # 3) Fallback: inserimento singolo (solo se NON uso storico)
+            if not salvato_storico and not use_storico:
                 mese = request.form.get('mese')
                 anno = request.form.get('anno')
                 importo = request.form.get('fatturato_mensile')
@@ -1020,20 +1049,16 @@ def modifica_cliente(id):
                         if imp_d is None:
                             raise ValueError("Importo non valido")
 
+                        # delete+insert: evita duplicati e garantisce update
+                        cur.execute(
+                            'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                            (id, mese_i, anno_i)
+                        )
                         cur.execute('''
-                            SELECT id FROM fatturato
-                            WHERE cliente_id=%s AND mese=%s AND anno=%s
-                        ''', (id, mese_i, anno_i))
-                        existing = cur.fetchone()
+                            INSERT INTO fatturato (cliente_id,mese,anno,totale)
+                            VALUES (%s,%s,%s,%s)
+                        ''', (id, mese_i, anno_i, imp_d))
 
-                        if existing:
-                            cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s',
-                                        (imp_d, existing['id']))
-                        else:
-                            cur.execute('''
-                                INSERT INTO fatturato (cliente_id,mese,anno,totale)
-                                VALUES (%s,%s,%s,%s)
-                            ''', (id, mese_i, anno_i, imp_d))
                     except Exception as e:
                         flash(f"Errore importo fatturato: {e}", "warning")
 
@@ -1089,7 +1114,6 @@ def modifica_cliente(id):
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
-
 
 
 import calendar
