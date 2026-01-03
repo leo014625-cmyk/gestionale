@@ -528,15 +528,17 @@ def index():
         notifiche=notifiche
     )
 
+from collections import defaultdict
+from datetime import datetime
+
 # ============================
 # ROUTE CLIENTI
 # ============================
-
 @app.route('/clienti')
 @login_required
 def clienti():
     zona_filtro = request.args.get('zona')
-    stato_filtro = request.args.get('stato')   # ⭐ NUOVO
+    stato_filtro = request.args.get('stato')   # filtro stato
     order = request.args.get('order', 'zona')
     search = request.args.get('search', '').strip().lower()
 
@@ -556,49 +558,56 @@ def clienti():
         cur = db.cursor(cursor_factory=RealDictCursor)
 
         # ----------------------------------------------------
-        # Recupero clienti con filtri zona + ricerca
+        # Query unica: clienti + aggregati fatturato
         # ----------------------------------------------------
-        query = 'SELECT id, nome, zona FROM clienti'
+        query = '''
+            SELECT
+                c.id,
+                c.nome,
+                c.zona,
+
+                COALESCE(SUM(f.totale), 0) AS fatturato_totale,
+                MAX(make_date(f.anno, f.mese, 1)) AS ultimo_fatturato,
+
+                COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS fatt_ref,
+                COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS fatt_prev
+
+            FROM clienti c
+            LEFT JOIN fatturato f ON f.cliente_id = c.id
+        '''
+
         condizioni = []
-        params = []
+        params = [mese_ref, anno_ref, mese_ref_prev, anno_ref_prev]
 
         if zona_filtro:
-            condizioni.append('zona = %s')
+            condizioni.append('c.zona = %s')
             params.append(zona_filtro)
 
         if search:
-            condizioni.append('LOWER(nome) LIKE %s')
+            condizioni.append('LOWER(c.nome) LIKE %s')
             params.append(f'%{search}%')
 
         if condizioni:
             query += ' WHERE ' + ' AND '.join(condizioni)
 
-        query += ' ORDER BY nome'
+        query += '''
+            GROUP BY c.id, c.nome, c.zona
+        '''
+
+        # ordinamento base (poi rifiniamo in Python come prima)
+        query += ' ORDER BY c.nome'
+
         cur.execute(query, params)
-        clienti_rows = cur.fetchall()
+        rows = cur.fetchall()
 
         clienti_list = []
         stati_clienti = {}
         andamento_clienti = {}
 
-        for cliente in clienti_rows:
+        for r in rows:
+            ultimo = r['ultimo_fatturato']
 
-            # Totale fatturato
-            cur.execute('''
-                SELECT COALESCE(SUM(totale),0) AS totale 
-                FROM fatturato 
-                WHERE cliente_id=%s
-            ''', (cliente['id'],))
-            fatturato_totale = cur.fetchone()['totale']
-
-            # Ultimo fatturato → stato cliente
-            cur.execute('''
-                SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato 
-                FROM fatturato 
-                WHERE cliente_id=%s
-            ''', (cliente['id'],))
-            ultimo = cur.fetchone()['ultimo_fatturato']
-
+            # Stato cliente in base all'ultimo fatturato
             if ultimo:
                 giorni_trascorsi = (oggi.date() - ultimo).days
                 if giorni_trascorsi <= 60:
@@ -610,44 +619,32 @@ def clienti():
             else:
                 stato = 'inattivo'
 
-            stati_clienti[cliente['id']] = stato
+            stati_clienti[r['id']] = stato
 
-            # ⭐ Filtro STATO CLIENTE
+            # filtro stato cliente
             if stato_filtro and stato != stato_filtro:
                 continue
 
-            # ANDAMENTO FATTURATO (mese_ref vs mese_ref_prev)
-            cur.execute('''
-                SELECT COALESCE(SUM(totale),0) AS totale 
-                FROM fatturato
-                WHERE cliente_id=%s AND mese=%s AND anno=%s
-            ''', (cliente['id'], mese_ref, anno_ref))
-            fatt_ref = cur.fetchone()['totale']
-
-            cur.execute('''
-                SELECT COALESCE(SUM(totale),0) AS totale 
-                FROM fatturato
-                WHERE cliente_id=%s AND mese=%s AND anno=%s
-            ''', (cliente['id'], mese_ref_prev, anno_ref_prev))
-            fatt_prev = cur.fetchone()['totale']
+            # andamento
+            fatt_ref = float(r['fatt_ref'] or 0)
+            fatt_prev = float(r['fatt_prev'] or 0)
 
             if fatt_prev > 0:
                 andamento = round(((fatt_ref - fatt_prev) / fatt_prev) * 100)
             else:
                 andamento = None
 
-            andamento_clienti[cliente['id']] = andamento
+            andamento_clienti[r['id']] = andamento
 
-            # Aggiungo cliente alla lista finale
             clienti_list.append({
-                'id': cliente['id'],
-                'nome': cliente['nome'],
-                'zona': cliente['zona'],
-                'fatturato_totale': fatturato_totale,
+                'id': r['id'],
+                'nome': r['nome'],
+                'zona': r['zona'],
+                'fatturato_totale': float(r['fatturato_totale'] or 0),
                 'ultimo_fatturato': ultimo
             })
 
-        # Ordinamento
+        # Ordinamento come prima
         if order == 'fatturato':
             clienti_list.sort(key=lambda c: c['fatturato_totale'], reverse=True)
         else:
@@ -658,7 +655,7 @@ def clienti():
         for c in clienti_list:
             clienti_per_zona[c['zona']].append(c)
 
-        # Recupero zone
+        # Recupero zone per select filtro
         cur.execute('SELECT DISTINCT zona FROM clienti')
         zone = cur.fetchall()
         zone_lista = sorted([z['zona'] for z in zone if z['zona']])
@@ -672,7 +669,7 @@ def clienti():
         search=search,
         stati_clienti=stati_clienti,
         andamento_clienti=andamento_clienti,
-        stato_filtro=stato_filtro   # ⭐ PASSATO AL TEMPLATE
+        stato_filtro=stato_filtro
     )
 
 
@@ -1177,53 +1174,34 @@ def cliente_scheda(id):
         categorie = [dict(c) for c in cur.fetchall()]
 
         # ====================================
-        # FATTURATO TOTALI
-        # ====================================
-        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (id,))
-        fatturato_totale = cur.fetchone()['totale']
-
-        # ====================================
-        # CRESCITA MENSILE SU MESI ARRETRATI
+        # FATTURATO: query unica (totale, ultimo mese, ref/ref_prec)
         # ====================================
         cur.execute('''
-            SELECT COALESCE(SUM(totale),0) AS totale
-            FROM fatturato
-            WHERE cliente_id=%s AND mese=%s AND anno=%s
-        ''', (id, mese_ref, anno_ref))
-        fatt_ref = cur.fetchone()['totale']
+            SELECT
+                COALESCE(SUM(totale),0) AS fatturato_totale,
+                MAX(make_date(anno, mese, 1)) AS ultimo_fatturato,
 
-        cur.execute('''
-            SELECT COALESCE(SUM(totale),0) AS totale
+                COALESCE(SUM(CASE WHEN mese=%s AND anno=%s THEN totale ELSE 0 END),0) AS fatt_ref,
+                COALESCE(SUM(CASE WHEN mese=%s AND anno=%s THEN totale ELSE 0 END),0) AS fatt_prec
             FROM fatturato
-            WHERE cliente_id=%s AND mese=%s AND anno=%s
-        ''', (id, mese_ref_prec, anno_ref_prec))
-        fatt_prec = cur.fetchone()['totale']
+            WHERE cliente_id=%s
+        ''', (mese_ref, anno_ref, mese_ref_prec, anno_ref_prec, id))
+        fatt_row = cur.fetchone() or {}
 
-        if fatt_prec > 0:
+        fatturato_totale = fatt_row.get("fatturato_totale", 0) or 0
+        ultimo_fatturato_date = fatt_row.get("ultimo_fatturato")  # date o None
+        fatt_ref = fatt_row.get("fatt_ref", 0) or 0
+        fatt_prec = fatt_row.get("fatt_prec", 0) or 0
+
+        # Crescita mensile
+        if fatt_prec and fatt_prec > 0:
             crescita_mensile = round(((fatt_ref - fatt_prec) / fatt_prec) * 100, 2)
         else:
             crescita_mensile = None
 
-        # ====================================
-        # STATO CLIENTE
-        # ====================================
-        cur.execute('''
-            SELECT anno, mese, MAX(totale) AS totale
-            FROM fatturato
-            WHERE cliente_id=%s
-            GROUP BY anno, mese
-            ORDER BY anno DESC, mese DESC
-            LIMIT 1
-        ''', (id,))
-        ultimo_fatturato_row = cur.fetchone()
-
-        if ultimo_fatturato_row and ultimo_fatturato_row['totale'] > 0:
-            anno = ultimo_fatturato_row['anno']
-            mese = ultimo_fatturato_row['mese']
-            ultimo_giorno = calendar.monthrange(anno, mese)[1]
-            ultimo_fatturato_date = datetime(anno, mese, ultimo_giorno)
-            giorni_ult_fatt = (oggi - ultimo_fatturato_date).days
-
+        # Stato cliente (coerente con /clienti)
+        if ultimo_fatturato_date:
+            giorni_ult_fatt = (oggi.date() - ultimo_fatturato_date).days
             if giorni_ult_fatt <= 60:
                 stato_cliente = "attivo"
             elif 61 <= giorni_ult_fatt <= 91:
