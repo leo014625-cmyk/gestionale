@@ -456,7 +456,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function aggiornaBadgeCategorie() {
-    // Badge per tab categoria: quanti lavorati in quella categoria / totale visibile
     const cats = new Map();
     lista.forEach(p => {
       const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
@@ -534,8 +533,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".bulk-none").forEach(btn => {
     btn.addEventListener("click", () => setRowsChecked(getCatRows(btn.dataset.cat), false));
   });
+  // ✅ FIX: prima veniva eseguito subito; ora è legato al click
   document.querySelectorAll(".bulk-visible").forEach(btn => {
-    setRowsChecked(getCatRows(btn.dataset.cat).filter(r => r.style.display !== "none"), true);
+    btn.addEventListener("click", () => {
+      const rows = getCatRows(btn.dataset.cat).filter(r => r.style.display !== "none");
+      setRowsChecked(rows, true);
+    });
   });
 
   // ---------- RICERCA NEL RIEPILOGO ----------
@@ -563,14 +566,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const mese = tr.querySelector(".fatt-mese")?.value;
     const anno = tr.querySelector(".fatt-anno")?.value;
     const importo = tr.querySelector(".fatt-importo")?.value;
-    return { mese: parseInt(mese || "0", 10), anno: parseInt(anno || "0", 10), importo: parseFloat(importo || "0") };
+    return {
+      mese: parseInt(mese || "0", 10),
+      anno: parseInt(anno || "0", 10),
+      importo: parseFloat(importo || "0")
+    };
   }
 
+  // ✅ FIX CRITICO: se non ci sono righe reali, NON inviare "[]", ma stringa vuota
   function syncFatturatoJson() {
     if (!fatBody || !fatJson) return;
-    const rows = Array.from(fatBody.querySelectorAll("tr")).filter(r => r.querySelector(".fatt-mese"));
+
+    const rows = Array.from(fatBody.querySelectorAll("tr"))
+      .filter(r => r.querySelector(".fatt-mese")); // solo righe reali
+
     const data = rows.map(rowToObj).filter(o => o.mese && o.anno);
-    fatJson.value = JSON.stringify(data);
+
+    fatJson.value = data.length ? JSON.stringify(data) : "";
   }
 
   function bindRow(tr) {
@@ -633,6 +645,11 @@ document.addEventListener("DOMContentLoaded", () => {
     syncFatturatoJson();
   });
 
+  // ✅ Sync garantito prima del submit
+  document.getElementById("form-modifica-cliente")?.addEventListener("submit", () => {
+    syncFatturatoJson();
+  });
+
   // ---------- NUOVA ZONA ----------
   const zonaSelect = document.getElementById("zona");
   const nuovaZonaWrapper = document.getElementById("nuova-zona-wrapper");
@@ -653,4 +670,3 @@ document.addEventListener("DOMContentLoaded", () => {
 .badge-stato { font-weight: 600; }
 </style>
 {% endblock %}
-
