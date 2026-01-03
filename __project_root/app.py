@@ -800,19 +800,17 @@ def modifica_cliente(id):
 
         for p in prodotti_assoc:
             pid = str(p["prodotto_id"])
-
             if p["lavorato"]:
                 prodotti_lavorati.append(pid)
-
             prezzi_attuali[pid] = p["prezzo_attuale"]
             prezzi_offerta[pid] = p["prezzo_offerta"]
             fornitori[pid] = p["fornitore"] or ""
 
         # ============================
-        # FATTURATI
+        # FATTURATI (per tabella storico)
         # ============================
         cur.execute('''
-            SELECT id, mese, anno, totale
+            SELECT id, mese, anno, totale AS importo
             FROM fatturato
             WHERE cliente_id=%s
             ORDER BY anno DESC, mese DESC
@@ -824,16 +822,16 @@ def modifica_cliente(id):
         # ============================
         if request.method == 'POST':
 
-            nome = request.form.get('nome')
+            nome = (request.form.get('nome') or '').strip()
             zona = request.form.get('zona')
-            nuova_zona = request.form.get('nuova_zona', '').strip()
+            nuova_zona = (request.form.get('nuova_zona') or '').strip()
 
             # nuova zona
             if zona == 'nuova_zona' and nuova_zona:
                 zona = nuova_zona
                 try:
                     cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
-                except:
+                except Exception:
                     pass
 
             cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s',
@@ -842,15 +840,18 @@ def modifica_cliente(id):
             # ---------------------------
             # PRODOTTI LAVORATI
             # ---------------------------
-            selezionati = request.form.getlist("prodotti_lavorati[]")
+            selezionati = set(request.form.getlist("prodotti_lavorati[]"))
 
             for prodotto in prodotti:
                 pid = str(prodotto["id"])
                 lavorato = pid in selezionati
 
-                prezzo_attuale = request.form.get(f"prezzo_attuale[{pid}]")
-                prezzo_offerta = request.form.get(f"prezzo_offerta[{pid}]")
-                fornitore_nome = request.form.get(f"fornitore[{pid}]") or None
+                prezzo_attuale_raw = request.form.get(f"prezzo_attuale[{pid}]")
+                prezzo_offerta_raw = request.form.get(f"prezzo_offerta[{pid}]")
+                fornitore_nome = (request.form.get(f"fornitore[{pid}]") or "").strip() or None
+
+                prezzo_attuale = parse_decimal(prezzo_attuale_raw)   # None se vuoto/invalid
+                prezzo_offerta = parse_decimal(prezzo_offerta_raw)   # None se vuoto/invalid
 
                 # --- gestisci fornitore ---
                 fornitore_id = None
@@ -889,35 +890,89 @@ def modifica_cliente(id):
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
             # ---------------------------
-            # FATTURATO
+            # FATTURATO (storico da tabella JSON)
             # ---------------------------
-            mese = request.form.get('mese')
-            anno = request.form.get('anno')
-            importo = request.form.get('fatturato_mensile')
+            fatt_json = (request.form.get("fatturato_storico_json") or "").strip()
+            salvato_storico = False
 
-            if mese and anno and importo:
+            if fatt_json:
                 try:
-                    mese = int(mese)
-                    anno = int(anno)
-                    importo = float(importo)
+                    righe = json.loads(fatt_json)
+                    if isinstance(righe, list):
+                        # normalizza e tieni solo righe valide
+                        cleaned = []
+                        for r in righe:
+                            mese = parse_int(r.get("mese"))
+                            anno = parse_int(r.get("anno"))
+                            importo = parse_decimal(r.get("importo"))
+                            if mese and anno:
+                                cleaned.append((mese, anno, importo))
 
-                    cur.execute('''
-                        SELECT id FROM fatturato
-                        WHERE cliente_id=%s AND mese=%s AND anno=%s
-                    ''', (id, mese, anno))
-                    existing = cur.fetchone()
+                        # stato DB attuale
+                        cur.execute('SELECT mese, anno FROM fatturato WHERE cliente_id=%s', (id,))
+                        existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
 
-                    if existing:
-                        cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s',
-                                    (importo, existing['id']))
-                    else:
+                        incoming = {(m, a) for (m, a, _) in cleaned}
+
+                        # cancella righe rimosse dalla tabella
+                        to_delete = existing - incoming
+                        if to_delete:
+                            cur.executemany(
+                                'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                [(id, m, a) for (m, a) in to_delete]
+                            )
+
+                        # upsert (update se esiste, insert se no)
+                        for (m, a, imp) in cleaned:
+                            cur.execute('''
+                                SELECT id FROM fatturato
+                                WHERE cliente_id=%s AND mese=%s AND anno=%s
+                            ''', (id, m, a))
+                            ex = cur.fetchone()
+                            if ex:
+                                cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (imp, ex["id"]))
+                            else:
+                                cur.execute('''
+                                    INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                                    VALUES (%s,%s,%s,%s)
+                                ''', (id, m, a, imp))
+
+                        salvato_storico = True
+                except Exception:
+                    flash("Errore nello storico fatturato (JSON non valido).", "warning")
+
+            # ---------------------------
+            # FATTURATO (fallback: inserimento singolo come prima)
+            # ---------------------------
+            if not salvato_storico:
+                mese = request.form.get('mese')
+                anno = request.form.get('anno')
+                importo = request.form.get('fatturato_mensile')
+
+                if mese and anno and importo:
+                    try:
+                        mese_i = int(mese)
+                        anno_i = int(anno)
+                        imp_d = parse_decimal(importo)
+                        if imp_d is None:
+                            raise ValueError("Importo non valido")
+
                         cur.execute('''
-                            INSERT INTO fatturato (cliente_id,mese,anno,totale)
-                            VALUES (%s,%s,%s,%s)
-                        ''', (id, mese, anno, importo))
+                            SELECT id FROM fatturato
+                            WHERE cliente_id=%s AND mese=%s AND anno=%s
+                        ''', (id, mese_i, anno_i))
+                        existing = cur.fetchone()
 
-                except:
-                    flash("Errore importo fatturato", "warning")
+                        if existing:
+                            cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s',
+                                        (imp_d, existing['id']))
+                        else:
+                            cur.execute('''
+                                INSERT INTO fatturato (cliente_id,mese,anno,totale)
+                                VALUES (%s,%s,%s,%s)
+                            ''', (id, mese_i, anno_i, imp_d))
+                    except Exception:
+                        flash("Errore importo fatturato", "warning")
 
             db.commit()
             flash("Cliente aggiornato con successo!", "success")
@@ -942,6 +997,15 @@ def modifica_cliente(id):
         nuova_zona_selected = cliente['zona'] not in zone_nomi
         nuova_zona_value = cliente['zona'] if nuova_zona_selected else ''
 
+        # ricarica fatturati per tabella storico
+        cur.execute('''
+            SELECT mese, anno, totale AS importo
+            FROM fatturato
+            WHERE cliente_id=%s
+            ORDER BY anno DESC, mese DESC
+        ''', (id,))
+        fatturati_storico = cur.fetchall()
+
     return render_template(
         '01_clienti/03_modifica_cliente.html',
         cliente=cliente,
@@ -957,11 +1021,11 @@ def modifica_cliente(id):
         fatturato_mese=mese,
         fatturato_anno=anno,
         fatturato_importo=importo,
-        fatturati_cliente=fatturati_cliente,
+        fatturati_cliente=fatturati_cliente,      # compatibilità vecchia
+        fatturati_storico=fatturati_storico,      # nuovo per tabella storico
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
-
 
 
 import calendar
