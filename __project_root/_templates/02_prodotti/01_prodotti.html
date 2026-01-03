@@ -5,38 +5,97 @@
 {% block content %}
 <div class="container py-5">
 
-  <h1 class="mb-4">Gestione Prodotti</h1>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="mb-1">Gestione Prodotti</h1>
+      <div class="text-muted">Categorie, ricerca rapida e azioni sui prodotti.</div>
+    </div>
 
-  <div class="mb-4">
-    <input type="text" id="searchGlobale" class="form-control form-control-lg" placeholder="Cerca prodotto o categoria...">
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success rounded-4 d-flex align-items-center gap-2">
+        <i class="bi bi-plus-circle"></i> Aggiungi Prodotto
+      </a>
+      <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary rounded-4 d-flex align-items-center gap-2">
+        <i class="bi bi-folder2-open"></i> Gestisci Categorie
+      </a>
+    </div>
   </div>
 
-  <div class="mb-4 d-flex gap-2 flex-wrap">
-    <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success rounded-4 d-flex align-items-center gap-2">
-      ➕ Aggiungi Prodotto
-    </a>
-    <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary rounded-4 d-flex align-items-center gap-2">
-      🗂️ Gestisci Categorie
-    </a>
+  <!-- Ricerca globale + quick filters -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-lg-7">
+          <div class="input-group input-group-lg">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="text" id="searchGlobale" class="form-control"
+                   placeholder="Cerca prodotto o categoria...">
+            <button type="button" class="btn btn-outline-secondary" id="btnClearSearch" title="Pulisci">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="form-text">Suggerimento: cerca anche per nome prodotto, non solo categoria.</div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+          <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+            <button type="button" class="btn btn-outline-primary rounded-4" id="btnMostraTutte">
+              <i class="bi bi-grid-3x3-gap"></i> Tutte
+            </button>
+            <button type="button" class="btn btn-outline-primary rounded-4" id="btnSoloPiene" title="Categorie con prodotti">
+              <i class="bi bi-check2-circle"></i> Con prodotti
+            </button>
+            <button type="button" class="btn btn-outline-primary rounded-4" id="btnSoloVuote" title="Categorie senza prodotti">
+              <i class="bi bi-slash-circle"></i> Vuote
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- Cards categorie -->
   <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5" id="categorieCardContainer">
     {% if categorie %}
       {% for categoria in categorie %}
-        <div class="col">
+        {% set n_prod = prodotti_per_categoria.get(categoria.nome, [])|length %}
+        <div class="col categoria-col"
+             data-categoria="{{ categoria.nome }}"
+             data-count="{{ n_prod }}">
           <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
                {% if categoria.immagine %}
                  style="background-image: url('{{ categoria.immagine }}');"
                {% else %}
                  style="background: linear-gradient(135deg, #6c757d, #343a40);"
                {% endif %}
-               data-bs-toggle="modal" 
+               data-bs-toggle="modal"
                data-bs-target="#categoriaModal"
                data-categoria="{{ categoria.nome }}">
-            <div class="overlay d-flex flex-column justify-content-center align-items-center">
-              <h5 class="card-title fw-bold">{{ categoria.nome }}</h5>
-              <p class="text-white">{{ prodotti_per_categoria.get(categoria.nome, [])|length }} prodotti</p>
+
+            <div class="overlay d-flex flex-column justify-content-center align-items-center p-3">
+              <div class="chip mb-2">
+                <i class="bi bi-tags me-1"></i> Categoria
+              </div>
+
+              <h5 class="card-title fw-bold mb-1">{{ categoria.nome }}</h5>
+
+              <div class="d-flex align-items-center gap-2 mt-1">
+                {% if n_prod > 0 %}
+                  <span class="badge text-bg-light">
+                    <i class="bi bi-box-seam me-1"></i> {{ n_prod }} prodotti
+                  </span>
+                {% else %}
+                  <span class="badge text-bg-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i> Nessun prodotto
+                  </span>
+                {% endif %}
+              </div>
+
+              <div class="small text-white-50 mt-3">
+                Clicca per vedere i prodotti
+              </div>
             </div>
+
           </div>
         </div>
       {% endfor %}
@@ -51,18 +110,48 @@
 
   <!-- Modal prodotti -->
   <div class="modal fade" id="categoriaModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content modal-animate">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content modal-animate rounded-4 overflow-hidden">
         <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="categoriaModalLabel">Prodotti</h5>
+          <div>
+            <h5 class="modal-title mb-0" id="categoriaModalLabel">Prodotti</h5>
+            <div class="small text-white-50" id="categoriaModalSub">—</div>
+          </div>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
+
         <div class="modal-body p-0">
-          <div class="search-container p-3 bg-light border-bottom sticky-top">
-            <input type="text" id="searchProdotti" class="form-control" placeholder="Cerca prodotto in questa categoria...">
+          <div class="p-3 bg-light border-bottom sticky-top">
+            <div class="row g-2 align-items-center">
+              <div class="col-12 col-lg-7">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                  <input type="text" id="searchProdotti" class="form-control"
+                         placeholder="Cerca prodotto in questa categoria...">
+                  <button type="button" class="btn btn-outline-secondary" id="btnClearSearchModal" title="Pulisci">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-5">
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-4" id="btnSortAZ">
+                    <i class="bi bi-sort-alpha-down"></i> A-Z
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-4" id="btnSortZA">
+                    <i class="bi bi-sort-alpha-up"></i> Z-A
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="listaProdotti" class="list-group list-group-flush max-height-400 overflow-auto"></div>
+
+          <div class="p-2">
+            <div id="listaProdotti" class="list-group list-group-flush max-height-520 overflow-auto"></div>
+          </div>
         </div>
+
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary rounded-4" data-bs-dismiss="modal">Chiudi</button>
         </div>
@@ -70,7 +159,10 @@
     </div>
   </div>
 
-  <a href="{{ url_for('index') }}" class="btn btn-secondary mt-5 rounded-4">🏠 Torna alla home</a>
+  <a href="{{ url_for('index') }}" class="btn btn-secondary mt-5 rounded-4 d-flex align-items-center gap-2">
+    <i class="bi bi-house-door"></i> Torna alla home
+  </a>
+
 </div>
 {% endblock %}
 
@@ -79,86 +171,220 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const prodottiPerCategoria = {{ prodotti_per_categoria|tojson }};
+
   const modal = document.getElementById('categoriaModal');
   const modalTitle = document.getElementById('categoriaModalLabel');
+  const modalSub = document.getElementById('categoriaModalSub');
   const listaProdotti = document.getElementById('listaProdotti');
-  const searchInput = document.getElementById('searchProdotti');
 
-  function popolaLista(prodotti) {
+  const searchInput = document.getElementById('searchProdotti');
+  const searchGlobale = document.getElementById('searchGlobale');
+
+  const btnClearSearch = document.getElementById('btnClearSearch');
+  const btnClearSearchModal = document.getElementById('btnClearSearchModal');
+
+  const btnSortAZ = document.getElementById('btnSortAZ');
+  const btnSortZA = document.getElementById('btnSortZA');
+
+  const btnMostraTutte = document.getElementById('btnMostraTutte');
+  const btnSoloPiene = document.getElementById('btnSoloPiene');
+  const btnSoloVuote = document.getElementById('btnSoloVuote');
+
+  let categoriaCorrente = null;
+  let prodottiCorrenti = [];
+
+  function escapeHtml(str) {
+    return (str || "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function renderProdotti(prodotti) {
     listaProdotti.innerHTML = '';
     if (!prodotti || prodotti.length === 0) {
-      listaProdotti.innerHTML = `<p class="text-center text-muted py-3">Nessun prodotto in questa categoria.</p>`;
+      listaProdotti.innerHTML = `<div class="text-center text-muted py-4">Nessun prodotto in questa categoria.</div>`;
       return;
     }
+
     prodotti.forEach(p => {
+      const nome = escapeHtml(p.nome);
+
       const item = document.createElement('div');
-      item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap';
+      item.className = 'list-group-item prodotto-row rounded-4 mx-2 my-2';
       item.innerHTML = `
-        <span><i class="bi bi-box-seam me-2"></i>${p.nome}</span>
-        <div class="btn-group btn-group-sm" role="group">
-          <a href="/prodotti/clienti/${p.id}" class="btn btn-info" title="Clienti"><i class="bi bi-people"></i></a>
-          <a href="/prodotti/modifica/${p.id}" class="btn btn-warning" title="Modifica"><i class="bi bi-pencil-square"></i></a>
-          <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto?');">
-            <button type="submit" class="btn btn-danger" title="Elimina"><i class="bi bi-trash"></i></button>
-          </form>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="icon-pill"><i class="bi bi-box-seam"></i></span>
+            <div class="fw-semibold">${nome}</div>
+          </div>
+
+          <div class="btn-group btn-group-sm" role="group">
+            <a href="/prodotti/clienti/${p.id}" class="btn btn-outline-info" title="Clienti">
+              <i class="bi bi-people"></i>
+            </a>
+            <a href="/prodotti/modifica/${p.id}" class="btn btn-outline-warning" title="Modifica">
+              <i class="bi bi-pencil-square"></i>
+            </a>
+            <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline"
+                  onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto?');">
+              <button type="submit" class="btn btn-outline-danger" title="Elimina">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
         </div>
       `;
       listaProdotti.appendChild(item);
     });
   }
 
-  modal.addEventListener('show.bs.modal', (event) => {
-    const button = event.relatedTarget;
-    const categoria = button.getAttribute('data-categoria');
-    modalTitle.textContent = `Prodotti - ${categoria}`;
-    popolaLista(prodottiPerCategoria[categoria] || []);
-    searchInput.value = '';
-  });
+  function applyModalFilter() {
+    const q = (searchInput.value || "").toLowerCase().trim();
+    const filtered = prodottiCorrenti.filter(p => (p.nome || "").toLowerCase().includes(q));
+    renderProdotti(filtered);
+    modalSub.textContent = `${filtered.length} / ${prodottiCorrenti.length} prodotti`;
+  }
 
-  searchInput.addEventListener('input', () => {
-    const query = searchInput.value.toLowerCase();
-    Array.from(listaProdotti.children).forEach(item => {
-      const text = item.textContent.toLowerCase();
-      item.style.display = text.includes(query) ? '' : 'none';
-    });
-  });
+  function filterCategorieCards() {
+    const q = (searchGlobale.value || "").toLowerCase().trim();
+    document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
+      const nomeCat = (col.dataset.categoria || "").toLowerCase();
+      const count = parseInt(col.dataset.count || "0", 10);
 
-  const searchGlobale = document.getElementById('searchGlobale');
-  searchGlobale.addEventListener('input', () => {
-    const query = searchGlobale.value.toLowerCase();
-    document.querySelectorAll('#categorieCardContainer .col').forEach(col => {
-      const card = col.querySelector('.categoria-card');
-      const categoria = card.getAttribute('data-categoria').toLowerCase();
-      const prodotti = prodottiPerCategoria[card.getAttribute('data-categoria')] || [];
-      const matchCategoria = categoria.includes(query);
-      const matchProdotto = prodotti.some(p => p.nome.toLowerCase().includes(query));
+      const prodotti = prodottiPerCategoria[col.dataset.categoria] || [];
+      const matchCategoria = nomeCat.includes(q);
+      const matchProdotto = prodotti.some(p => (p.nome || "").toLowerCase().includes(q));
+
       col.style.display = (matchCategoria || matchProdotto) ? '' : 'none';
     });
+  }
+
+  function filterByCount(mode) {
+    document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
+      const count = parseInt(col.dataset.count || "0", 10);
+      if (mode === "piene") col.style.display = count > 0 ? "" : "none";
+      else if (mode === "vuote") col.style.display = count === 0 ? "" : "none";
+      else col.style.display = "";
+    });
+  }
+
+  modal.addEventListener('show.bs.modal', (event) => {
+    const button = event.relatedTarget;
+    categoriaCorrente = button.getAttribute('data-categoria');
+
+    prodottiCorrenti = (prodottiPerCategoria[categoriaCorrente] || []).slice();
+    modalTitle.textContent = `Prodotti - ${categoriaCorrente}`;
+    modalSub.textContent = `${prodottiCorrenti.length} prodotti`;
+
+    searchInput.value = '';
+    renderProdotti(prodottiCorrenti);
   });
+
+  searchInput.addEventListener('input', applyModalFilter);
+
+  btnClearSearchModal.addEventListener('click', () => {
+    searchInput.value = '';
+    applyModalFilter();
+    searchInput.focus();
+  });
+
+  btnSortAZ.addEventListener('click', () => {
+    prodottiCorrenti.sort((a,b) => (a.nome || "").localeCompare(b.nome || "", 'it', { sensitivity:'base' }));
+    applyModalFilter();
+  });
+
+  btnSortZA.addEventListener('click', () => {
+    prodottiCorrenti.sort((a,b) => (b.nome || "").localeCompare(a.nome || "", 'it', { sensitivity:'base' }));
+    applyModalFilter();
+  });
+
+  searchGlobale.addEventListener('input', filterCategorieCards);
+
+  btnClearSearch.addEventListener('click', () => {
+    searchGlobale.value = '';
+    filterCategorieCards();
+    searchGlobale.focus();
+  });
+
+  btnMostraTutte.addEventListener('click', () => filterByCount("tutte"));
+  btnSoloPiene.addEventListener('click', () => filterByCount("piene"));
+  btnSoloVuote.addEventListener('click', () => filterByCount("vuote"));
+
 });
 </script>
 
 <style>
-.hover-scale { transition: transform 0.3s, box-shadow 0.3s; }
-.hover-scale:hover { transform: scale(1.05); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+.hover-scale { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.hover-scale:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(0,0,0,0.18); }
 
-.categoria-card { border-radius: 1rem; height: 300px; position: relative; overflow: hidden; color: white; background-size: cover; background-position: center; transition: transform 0.5s; }
-.categoria-card:hover { transform: scale(1.05); }
+.categoria-card{
+  border-radius: 1rem;
+  height: 300px;
+  position: relative;
+  overflow: hidden;
+  color: white;
+  background-size: cover;
+  background-position: center;
+}
 
-.overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 2; transition: background 0.3s ease; }
-.categoria-card:hover .overlay { background: rgba(0,0,0,0.15); }
+.overlay{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.40);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 2;
+  transition: background 0.25s ease;
+}
+.categoria-card:hover .overlay{ background: rgba(0,0,0,0.20); }
 
-.card-title { font-size: 1.6rem; transition: text-shadow 0.3s ease; }
-.categoria-card:hover .card-title { text-shadow: 2px 2px 6px rgba(0,0,0,0.7); }
+.chip{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .6rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(6px);
+  font-size: .8rem;
+}
 
-.modal-animate { transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
+.card-title { font-size: 1.6rem; text-shadow: 0 6px 22px rgba(0,0,0,0.30); }
+
+.modal-animate { transform: scale(0.98); opacity: 0; transition: transform 0.2s ease, opacity 0.2s ease; }
 .modal.show .modal-animate { transform: scale(1); opacity: 1; }
 
-.max-height-400 { max-height: 400px; }
-#listaProdotti .list-group-item { border-radius: 0.5rem; margin: 0.5rem 1rem; padding: 0.75rem 1rem; transition: transform 0.2s, box-shadow 0.2s, background 0.2s; background-color: #f8f9fa; cursor: default; display: flex; align-items: center; }
-#listaProdotti .list-group-item i { font-size: 1.2rem; }
-#listaProdotti .list-group-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); background-color: #e9ecef; }
+.max-height-520 { max-height: 520px; }
 
-.search-container.sticky-top { top: 0; z-index: 10; background-color: #fff !important; }
+.prodotto-row{
+  border: 1px solid rgba(0,0,0,0.06);
+  background: #fff;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.prodotto-row:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+  background: #f8f9fa;
+}
+
+.icon-pill{
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13,110,253,0.10);
+  color: #0d6efd;
+}
+
+.cursor-pointer { cursor: pointer; }
 </style>
 {% endblock %}
