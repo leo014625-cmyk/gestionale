@@ -72,7 +72,7 @@
 
     <div class="card-body px-4 pb-4">
 
-      <!-- Inserimento rapido (compatibile con il tuo backend attuale) -->
+      <!-- Inserimento rapido -->
       <div class="row g-2 align-items-end mb-3">
         <div class="col-12 col-md-3">
           <label class="form-label">Mese</label>
@@ -102,7 +102,7 @@
         </div>
       </div>
 
-      <!-- Storico fatturato (opzionale se passi fatturati_storico) -->
+      <!-- Storico fatturato -->
       <div class="border rounded-4 p-3 bg-light-subtle">
         <div class="d-flex align-items-center justify-content-between mb-2">
           <div class="fw-semibold">Storico fatturato</div>
@@ -131,14 +131,23 @@
                 {% for f in fatturati_storico %}
                 <tr>
                   <td>
-                    <select class="form-select form-select-sm fatt-mese">
+                    <!-- ✅ ora invia anche come campi di form -->
+                    <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
                       {% for m,v in mesi.items() %}
                         <option value="{{ m }}" {% if m == f.mese %}selected{% endif %}>{{ v }}</option>
                       {% endfor %}
                     </select>
                   </td>
-                  <td><input type="number" class="form-control form-control-sm fatt-anno" value="{{ f.anno }}" min="2000" max="2100"></td>
-                  <td><input type="number" class="form-control form-control-sm fatt-importo" step="0.01" min="0" value="{{ f.importo }}"></td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm fatt-anno"
+                           name="fatt_anno[]"
+                           value="{{ f.anno }}" min="2000" max="2100">
+                  </td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm fatt-importo"
+                           name="fatt_importo[]"
+                           step="0.01" min="0" value="{{ f.importo }}">
+                  </td>
                   <td class="text-end">
                     <button type="button" class="btn btn-sm btn-outline-danger fatt-del">
                       <i class="bi bi-x-lg"></i>
@@ -149,7 +158,7 @@
               {% else %}
                 <tr class="text-muted">
                   <td colspan="4" class="py-3">
-                    Nessuno storico disponibile (se vuoi, passa <code>fatturati_storico</code> dal backend).
+                    Nessuno storico disponibile.
                   </td>
                 </tr>
               {% endif %}
@@ -157,11 +166,11 @@
           </table>
         </div>
 
-        {# Hidden input: JSON che il backend può leggere se vuoi (non rompe nulla se lo ignori) #}
+        {# ✅ Lasciato come backup (se la route usa ancora il JSON) #}
         <input type="hidden" name="fatturato_storico_json" id="fatturato_storico_json" value="">
 
         <div class="small text-muted mt-2">
-          Suggerimento: puoi gestire mesi/anni direttamente qui. Al salvataggio invio anche un JSON (campo nascosto).
+          Puoi modificare direttamente le righe: al salvataggio invio sia i campi (fatt_*) sia un JSON di supporto.
         </div>
       </div>
 
@@ -249,7 +258,6 @@
                 {% set pid = p.id|string %}
                 <tr data-cat="{{ cat.id }}" data-pid="{{ p.id }}" class="riga-prodotto">
 
-                  <!-- Checkbox + badge -->
                   <td class="text-center">
                     <div class="d-flex flex-column align-items-center gap-1">
                       <input type="checkbox" class="form-check-input chk-lavorato"
@@ -262,20 +270,17 @@
                     </div>
                   </td>
 
-                  <!-- Nome -->
                   <td>
                     <div class="fw-semibold">{{ p.nome }}</div>
                     <div class="text-muted small">{{ p.categoria_nome }}</div>
                   </td>
 
-                  <!-- Fornitore -->
                   <td>
                     <input type="text" class="form-control form-control-sm inp-fornitore"
                            name="fornitore[{{ p.id }}]"
                            value="{{ fornitori.get(pid) }}">
                   </td>
 
-                  <!-- Prezzo attuale -->
                   <td>
                     <input type="number" class="form-control form-control-sm inp-prezzo"
                            step="0.01" min="0"
@@ -284,7 +289,6 @@
                            placeholder="—">
                   </td>
 
-                  <!-- Prezzo offerta -->
                   <td>
                     <input type="number" class="form-control form-control-sm inp-prezzo"
                            step="0.01" min="0"
@@ -308,7 +312,7 @@
     </div>
   </div>
 
-  <!-- RIEPILOGO (MIGLIORATO) -->
+  <!-- RIEPILOGO -->
   <div class="row g-3 mb-4">
 
     <div class="col-12 col-lg-6">
@@ -403,7 +407,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tblL = document.querySelector("#tabella-lavorati tbody");
   const tblN = document.querySelector("#tabella-non-lavorati tbody");
-
   const countL = document.getElementById("count-lavorati");
   const countN = document.getElementById("count-non-lavorati");
 
@@ -433,7 +436,6 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      // Aggiorna badge stato in tabella principale
       const row = document.querySelector(`tr.riga-prodotto[data-pid="${p.id}"]`);
       if (row) {
         const badge = row.querySelector(".badge-stato");
@@ -472,7 +474,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Aggiorna su change/input
   aggiornaRiepilogo();
   document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiornaRiepilogo));
   document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiornaRiepilogo));
@@ -533,7 +534,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".bulk-none").forEach(btn => {
     btn.addEventListener("click", () => setRowsChecked(getCatRows(btn.dataset.cat), false));
   });
-  // ✅ FIX: prima veniva eseguito subito; ora è legato al click
   document.querySelectorAll(".bulk-visible").forEach(btn => {
     btn.addEventListener("click", () => {
       const rows = getCatRows(btn.dataset.cat).filter(r => r.style.display !== "none");
@@ -557,7 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
   filterTable("search-lavorati", "#tabella-lavorati tbody");
   filterTable("search-non-lavorati", "#tabella-non-lavorati tbody");
 
-  // ---------- FATTURATO: gestione tabella e JSON ----------
+  // ---------- FATTURATO: aggiunta righe + JSON backup ----------
   const btnAddFat = document.getElementById("btn-add-fatturato");
   const fatBody = document.getElementById("fatturato-body");
   const fatJson = document.getElementById("fatturato_storico_json");
@@ -573,15 +573,13 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // ✅ FIX CRITICO: se non ci sono righe reali, NON inviare "[]", ma stringa vuota
   function syncFatturatoJson() {
     if (!fatBody || !fatJson) return;
 
     const rows = Array.from(fatBody.querySelectorAll("tr"))
-      .filter(r => r.querySelector(".fatt-mese")); // solo righe reali
+      .filter(r => r.querySelector(".fatt-mese"));
 
     const data = rows.map(rowToObj).filter(o => o.mese && o.anno);
-
     fatJson.value = data.length ? JSON.stringify(data) : "";
   }
 
@@ -593,7 +591,6 @@ document.addEventListener("DOMContentLoaded", () => {
     tr.querySelectorAll("input,select").forEach(el => el.addEventListener("input", syncFatturatoJson));
   }
 
-  // Bind righe iniziali (se presenti)
   document.querySelectorAll("#fatturato-body tr").forEach(tr => {
     if (tr.querySelector(".fatt-mese")) bindRow(tr);
   });
@@ -611,12 +608,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const newRow = document.createElement("tr");
       newRow.innerHTML = `
         <td>
-          <select class="form-select form-select-sm fatt-mese">
+          <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
             ${Array.from(meseSel.options).map(o => `<option value="${o.value}" ${o.value===meseVal?'selected':''}>${o.text}</option>`).join("")}
           </select>
         </td>
-        <td><input type="number" class="form-control form-control-sm fatt-anno" value="${annoVal}" min="2000" max="2100"></td>
-        <td><input type="number" class="form-control form-control-sm fatt-importo" step="0.01" min="0" value="${impVal}"></td>
+        <td><input type="number" class="form-control form-control-sm fatt-anno" name="fatt_anno[]" value="${annoVal}" min="2000" max="2100"></td>
+        <td><input type="number" class="form-control form-control-sm fatt-importo" name="fatt_importo[]" step="0.01" min="0" value="${impVal}"></td>
         <td class="text-end">
           <button type="button" class="btn btn-sm btn-outline-danger fatt-del"><i class="bi bi-x-lg"></i></button>
         </td>
@@ -645,7 +642,6 @@ document.addEventListener("DOMContentLoaded", () => {
     syncFatturatoJson();
   });
 
-  // ✅ Sync garantito prima del submit
   document.getElementById("form-modifica-cliente")?.addEventListener("submit", () => {
     syncFatturatoJson();
   });
@@ -661,7 +657,6 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
-/* Piccoli miglioramenti UI */
 .table-hover tbody tr:hover { background:#f5faff; }
 .sticky-top { top: 0; z-index: 5; }
 .riepilogo-table { max-height: 360px; overflow:auto; border-radius: 0.75rem; }
