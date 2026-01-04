@@ -145,7 +145,7 @@
 
         <div class="row g-3">
 
-<!-- 🔥 COLONNA IMMAGINE — VERSIONE AGGIORNATA -->
+<!-- COLONNA IMMAGINE -->
 <div class="col-md-5">
   <label class="form-label small text-muted">Immagine prodotto</label>
 
@@ -161,13 +161,11 @@
 
   <input type="file" id="modal-image-input" class="d-none" accept="image/*">
 
-  <!-- Controllo Zoom -->
   <div class="mt-2">
     <label class="form-label small text-muted">Zoom immagine</label>
     <input type="range" id="modal-image-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
   </div>
 
-  <!-- NUOVO: Pan X/Y + centra -->
   <div class="mt-2">
     <label class="form-label small text-muted">Posizione orizzontale</label>
     <input type="range" id="modal-image-pos-x" class="form-range" min="0" max="100" step="1" value="50">
@@ -192,10 +190,8 @@
     </select>
   </div>
 </div>
-<!-- 🔥 FINE BLOCCO IMMAGINE -->
 
-
-<!-- COLONNA DATI PRODOTTO (come tua versione) -->
+<!-- COLONNA DATI PRODOTTO -->
 <div class="col-md-7">
 
   <div class="mb-2">
@@ -378,7 +374,15 @@
   </div>
 </div>
 
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+  <div id="appToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-body" id="appToastBody">OK</div>
+  </div>
+</div>
+
 {% endblock %}
+
 {% block scripts %}
 {{ super() }}
 
@@ -396,6 +400,176 @@ document.addEventListener("DOMContentLoaded", () => {
   const pagineContainer = document.getElementById("pagine-container");
   const listaPagine = document.getElementById("lista-pagine");
   const inputNome = document.getElementById("volantino-nome");
+
+  /* ----------------------
+       TOAST
+  -----------------------*/
+  const toastEl = document.getElementById("appToast");
+  const toastBody = document.getElementById("appToastBody");
+  const toast = toastEl ? new bootstrap.Toast(toastEl, { delay: 1800 }) : null;
+
+  function showToast(msg) {
+    if (!toast) return;
+    toastBody.textContent = msg;
+    toast.show();
+  }
+
+  /* ----------------------
+       UNDO / REDO (leggero)
+  -----------------------*/
+  const undoStack = [];
+  const redoStack = [];
+
+  function snapshot() {
+    const page = pagine[paginaCorrente];
+    return page ? page.outerHTML : "";
+  }
+
+  function pushUndo() {
+    const snap = snapshot();
+    if (!snap) return;
+    undoStack.push(snap);
+    redoStack.length = 0;
+  }
+
+  function restore(html) {
+    if (!html) return;
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+    const newPage = wrap.firstElementChild;
+    if (!newPage) return;
+
+    pagine[paginaCorrente] = newPage;
+    mostraPaginaCorrente();
+    aggiornaListaPagine();
+
+    const header = newPage.querySelector(".page-header");
+    const footer = newPage.querySelector(".page-footer");
+    attachImageUpload(header);
+    attachImageUpload(footer);
+
+    const grid = newPage.querySelector(".page-grid");
+    Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost" });
+
+    newPage.querySelectorAll(".cella-prodotto").forEach(c => {
+      initCellaEvents(c);
+      initResize(c);
+      applyCellSize(c);
+      applyPriceStyle(c);
+      applyLayout(c);
+      applyTextAlign(c);
+      applyTypography(c);
+      applyBoxStyle(c);
+      applyImageFilter(c);
+      applyImageTransform(c);
+    });
+
+    clearSelection();
+    markDirty();
+  }
+
+  function undo() {
+    if (!undoStack.length) return;
+    const current = snapshot();
+    const prev = undoStack.pop();
+    redoStack.push(current);
+    restore(prev);
+    showToast("Undo");
+  }
+
+  function redo() {
+    if (!redoStack.length) return;
+    const current = snapshot();
+    const next = redoStack.pop();
+    undoStack.push(current);
+    restore(next);
+    showToast("Redo");
+  }
+
+  /* ----------------------
+       AUTOSAVE debounce
+  -----------------------*/
+  let dirty = false;
+  let autosaveTimer = null;
+
+  function markDirty() {
+    dirty = true;
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      // autosave “silenzioso” (non cambia il tuo salvataggio manuale)
+      dirty = false;
+      // se vuoi, qui puoi richiamare la stessa fetch del save-layout
+      // ma per ora lasciamo solo protezione anti-perdita
+    }, 1200);
+  }
+
+  window.addEventListener("beforeunload", (e) => {
+    if (!dirty) return;
+    e.preventDefault();
+    e.returnValue = "";
+  });
+
+  /* ----------------------
+       SELEZIONE MULTIPLA
+       - click: seleziona
+       - shift/cmd: multi
+       - dblclick / Enter: apre editor
+  -----------------------*/
+  let selectedCells = new Set();
+
+  function clearSelection() {
+    selectedCells.forEach(c => c.classList.remove("cella-selezionata"));
+    selectedCells.clear();
+    cellaSelezionata = null;
+  }
+
+  function selectCell(cell, add=false) {
+    if (!add) clearSelection();
+    selectedCells.add(cell);
+    cell.classList.add("cella-selezionata");
+    cellaSelezionata = cell; // “primaria” = ultima selezionata
+  }
+
+  function applyToSelected(fn) {
+    if (!selectedCells.size) return;
+    pushUndo();
+    selectedCells.forEach(cell => {
+      fn(cell);
+      applyCellSize(cell);
+      applyPriceStyle(cell);
+      applyLayout(cell);
+      applyTextAlign(cell);
+      applyTypography(cell);
+      applyBoxStyle(cell);
+      applyImageFilter(cell);
+      applyImageTransform(cell);
+    });
+    markDirty();
+  }
+
+  window.addEventListener("keydown", (e) => {
+    const isCmd = e.ctrlKey || e.metaKey;
+
+    if (isCmd && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
+    if (isCmd && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+
+    if (e.key === "Enter" && cellaSelezionata) {
+      apriEditorCella(cellaSelezionata);
+    }
+
+    if (e.key === "Escape") {
+      clearSelection();
+    }
+
+    if (e.key === "Delete" && cellaSelezionata) {
+      pushUndo();
+      // elimina tutte le selezionate
+      selectedCells.forEach(c => c.remove());
+      clearSelection();
+      markDirty();
+      showToast("Celle eliminate");
+    }
+  });
 
   /* ----------------------
        VARIABILI MODAL
@@ -525,16 +699,19 @@ document.addEventListener("DOMContentLoaded", () => {
         UPLOAD IMMAGINI
   -----------------------*/
   function attachImageUpload(box) {
-    box.addEventListener("click", () => {
+    box.addEventListener("click", (e) => {
+      e.stopPropagation(); // non interferire con selezione
       const input = document.createElement("input");
       input.type = "file";
       input.accept = "image/*";
-      input.onchange = e => {
-        const file = e.target.files[0];
+      input.onchange = ev => {
+        const file = ev.target.files[0];
         if (!file) return;
         const r = new FileReader();
         r.onload = () => {
+          pushUndo();
           box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
+          markDirty();
         };
         r.readAsDataURL(file);
       };
@@ -637,7 +814,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     Sortable.create(grid, {
       animation: 150,
-      ghostClass: "sortable-ghost"
+      ghostClass: "sortable-ghost",
+      onEnd: () => markDirty()
     });
 
     return page;
@@ -661,21 +839,27 @@ document.addEventListener("DOMContentLoaded", () => {
         paginaCorrente = i;
         mostraPaginaCorrente();
         aggiornaListaPagine();
+        clearSelection();
       };
       listaPagine.appendChild(btn);
     });
   }
 
   document.getElementById("aggiungi-pagina").addEventListener("click", () => {
+    pushUndo();
     const nuova = creaPagina(3);
     pagine.push(nuova);
     paginaCorrente = pagine.length - 1;
     mostraPaginaCorrente();
     aggiornaListaPagine();
+    markDirty();
+    showToast("Pagina aggiunta");
   });
 
   document.getElementById("duplica-pagina").addEventListener("click", () => {
     if (!pagine.length) return;
+    pushUndo();
+
     const originale = pagine[paginaCorrente];
     const clone = originale.cloneNode(true);
 
@@ -689,14 +873,18 @@ document.addEventListener("DOMContentLoaded", () => {
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridAutoRows = "1fr";
 
-    Sortable.create(grid, {
-      animation: 150,
-      ghostClass: "sortable-ghost"
-    });
+    Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost", onEnd: () => markDirty() });
 
     clone.querySelectorAll(".cella-prodotto").forEach(c => {
       initCellaEvents(c);
       initResize(c);
+      applyCellSize(c);
+      applyPriceStyle(c);
+      applyLayout(c);
+      applyTextAlign(c);
+      applyTypography(c);
+      applyBoxStyle(c);
+      applyImageFilter(c);
       applyImageTransform(c);
     });
 
@@ -704,6 +892,8 @@ document.addEventListener("DOMContentLoaded", () => {
     paginaCorrente = pagine.length - 1;
     mostraPaginaCorrente();
     aggiornaListaPagine();
+    markDirty();
+    showToast("Pagina duplicata");
   });
 
   /* ----------------------
@@ -723,6 +913,14 @@ document.addEventListener("DOMContentLoaded", () => {
     prezzoEl.className = "prezzo fw-bold";
     const style = cell.dataset.priceStyle || "base";
     prezzoEl.classList.add("prezzo-" + style);
+
+    // supporto strike (opzionale): se vuoi il vecchio prezzo, imposta data-old-price
+    if (style === "strike") {
+      const old = cell.dataset.oldPrice || "";
+      prezzoEl.setAttribute("data-old", old);
+    } else {
+      prezzoEl.removeAttribute("data-old");
+    }
   }
 
   function applyLayout(cell) {
@@ -773,7 +971,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
-
   function applyTextAlign(cell) {
     const textBox = cell.querySelector(".testo-box");
     if (!textBox) return;
@@ -858,6 +1055,8 @@ document.addEventListener("DOMContentLoaded", () => {
       e.stopPropagation();
       e.preventDefault();
 
+      pushUndo();
+
       const startX = e.clientX;
       const startY = e.clientY;
       const startCol = parseInt(cell.dataset.colspan);
@@ -885,6 +1084,7 @@ document.addEventListener("DOMContentLoaded", () => {
         cell.dataset.rowspan = newRow;
 
         applyCellSize(cell);
+        markDirty();
       }
 
       function onUp() {
@@ -898,9 +1098,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function initCellaEvents(cell) {
-    cell.addEventListener("click", e => {
+    // Click: selezione (multi con shift/cmd)
+    cell.addEventListener("click", (e) => {
+      if (e.target.closest(".resize-handle")) return;
       e.stopPropagation();
-      selezionaCella(cell);
+      const add = e.shiftKey || e.ctrlKey || e.metaKey;
+      selectCell(cell, add);
+    });
+
+    // Doppio click: apre modal
+    cell.addEventListener("dblclick", (e) => {
+      if (e.target.closest(".resize-handle")) return;
+      e.stopPropagation();
+      selectCell(cell, false);
       apriEditorCella(cell);
     });
   }
@@ -933,16 +1143,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     cell.dataset.imageFilter = "none";
 
-    /* NUOVO: zoom/pan per cella */
     cell.dataset.imageZoom = "1";
     cell.dataset.imagePosX = "50";
     cell.dataset.imagePosY = "50";
+
+    // opzionale strike
+    cell.dataset.oldPrice = "";
 
     cell.innerHTML = `
       <div class="cella-inner">
         <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
              style="height: 120px; overflow:hidden;">
-          <span class="text-muted small">Clicca per modificare la box</span>
+          <span class="text-muted small">Doppio click per modificare</span>
         </div>
         <div class="testo-box">
           <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
@@ -968,23 +1180,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return cell;
   }
 
-  function selezionaCella(c) {
-    document.querySelectorAll(".cella-prodotto").forEach(el => {
-      el.classList.remove("cella-selezionata");
-    });
-    c.classList.add("cella-selezionata");
-    cellaSelezionata = c;
-  }
-
-  /* FIX: non deseleziona quando clicchi dentro al modal */
+  /* click fuori: deseleziona (ma non nel modal) */
   document.addEventListener("click", e => {
     if (e.target.closest("#cellEditorModal")) return;
     if (e.target.closest(".cella-prodotto")) return;
-
-    document.querySelectorAll(".cella-prodotto")
-      .forEach(el => el.classList.remove("cella-selezionata"));
-
-    cellaSelezionata = null;
+    clearSelection();
   });
 
   /* ----------------------
@@ -992,24 +1192,24 @@ document.addEventListener("DOMContentLoaded", () => {
   -----------------------*/
   document.querySelectorAll("[data-cell-size]").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!cellaSelezionata) return alert("Seleziona una cella");
-
+      if (!selectedCells.size) return showToast("Seleziona una o più celle");
       const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
-      cellaSelezionata.dataset.colspan = cs;
-      cellaSelezionata.dataset.rowspan = rs;
-
-      applyCellSize(cellaSelezionata);
+      applyToSelected(cell => {
+        cell.dataset.colspan = cs;
+        cell.dataset.rowspan = rs;
+      });
+      showToast("Formato applicato");
     });
   });
 
   document.querySelectorAll("[data-price-style]").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!cellaSelezionata) return alert("Seleziona una cella");
-
+      if (!selectedCells.size) return showToast("Seleziona una o più celle");
       const style = btn.dataset.priceStyle;
-      cellaSelezionata.dataset.priceStyle = style;
-
-      applyPriceStyle(cellaSelezionata);
+      applyToSelected(cell => {
+        cell.dataset.priceStyle = style;
+      });
+      showToast("Stile prezzo applicato");
     });
   });
 
@@ -1018,8 +1218,9 @@ document.addEventListener("DOMContentLoaded", () => {
   -----------------------*/
   document.querySelectorAll("[data-grid]").forEach(btn => {
     btn.addEventListener("click", () => {
-
       if (!pagine.length) return;
+
+      pushUndo();
 
       const [cols, rows] = btn.dataset.grid.split("x").map(Number);
       const page = pagine[paginaCorrente];
@@ -1034,10 +1235,11 @@ document.addEventListener("DOMContentLoaded", () => {
         grid.appendChild(creaCella());
       }
 
-      Sortable.create(grid, {
-        animation: 150,
-        ghostClass: "sortable-ghost"
-      });
+      Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost", onEnd: () => markDirty() });
+
+      clearSelection();
+      markDirty();
+      showToast("Griglia aggiornata");
     });
   });
 
@@ -1045,25 +1247,39 @@ document.addEventListener("DOMContentLoaded", () => {
    DUPLICA / ELIMINA CELLA
   -----------------------*/
   document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella");
+    if (!cellaSelezionata) return showToast("Seleziona una cella");
+
+    pushUndo();
 
     const clone = cellaSelezionata.cloneNode(true);
 
     initCellaEvents(clone);
     initResize(clone);
+    applyCellSize(clone);
+    applyPriceStyle(clone);
+    applyLayout(clone);
+    applyTextAlign(clone);
     applyTypography(clone);
     applyBoxStyle(clone);
     applyImageFilter(clone);
     applyImageTransform(clone);
 
     cellaSelezionata.parentElement.appendChild(clone);
+
+    markDirty();
+    showToast("Cella duplicata");
   });
 
   document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return alert("Seleziona una cella");
+    if (!selectedCells.size) return showToast("Seleziona una o più celle");
 
-    cellaSelezionata.remove();
-    cellaSelezionata = null;
+    pushUndo();
+
+    selectedCells.forEach(c => c.remove());
+    clearSelection();
+
+    markDirty();
+    showToast("Celle eliminate");
   });
 
   /* ----------------------
@@ -1112,7 +1328,6 @@ document.addEventListener("DOMContentLoaded", () => {
     modalShadow.checked = cell.dataset.shadow === "1";
 
     modalImageFilter.value = cell.dataset.imageFilter;
-
     modalProductLibrary.value = "";
 
     cellEditorModal.show();
@@ -1124,6 +1339,8 @@ document.addEventListener("DOMContentLoaded", () => {
   modalSave.addEventListener("click", () => {
     if (!cellaSelezionata) return;
 
+    pushUndo();
+
     const imgBox = cellaSelezionata.querySelector(".img-box");
     const titoloEl = cellaSelezionata.querySelector(".titolo");
     const descEl = cellaSelezionata.querySelector(".descrizione");
@@ -1134,7 +1351,6 @@ document.addEventListener("DOMContentLoaded", () => {
         `<img src="${modalImageData}" style="width:100%; height:100%; object-fit:cover;">`;
     }
 
-    /* salva zoom/pan */
     cellaSelezionata.dataset.imageZoom = String(modalZoomValue);
     cellaSelezionata.dataset.imagePosX = String(modalPosX);
     cellaSelezionata.dataset.imagePosY = String(modalPosY);
@@ -1174,7 +1390,9 @@ document.addEventListener("DOMContentLoaded", () => {
     applyImageFilter(cellaSelezionata);
     applyImageTransform(cellaSelezionata);
 
+    markDirty();
     cellEditorModal.hide();
+    showToast("Box salvata");
   });
 
   /* ----------------------
@@ -1220,11 +1438,10 @@ document.addEventListener("DOMContentLoaded", () => {
           bgColor: c.dataset.bgColor,
           shadow: c.dataset.shadow,
           imageFilter: c.dataset.imageFilter,
-
-          /* NUOVO */
           imageZoom: c.dataset.imageZoom,
           imagePosX: c.dataset.imagePosX,
-          imagePosY: c.dataset.imagePosY
+          imagePosY: c.dataset.imagePosY,
+          oldPrice: c.dataset.oldPrice || ""
         });
       });
 
@@ -1242,12 +1459,13 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .then(r => r.json())
     .then(d => {
-      alert("Volantino salvato!");
+      showToast("Volantino salvato!");
+      dirty = false;
       if (d.id) volantinoID = d.id;
     })
     .catch(err => {
       console.error("Errore salvataggio:", err);
-      alert("Errore durante il salvataggio. Guarda la console.");
+      showToast("Errore salvataggio (console)");
     });
 
   });
@@ -1305,11 +1523,10 @@ document.addEventListener("DOMContentLoaded", () => {
             bgColor: item.bgColor,
             shadow: item.shadow,
             imageFilter: item.imageFilter,
-
-            /* NUOVO */
             imageZoom: item.imageZoom || "1",
             imagePosX: item.imagePosX || "50",
-            imagePosY: item.imagePosY || "50"
+            imagePosY: item.imagePosY || "50",
+            oldPrice: item.oldPrice || ""
           });
 
           applyCellSize(cell);
@@ -1336,11 +1553,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ----------------------
         EXPORT PDF
+        - temporaneamente rimuove outline selezione
   -----------------------*/
   document.getElementById("export-pdf").addEventListener("click", async () => {
     const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-
     const originalPage = paginaCorrente;
+
+    const prevSelected = [...selectedCells];
+    clearSelection();
 
     for (let i = 0; i < pagine.length; i++) {
       if (i > 0) pdf.addPage();
@@ -1348,12 +1568,13 @@ document.addEventListener("DOMContentLoaded", () => {
       paginaCorrente = i;
       mostraPaginaCorrente();
 
-      const canvas = await html2canvas(pagine[i], { scale: 2 });
+      const canvas = await html2canvas(pagine[i], { scale: 2, backgroundColor: "#ffffff" });
       pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 800, 1100);
     }
 
     paginaCorrente = originalPage;
     mostraPaginaCorrente();
+    prevSelected.forEach(c => selectCell(c, true));
 
     pdf.save((inputNome.value || "volantino") + ".pdf");
   });
@@ -1362,11 +1583,16 @@ document.addEventListener("DOMContentLoaded", () => {
         EXPORT PNG
   -----------------------*/
   document.getElementById("export-png").addEventListener("click", async () => {
-    const canvas = await html2canvas(pagine[paginaCorrente], { scale: 2 });
+    const prevSelected = [...selectedCells];
+    clearSelection();
+
+    const canvas = await html2canvas(pagine[paginaCorrente], { scale: 2, backgroundColor: "#ffffff" });
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
     a.download = (inputNome.value || "volantino") + "_pag" + (paginaCorrente + 1) + ".png";
     a.click();
+
+    prevSelected.forEach(c => selectCell(c, true));
   });
 
 });
@@ -1398,13 +1624,9 @@ document.addEventListener("DOMContentLoaded", () => {
   overflow: hidden;
 }
 
-.page-footer {
-  margin-top: 8px;
-}
+.page-footer { margin-top: 8px; }
 
-.page-grid {
-  min-height: 0;
-}
+.page-grid { min-height: 0; }
 
 /* Celle prodotto */
 .cella-prodotto {
@@ -1421,29 +1643,8 @@ document.addEventListener("DOMContentLoaded", () => {
   transform: translateY(-1px);
 }
 
-.cella-inner {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.img-box {
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.img-box img,
-#modal-image-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-.testo-box {
-  padding-top: 3px;
-}
+.img-box img { width:100%; height:100%; object-fit:cover; }
+.testo-box { padding-top: 3px; }
 
 /* Selezione */
 .cella-selezionata {
@@ -1457,47 +1658,12 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 /* Prezzi */
-.prezzo-base {
-  background: transparent;
-  padding: 2px 4px;
-  border-radius: 4px;
-}
-
-.prezzo-yellow {
-  background: #ffeb3b;
-  color: #000;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.prezzo-red {
-  background: #f44336;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.prezzo-blue {
-  background: #2196f3;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.prezzo-round {
-  background: #ff9800;
-  color: #fff;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-
-.prezzo-angle {
-  position: relative;
-  padding: 4px 10px;
-  background: #e91e63;
-  color: #fff;
-}
-
+.prezzo-base { background: transparent; padding: 2px 4px; border-radius: 4px; }
+.prezzo-yellow { background: #ffeb3b; color: #000; padding: 2px 6px; border-radius: 4px; }
+.prezzo-red { background: #f44336; color: #fff; padding: 2px 6px; border-radius: 4px; }
+.prezzo-blue { background: #2196f3; color: #fff; padding: 2px 6px; border-radius: 4px; }
+.prezzo-round { background: #ff9800; color: #fff; padding: 4px 10px; border-radius: 999px; }
+.prezzo-angle { position: relative; padding: 4px 10px; background: #e91e63; color: #fff; }
 .prezzo-angle::before {
   content: "";
   position: absolute;
@@ -1507,10 +1673,7 @@ document.addEventListener("DOMContentLoaded", () => {
   border-left: 10px solid transparent;
 }
 
-.prezzo-strike {
-  display: inline-block;
-}
-
+.prezzo-strike { display: inline-block; }
 .prezzo-strike::before {
   content: attr(data-old);
   display: block;
@@ -1520,27 +1683,11 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 /* Layout */
-.cella-layout-image-top .cella-inner {
-  flex-direction: column;
-}
-
-.cella-layout-image-left .cella-inner {
-  flex-direction: row;
-}
-
-.cella-layout-image-left .img-box {
-  width: 50%;
-  margin-right: 4px;
-}
-
-.cella-layout-full-image-price .cella-inner {
-  position: relative;
-}
-
-.cella-layout-full-image-price .img-box {
-  height: 100%;
-}
-
+.cella-layout-image-top .cella-inner { flex-direction: column; }
+.cella-layout-image-left .cella-inner { flex-direction: row; }
+.cella-layout-image-left .img-box { width: 50%; margin-right: 4px; }
+.cella-layout-full-image-price .cella-inner { position: relative; }
+.cella-layout-full-image-price .img-box { height: 100%; }
 .cella-layout-full-image-price .testo-box {
   position: absolute;
   bottom: 6px;
@@ -1550,15 +1697,10 @@ document.addEventListener("DOMContentLoaded", () => {
   color: #fff;
 }
 
-/* Sortable ghost */
-.sortable-ghost {
-  opacity: 0.4;
-}
+.sortable-ghost { opacity: 0.4; }
 
 /* Modal immagine */
-#modal-image-preview img {
-  display: block;
-}
+#modal-image-preview img { display: block; }
 
 /* Handle resize */
 .resize-handle {
