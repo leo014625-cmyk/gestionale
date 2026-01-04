@@ -41,34 +41,29 @@
       </div>
     </div>
 
+    <!-- Zoom Header -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-aspect-ratio me-1"></i> Zoom immagine header
+      </div>
+      <div class="card-body">
+        <input type="range" id="header-zoom" class="form-range" min="1" max="3" step="0.05" value="1">
+        <div class="small text-muted">Agisce sulla pagina corrente (immagine in alto).</div>
+      </div>
+    </div>
+
     <!-- Layout griglia -->
     <div class="card mb-3 shadow-sm">
       <div class="card-header fw-bold">
         <i class="bi bi-grid-3x3-gap-fill me-1"></i> Layout griglia pagina
       </div>
       <div class="card-body">
+        <!-- Righe fisse = 3: questi bottoni cambiano SOLO le colonne -->
         <button class="btn btn-outline-primary w-100 mb-2" data-grid="2x3">Griglia 2 × 3</button>
         <button class="btn btn-outline-primary w-100 mb-2" data-grid="3x3">Griglia 3 × 3</button>
         <button class="btn btn-outline-primary w-100 mb-2" data-grid="4x3">Griglia 4 × 3</button>
         <small class="text-muted d-block mt-1">
-          Scegli la griglia: ogni cella può essere poi modificata.
-        </small>
-      </div>
-    </div>
-
-    <!-- Formato celle -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-bounding-box-circles me-1"></i> Formato cella selezionata
-      </div>
-      <div class="card-body d-grid gap-2">
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x1">1 × 1 (normale)</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x1">2 × 1 (larga)</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="1x2">1 × 2 (alta)</button>
-        <button class="btn btn-outline-secondary btn-sm" data-cell-size="2x2">2 × 2 (grande)</button>
-        <small class="text-muted">
-          Seleziona una box nel volantino e poi scegli il formato<br>
-          (oppure trascina l’angolo in basso a destra della box).
+          Righe sempre 3 fisse. Le box sono tutte uguali.
         </small>
       </div>
     </div>
@@ -135,241 +130,223 @@
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">
-          ✏️ Modifica box prodotto
-        </h5>
+        <h5 class="modal-title">✏️ Modifica box prodotto</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"
                 aria-label="Chiudi"></button>
       </div>
-      <div class="modal-body">
 
+      <div class="modal-body">
         <div class="row g-3">
 
-<!-- COLONNA IMMAGINE -->
-<div class="col-md-5">
-  <label class="form-label small text-muted">Immagine prodotto</label>
+          <!-- COLONNA IMMAGINE -->
+          <div class="col-md-5">
+            <label class="form-label small text-muted">Immagine prodotto</label>
 
-  <div id="modal-image-preview"
-       class="border rounded d-flex align-items-center justify-content-center mb-2 ratio ratio-4x3 bg-light"
-       style="overflow:hidden; cursor:grab;">
-    <span class="text-muted small">Clicca per caricare immagine</span>
-  </div>
+            <div id="modal-image-preview"
+                 class="border rounded d-flex align-items-center justify-content-center mb-2 ratio ratio-4x3 bg-light"
+                 style="overflow:hidden; cursor:grab;">
+              <span class="text-muted small">Clicca per caricare immagine</span>
+            </div>
 
-  <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
-    🖼️ Cambia immagine
-  </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
+              🖼️ Cambia immagine
+            </button>
+            <input type="file" id="modal-image-input" class="d-none" accept="image/*">
 
-  <input type="file" id="modal-image-input" class="d-none" accept="image/*">
+            <div class="mt-2">
+              <label class="form-label small text-muted">Zoom immagine</label>
+              <input type="range" id="modal-image-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
+            </div>
 
-  <div class="mt-2">
-    <label class="form-label small text-muted">Zoom immagine</label>
-    <input type="range" id="modal-image-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
-  </div>
+            <div class="mt-2">
+              <label class="form-label small text-muted">Posizione orizzontale</label>
+              <input type="range" id="modal-image-pos-x" class="form-range" min="0" max="100" step="1" value="50">
+            </div>
+            <div class="mt-2">
+              <label class="form-label small text-muted">Posizione verticale</label>
+              <input type="range" id="modal-image-pos-y" class="form-range" min="0" max="100" step="1" value="50">
+            </div>
 
-  <div class="mt-2">
-    <label class="form-label small text-muted">Posizione orizzontale</label>
-    <input type="range" id="modal-image-pos-x" class="form-range" min="0" max="100" step="1" value="50">
-  </div>
-  <div class="mt-2">
-    <label class="form-label small text-muted">Posizione verticale</label>
-    <input type="range" id="modal-image-pos-y" class="form-range" min="0" max="100" step="1" value="50">
-  </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-2" id="modal-image-center">
+              🎯 Centra immagine
+            </button>
 
-  <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-2" id="modal-image-center">
-    🎯 Centra immagine
-  </button>
+            <div class="mt-3">
+              <label class="form-label small text-muted">Effetto immagine</label>
+              <select id="modal-image-filter" class="form-select form-select-sm">
+                <option value="none">Nessuno</option>
+                <option value="bw">Bianco e nero</option>
+                <option value="warm">Caldo</option>
+                <option value="cool">Freddo</option>
+                <option value="contrast">Contrasto forte</option>
+              </select>
+            </div>
+          </div>
 
-  <div class="mt-3">
-    <label class="form-label small text-muted">Effetto immagine</label>
-    <select id="modal-image-filter" class="form-select form-select-sm">
-      <option value="none">Nessuno</option>
-      <option value="bw">Bianco e nero</option>
-      <option value="warm">Caldo</option>
-      <option value="cool">Freddo</option>
-      <option value="contrast">Contrasto forte</option>
-    </select>
-  </div>
-</div>
+          <!-- COLONNA DATI PRODOTTO -->
+          <div class="col-md-7">
 
-<!-- COLONNA DATI PRODOTTO -->
-<div class="col-md-7">
+            <div class="mb-2">
+              <label class="form-label small">Nome prodotto</label>
+              <input type="text" id="modal-title" class="form-control form-control-sm"
+                     placeholder="Es. Salmone norvegese intero">
+            </div>
 
-  <div class="mb-2">
-    <label class="form-label small">Nome prodotto</label>
-    <input type="text" id="modal-title" class="form-control form-control-sm"
-           placeholder="Es. Salmone norvegese intero">
-  </div>
+            <div class="mb-2">
+              <label class="form-label small">Descrizione</label>
+              <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
+                        placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
+            </div>
 
-  <div class="mb-2">
-    <label class="form-label small">Descrizione</label>
-    <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
-              placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
-  </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small">Prezzo</label>
+                <input type="text" id="modal-price" class="form-control form-control-sm"
+                       placeholder="Es. € 9,90">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Stile prezzo</label>
+                <select id="modal-price-style" class="form-select form-select-sm">
+                  <option value="base">Semplice</option>
+                  <option value="yellow">Cartellino giallo</option>
+                  <option value="red">Cartellino rosso</option>
+                  <option value="blue">Cartellino blu</option>
+                  <option value="round">Tondo</option>
+                  <option value="angle">Angolo promo</option>
+                  <option value="strike">Barrato + nuovo</option>
+                </select>
+              </div>
+            </div>
 
-  <div class="row g-2 mb-2">
-    <div class="col-6">
-      <label class="form-label small">Prezzo</label>
-      <input type="text" id="modal-price" class="form-control form-control-sm"
-             placeholder="Es. € 9,90">
-    </div>
-    <div class="col-6">
-      <label class="form-label small">Stile prezzo</label>
-      <select id="modal-price-style" class="form-select form-select-sm">
-        <option value="base">Semplice</option>
-        <option value="yellow">Cartellino giallo</option>
-        <option value="red">Cartellino rosso</option>
-        <option value="blue">Cartellino blu</option>
-        <option value="round">Tondo</option>
-        <option value="angle">Angolo promo</option>
-        <option value="strike">Barrato + nuovo</option>
-      </select>
-    </div>
-  </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small">Layout box</label>
+                <select id="modal-layout" class="form-select form-select-sm">
+                  <option value="image-top">Immagine sopra, testo sotto</option>
+                  <option value="image-left">Immagine sinistra, testo destra</option>
+                  <option value="full-image-price">Immagine piena con prezzo</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Allineamento testo</label>
+                <select id="modal-align" class="form-select form-select-sm">
+                  <option value="start">Sinistra</option>
+                  <option value="center">Centro</option>
+                  <option value="end">Destra</option>
+                </select>
+              </div>
+            </div>
 
-  <div class="row g-2 mb-2">
-    <div class="col-6">
-      <label class="form-label small">Layout box</label>
-      <select id="modal-layout" class="form-select form-select-sm">
-        <option value="image-top">Immagine sopra, testo sotto</option>
-        <option value="image-left">Immagine sinistra, testo destra</option>
-        <option value="full-image-price">Immagine piena con prezzo</option>
-      </select>
-    </div>
-    <div class="col-6">
-      <label class="form-label small">Allineamento testo</label>
-      <select id="modal-align" class="form-select form-select-sm">
-        <option value="start">Sinistra</option>
-        <option value="center">Centro</option>
-        <option value="end">Destra</option>
-      </select>
-    </div>
-  </div>
+            <!-- Tipografia -->
+            <div class="border rounded p-2 mb-2 bg-light-subtle">
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small">Font</label>
+                  <select id="modal-font-family" class="form-select form-select-sm">
+                    <option value="">Default</option>
+                    <option value="Roboto, sans-serif">Roboto</option>
+                    <option value="'Open Sans', sans-serif">Open Sans</option>
+                    <option value="Montserrat, sans-serif">Montserrat</option>
+                    <option value="'Lato', sans-serif">Lato</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">Colore testo</label>
+                  <input type="color" id="modal-font-color" class="form-control form-control-sm" value="#000000">
+                </div>
+              </div>
 
-  <!-- Tipografia -->
-  <div class="border rounded p-2 mb-2 bg-light-subtle">
+              <div class="row g-2 mt-2">
+                <div class="col-4">
+                  <label class="form-label small">Titolo (px)</label>
+                  <input type="number" id="modal-title-size" class="form-control form-control-sm" min="8" max="40" value="14">
+                </div>
+                <div class="col-4">
+                  <label class="form-label small">Descrizione (px)</label>
+                  <input type="number" id="modal-desc-size" class="form-control form-control-sm" min="8" max="30" value="11">
+                </div>
+                <div class="col-4">
+                  <label class="form-label small">Prezzo (px)</label>
+                  <input type="number" id="modal-price-size" class="form-control form-control-sm" min="8" max="40" value="16">
+                </div>
+              </div>
 
-    <div class="row g-2">
-      <div class="col-6">
-        <label class="form-label small">Font</label>
-        <select id="modal-font-family" class="form-select form-select-sm">
-          <option value="">Default</option>
-          <option value="Roboto, sans-serif">Roboto</option>
-          <option value="'Open Sans', sans-serif">Open Sans</option>
-          <option value="Montserrat, sans-serif">Montserrat</option>
-          <option value="'Lato', sans-serif">Lato</option>
-        </select>
-      </div>
-      <div class="col-6">
-        <label class="form-label small">Colore testo</label>
-        <input type="color" id="modal-font-color" class="form-control form-control-sm"
-               value="#000000">
-      </div>
-    </div>
+              <div class="mt-2 d-flex flex-wrap gap-3">
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-title-bold">
+                  <label class="form-check-label small">Titolo grassetto</label>
+                </div>
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-desc-italic">
+                  <label class="form-check-label small">Descrizione corsivo</label>
+                </div>
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-price-bold">
+                  <label class="form-check-label small">Prezzo grassetto</label>
+                </div>
+                <div class="form-check form-check-sm">
+                  <input class="form-check-input" type="checkbox" id="modal-text-uppercase">
+                  <label class="form-check-label small">TUTTO MAIUSCOLO</label>
+                </div>
+              </div>
+            </div>
 
-    <div class="row g-2 mt-2">
-      <div class="col-4">
-        <label class="form-label small">Titolo (px)</label>
-        <input type="number" id="modal-title-size" class="form-control form-control-sm"
-               min="8" max="40" value="14">
-      </div>
-      <div class="col-4">
-        <label class="form-label small">Descrizione (px)</label>
-        <input type="number" id="modal-desc-size" class="form-control form-control-sm"
-               min="8" max="30" value="11">
-      </div>
-      <div class="col-4">
-        <label class="form-label small">Prezzo (px)</label>
-        <input type="number" id="modal-price-size" class="form-control form-control-sm"
-               min="8" max="40" value="16">
-      </div>
-    </div>
+            <!-- Stile box -->
+            <div class="border rounded p-2 mb-2 bg-light-subtle">
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small">Bordo</label>
+                  <select id="modal-border-style" class="form-select form-select-sm">
+                    <option value="solid">Solido</option>
+                    <option value="dashed">Tratteggiato</option>
+                    <option value="none">Nessuno</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">Colore bordo</label>
+                  <input type="color" id="modal-border-color" class="form-control form-control-sm" value="#dddddd">
+                </div>
+              </div>
 
-    <div class="mt-2 d-flex flex-wrap gap-3">
-      <div class="form-check form-check-sm">
-        <input class="form-check-input" type="checkbox" id="modal-title-bold">
-        <label class="form-check-label small">Titolo grassetto</label>
-      </div>
-      <div class="form-check form-check-sm">
-        <input class="form-check-input" type="checkbox" id="modal-desc-italic">
-        <label class="form-check-label small">Descrizione corsivo</label>
-      </div>
-      <div class="form-check form-check-sm">
-        <input class="form-check-input" type="checkbox" id="modal-price-bold">
-        <label class="form-check-label small">Prezzo grassetto</label>
-      </div>
-      <div class="form-check form-check-sm">
-        <input class="form-check-input" type="checkbox" id="modal-text-uppercase">
-        <label class="form-check-label small">TUTTO MAIUSCOLO</label>
-      </div>
-    </div>
+              <div class="row g-2 mt-2">
+                <div class="col-4">
+                  <label class="form-label small">Radius (px)</label>
+                  <input type="number" id="modal-radius" class="form-control form-control-sm" min="0" max="30" value="4">
+                </div>
+                <div class="col-4">
+                  <label class="form-label small">Sfondo</label>
+                  <input type="color" id="modal-bgcolor" class="form-control form-control-sm" value="#ffffff">
+                </div>
+                <div class="col-4 d-flex align-items-end">
+                  <div class="form-check form-check-sm">
+                    <input class="form-check-input" type="checkbox" id="modal-shadow">
+                    <label class="form-check-label small">Ombra</label>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-  </div>
+            <!-- Libreria demo -->
+            <div class="border rounded p-2 bg-light-subtle">
+              <label class="form-label small">Libreria prodotti demo</label>
+              <select id="modal-product-library" class="form-select form-select-sm">
+                <option value="">-- scegli --</option>
+                <option value="salmone">Salmone norvegese intero</option>
+                <option value="gamberi">Gamberi argentini sgusciati</option>
+                <option value="polpo">Polpo mediterraneo decongelato</option>
+              </select>
+              <small class="text-muted d-block mt-1">Solo esempio: non collegato al gestionale</small>
+            </div>
 
-  <!-- Stile box -->
-  <div class="border rounded p-2 mb-2 bg-light-subtle">
-    <div class="row g-2">
-      <div class="col-6">
-        <label class="form-label small">Bordo</label>
-        <select id="modal-border-style" class="form-select form-select-sm">
-          <option value="solid">Solido</option>
-          <option value="dashed">Tratteggiato</option>
-          <option value="none">Nessuno</option>
-        </select>
-      </div>
-      <div class="col-6">
-        <label class="form-label small">Colore bordo</label>
-        <input type="color" id="modal-border-color" class="form-control form-control-sm"
-               value="#dddddd">
-      </div>
-    </div>
-
-    <div class="row g-2 mt-2">
-      <div class="col-4">
-        <label class="form-label small">Radius (px)</label>
-        <input type="number" id="modal-radius" class="form-control form-control-sm"
-               min="0" max="30" value="4">
-      </div>
-      <div class="col-4">
-        <label class="form-label small">Sfondo</label>
-        <input type="color" id="modal-bgcolor" class="form-control form-control-sm"
-               value="#ffffff">
-      </div>
-      <div class="col-4 d-flex align-items-end">
-        <div class="form-check form-check-sm">
-          <input class="form-check-input" type="checkbox" id="modal-shadow">
-          <label class="form-check-label small">Ombra</label>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- Libreria demo -->
-  <div class="border rounded p-2 bg-light-subtle">
-    <label class="form-label small">Libreria prodotti demo</label>
-    <select id="modal-product-library" class="form-select form-select-sm">
-      <option value="">-- scegli --</option>
-      <option value="salmone">Salmone norvegese intero</option>
-      <option value="gamberi">Gamberi argentini sgusciati</option>
-      <option value="polpo">Polpo mediterraneo decongelato</option>
-    </select>
-    <small class="text-muted d-block mt-1">
-      Solo esempio: non collegato al gestionale
-    </small>
-  </div>
-
-</div> <!-- fine col 7 -->
-
-        </div>
-
-      </div>
       <div class="modal-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-          Annulla
-        </button>
-        <button type="button" class="btn btn-primary" id="modal-save">
-          💾 Salva box
-        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="modal-save">💾 Salva box</button>
       </div>
+
     </div>
   </div>
 </div>
@@ -415,79 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ----------------------
-       UNDO / REDO (leggero)
-  -----------------------*/
-  const undoStack = [];
-  const redoStack = [];
-
-  function snapshot() {
-    const page = pagine[paginaCorrente];
-    return page ? page.outerHTML : "";
-  }
-
-  function pushUndo() {
-    const snap = snapshot();
-    if (!snap) return;
-    undoStack.push(snap);
-    redoStack.length = 0;
-  }
-
-  function restore(html) {
-    if (!html) return;
-    const wrap = document.createElement("div");
-    wrap.innerHTML = html;
-    const newPage = wrap.firstElementChild;
-    if (!newPage) return;
-
-    pagine[paginaCorrente] = newPage;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-
-    const header = newPage.querySelector(".page-header");
-    const footer = newPage.querySelector(".page-footer");
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
-    const grid = newPage.querySelector(".page-grid");
-    Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost" });
-
-    newPage.querySelectorAll(".cella-prodotto").forEach(c => {
-      initCellaEvents(c);
-      initResize(c);
-      applyCellSize(c);
-      applyPriceStyle(c);
-      applyLayout(c);
-      applyTextAlign(c);
-      applyTypography(c);
-      applyBoxStyle(c);
-      applyImageFilter(c);
-      applyImageTransform(c);
-    });
-
-    clearSelection();
-    markDirty();
-  }
-
-  function undo() {
-    if (!undoStack.length) return;
-    const current = snapshot();
-    const prev = undoStack.pop();
-    redoStack.push(current);
-    restore(prev);
-    showToast("Undo");
-  }
-
-  function redo() {
-    if (!redoStack.length) return;
-    const current = snapshot();
-    const next = redoStack.pop();
-    undoStack.push(current);
-    restore(next);
-    showToast("Redo");
-  }
-
-  /* ----------------------
-       AUTOSAVE debounce
+       AUTOSAVE (dirty flag + protezione)
   -----------------------*/
   let dirty = false;
   let autosaveTimer = null;
@@ -495,12 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function markDirty() {
     dirty = true;
     if (autosaveTimer) clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => {
-      // autosave “silenzioso” (non cambia il tuo salvataggio manuale)
-      dirty = false;
-      // se vuoi, qui puoi richiamare la stessa fetch del save-layout
-      // ma per ora lasciamo solo protezione anti-perdita
-    }, 1200);
+    autosaveTimer = setTimeout(() => { /* hook autosave se vuoi */ }, 1200);
   }
 
   window.addEventListener("beforeunload", (e) => {
@@ -510,10 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ----------------------
-       SELEZIONE MULTIPLA
-       - click: seleziona
-       - shift/cmd: multi
-       - dblclick / Enter: apre editor
+       SELEZIONE
   -----------------------*/
   let selectedCells = new Set();
 
@@ -527,12 +424,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!add) clearSelection();
     selectedCells.add(cell);
     cell.classList.add("cella-selezionata");
-    cellaSelezionata = cell; // “primaria” = ultima selezionata
+    cellaSelezionata = cell;
   }
 
   function applyToSelected(fn) {
     if (!selectedCells.size) return;
-    pushUndo();
     selectedCells.forEach(cell => {
       fn(cell);
       applyCellSize(cell);
@@ -548,28 +444,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.addEventListener("keydown", (e) => {
-    const isCmd = e.ctrlKey || e.metaKey;
-
-    if (isCmd && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
-    if (isCmd && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
-
     if (e.key === "Enter" && cellaSelezionata) {
       apriEditorCella(cellaSelezionata);
     }
-
     if (e.key === "Escape") {
       clearSelection();
     }
-
-    if (e.key === "Delete" && cellaSelezionata) {
-      pushUndo();
-      // elimina tutte le selezionate
+    if (e.key === "Delete" && selectedCells.size) {
       selectedCells.forEach(c => c.remove());
       clearSelection();
       markDirty();
       showToast("Celle eliminate");
     }
   });
+
+  /* ----------------------
+       HEADER ZOOM (pagina corrente)
+  -----------------------*/
+  const headerZoomInput = document.getElementById("header-zoom");
+
+  function applyHeaderZoom(pageEl) {
+    const z = parseFloat(pageEl.dataset.headerZoom || "1");
+    const img = pageEl.querySelector(".page-header img");
+    if (!img) return;
+    img.style.transform = `scale(${z})`;
+  }
+
+  function syncHeaderZoomUI() {
+    const page = pagine[paginaCorrente];
+    if (!page || !headerZoomInput) return;
+    const z = parseFloat(page.dataset.headerZoom || "1");
+    headerZoomInput.value = z;
+    applyHeaderZoom(page);
+  }
+
+  if (headerZoomInput) {
+    headerZoomInput.addEventListener("input", () => {
+      const page = pagine[paginaCorrente];
+      if (!page) return;
+      page.dataset.headerZoom = String(parseFloat(headerZoomInput.value));
+      applyHeaderZoom(page);
+      markDirty();
+    });
+  }
 
   /* ----------------------
        VARIABILI MODAL
@@ -626,7 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
     img.style.objectPosition = `${modalPosX}% ${modalPosY}%`;
   }
 
-  /* Drag per spostare l'inquadratura */
+  /* Drag per spostare l'inquadratura nel modal */
   let isDragging = false;
   let dragStartX = 0;
   let dragStartY = 0;
@@ -695,30 +612,6 @@ document.addEventListener("DOMContentLoaded", () => {
     modalPrice.value = productLibrary[key].prezzo;
   });
 
-  /* ----------------------
-        UPLOAD IMMAGINI
-  -----------------------*/
-  function attachImageUpload(box) {
-    box.addEventListener("click", (e) => {
-      e.stopPropagation(); // non interferire con selezione
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.onchange = ev => {
-        const file = ev.target.files[0];
-        if (!file) return;
-        const r = new FileReader();
-        r.onload = () => {
-          pushUndo();
-          box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
-          markDirty();
-        };
-        r.readAsDataURL(file);
-      };
-      input.click();
-    });
-  }
-
   function setModalImage(src) {
     modalImageData = src || "";
     if (!src) {
@@ -734,22 +627,17 @@ document.addEventListener("DOMContentLoaded", () => {
     modalZoomValue = parseFloat(modalImageZoom.value);
     applyModalImageTransform();
   });
-
   modalImagePosX.addEventListener("input", () => {
     modalPosX = parseInt(modalImagePosX.value, 10);
     applyModalImageTransform();
   });
-
   modalImagePosY.addEventListener("input", () => {
     modalPosY = parseInt(modalImagePosY.value, 10);
     applyModalImageTransform();
   });
-
   modalImageCenter.addEventListener("click", () => {
-    modalPosX = 50;
-    modalPosY = 50;
-    modalImagePosX.value = 50;
-    modalImagePosY.value = 50;
+    modalPosX = 50; modalPosY = 50;
+    modalImagePosX.value = 50; modalImagePosY.value = 50;
     applyModalImageTransform();
   });
 
@@ -758,7 +646,6 @@ document.addEventListener("DOMContentLoaded", () => {
     modalChangeImage.click();
   });
   modalChangeImage.addEventListener("click", () => modalImageInput.click());
-
   modalImageInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -782,6 +669,77 @@ document.addEventListener("DOMContentLoaded", () => {
     img.style.objectPosition = `${x}% ${y}%`;
   }
 
+  function applyImageFilter(cell) {
+    const img = cell.querySelector(".img-box img");
+    if (!img) return;
+
+    let f = "none";
+    switch (cell.dataset.imageFilter) {
+      case "bw": f = "grayscale(1)"; break;
+      case "warm": f = "contrast(1.05) saturate(1.2)"; break;
+      case "cool": f = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)"; break;
+      case "contrast": f = "contrast(1.3) saturate(1.2)"; break;
+    }
+    img.style.filter = f;
+  }
+
+  /* ----------------------
+        UPLOAD IMMAGINI HEADER/FOOTER
+        + applica zoom header
+  -----------------------*/
+  function attachImageUpload(box) {
+    box.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = ev => {
+        const file = ev.target.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = () => {
+          box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
+
+          const page = box.closest(".pagina-volantino");
+          if (page && box.classList.contains("page-header")) {
+            if (!page.dataset.headerZoom) page.dataset.headerZoom = "1";
+            applyHeaderZoom(page);
+            syncHeaderZoomUI();
+          }
+
+          markDirty();
+        };
+        r.readAsDataURL(file);
+      };
+      input.click();
+    });
+  }
+
+  /* ----------------------
+       GRIGLIA FISSA: 3 RIGHE
+  -----------------------*/
+  function setFixedGrid(pageEl, cols, rows = 3) {
+    const grid = pageEl.querySelector(".page-grid");
+    const header = pageEl.querySelector(".page-header");
+    const footer = pageEl.querySelector(".page-footer");
+
+    const gap = 10;
+
+    grid.style.display = "grid";
+    grid.style.gap = gap + "px";
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    // calcolo altezza righe (3 righe fisse)
+    const pageH = pageEl.clientHeight; // 1100px
+    const paddingTopBottom = 20; // padding 10 + 10
+    const available = pageH - header.offsetHeight - footer.offsetHeight - paddingTopBottom;
+
+    const rowH = Math.floor((available - gap * (rows - 1)) / rows);
+
+    grid.style.gridTemplateRows = `repeat(${rows}, ${rowH}px)`;
+    grid.style.alignItems = "stretch";
+  }
+
   /* ----------------------
            PAGINE
   -----------------------*/
@@ -789,6 +747,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const page = document.createElement("div");
     page.classList.add("pagina-volantino");
     page.dataset.cols = cols;
+    page.dataset.headerZoom = page.dataset.headerZoom || "1";
 
     page.innerHTML = `
       <div class="page-header img-drop">
@@ -804,13 +763,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const footer = page.querySelector(".page-footer");
     const grid   = page.querySelector(".page-grid");
 
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridAutoRows = "1fr";
-    grid.style.gap = "10px";
-
     attachImageUpload(header);
     attachImageUpload(footer);
+
+    // IMPORTANT: griglia fissa 3 righe
+    setFixedGrid(page, cols, 3);
 
     Sortable.create(grid, {
       animation: 150,
@@ -824,6 +781,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function mostraPaginaCorrente() {
     pagineContainer.innerHTML = "";
     pagineContainer.appendChild(pagine[paginaCorrente]);
+
+    // riallinea grid e header zoom
+    const page = pagine[paginaCorrente];
+    setFixedGrid(page, parseInt(page.dataset.cols || "3", 10), 3);
+    applyHeaderZoom(page);
+    syncHeaderZoomUI();
   }
 
   function aggiornaListaPagine() {
@@ -844,66 +807,15 @@ document.addEventListener("DOMContentLoaded", () => {
       listaPagine.appendChild(btn);
     });
   }
-
-  document.getElementById("aggiungi-pagina").addEventListener("click", () => {
-    pushUndo();
-    const nuova = creaPagina(3);
-    pagine.push(nuova);
-    paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-    markDirty();
-    showToast("Pagina aggiunta");
-  });
-
-  document.getElementById("duplica-pagina").addEventListener("click", () => {
-    if (!pagine.length) return;
-    pushUndo();
-
-    const originale = pagine[paginaCorrente];
-    const clone = originale.cloneNode(true);
-
-    const header = clone.querySelector(".page-header");
-    const footer = clone.querySelector(".page-footer");
-    attachImageUpload(header);
-    attachImageUpload(footer);
-
-    const grid = clone.querySelector(".page-grid");
-    const cols = originale.dataset.cols || 3;
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridAutoRows = "1fr";
-
-    Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost", onEnd: () => markDirty() });
-
-    clone.querySelectorAll(".cella-prodotto").forEach(c => {
-      initCellaEvents(c);
-      initResize(c);
-      applyCellSize(c);
-      applyPriceStyle(c);
-      applyLayout(c);
-      applyTextAlign(c);
-      applyTypography(c);
-      applyBoxStyle(c);
-      applyImageFilter(c);
-      applyImageTransform(c);
-    });
-
-    pagine.push(clone);
-    paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-    markDirty();
-    showToast("Pagina duplicata");
-  });
-
   /* ----------------------
       FUNZIONI STILE CELLE
   -----------------------*/
   function applyCellSize(cell) {
-    const colSpan = parseInt(cell.dataset.colspan || "1", 10);
-    const rowSpan = parseInt(cell.dataset.rowspan || "1", 10);
-    cell.style.gridColumn = `span ${colSpan}`;
-    cell.style.gridRow = `span ${rowSpan}`;
+    // ✅ Celle sempre fisse 1x1
+    cell.dataset.colspan = "1";
+    cell.dataset.rowspan = "1";
+    cell.style.gridColumn = "span 1";
+    cell.style.gridRow = "span 1";
   }
 
   function applyPriceStyle(cell) {
@@ -914,7 +826,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const style = cell.dataset.priceStyle || "base";
     prezzoEl.classList.add("prezzo-" + style);
 
-    // supporto strike (opzionale): se vuoi il vecchio prezzo, imposta data-old-price
     if (style === "strike") {
       const old = cell.dataset.oldPrice || "";
       prezzoEl.setAttribute("data-old", old);
@@ -935,7 +846,6 @@ document.addEventListener("DOMContentLoaded", () => {
       "cella-layout-image-left",
       "cella-layout-full-image-price"
     );
-
     cell.classList.add("cella-layout-" + layout);
 
     if (!wrapper || !imgBox || !textBox) return;
@@ -948,7 +858,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (layout === "image-top") {
       wrapper.style.display = "flex";
       wrapper.style.flexDirection = "column";
-      imgBox.style.height = "55%";
+      // imgBox gestito da flex CSS
     }
     else if (layout === "image-left") {
       wrapper.style.display = "flex";
@@ -957,8 +867,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     else if (layout === "full-image-price") {
       wrapper.style.position = "relative";
-      imgBox.style.height = "100%";
-
       textBox.style.position = "absolute";
       textBox.style.bottom = "6px";
       textBox.style.left = "6px";
@@ -971,12 +879,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
+
   function applyTextAlign(cell) {
     const textBox = cell.querySelector(".testo-box");
     if (!textBox) return;
 
     textBox.classList.remove("text-start", "text-center", "text-end");
-
     const align = cell.dataset.textAlign || "start";
     if (align === "center") textBox.classList.add("text-center");
     else if (align === "end") textBox.classList.add("text-end");
@@ -1010,12 +918,10 @@ document.addEventListener("DOMContentLoaded", () => {
       titoloEl.style.fontSize = titleSize + "px";
       titoloEl.classList.toggle("fw-bold", titleBold);
     }
-
     if (descEl) {
       descEl.style.fontSize = descSize + "px";
       descEl.style.fontStyle = descItalic ? "italic" : "normal";
     }
-
     if (prezzoEl) {
       prezzoEl.style.fontSize = priceSize + "px";
       prezzoEl.classList.toggle("fw-bold", priceBold);
@@ -1030,85 +936,17 @@ document.addEventListener("DOMContentLoaded", () => {
     cell.classList.toggle("cella-shadow", cell.dataset.shadow === "1");
   }
 
-  function applyImageFilter(cell) {
-    const img = cell.querySelector(".img-box img");
-    if (!img) return;
-
-    let f = "none";
-    switch (cell.dataset.imageFilter) {
-      case "bw": f = "grayscale(1)"; break;
-      case "warm": f = "contrast(1.05) saturate(1.2)"; break;
-      case "cool": f = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)"; break;
-      case "contrast": f = "contrast(1.3) saturate(1.2)"; break;
-    }
-    img.style.filter = f;
-  }
-
   /* ----------------------
    EVENTI CELLA + CREAZIONE
   -----------------------*/
-  function initResize(cell) {
-    const handle = cell.querySelector(".resize-handle");
-    if (!handle) return;
-
-    handle.addEventListener("mousedown", e => {
-      e.stopPropagation();
-      e.preventDefault();
-
-      pushUndo();
-
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startCol = parseInt(cell.dataset.colspan);
-      const startRow = parseInt(cell.dataset.rowspan);
-
-      const page = cell.closest(".pagina-volantino");
-      const cols = parseInt(page.dataset.cols);
-      const grid = page.querySelector(".page-grid");
-      const rect = grid.getBoundingClientRect();
-
-      const colW = rect.width / cols;
-      const rowH = colW;
-
-      function onMove(ev) {
-        const dx = ev.clientX - startX;
-        const dy = ev.clientY - startY;
-
-        let newCol = startCol + Math.round(dx / colW);
-        let newRow = startRow + Math.round(dy / rowH);
-
-        newCol = Math.max(1, Math.min(cols, newCol));
-        newRow = Math.max(1, newRow);
-
-        cell.dataset.colspan = newCol;
-        cell.dataset.rowspan = newRow;
-
-        applyCellSize(cell);
-        markDirty();
-      }
-
-      function onUp() {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      }
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    });
-  }
-
   function initCellaEvents(cell) {
-    // Click: selezione (multi con shift/cmd)
     cell.addEventListener("click", (e) => {
-      if (e.target.closest(".resize-handle")) return;
       e.stopPropagation();
       const add = e.shiftKey || e.ctrlKey || e.metaKey;
       selectCell(cell, add);
     });
 
-    // Doppio click: apre modal
     cell.addEventListener("dblclick", (e) => {
-      if (e.target.closest(".resize-handle")) return;
       e.stopPropagation();
       selectCell(cell, false);
       apriEditorCella(cell);
@@ -1119,8 +957,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const cell = document.createElement("div");
     cell.classList.add("cella-prodotto");
 
+    // fissi 1x1
     cell.dataset.colspan = "1";
     cell.dataset.rowspan = "1";
+
     cell.dataset.priceStyle = "base";
     cell.dataset.layout = "image-top";
     cell.dataset.textAlign = "start";
@@ -1142,18 +982,16 @@ document.addEventListener("DOMContentLoaded", () => {
     cell.dataset.shadow = "0";
 
     cell.dataset.imageFilter = "none";
-
     cell.dataset.imageZoom = "1";
     cell.dataset.imagePosX = "50";
     cell.dataset.imagePosY = "50";
 
-    // opzionale strike
     cell.dataset.oldPrice = "";
 
+    // ✅ Niente resize handle
     cell.innerHTML = `
       <div class="cella-inner">
-        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center"
-             style="height: 120px; overflow:hidden;">
+        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center">
           <span class="text-muted small">Doppio click per modificare</span>
         </div>
         <div class="testo-box">
@@ -1162,11 +1000,9 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
         </div>
       </div>
-      <div class="resize-handle"></div>
     `;
 
     initCellaEvents(cell);
-    initResize(cell);
 
     applyCellSize(cell);
     applyPriceStyle(cell);
@@ -1174,8 +1010,6 @@ document.addEventListener("DOMContentLoaded", () => {
     applyTextAlign(cell);
     applyTypography(cell);
     applyBoxStyle(cell);
-    applyImageFilter(cell);
-    applyImageTransform(cell);
 
     return cell;
   }
@@ -1188,48 +1022,34 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ----------------------
-     TOOLBAR FORMATI CELLE
+   BOTTONI STILE PREZZO (multi-selezione)
   -----------------------*/
-  document.querySelectorAll("[data-cell-size]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!selectedCells.size) return showToast("Seleziona una o più celle");
-      const [cs, rs] = btn.getAttribute("data-cell-size").split("x").map(Number);
-      applyToSelected(cell => {
-        cell.dataset.colspan = cs;
-        cell.dataset.rowspan = rs;
-      });
-      showToast("Formato applicato");
-    });
-  });
-
   document.querySelectorAll("[data-price-style]").forEach(btn => {
     btn.addEventListener("click", () => {
       if (!selectedCells.size) return showToast("Seleziona una o più celle");
       const style = btn.dataset.priceStyle;
-      applyToSelected(cell => {
-        cell.dataset.priceStyle = style;
-      });
+      applyToSelected(cell => { cell.dataset.priceStyle = style; });
       showToast("Stile prezzo applicato");
     });
   });
 
   /* ----------------------
-       GRIGLIA PAGINA
+       GRIGLIA PAGINA (colonne + 3 righe fisse)
   -----------------------*/
   document.querySelectorAll("[data-grid]").forEach(btn => {
     btn.addEventListener("click", () => {
       if (!pagine.length) return;
 
-      pushUndo();
+      const [cols] = btn.dataset.grid.split("x").map(Number);
+      const rows = 3;
 
-      const [cols, rows] = btn.dataset.grid.split("x").map(Number);
       const page = pagine[paginaCorrente];
       const grid = page.querySelector(".page-grid");
 
-      grid.innerHTML = "";
-      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      grid.style.gridAutoRows = "1fr";
       page.dataset.cols = cols;
+
+      setFixedGrid(page, cols, rows);
+      grid.innerHTML = "";
 
       for (let i = 0; i < cols * rows; i++) {
         grid.appendChild(creaCella());
@@ -1239,8 +1059,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
       clearSelection();
       markDirty();
-      showToast("Griglia aggiornata");
+      showToast("Griglia aggiornata (3 righe fisse)");
     });
+  });
+
+  /* ----------------------
+   AGGIUNGI / DUPLICA PAGINA
+  -----------------------*/
+  document.getElementById("aggiungi-pagina").addEventListener("click", () => {
+    const nuova = creaPagina(3);
+    pagine.push(nuova);
+    paginaCorrente = pagine.length - 1;
+    mostraPaginaCorrente();
+    aggiornaListaPagine();
+    markDirty();
+    showToast("Pagina aggiunta");
+  });
+
+  document.getElementById("duplica-pagina").addEventListener("click", () => {
+    if (!pagine.length) return;
+
+    const originale = pagine[paginaCorrente];
+    const clone = originale.cloneNode(true);
+
+    const header = clone.querySelector(".page-header");
+    const footer = clone.querySelector(".page-footer");
+    attachImageUpload(header);
+    attachImageUpload(footer);
+
+    const cols = parseInt(originale.dataset.cols || "3", 10);
+    clone.dataset.cols = String(cols);
+    clone.dataset.headerZoom = originale.dataset.headerZoom || "1";
+
+    setFixedGrid(clone, cols, 3);
+    applyHeaderZoom(clone);
+
+    const grid = clone.querySelector(".page-grid");
+    Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost", onEnd: () => markDirty() });
+
+    clone.querySelectorAll(".cella-prodotto").forEach(c => {
+      initCellaEvents(c);
+      // re-apply render
+      applyCellSize(c);
+      applyPriceStyle(c);
+      applyLayout(c);
+      applyTextAlign(c);
+      applyTypography(c);
+      applyBoxStyle(c);
+      applyImageFilter(c);
+      applyImageTransform(c);
+    });
+
+    pagine.push(clone);
+    paginaCorrente = pagine.length - 1;
+    mostraPaginaCorrente();
+    aggiornaListaPagine();
+    markDirty();
+    showToast("Pagina duplicata");
   });
 
   /* ----------------------
@@ -1249,12 +1124,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("duplica-cella").addEventListener("click", () => {
     if (!cellaSelezionata) return showToast("Seleziona una cella");
 
-    pushUndo();
-
     const clone = cellaSelezionata.cloneNode(true);
-
     initCellaEvents(clone);
-    initResize(clone);
+
+    // re-apply
     applyCellSize(clone);
     applyPriceStyle(clone);
     applyLayout(clone);
@@ -1265,19 +1138,14 @@ document.addEventListener("DOMContentLoaded", () => {
     applyImageTransform(clone);
 
     cellaSelezionata.parentElement.appendChild(clone);
-
     markDirty();
     showToast("Cella duplicata");
   });
 
   document.getElementById("elimina-cella").addEventListener("click", () => {
     if (!selectedCells.size) return showToast("Seleziona una o più celle");
-
-    pushUndo();
-
     selectedCells.forEach(c => c.remove());
     clearSelection();
-
     markDirty();
     showToast("Celle eliminate");
   });
@@ -1339,16 +1207,14 @@ document.addEventListener("DOMContentLoaded", () => {
   modalSave.addEventListener("click", () => {
     if (!cellaSelezionata) return;
 
-    pushUndo();
-
     const imgBox = cellaSelezionata.querySelector(".img-box");
     const titoloEl = cellaSelezionata.querySelector(".titolo");
     const descEl = cellaSelezionata.querySelector(".descrizione");
     const prezzoEl = cellaSelezionata.querySelector(".prezzo");
 
     if (modalImageData) {
-      imgBox.innerHTML =
-        `<img src="${modalImageData}" style="width:100%; height:100%; object-fit:cover;">`;
+      // ✅ immagine sempre adattata alla box (cover via CSS)
+      imgBox.innerHTML = `<img src="${modalImageData}">`;
     }
 
     cellaSelezionata.dataset.imageZoom = String(modalZoomValue);
@@ -1409,7 +1275,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const headerImg = header.querySelector("img")?.src || "";
       const footerImg = footer.querySelector("img")?.src || "";
-      const cols = parseInt(page.dataset.cols);
+      const cols = parseInt(page.dataset.cols || "3", 10);
+      const headerZoom = page.dataset.headerZoom || "1";
 
       const cells = [];
       grid.querySelectorAll(".cella-prodotto").forEach(c => {
@@ -1418,8 +1285,6 @@ document.addEventListener("DOMContentLoaded", () => {
           titolo: c.querySelector(".titolo")?.innerText || "",
           descrizione: c.querySelector(".descrizione")?.innerText || "",
           prezzo: c.querySelector(".prezzo")?.innerText || "",
-          colSpan: c.dataset.colspan,
-          rowSpan: c.dataset.rowspan,
           priceStyle: c.dataset.priceStyle,
           layout: c.dataset.layout,
           textAlign: c.dataset.textAlign,
@@ -1445,7 +1310,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
 
-      return { cols, headerImg, footerImg, cells };
+      return { cols, headerImg, headerZoom, footerImg, cells };
     });
 
     fetch("/salva-volantino-beta", {
@@ -1477,12 +1342,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const salvato = {{ layout_json | safe }};
     if (Array.isArray(salvato)) {
       salvato.forEach(pData => {
-        const page = creaPagina(pData.cols);
+        const page = creaPagina(pData.cols || 3);
         const grid = page.querySelector(".page-grid");
+
+        page.dataset.headerZoom = pData.headerZoom || "1";
 
         if (pData.headerImg) {
           page.querySelector(".page-header").innerHTML =
             `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
+          applyHeaderZoom(page);
         }
 
         if (pData.footerImg) {
@@ -1490,39 +1358,38 @@ document.addEventListener("DOMContentLoaded", () => {
             `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
         }
 
-        pData.cells.forEach(item => {
+        setFixedGrid(page, parseInt(pData.cols || "3", 10), 3);
+
+        (pData.cells || []).forEach(item => {
           const cell = creaCella();
 
           if (item.img) {
-            cell.querySelector(".img-box").innerHTML =
-              `<img src="${item.img}" style="width:100%; height:100%; object-fit:cover;">`;
+            cell.querySelector(".img-box").innerHTML = `<img src="${item.img}">`;
           }
 
-          cell.querySelector(".titolo").innerText = item.titolo;
-          cell.querySelector(".descrizione").innerText = item.descrizione;
-          cell.querySelector(".prezzo").innerText = item.prezzo;
+          cell.querySelector(".titolo").innerText = item.titolo || "";
+          cell.querySelector(".descrizione").innerText = item.descrizione || "";
+          cell.querySelector(".prezzo").innerText = item.prezzo || "";
 
           Object.assign(cell.dataset, {
-            colspan: item.colSpan,
-            rowspan: item.rowSpan,
-            priceStyle: item.priceStyle,
-            layout: item.layout,
-            textAlign: item.textAlign,
-            fontFamily: item.fontFamily,
-            fontColor: item.fontColor,
-            titleSize: item.titleSize,
-            descSize: item.descSize,
-            priceSize: item.priceSize,
-            textUpper: item.textUpper,
-            titleBold: item.titleBold,
-            descItalic: item.descItalic,
-            priceBold: item.priceBold,
-            borderStyle: item.borderStyle,
-            borderColor: item.borderColor,
-            radius: item.radius,
-            bgColor: item.bgColor,
-            shadow: item.shadow,
-            imageFilter: item.imageFilter,
+            priceStyle: item.priceStyle || "base",
+            layout: item.layout || "image-top",
+            textAlign: item.textAlign || "start",
+            fontFamily: item.fontFamily || "",
+            fontColor: item.fontColor || "#000000",
+            titleSize: item.titleSize || "14",
+            descSize: item.descSize || "11",
+            priceSize: item.priceSize || "16",
+            textUpper: item.textUpper || "0",
+            titleBold: item.titleBold || "1",
+            descItalic: item.descItalic || "0",
+            priceBold: item.priceBold || "1",
+            borderStyle: item.borderStyle || "solid",
+            borderColor: item.borderColor || "#dddddd",
+            radius: item.radius || "4",
+            bgColor: item.bgColor || "#ffffff",
+            shadow: item.shadow || "0",
+            imageFilter: item.imageFilter || "none",
             imageZoom: item.imageZoom || "1",
             imagePosX: item.imagePosX || "50",
             imagePosY: item.imagePosY || "50",
@@ -1626,9 +1493,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 .page-footer { margin-top: 8px; }
 
+.page-header img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  transform-origin:center center;
+}
+
 .page-grid { min-height: 0; }
 
-/* Celle prodotto */
+/* Celle prodotto: tutte uguali e fisse */
 .cella-prodotto {
   background: #fff;
   border: 1px solid #ddd;
@@ -1636,6 +1510,7 @@ document.addEventListener("DOMContentLoaded", () => {
   cursor: pointer;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
   position: relative;
+  height: 100%;
 }
 
 .cella-prodotto:hover {
@@ -1643,8 +1518,11 @@ document.addEventListener("DOMContentLoaded", () => {
   transform: translateY(-1px);
 }
 
-.img-box img { width:100%; height:100%; object-fit:cover; }
-.testo-box { padding-top: 3px; }
+/* ✅ Immagine sempre adattata alla box */
+.cella-inner { height: 100%; display: flex; flex-direction: column; }
+.img-box { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.img-box img { width:100%; height:100%; object-fit:cover; display:block; }
+.testo-box { flex: 0 0 auto; padding-top: 3px; }
 
 /* Selezione */
 .cella-selezionata {
@@ -1653,9 +1531,7 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 /* Ombra extra */
-.cella-shadow {
-  box-shadow: 0 4px 10px rgba(0,0,0,0.18);
-}
+.cella-shadow { box-shadow: 0 4px 10px rgba(0,0,0,0.18); }
 
 /* Prezzi */
 .prezzo-base { background: transparent; padding: 2px 4px; border-radius: 4px; }
@@ -1683,11 +1559,9 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 /* Layout */
-.cella-layout-image-top .cella-inner { flex-direction: column; }
 .cella-layout-image-left .cella-inner { flex-direction: row; }
-.cella-layout-image-left .img-box { width: 50%; margin-right: 4px; }
+.cella-layout-image-left .img-box { width: 50%; margin-right: 4px; flex: 0 0 auto; }
 .cella-layout-full-image-price .cella-inner { position: relative; }
-.cella-layout-full-image-price .img-box { height: 100%; }
 .cella-layout-full-image-price .testo-box {
   position: absolute;
   bottom: 6px;
@@ -1699,20 +1573,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 .sortable-ghost { opacity: 0.4; }
 
-/* Modal immagine */
 #modal-image-preview img { display: block; }
-
-/* Handle resize */
-.resize-handle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  right: 2px;
-  bottom: 2px;
-  background: #007bff;
-  border-radius: 3px;
-  cursor: se-resize;
-}
 </style>
 
 {% endblock %}
