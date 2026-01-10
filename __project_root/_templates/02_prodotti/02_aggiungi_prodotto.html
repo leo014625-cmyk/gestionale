@@ -8,10 +8,49 @@
 
   <div class="card shadow-sm p-4 mb-5">
     <form method="POST" novalidate>
+
+      <!-- Codice prodotto (ID personalizzato) -->
+      <div class="mb-3">
+        <label for="codice" class="form-label fw-bold">
+          Codice prodotto <span class="text-danger">*</span>
+        </label>
+        <input
+          type="text"
+          id="codice"
+          name="codice"
+          class="form-control {% if errore_codice %}is-invalid{% endif %}"
+          required
+          placeholder="Es. ITT-000123"
+          autocomplete="off"
+          inputmode="text"
+          pattern="^[A-Za-z0-9_-]+$"
+        >
+        <div class="form-text text-muted">
+          Inserisci un codice univoco (senza spazi). Esempi: <code>ITT-000123</code>, <code>MET_PASTA_45</code>
+        </div>
+
+        <div class="invalid-feedback">
+          {% if errore_codice %}
+            {{ errore_codice }}
+          {% else %}
+            Il codice prodotto è obbligatorio (senza spazi).
+          {% endif %}
+        </div>
+      </div>
+
       <!-- Nome prodotto -->
       <div class="mb-3">
-        <label for="nome" class="form-label fw-bold">Nome prodotto <span class="text-danger">*</span></label>
-        <input type="text" id="nome" name="nome" class="form-control" required placeholder="Inserisci il nome del prodotto">
+        <label for="nome" class="form-label fw-bold">
+          Nome prodotto <span class="text-danger">*</span>
+        </label>
+        <input
+          type="text"
+          id="nome"
+          name="nome"
+          class="form-control"
+          required
+          placeholder="Inserisci il nome del prodotto"
+        >
         <div class="invalid-feedback">
           Il nome del prodotto è obbligatorio.
         </div>
@@ -27,7 +66,9 @@
           {% endfor %}
         </select>
         {% if not categorie %}
-          <div class="form-text text-danger">Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.</div>
+          <div class="form-text text-danger">
+            Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.
+          </div>
         {% endif %}
       </div>
 
@@ -35,7 +76,9 @@
       <div class="mb-3">
         <label for="nuova_categoria" class="form-label fw-bold">Oppure aggiungi nuova categoria</label>
         <input type="text" id="nuova_categoria" name="nuova_categoria" class="form-control" placeholder="Nuova categoria">
-        <div class="form-text text-muted">Se inserisci una nuova categoria, sarà usata al posto della selezionata.</div>
+        <div class="form-text text-muted">
+          Se inserisci una nuova categoria, sarà usata al posto della selezionata.
+        </div>
       </div>
 
       <!-- Pulsanti -->
@@ -43,6 +86,7 @@
         <button type="submit" class="btn btn-primary btn-lg">💾 Salva</button>
         <a href="{{ url_for('prodotti') }}" class="btn btn-secondary btn-lg">❌ Annulla</a>
       </div>
+
     </form>
   </div>
 </div>
@@ -57,6 +101,12 @@
     const forms = document.querySelectorAll('form')
     Array.from(forms).forEach(form => {
       form.addEventListener('submit', event => {
+        // Validazione pattern "codice" (senza spazi)
+        const codice = document.getElementById('codice');
+        if (codice) {
+          codice.value = codice.value.trim();
+        }
+
         if (!form.checkValidity()) {
           event.preventDefault()
           event.stopPropagation()
