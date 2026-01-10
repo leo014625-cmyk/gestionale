@@ -29,12 +29,12 @@
           <div class="input-group input-group-lg">
             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
             <input type="text" id="searchGlobale" class="form-control"
-                   placeholder="Cerca prodotto o categoria...">
+                   placeholder="Cerca per nome, codice o categoria...">
             <button type="button" class="btn btn-outline-secondary" id="btnClearSearch" title="Pulisci">
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
-          <div class="form-text">Suggerimento: cerca anche per nome prodotto, non solo categoria.</div>
+          <div class="form-text">Suggerimento: cerca anche per <b>codice prodotto</b>.</div>
         </div>
 
         <div class="col-12 col-lg-5">
@@ -127,7 +127,7 @@
                 <div class="input-group">
                   <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                   <input type="text" id="searchProdotti" class="form-control"
-                         placeholder="Cerca prodotto in questa categoria...">
+                         placeholder="Cerca per nome o codice...">
                   <button type="button" class="btn btn-outline-secondary" id="btnClearSearchModal" title="Pulisci">
                     <i class="bi bi-x-lg"></i>
                   </button>
@@ -202,6 +202,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .replaceAll("'","&#039;");
   }
 
+  function norm(s) {
+    return (s || "").toLowerCase().trim();
+  }
+
   function renderProdotti(prodotti) {
     listaProdotti.innerHTML = '';
     if (!prodotti || prodotti.length === 0) {
@@ -211,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     prodotti.forEach(p => {
       const nome = escapeHtml(p.nome);
+      const codice = escapeHtml(p.codice || "—");
 
       const item = document.createElement('div');
       item.className = 'list-group-item prodotto-row rounded-4 mx-2 my-2';
@@ -218,7 +223,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div class="d-flex align-items-center gap-2">
             <span class="icon-pill"><i class="bi bi-box-seam"></i></span>
-            <div class="fw-semibold">${nome}</div>
+            <div>
+              <div class="fw-semibold">${nome}</div>
+              <div class="small text-muted mt-1">
+                <span class="badge text-bg-light border">
+                  <i class="bi bi-upc-scan me-1"></i> COD: ${codice}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div class="btn-group btn-group-sm" role="group">
@@ -242,21 +254,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyModalFilter() {
-    const q = (searchInput.value || "").toLowerCase().trim();
-    const filtered = prodottiCorrenti.filter(p => (p.nome || "").toLowerCase().includes(q));
+    const q = norm(searchInput.value);
+    const filtered = prodottiCorrenti.filter(p => {
+      const nome = norm(p.nome);
+      const codice = norm(p.codice);
+      return nome.includes(q) || codice.includes(q);
+    });
     renderProdotti(filtered);
     modalSub.textContent = `${filtered.length} / ${prodottiCorrenti.length} prodotti`;
   }
 
   function filterCategorieCards() {
-    const q = (searchGlobale.value || "").toLowerCase().trim();
-    document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
-      const nomeCat = (col.dataset.categoria || "").toLowerCase();
-      const count = parseInt(col.dataset.count || "0", 10);
+    const q = norm(searchGlobale.value);
 
+    document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
+      const nomeCat = norm(col.dataset.categoria);
       const prodotti = prodottiPerCategoria[col.dataset.categoria] || [];
+
       const matchCategoria = nomeCat.includes(q);
-      const matchProdotto = prodotti.some(p => (p.nome || "").toLowerCase().includes(q));
+      const matchProdotto = prodotti.some(p => {
+        const nome = norm(p.nome);
+        const codice = norm(p.codice);
+        return nome.includes(q) || codice.includes(q);
+      });
 
       col.style.display = (matchCategoria || matchProdotto) ? '' : 'none';
     });
