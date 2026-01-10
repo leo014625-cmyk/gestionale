@@ -274,7 +274,11 @@
                   </td>
 
                   <td>
-                    <div class="fw-semibold">{{ p.nome }}</div>
+                    <!-- ✅ aggiornato: Nome + ID -->
+                    <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
+                      <span class="prod-nome">{{ p.nome }}</span>
+                      <span class="badge text-bg-light border">ID: {{ p.id }}</span>
+                    </div>
                     <div class="text-muted small">{{ p.categoria_nome }}</div>
                   </td>
 
@@ -402,9 +406,18 @@
 document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- DATI PRODOTTI PER RIEPILOGO ----------
+  // ✅ uso tojson per evitare problemi con apici/caratteri speciali
+  const lista = {{ prodotti|map(attribute='__dict__')|list|tojson if false else [] }};
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  // ---------- DATI PRODOTTI PER RIEPILOGO ----------
+  // Manteniamo la tua struttura, ma mettiamo nome/categoria in modo sicuro
   const lista = [
     {% for p in prodotti %}
-      { id:"{{ p.id }}", nome:"{{ p.nome|e }}", categoria:"{{ p.categoria_nome|e }}", catId:"{{ p.categoria_id }}" },
+      { id:"{{ p.id }}", nome: {{ p.nome|tojson }}, categoria: {{ p.categoria_nome|tojson }}, catId:"{{ p.categoria_id }}" },
     {% endfor %}
   ];
 
@@ -427,15 +440,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const att = norm(document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value) || "–";
       const off = norm(document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value) || "–";
 
+      const nomeConId = `<span class="d-inline-flex align-items-center gap-2 flex-wrap">
+        <span class="prod-nome">${p.nome}</span>
+        <span class="badge text-bg-light border">ID: ${p.id}</span>
+      </span>`;
+
       if (chk && chk.checked) {
         nL++;
         tblL.insertAdjacentHTML("beforeend",
-          `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
+          `<tr><td>${nomeConId}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
         );
       } else {
         nN++;
         tblN.insertAdjacentHTML("beforeend",
-          `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
+          `<tr><td>${nomeConId}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
         );
       }
 
@@ -487,7 +505,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const filtro = this.value.toLowerCase();
       const tab = document.querySelector(`#tabella-cat-${this.dataset.cat}`);
       const righe = tab.querySelectorAll("tbody tr");
-      righe.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(filtro) ? "" : "none"; });
+
+      righe.forEach(r => {
+        // ✅ filtra solo su nome + fornitore (evita falsi match per "ID:")
+        const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
+        const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
+        r.style.display = (nome.includes(filtro) || forn.includes(filtro)) ? "" : "none";
+      });
     });
   });
 
@@ -497,7 +521,10 @@ document.addEventListener("DOMContentLoaded", () => {
     searchGlobal.addEventListener("input", () => {
       const q = searchGlobal.value.toLowerCase().trim();
       document.querySelectorAll("tr.riga-prodotto").forEach(r => {
-        r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none";
+        const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
+        const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
+        const cat = (r.querySelector("td .text-muted")?.innerText || "").toLowerCase();
+        r.style.display = (nome.includes(q) || forn.includes(q) || cat.includes(q)) ? "" : "none";
       });
     });
   }
