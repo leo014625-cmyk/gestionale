@@ -47,6 +47,24 @@ def aggiorna_db():
         )
     """)
 
+    # 🔥 AGGIUNTA: CODICE PRODOTTO (ID personalizzato) - compatibile con DB esistente
+    # Nota: NON mettiamo NOT NULL subito per non rompere prodotti già presenti.
+    cur.execute("""
+        ALTER TABLE prodotti
+        ADD COLUMN IF NOT EXISTS codice VARCHAR(50)
+    """)
+
+    # Indici per codice (ricerca + unicità)
+    # Unique index permette più NULL (finché non rendi NOT NULL), ma blocca duplicati non-null.
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS prodotti_codice_unique
+        ON prodotti (codice)
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS prodotti_codice_idx
+        ON prodotti (codice)
+    """)
+
     # ============================
     # ZONE
     # ============================
@@ -58,7 +76,7 @@ def aggiorna_db():
     """)
 
     # ============================
-    # FORNITORI (NUOVA TABELLA)
+    # FORNITORI
     # ============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS fornitori (
