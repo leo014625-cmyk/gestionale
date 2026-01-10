@@ -12,10 +12,51 @@
 
   <div class="card shadow-sm p-4 mb-4">
     <form method="POST" novalidate>
+
+      <!-- Codice prodotto (ID personalizzato) -->
+      <div class="mb-3">
+        <label for="codice" class="form-label fw-bold">
+          Codice prodotto <span class="text-danger">*</span>
+        </label>
+        <input
+          type="text"
+          id="codice"
+          name="codice"
+          class="form-control {% if errore_codice %}is-invalid{% endif %}"
+          value="{{ prodotto['codice'] if prodotto.get('codice') is not none else '' }}"
+          required
+          placeholder="Es. ITT-000123"
+          autocomplete="off"
+          inputmode="text"
+          pattern="^[A-Za-z0-9_-]+$"
+        >
+        <div class="form-text text-muted">
+          Codice univoco (senza spazi). Esempi: <code>ITT-000123</code>, <code>MET_PASTA_45</code>
+        </div>
+
+        <div class="invalid-feedback">
+          {% if errore_codice %}
+            {{ errore_codice }}
+          {% else %}
+            Il codice prodotto è obbligatorio (senza spazi).
+          {% endif %}
+        </div>
+      </div>
+
       <!-- Nome prodotto -->
       <div class="mb-3">
-        <label for="nome" class="form-label fw-bold">Nome prodotto <span class="text-danger">*</span></label>
-        <input type="text" id="nome" name="nome" class="form-control" value="{{ prodotto['nome'] }}" required placeholder="Inserisci il nome del prodotto">
+        <label for="nome" class="form-label fw-bold">
+          Nome prodotto <span class="text-danger">*</span>
+        </label>
+        <input
+          type="text"
+          id="nome"
+          name="nome"
+          class="form-control"
+          value="{{ prodotto['nome'] }}"
+          required
+          placeholder="Inserisci il nome del prodotto"
+        >
         <div class="invalid-feedback">
           Il nome del prodotto è obbligatorio.
         </div>
@@ -24,22 +65,48 @@
       <!-- Categoria esistente -->
       <div class="mb-3">
         <label for="categoria_id" class="form-label fw-bold">Categoria</label>
-        <select id="categoria_id" name="categoria_id" class="form-select" {% if not categorie %}disabled{% endif %} required>
-          <option value="" disabled selected>-- Seleziona categoria --</option>
+        <select
+          id="categoria_id"
+          name="categoria_id"
+          class="form-select"
+          {% if not categorie %}disabled{% endif %}
+          required
+        >
+          <option value="" disabled>-- Seleziona categoria --</option>
           {% for categoria in categorie %}
-            <option value="{{ categoria['id'] }}" {% if categoria['id'] == prodotto['categoria_id'] %}selected{% endif %}>{{ categoria['nome'] }}</option>
+            <option
+              value="{{ categoria['id'] }}"
+              {% if categoria['id'] == prodotto['categoria_id'] %}selected{% endif %}
+            >
+              {{ categoria['nome'] }}
+            </option>
           {% endfor %}
         </select>
+
         {% if not categorie %}
-          <div class="form-text text-danger">Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.</div>
+          <div class="form-text text-danger">
+            Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.
+          </div>
         {% endif %}
+
+        <div class="invalid-feedback">
+          Seleziona una categoria valida.
+        </div>
       </div>
 
       <!-- Nuova categoria -->
       <div class="mb-3">
         <label for="nuova_categoria" class="form-label fw-bold">Oppure aggiungi nuova categoria</label>
-        <input type="text" id="nuova_categoria" name="nuova_categoria" class="form-control" placeholder="Nuova categoria">
-        <small class="form-text text-muted">Se inserisci una nuova categoria, sarà usata al posto di quella selezionata.</small>
+        <input
+          type="text"
+          id="nuova_categoria"
+          name="nuova_categoria"
+          class="form-control"
+          placeholder="Nuova categoria"
+        >
+        <small class="form-text text-muted">
+          Se inserisci una nuova categoria, sarà usata al posto di quella selezionata.
+        </small>
       </div>
 
       <!-- Pulsanti -->
@@ -47,12 +114,17 @@
         <button type="submit" class="btn btn-primary btn-lg">💾 Salva modifiche</button>
         <a href="{{ url_for('prodotti') }}" class="btn btn-secondary btn-lg">❌ Annulla</a>
       </div>
+
     </form>
   </div>
 
   <!-- Form elimina prodotto -->
   <div class="card shadow-sm p-4">
-    <form action="{{ url_for('elimina_prodotto', id=prodotto['id']) }}" method="POST" onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto? Questa operazione è irreversibile.')">
+    <form
+      action="{{ url_for('elimina_prodotto', id=prodotto['id']) }}"
+      method="POST"
+      onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto? Questa operazione è irreversibile.')"
+    >
       <button type="submit" class="btn btn-danger btn-lg w-100">🗑️ Elimina prodotto</button>
     </form>
   </div>
@@ -68,6 +140,10 @@
     const forms = document.querySelectorAll('form')
     Array.from(forms).forEach(form => {
       form.addEventListener('submit', event => {
+        // Trim del codice per evitare spazi finali/iniziali
+        const codice = document.getElementById('codice');
+        if (codice) codice.value = codice.value.trim();
+
         if (!form.checkValidity()) {
           event.preventDefault()
           event.stopPropagation()
@@ -78,5 +154,3 @@
   })()
 </script>
 {% endblock %}
-
-
