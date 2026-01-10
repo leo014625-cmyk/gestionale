@@ -1364,30 +1364,55 @@ def prodotti():
 
     with get_db() as db:
         cur = db.cursor()
+
         # Recupera tutte le categorie
         cur.execute('SELECT id, nome, immagine FROM categorie ORDER BY nome')
         categorie_rows = cur.fetchall()
         categorie = [{'nome': c['nome'], 'immagine': c['immagine'] or None} for c in categorie_rows]
 
-        # Prodotti per categoria
-        prodotti_per_categoria = {}
-        for c in categorie:
-            query = '''
-                SELECT p.id, p.nome
-                FROM prodotti p
-                LEFT JOIN categorie c ON p.categoria_id = c.id
-                WHERE c.nome = %s
-            '''
-            params = [c['nome']]
-            if q:
-                query += ' AND p.nome ILIKE %s'
-                params.append(f'%{q}%')
-            cur.execute(query, params)
-            prodotti_rows = cur.fetchall()
-            prodotti_per_categoria[c['nome']] = [dict(p) for p in prodotti_rows]
+        # Recupera tutti i prodotti (con codice) + nome categoria
+        query = '''
+            SELECT
+                p.id,
+                p.nome,
+                p.codice,
+                c.nome AS categoria_nome
+            FROM prodotti p
+            LEFT JOIN categorie c ON p.categoria_id = c.id
+        '''
+        params = []
+        if q:
+            query += ' WHERE (p.nome ILIKE %s OR p.codice ILIKE %s)'
+            like = f'%{q}%'
+            params.extend([like, like])
 
-    return render_template('02_prodotti/01_prodotti.html', prodotti_per_categoria=prodotti_per_categoria, categorie=categorie)
+        query += ' ORDER BY c.nome NULLS LAST, p.nome'
 
+        cur.execute(query, params)
+        prodotti_rows = cur.fetchall()
+
+        # Costruisci dizionario prodotti_per_categoria
+        prodotti_per_categoria = {c['nome']: [] for c in categorie}
+
+        for p in prodotti_rows:
+            cat_nome = p.get('categoria_nome')
+            # Se il prodotto non ha categoria, lo ignoriamo (oppure puoi metterlo in "Senza categoria")
+            if not cat_nome:
+                continue
+            if cat_nome not in prodotti_per_categoria:
+                # nel caso esista in DB una categoria non in lista (edge), la creiamo
+                prodotti_per_categoria[cat_nome] = []
+            prodotti_per_categoria[cat_nome].append({
+                'id': p['id'],
+                'nome': p['nome'],
+                'codice': p.get('codice')
+            })
+
+    return render_template(
+        '02_prodotti/01_prodotti.html',
+        prodotti_per_categoria=prodotti_per_categoria,
+        categorie=categorie
+    )
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
 @login_required
@@ -1399,30 +1424,62 @@ def aggiungi_prodotto():
 
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
+        codice = request.form.get('codice', '').strip()
         categoria_id = request.form.get('categoria_id')
         nuova_categoria = request.form.get('nuova_categoria', '').strip()
 
+        errore_codice = None
+
+        # Validazioni base
+        if not codice:
+            errore_codice = "Il codice prodotto è obbligatorio."
+        elif " " in codice:
+            errore_codice = "Il codice prodotto non può contenere spazi."
+
         if not nome:
             flash('Il nome del prodotto è obbligatorio.', 'danger')
-            return render_template('02_prodotti/02_aggiungi_prodotto.html', categorie=categorie)
+            return render_template(
+                '02_prodotti/02_aggiungi_prodotto.html',
+                categorie=categorie,
+                errore_codice=errore_codice
+            )
 
         with get_db() as db:
             cur = db.cursor()
+
+            # Controllo codice univoco
+            cur.execute('SELECT id FROM prodotti WHERE codice = %s', (codice,))
+            if cur.fetchone():
+                errore_codice = f'Il codice "{codice}" è già usato da un altro prodotto.'
+                return render_template(
+                    '02_prodotti/02_aggiungi_prodotto.html',
+                    categorie=categorie,
+                    errore_codice=errore_codice
+                )
+
+            # Gestione categoria
             if nuova_categoria:
                 cur.execute('SELECT id FROM categorie WHERE nome=%s', (nuova_categoria,))
                 categoria_row = cur.fetchone()
                 if categoria_row:
                     categoria_id = categoria_row['id']
                 else:
-                    cur.execute('INSERT INTO categorie (nome) VALUES (%s) RETURNING id', (nuova_categoria,))
+                    cur.execute(
+                        'INSERT INTO categorie (nome) VALUES (%s) RETURNING id',
+                        (nuova_categoria,)
+                    )
                     categoria_id = cur.fetchone()['id']
             else:
                 categoria_id = int(categoria_id) if categoria_id else None
 
-            cur.execute('INSERT INTO prodotti (nome, categoria_id) VALUES (%s, %s)', (nome, categoria_id))
+            # Inserimento prodotto
+            cur.execute(
+                'INSERT INTO prodotti (codice, nome, categoria_id) VALUES (%s, %s, %s)',
+                (codice, nome, categoria_id)
+            )
             db.commit()
 
-        flash(f'Prodotto "{nome}" aggiunto con successo.', 'success')
+        flash(f'Prodotto "{nome}" ({codice}) aggiunto con successo.', 'success')
         return redirect(url_for('prodotti'))
 
     return render_template('02_prodotti/02_aggiungi_prodotto.html', categorie=categorie)
@@ -1437,21 +1494,65 @@ def modifica_prodotto(id):
         prodotto = cur.fetchone()
         if not prodotto:
             abort(404)
+
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
+        codice = request.form.get('codice', '').strip()
         categoria_id = request.form.get('categoria_id')
         nuova_categoria = request.form.get('nuova_categoria', '').strip()
+
         error = None
+        errore_codice = None
+
+        # Validazioni
+        if not codice:
+            errore_codice = "Il codice prodotto è obbligatorio."
+        elif " " in codice:
+            errore_codice = "Il codice prodotto non può contenere spazi."
 
         if not nome:
             error = 'Il nome del prodotto è obbligatorio.'
-            return render_template('02_prodotti/03_modifica_prodotto.html', prodotto=prodotto, categorie=categorie, error=error)
+
+        # Se ci sono errori, torna al template (con valori aggiornati per non perdere input)
+        if error or errore_codice:
+            prodotto = dict(prodotto)
+            prodotto['nome'] = nome
+            prodotto['codice'] = codice
+            prodotto['categoria_id'] = int(categoria_id) if categoria_id else prodotto.get('categoria_id')
+
+            return render_template(
+                '02_prodotti/03_modifica_prodotto.html',
+                prodotto=prodotto,
+                categorie=categorie,
+                error=error,
+                errore_codice=errore_codice
+            )
 
         with get_db() as db:
             cur = db.cursor()
+
+            # Controllo codice univoco (escludendo questo prodotto)
+            cur.execute('SELECT id FROM prodotti WHERE codice=%s AND id<>%s', (codice, id))
+            if cur.fetchone():
+                errore_codice = f'Il codice "{codice}" è già usato da un altro prodotto.'
+
+                prodotto = dict(prodotto)
+                prodotto['nome'] = nome
+                prodotto['codice'] = codice
+                prodotto['categoria_id'] = int(categoria_id) if categoria_id else prodotto.get('categoria_id')
+
+                return render_template(
+                    '02_prodotti/03_modifica_prodotto.html',
+                    prodotto=prodotto,
+                    categorie=categorie,
+                    error=None,
+                    errore_codice=errore_codice
+                )
+
+            # Gestione categoria
             if nuova_categoria:
                 cur.execute('SELECT id FROM categorie WHERE nome=%s', (nuova_categoria,))
                 categoria_row = cur.fetchone()
@@ -1463,14 +1564,23 @@ def modifica_prodotto(id):
             else:
                 categoria_id = int(categoria_id) if categoria_id else None
 
-            cur.execute('UPDATE prodotti SET nome=%s, categoria_id=%s WHERE id=%s', (nome, categoria_id, id))
+            # Update prodotto
+            cur.execute(
+                'UPDATE prodotti SET codice=%s, nome=%s, categoria_id=%s WHERE id=%s',
+                (codice, nome, categoria_id, id)
+            )
             db.commit()
 
-        flash(f'Prodotto "{nome}" modificato con successo.', 'success')
+        flash(f'Prodotto "{nome}" ({codice}) modificato con successo.', 'success')
         return redirect(url_for('prodotti'))
 
-    return render_template('02_prodotti/03_modifica_prodotto.html', prodotto=prodotto, categorie=categorie, error=None)
-
+    return render_template(
+        '02_prodotti/03_modifica_prodotto.html',
+        prodotto=prodotto,
+        categorie=categorie,
+        error=None,
+        errore_codice=None
+    )
 
 @app.route('/prodotti/elimina/<int:id>', methods=['POST'])
 @login_required
@@ -1493,14 +1603,14 @@ def elimina_prodotto(id):
 @login_required
 def clienti_prodotto(id):
     with get_db() as db:
-        cur = db.cursor(cursor_factory=RealDictCursor)  # ritorna dict invece di tuple
+        cur = db.cursor(cursor_factory=RealDictCursor)
 
-        # Recupera il prodotto
-        cur.execute('SELECT * FROM prodotti WHERE id=%s', (id,))
+        # Recupera il prodotto (include codice)
+        cur.execute('SELECT id, codice, nome, categoria_id FROM prodotti WHERE id=%s', (id,))
         prodotto = cur.fetchone()
         if not prodotto:
             flash("❌ Prodotto non trovato", "danger")
-            return redirect(url_for("prodotti"))  # oppure 404
+            return redirect(url_for("prodotti"))
 
         # Recupera i clienti associati con lavorato=True
         cur.execute('''
@@ -1513,7 +1623,7 @@ def clienti_prodotto(id):
         clienti = cur.fetchall()
 
     return render_template(
-        '/02_prodotti/04_prodotto_clienti.html',
+        '02_prodotti/04_prodotto_clienti.html',
         prodotto=prodotto,
         clienti=clienti
     )
