@@ -2794,6 +2794,40 @@ def beta_volantino_elimina(id):
     return redirect(url_for('lista_volantini_beta'))
 
 
+from twilio.twiml.messaging_response import MessagingResponse
+
+@app.route("/whatsapp", methods=["POST"])
+def whatsapp_webhook():
+    msg = request.values.get("Body", "").strip()
+    num_media = int(request.values.get("NumMedia", 0))
+
+    resp = MessagingResponse()
+    reply = resp.message()
+
+    # Se arriva un PDF
+    if num_media > 0:
+        media_url = request.values.get("MediaUrl0")
+        media_type = request.values.get("MediaContentType0")
+
+        if media_type == "application/pdf":
+            os.makedirs("uploads", exist_ok=True)
+
+            filename = f"uploads/offerta_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
+            r = requests.get(media_url)
+            with open(filename, "wb") as f:
+                f.write(r.content)
+
+            reply.body("📄 PDF ricevuto!\nLo sto analizzando e preparo le offerte 🚀")
+        else:
+            reply.body("❌ Inviami solo PDF per le offerte.")
+    else:
+        reply.body(
+            "👋 Inviami il PDF delle offerte.\n"
+            "Lo leggerò e avviserò automaticamente i clienti interessati."
+        )
+
+    return str(resp)
 
 
 # ============================
@@ -2816,20 +2850,6 @@ def init_db():
     db.create_all()
     return "Tabelle create!"
 
-from twilio.twiml.messaging_response import MessagingResponse
-
-@app.route("/whatsapp/webhook", methods=["POST"])
-def whatsapp_webhook():
-    numero = request.form.get("From")
-    testo = request.form.get("Body")
-
-    print("📩 Messaggio WhatsApp da:", numero)
-    print("💬 Testo:", testo)
-
-    resp = MessagingResponse()
-    resp.message("✅ Messaggio ricevuto! Dimmi pure cosa vuoi fare 🙂")
-
-    return str(resp)
 
 # ============================
 # AVVIO APP
