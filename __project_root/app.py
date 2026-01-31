@@ -2796,37 +2796,16 @@ def beta_volantino_elimina(id):
 
 from twilio.twiml.messaging_response import MessagingResponse
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    msg = request.values.get("Body", "").strip()
-    num_media = int(request.values.get("NumMedia", 0))
+    logging.info("📩 Messaggio WhatsApp ricevuto")
+    logging.info(request.form)
 
     resp = MessagingResponse()
-    reply = resp.message()
-
-    # Se arriva un PDF
-    if num_media > 0:
-        media_url = request.values.get("MediaUrl0")
-        media_type = request.values.get("MediaContentType0")
-
-        if media_type == "application/pdf":
-            os.makedirs("uploads", exist_ok=True)
-
-            filename = f"uploads/offerta_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-
-            r = requests.get(media_url)
-            with open(filename, "wb") as f:
-                f.write(r.content)
-
-            reply.body("📄 PDF ricevuto!\nLo sto analizzando e preparo le offerte 🚀")
-        else:
-            reply.body("❌ Inviami solo PDF per le offerte.")
-    else:
-        reply.body(
-            "👋 Inviami il PDF delle offerte.\n"
-            "Lo leggerò e avviserò automaticamente i clienti interessati."
-        )
-
+    resp.message("Webhook OK")
     return str(resp)
 
 
