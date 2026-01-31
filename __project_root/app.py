@@ -2861,6 +2861,11 @@ def whatsapp_webhook():
 
     return str(resp)
 
+@app.route("/whatsapp/ping", methods=["GET"])
+def whatsapp_ping():
+    return "OK", 200
+
+
 # ============================
 # ROUTE DI TEST TEMPLATE
 # ============================
