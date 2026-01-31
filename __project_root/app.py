@@ -2796,16 +2796,11 @@ def beta_volantino_elimina(id):
 
 from twilio.twiml.messaging_response import MessagingResponse
 
-import logging
-logging.basicConfig(level=logging.INFO)
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    logging.info("📩 Messaggio WhatsApp ricevuto")
-    logging.info(request.form)
-
     resp = MessagingResponse()
-    resp.message("Webhook OK")
+    resp.message("Webhook OK ✅ ho ricevuto il messaggio")
     return str(resp)
 
 
