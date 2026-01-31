@@ -2793,34 +2793,61 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
-
-from twilio.twiml.messaging_response import MessagingResponse
+import os
 import logging
+import requests
+from flask import request
+from twilio.twiml.messaging_response import MessagingResponse
+from requests.auth import HTTPBasicAuth
 
+# === CONFIG TWILIO ===
+TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
+
+# === FUNZIONE DOWNLOAD PDF ===
+def download_pdf(url, filename):
+    r = requests.get(
+        url,
+        auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN)
+    )
+    r.raise_for_status()
+    with open(filename, "wb") as f:
+        f.write(r.content)
+
+# === WEBHOOK WHATSAPP ===
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     logging.info("📩 WhatsApp ricevuto")
-    logging.info(request.form)
-
-    num_media = int(request.form.get("NumMedia", 0))
+    logging.info(dict(request.form))
 
     resp = MessagingResponse()
 
-    if num_media > 0:
-        media_url = request.form.get("MediaUrl0")
-        media_type = request.form.get("MediaContentType0")
+    try:
+        num_media = int(request.form.get("NumMedia", 0))
 
-        logging.info(f"📎 Media ricevuto: {media_type}")
+        if num_media > 0:
+            media_url = request.form.get("MediaUrl0")
+            media_type = request.form.get("MediaContentType0")
 
-        if media_type == "application/pdf":
-            resp.message("📄 PDF ricevuto, lo sto analizzando…")
+            logging.info(f"📎 Media ricevuto: {media_type}")
+            logging.info(f"🔗 Media URL: {media_url}")
+
+            if media_type == "application/pdf":
+                filename = "/tmp/offerte.pdf"  # path sicuro su Render
+                download_pdf(media_url, filename)
+
+                logging.info("✅ PDF scaricato correttamente")
+                resp.message("📄 PDF ricevuto e salvato. Lo sto analizzando…")
+            else:
+                resp.message("📎 File ricevuto ma non è un PDF")
         else:
-            resp.message("📎 File ricevuto ma non è un PDF")
-    else:
-        resp.message("Scrivimi oppure mandami un PDF delle offerte")
+            resp.message("Scrivimi oppure mandami un PDF delle offerte")
+
+    except Exception as e:
+        logging.exception("❌ Errore webhook WhatsApp")
+        resp.message("⚠️ Errore durante l'elaborazione del file")
 
     return str(resp)
-
 
 # ============================
 # ROUTE DI TEST TEMPLATE
