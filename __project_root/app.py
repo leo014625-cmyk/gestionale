@@ -2794,7 +2794,6 @@ def beta_volantino_elimina(id):
     return redirect(url_for('lista_volantini_beta'))
 
 import os
-import logging
 import requests
 from flask import request
 from twilio.twiml.messaging_response import MessagingResponse
@@ -2807,43 +2806,47 @@ def download_pdf(url, filename):
     if not TWILIO_SID or not TWILIO_TOKEN:
         raise RuntimeError("TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN mancanti su Render")
 
-    r = requests.get(url, auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN), timeout=30)
-    logging.info(f"⬇️ download status: {r.status_code}")
+    r = requests.get(
+        url,
+        auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN),
+        timeout=30
+    )
+
+    print("⬇️ download status:", r.status_code)
     if r.status_code != 200:
-        logging.info(f"⬇️ response snippet: {r.text[:200]}")
+        print("⬇️ response snippet:", (r.text or "")[:200])
+
     r.raise_for_status()
 
     with open(filename, "wb") as f:
         f.write(r.content)
 
     size = os.path.getsize(filename)
-    logging.info(f"✅ salvato file: {filename} ({size} bytes)")
+    print(f"✅ salvato file: {filename} ({size} bytes)")
     return size
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    logging.info("📩 WhatsApp ricevuto")
-    logging.info(dict(request.form))
-
     resp = MessagingResponse()
 
     try:
         num_media = int(request.form.get("NumMedia", 0))
-        logging.info(f"📦 NumMedia: {num_media}")
-        logging.info(f"🔐 TWILIO_SID presente? {'SI' if TWILIO_SID else 'NO'}")
-        logging.info(f"🔐 TWILIO_TOKEN presente? {'SI' if TWILIO_TOKEN else 'NO'}")
+        print("📩 WhatsApp ricevuto - NumMedia:", num_media)
+        print("🔐 SID presente?", "SI" if TWILIO_SID else "NO")
+        print("🔐 TOKEN presente?", "SI" if TWILIO_TOKEN else "NO")
+
+        # stampa chiavi principali (utile)
+        print("🔎 MediaContentType0:", request.form.get("MediaContentType0"))
+        print("🔎 MediaUrl0:", request.form.get("MediaUrl0"))
 
         if num_media > 0:
             media_url = request.form.get("MediaUrl0")
-            media_type = request.form.get("MediaContentType0")
+            media_type = request.form.get("MediaContentType0") or ""
 
-            logging.info(f"📎 Media type: {media_type}")
-            logging.info(f"🔗 Media URL: {media_url}")
+            # accetta anche "application/pdf; charset=binary"
+            is_pdf = media_type.lower().startswith("application/pdf")
 
-            # Accettiamo anche varianti tipo "application/pdf; charset=binary"
-            is_pdf = (media_type or "").lower().startswith("application/pdf")
-
-            if is_pdf:
+            if is_pdf and media_url:
                 filename = "/tmp/offerte.pdf"
                 size = download_pdf(media_url, filename)
                 resp.message(f"📄 PDF ricevuto e scaricato ({size} bytes). Ora lo analizzo…")
@@ -2852,8 +2855,8 @@ def whatsapp_webhook():
         else:
             resp.message("👋 Inviami un PDF con le offerte (codice, nome, prezzo).")
 
-    except Exception:
-        logging.exception("❌ Errore webhook WhatsApp")
+    except Exception as e:
+        print("❌ ERRORE webhook:", str(e))
         resp.message("⚠️ Errore durante il download del PDF. Controllo in corso.")
 
     return str(resp)
