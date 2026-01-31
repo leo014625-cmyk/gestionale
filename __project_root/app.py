@@ -2816,7 +2816,20 @@ def init_db():
     db.create_all()
     return "Tabelle create!"
 
+from twilio.twiml.messaging_response import MessagingResponse
 
+@app.route("/whatsapp/webhook", methods=["POST"])
+def whatsapp_webhook():
+    numero = request.form.get("From")
+    testo = request.form.get("Body")
+
+    print("📩 Messaggio WhatsApp da:", numero)
+    print("💬 Testo:", testo)
+
+    resp = MessagingResponse()
+    resp.message("✅ Messaggio ricevuto! Dimmi pure cosa vuoi fare 🙂")
+
+    return str(resp)
 
 # ============================
 # AVVIO APP
