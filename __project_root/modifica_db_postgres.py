@@ -30,16 +30,8 @@ def aggiorna_db():
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked BOOLEAN NOT NULL DEFAULT FALSE""")
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked_at TIMESTAMP""")
 
-        # ✅ Preferenze offerte WhatsApp (Meta Cloud API)
-        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE""")
-        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS marketing_opt_in_at TIMESTAMP""")
-        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS pref_scadenza BOOLEAN NOT NULL DEFAULT FALSE""")
-        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS pref_pesce BOOLEAN NOT NULL DEFAULT FALSE""")
-        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS pref_carne BOOLEAN NOT NULL DEFAULT FALSE""")
-
         cur.execute("""CREATE INDEX IF NOT EXISTS clienti_telefono_idx ON clienti (telefono)""")
         cur.execute("""CREATE INDEX IF NOT EXISTS clienti_whatsapp_linked_idx ON clienti (whatsapp_linked)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS clienti_marketing_opt_in_idx ON clienti (marketing_opt_in)""")
 
         # ============================
         # WHATSAPP LINK CODES
@@ -53,9 +45,53 @@ def aggiorna_db():
                 used_at TIMESTAMP
             )
         """)
-
         cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_cliente_idx ON whatsapp_link_codes (cliente_id)""")
         cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_used_at_idx ON whatsapp_link_codes (used_at)""")
+
+        # ============================
+        # WHATSAPP PREFERENZE (NUOVO)
+        # ============================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS whatsapp_preferenze (
+                cliente_id INTEGER PRIMARY KEY REFERENCES clienti(id) ON DELETE CASCADE,
+                opt_out BOOLEAN NOT NULL DEFAULT FALSE,
+                ricevi_scadenza BOOLEAN NOT NULL DEFAULT FALSE,
+                ricevi_pesce BOOLEAN NOT NULL DEFAULT FALSE,
+                ricevi_carne BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        """)
+        cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_preferenze_opt_out_idx ON whatsapp_preferenze (opt_out)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_preferenze_scadenza_idx ON whatsapp_preferenze (ricevi_scadenza)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_preferenze_pesce_idx ON whatsapp_preferenze (ricevi_pesce)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_preferenze_carne_idx ON whatsapp_preferenze (ricevi_carne)""")
+
+        # Trigger per aggiornare updated_at automaticamente
+        cur.execute("""
+            CREATE OR REPLACE FUNCTION set_updated_at()
+            RETURNS TRIGGER AS $$
+            BEGIN
+              NEW.updated_at = NOW();
+              RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+        cur.execute("""
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_trigger
+                WHERE tgname = 'whatsapp_preferenze_set_updated_at'
+              ) THEN
+                CREATE TRIGGER whatsapp_preferenze_set_updated_at
+                BEFORE UPDATE ON whatsapp_preferenze
+                FOR EACH ROW
+                EXECUTE FUNCTION set_updated_at();
+              END IF;
+            END $$;
+        """)
 
         # ============================
         # CATEGORIE
