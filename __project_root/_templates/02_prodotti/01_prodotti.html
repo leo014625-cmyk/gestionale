@@ -15,6 +15,17 @@
       <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success rounded-4 d-flex align-items-center gap-2">
         <i class="bi bi-plus-circle"></i> Aggiungi Prodotto
       </a>
+
+      <!-- ✅ NUOVO: prodotti senza categoria -->
+      <button type="button"
+              class="btn btn-outline-dark rounded-4 d-flex align-items-center gap-2"
+              data-bs-toggle="modal"
+              data-bs-target="#categoriaModal"
+              data-categoria="__SENZA__">
+        <i class="bi bi-exclamation-triangle"></i> Prodotti senza categoria
+        <span class="badge text-bg-dark ms-1">{{ (prodotti_senza_categoria|length) if prodotti_senza_categoria else 0 }}</span>
+      </button>
+
       <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary rounded-4 d-flex align-items-center gap-2">
         <i class="bi bi-folder2-open"></i> Gestisci Categorie
       </a>
@@ -171,6 +182,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const prodottiPerCategoria = {{ prodotti_per_categoria|tojson }};
+  const prodottiSenzaCategoria = {{ (prodotti_senza_categoria or [])|tojson }};
 
   const modal = document.getElementById('categoriaModal');
   const modalTitle = document.getElementById('categoriaModalLabel');
@@ -209,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderProdotti(prodotti) {
     listaProdotti.innerHTML = '';
     if (!prodotti || prodotti.length === 0) {
-      listaProdotti.innerHTML = `<div class="text-center text-muted py-4">Nessun prodotto in questa categoria.</div>`;
+      listaProdotti.innerHTML = `<div class="text-center text-muted py-4">Nessun prodotto.</div>`;
       return;
     }
 
@@ -267,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function filterCategorieCards() {
     const q = norm(searchGlobale.value);
 
+    // filtro card categorie (come prima)
     document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
       const nomeCat = norm(col.dataset.categoria);
       const prodotti = prodottiPerCategoria[col.dataset.categoria] || [];
@@ -280,6 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       col.style.display = (matchCategoria || matchProdotto) ? '' : 'none';
     });
+
+    // ✅ se cerchi qualcosa che matcha prodotti senza categoria, non abbiamo una "card",
+    // ma almeno l’utente può cliccare il bottone sopra e trovarli.
   }
 
   function filterByCount(mode) {
@@ -295,10 +311,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = event.relatedTarget;
     categoriaCorrente = button.getAttribute('data-categoria');
 
-    prodottiCorrenti = (prodottiPerCategoria[categoriaCorrente] || []).slice();
-    modalTitle.textContent = `Prodotti - ${categoriaCorrente}`;
-    modalSub.textContent = `${prodottiCorrenti.length} prodotti`;
+    if (categoriaCorrente === "__SENZA__") {
+      prodottiCorrenti = (prodottiSenzaCategoria || []).slice();
+      modalTitle.textContent = `Prodotti - Senza categoria`;
+    } else {
+      prodottiCorrenti = (prodottiPerCategoria[categoriaCorrente] || []).slice();
+      modalTitle.textContent = `Prodotti - ${categoriaCorrente}`;
+    }
 
+    modalSub.textContent = `${prodottiCorrenti.length} prodotti`;
     searchInput.value = '';
     renderProdotti(prodottiCorrenti);
   });
@@ -332,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
   btnMostraTutte.addEventListener('click', () => filterByCount("tutte"));
   btnSoloPiene.addEventListener('click', () => filterByCount("piene"));
   btnSoloVuote.addEventListener('click', () => filterByCount("vuote"));
-
 });
 </script>
 
