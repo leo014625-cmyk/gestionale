@@ -10,6 +10,12 @@ from psycopg2.extras import RealDictCursor
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from flask_sqlalchemy import SQLAlchemy
+import threading
+import requests
+from requests.auth import HTTPBasicAuth
+
+from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
 
 
 # ============================
@@ -2797,13 +2803,14 @@ def beta_volantino_elimina(id):
 
 TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
-
-# Sandbox number Twilio (quello fisso della sandbox)
 TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
 
 twilio_client = Client(TWILIO_SID, TWILIO_TOKEN)
 
 def download_pdf(url, filename):
+    if not TWILIO_SID or not TWILIO_TOKEN:
+        raise RuntimeError("TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN mancanti su Render")
+
     r = requests.get(url, auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN), timeout=30)
     r.raise_for_status()
     with open(filename, "wb") as f:
@@ -2813,35 +2820,31 @@ def download_pdf(url, filename):
 def send_whatsapp(to_number, text):
     twilio_client.messages.create(
         from_=TWILIO_WHATSAPP_FROM,
-        to=to_number,          # es: "whatsapp:+39..."
+        to=to_number,  # es: "whatsapp:+39..."
         body=text
     )
+
 def process_pdf_async(from_number, media_url):
     try:
         filename = "/tmp/offerte.pdf"
         size = download_pdf(media_url, filename)
-
-        # Per ora mando solo conferma (poi ci mettiamo lettura PDF)
-        send_whatsapp(from_number, f"✅ PDF scaricato correttamente ({size} bytes). Ora passo alla lettura…")
-
+        send_whatsapp(from_number, f"✅ PDF scaricato correttamente ({size} bytes). Ora estraggo i prodotti…")
     except Exception as e:
-        send_whatsapp(from_number, f"⚠️ Errore nel download/lettura PDF: {str(e)[:120]}")
-
+        send_whatsapp(from_number, f"⚠️ Errore nel download PDF: {str(e)[:120]}")
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     from_number = request.form.get("From")  # es: "whatsapp:+39..."
     num_media = int(request.form.get("NumMedia", 0))
 
-    # ✅ Risposta immediata (questa DEVE arrivare)
     resp = MessagingResponse()
 
     if num_media > 0:
         media_url = request.form.get("MediaUrl0")
         media_type = (request.form.get("MediaContentType0") or "").lower()
 
-        # accetta anche "application/pdf; charset=binary"
         if media_type.startswith("application/pdf") and media_url:
+            # ✅ rispondi subito (così WhatsApp la mostra)
             resp.message("📩 Ricevuto! Sto elaborando il PDF…")
 
             # ✅ lavoro pesante fuori dal webhook
@@ -2857,6 +2860,7 @@ def whatsapp_webhook():
             resp.message("👋 Inviami un PDF con le offerte (codice, nome, prezzo).")
 
     return str(resp)
+
 
 
 
