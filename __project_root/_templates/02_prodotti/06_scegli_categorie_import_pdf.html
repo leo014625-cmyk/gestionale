@@ -1,0 +1,56 @@
+{% extends "01_base.html" %}
+{% block title %}Scegli categorie prodotti{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="mb-0">Scegli categorie</h1>
+  <a class="btn btn-outline-secondary" href="{{ url_for('modifica_cliente', id=cliente_id) }}">
+    Indietro
+  </a>
+</div>
+
+<div class="alert alert-warning">
+  Questi prodotti non hanno categoria. Seleziona dove inserirli.
+</div>
+
+<form method="POST" class="card shadow-sm rounded-4">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead class="table-light">
+          <tr>
+            <th style="width:140px;">Codice</th>
+            <th>Nome</th>
+            <th style="width:280px;">Categoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in prodotti %}
+          <tr>
+            <td><span class="badge text-bg-light border">{{ p.codice }}</span></td>
+            <td class="fw-semibold">{{ p.nome }}</td>
+            <td>
+              <select class="form-select" name="categoria[{{ p.id }}]" required>
+                <option value="" selected disabled>— seleziona —</option>
+                {% for c in categorie %}
+                  <option value="{{ c.id }}">{{ c.nome }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary">
+        <i class="bi bi-save"></i> Salva categorie
+      </button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('modifica_cliente', id=cliente_id) }}">
+        Salta per ora
+      </a>
+    </div>
+  </div>
+</form>
+{% endblock %}
