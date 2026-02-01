@@ -30,8 +30,16 @@ def aggiorna_db():
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked BOOLEAN NOT NULL DEFAULT FALSE""")
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked_at TIMESTAMP""")
 
+        # ✅ Preferenze offerte WhatsApp (Meta Cloud API)
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE""")
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS marketing_opt_in_at TIMESTAMP""")
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS pref_scadenza BOOLEAN NOT NULL DEFAULT FALSE""")
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS pref_pesce BOOLEAN NOT NULL DEFAULT FALSE""")
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS pref_carne BOOLEAN NOT NULL DEFAULT FALSE""")
+
         cur.execute("""CREATE INDEX IF NOT EXISTS clienti_telefono_idx ON clienti (telefono)""")
         cur.execute("""CREATE INDEX IF NOT EXISTS clienti_whatsapp_linked_idx ON clienti (whatsapp_linked)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS clienti_marketing_opt_in_idx ON clienti (marketing_opt_in)""")
 
         # ============================
         # WHATSAPP LINK CODES
