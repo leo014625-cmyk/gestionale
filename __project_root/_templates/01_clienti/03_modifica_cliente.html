@@ -55,12 +55,13 @@
                  value="{{ nuova_zona_value or '' }}" placeholder="Inserisci nuova zona">
         </div>
 
-        <!-- ✅ NUOVO: TELEFONO WHATSAPP -->
+        <!-- ✅ TELEFONO WHATSAPP -->
         <div class="col-md-6">
           <label class="form-label d-flex align-items-center justify-content-between">
             <span>Telefono WhatsApp</span>
-            <span class="badge text-bg-light border" id="telefono-badge">Non validato</span>
+            <span class="badge text-bg-light border" id="telefono-badge">Vuoto</span>
           </label>
+
           <input type="text"
                  class="form-control"
                  name="telefono"
@@ -69,9 +70,11 @@
                  placeholder="Es. 393331234567 (senza +)"
                  inputmode="numeric"
                  autocomplete="tel">
+
           <div class="form-text">
-            Solo numeri, senza spazi e senza “+”. (Esempio: <b>39333...</b>)
+            Solo numeri (min 8, max 15). Consigliato formato: <b>39...</b> senza “+” e senza spazi.
           </div>
+
           <div class="invalid-feedback">
             Numero non valido. Inserisci solo cifre (min 8, max 15).
           </div>
@@ -422,7 +425,7 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-  // ---------- TELEFONO: NORMALIZZA + VALIDAZIONE LEGGERA ----------
+  // ---------- TELEFONO: NORMALIZZA + VALIDAZIONE ----------
   const telInp = document.getElementById("telefono");
   const telBadge = document.getElementById("telefono-badge");
 
@@ -433,34 +436,38 @@ document.addEventListener("DOMContentLoaded", () => {
     return v;
   }
 
-  function validateTel(){
+  function setBadge(kind, text){
+    if (!telBadge) return;
+    if (kind === "ok")      telBadge.className = "badge text-bg-success";
+    else if (kind === "bad")telBadge.className = "badge text-bg-danger";
+    else                    telBadge.className = "badge text-bg-light border";
+    telBadge.textContent = text;
+  }
+
+  function validateTel(opts={commit:false}){
     if (!telInp) return true;
     const raw = telInp.value;
     const norm = normalizeTel(raw);
-    telInp.value = norm;
+
+    // non “rompere” mentre scrive: scrivo il valore normalizzato solo su blur/submit
+    if (opts.commit) telInp.value = norm;
 
     if (!norm) {
       telInp.classList.remove("is-valid","is-invalid");
-      if (telBadge) {
-        telBadge.className = "badge text-bg-light border";
-        telBadge.textContent = "Vuoto";
-      }
+      setBadge("empty", "Vuoto");
       return true;
     }
 
     const ok = (norm.length >= 8 && norm.length <= 15);
     telInp.classList.toggle("is-valid", ok);
     telInp.classList.toggle("is-invalid", !ok);
-
-    if (telBadge) {
-      telBadge.className = ok ? "badge text-bg-success" : "badge text-bg-danger";
-      telBadge.textContent = ok ? "OK" : "Non valido";
-    }
+    setBadge(ok ? "ok" : "bad", ok ? "OK" : "Non valido");
     return ok;
   }
 
-  telInp?.addEventListener("input", validateTel);
-  validateTel();
+  telInp?.addEventListener("input", () => validateTel({commit:false}));
+  telInp?.addEventListener("blur",  () => validateTel({commit:true}));
+  validateTel({commit:false});
 
   // ---------- DATI PRODOTTI PER RIEPILOGO ----------
   const lista = [
@@ -652,10 +659,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function syncFatturatoJson() {
     if (!fatBody || !fatJson) return;
-
-    const rows = Array.from(fatBody.querySelectorAll("tr"))
-      .filter(r => r.querySelector(".fatt-mese"));
-
+    const rows = Array.from(fatBody.querySelectorAll("tr")).filter(r => r.querySelector(".fatt-mese"));
     const data = rows.map(rowToObj).filter(o => o.mese && o.anno);
     fatJson.value = data.length ? JSON.stringify(data) : "";
   }
@@ -720,8 +724,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("form-modifica-cliente")?.addEventListener("submit", (e) => {
-    // ✅ valida telefono prima di inviare
-    const okTel = validateTel();
+    // ✅ commit normalizzazione + valida telefono prima di inviare
+    const okTel = validateTel({commit:true});
     if (!okTel) {
       e.preventDefault();
       telInp?.focus();
