@@ -3135,6 +3135,57 @@ def webhook():
     data = request.json
     print("INCOMING WEBHOOK:", data)
 
+    def normalize_phone(s: str | None) -> str | None:
+        """Normalizza numero telefono: lascia solo cifre."""
+        if not s:
+            return None
+        s = str(s).strip()
+        if not s:
+            return None
+        s = s.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        s = "".join(ch for ch in s if ch.isdigit())
+        return s or None
+
+    def mark_whatsapp_linked(from_number: str):
+        """
+        Se esiste un cliente con telefono = from_number (normalizzato),
+        marca whatsapp_linked = TRUE e whatsapp_linked_at = NOW().
+        """
+        n = normalize_phone(from_number)
+        if not n:
+            return
+
+        try:
+            with get_db() as conn:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+
+                # Se il DB non è aggiornato e manca la colonna, non blocchiamo il bot.
+                try:
+                    cur.execute("""
+                        UPDATE clienti
+                        SET whatsapp_linked = TRUE,
+                            whatsapp_linked_at = COALESCE(whatsapp_linked_at, NOW())
+                        WHERE telefono = %s
+                        RETURNING id, nome
+                    """, (n,))
+                except Exception as e:
+                    print("⚠️ mark_whatsapp_linked: colonne whatsapp/telefono mancanti?", repr(e))
+                    return
+
+                row = cur.fetchone()
+                if row:
+                    try:
+                        conn.commit()
+                    except Exception:
+                        pass
+                    print(f"✅ WhatsApp collegato: cliente_id={row['id']} nome={row['nome']} telefono={n}")
+                else:
+                    # nessun cliente trovato con quel numero
+                    pass
+
+        except Exception as e:
+            print("⚠️ mark_whatsapp_linked error:", repr(e))
+
     try:
         value = data["entry"][0]["changes"][0]["value"]
     except Exception:
@@ -3146,8 +3197,14 @@ def webhook():
         return "OK", 200
 
     msg = messages[0]
-    from_number = msg["from"]
+    from_number = msg.get("from")
     mtype = msg.get("type")
+
+    if not from_number:
+        return "OK", 200
+
+    # ✅ QUI: appena arriva un messaggio, segna "collegato" se il numero esiste nei clienti
+    mark_whatsapp_linked(from_number)
 
     # --- Caso PDF ricevuto ---
     if mtype == "document":
@@ -3202,6 +3259,11 @@ def webhook():
                         return "OK", 200
 
                     sent, total = send_offers_to_customers_pg(cur, offers)
+                    try:
+                        conn.commit()
+                    except Exception:
+                        pass
+
                     send_text(from_number, f"📤 Inviate offerte a {sent} clienti (mappa clienti: {total}).")
 
             except Exception as e_db:
@@ -3217,7 +3279,7 @@ def webhook():
         return "OK", 200
 
     # --- Caso testo ---
-    text = msg.get("text", {}).get("body", "").strip().lower()
+    text = (msg.get("text", {}) or {}).get("body", "").strip().lower()
     print("IN MSG:", from_number, text)
 
     if text == "help":
