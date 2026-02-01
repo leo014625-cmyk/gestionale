@@ -2793,71 +2793,71 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
-import os
-import requests
-from flask import request
-from twilio.twiml.messaging_response import MessagingResponse
-from requests.auth import HTTPBasicAuth
+
 
 TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
 
+# Sandbox number Twilio (quello fisso della sandbox)
+TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
+
+twilio_client = Client(TWILIO_SID, TWILIO_TOKEN)
+
 def download_pdf(url, filename):
-    if not TWILIO_SID or not TWILIO_TOKEN:
-        raise RuntimeError("TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN mancanti su Render")
-
-    r = requests.get(
-        url,
-        auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN),
-        timeout=30
-    )
-
-    print("⬇️ download status:", r.status_code)
-    if r.status_code != 200:
-        print("⬇️ response snippet:", (r.text or "")[:200])
-
+    r = requests.get(url, auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN), timeout=30)
     r.raise_for_status()
-
     with open(filename, "wb") as f:
         f.write(r.content)
+    return os.path.getsize(filename)
 
-    size = os.path.getsize(filename)
-    print(f"✅ salvato file: {filename} ({size} bytes)")
-    return size
+def send_whatsapp(to_number, text):
+    twilio_client.messages.create(
+        from_=TWILIO_WHATSAPP_FROM,
+        to=to_number,          # es: "whatsapp:+39..."
+        body=text
+    )
+def process_pdf_async(from_number, media_url):
+    try:
+        filename = "/tmp/offerte.pdf"
+        size = download_pdf(media_url, filename)
+
+        # Per ora mando solo conferma (poi ci mettiamo lettura PDF)
+        send_whatsapp(from_number, f"✅ PDF scaricato correttamente ({size} bytes). Ora passo alla lettura…")
+
+    except Exception as e:
+        send_whatsapp(from_number, f"⚠️ Errore nel download/lettura PDF: {str(e)[:120]}")
+
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
+    from_number = request.form.get("From")  # es: "whatsapp:+39..."
+    num_media = int(request.form.get("NumMedia", 0))
+
+    # ✅ Risposta immediata (questa DEVE arrivare)
     resp = MessagingResponse()
 
-    try:
-        num_media = int(request.form.get("NumMedia", 0))
-        print("📩 WhatsApp ricevuto - NumMedia:", num_media)
+    if num_media > 0:
+        media_url = request.form.get("MediaUrl0")
+        media_type = (request.form.get("MediaContentType0") or "").lower()
 
-        if num_media > 0:
-            media_url = request.form.get("MediaUrl0")
-            media_type = request.form.get("MediaContentType0") or ""
+        # accetta anche "application/pdf; charset=binary"
+        if media_type.startswith("application/pdf") and media_url:
+            resp.message("📩 Ricevuto! Sto elaborando il PDF…")
 
-            print("🔎 MediaContentType0:", media_type)
-            print("🔎 MediaUrl0:", media_url)
-
-            is_pdf = media_type.lower().startswith("application/pdf")
-
-            if is_pdf and media_url:
-                filename = "/tmp/offerte.pdf"
-                size = download_pdf(media_url, filename)
-
-                # ✅ risposta sicura e molto chiara
-                resp.message(f"✅ OK! Ho scaricato il PDF ({size} bytes). Ora estraggo i prodotti…")
-            else:
-                resp.message("❌ Ho ricevuto un file, ma non è un PDF. Inviami un PDF delle offerte.")
+            # ✅ lavoro pesante fuori dal webhook
+            t = threading.Thread(target=process_pdf_async, args=(from_number, media_url), daemon=True)
+            t.start()
         else:
-            resp.message("👋 Sono attivo! Inviami un PDF con le offerte (codice, nome, prezzo).")
-
-    except Exception as e:
-        print("❌ ERRORE webhook:", str(e))
-        resp.message("⚠️ Errore durante l'elaborazione. Riprova tra poco.")
+            resp.message("📎 File ricevuto ma non è un PDF. Inviami un PDF delle offerte.")
+    else:
+        text = (request.form.get("Body") or "").strip().lower()
+        if text == "test":
+            resp.message("✅ Test OK. Ora inviami un PDF.")
+        else:
+            resp.message("👋 Inviami un PDF con le offerte (codice, nome, prezzo).")
 
     return str(resp)
+
 
 
 @app.route("/whatsapp/ping", methods=["GET"])
