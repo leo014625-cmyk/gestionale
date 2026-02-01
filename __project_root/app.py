@@ -817,43 +817,43 @@ def modifica_cliente(id):
         zone = cur.fetchall()
 
         # ============================
-        # CATEGORIE (serve anche per popup import)
+        # CATEGORIE
         # ============================
         cur.execute('SELECT * FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
         # ============================
-        # POPUP IMPORT (da sessione)
-        # ============================
-        show_import_popup = (request.args.get("show_import") == "1")
-        import_result = session.get("pdf_import_result")
-
-        # sicurezza: mostra popup solo se appartiene a questo cliente
-        if import_result and import_result.get("cliente_id") != id:
-            import_result = None
-
-        # ============================
-        # PRODOTTI (SOLO NON ELIMINATI)
+        # PRODOTTI (✅ SOLO NON ELIMINATI + include CODICE)
         # ============================
         cur.execute('''
-            SELECT p.id, p.nome, p.categoria_id, c.nome AS categoria_nome
+            SELECT
+                p.id,
+                p.codice,
+                p.nome,
+                p.categoria_id,
+                c.nome AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id = c.id
-            WHERE p.eliminato = FALSE
-            ORDER BY c.nome, p.nome
+            WHERE COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY c.nome NULLS LAST, p.nome
         ''')
         prodotti = cur.fetchall()
 
         # ============================
-        # PRODOTTI ASSOCIATI (SOLO NON ELIMINATI)
+        # PRODOTTI ASSOCIATI (✅ ESCLUDI ELIMINATI)
         # ============================
         cur.execute('''
-            SELECT cp.prodotto_id, cp.lavorato, cp.prezzo_attuale, cp.prezzo_offerta, fornitori.nome AS fornitore
+            SELECT
+                cp.prodotto_id,
+                cp.lavorato,
+                cp.prezzo_attuale,
+                cp.prezzo_offerta,
+                fornitori.nome AS fornitore
             FROM clienti_prodotti cp
             JOIN prodotti p ON cp.prodotto_id = p.id
             LEFT JOIN fornitori ON cp.fornitore_id = fornitori.id
             WHERE cp.cliente_id=%s
-              AND p.eliminato = FALSE
+              AND COALESCE(p.eliminato, FALSE) = FALSE
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
@@ -907,7 +907,7 @@ def modifica_cliente(id):
                 except Exception:
                     pass
 
-            # ✅ LOGICA WHATSAPP COLLEGATO
+            # ✅ LOGICA WHATSAPP COLLEGATO:
             old_tel = normalize_phone(cliente.get("telefono"))
             old_linked = bool(cliente.get("whatsapp_collegato") or False)
 
@@ -959,10 +959,10 @@ def modifica_cliente(id):
 
             # ---------------------------
             # PRODOTTI LAVORATI
+            # ✅ Aggiorna SOLO i prodotti NON ELIMINATI (perché prodotti[] è già filtrata)
             # ---------------------------
             selezionati = set(request.form.getlist("prodotti_lavorati[]"))
 
-            # NB: qui iteriamo SOLO su "prodotti" già filtrati (eliminato=FALSE)
             for prodotto in prodotti:
                 pid = str(prodotto["id"])
                 lavorato = pid in selezionati
@@ -1011,7 +1011,7 @@ def modifica_cliente(id):
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
             # ---------------------------
-            # FATTURATO (tuo blocco invariato)
+            # FATTURATO (il tuo blocco invariato)
             # ---------------------------
             salvato_storico = False
             use_storico = (request.form.get("fatturato_use_storico") == "1")
@@ -1174,7 +1174,6 @@ def modifica_cliente(id):
         ''', (id,))
         fatturati_storico = cur.fetchall()
 
-        # ✅ telefono precompilato
         telefono_cliente = (cliente.get("telefono") or "")
 
     return render_template(
@@ -1183,7 +1182,7 @@ def modifica_cliente(id):
         telefono_cliente=telefono_cliente,
         zone=zone,
         categorie=categorie,
-        prodotti=prodotti,
+        prodotti=prodotti,  # ✅ ora include anche "codice"
         prodotti_lavorati=prodotti_lavorati,
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
@@ -1196,11 +1195,7 @@ def modifica_cliente(id):
         fatturati_cliente=fatturati_cliente,
         fatturati_storico=fatturati_storico,
         current_month=current_datetime.month,
-        current_year=current_datetime.year,
-
-        # ✅ per popup import
-        import_result=import_result,
-        show_import_popup=show_import_popup
+        current_year=current_datetime.year
     )
 
 
