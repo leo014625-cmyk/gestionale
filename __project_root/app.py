@@ -14,8 +14,7 @@ import threading
 import requests
 from requests.auth import HTTPBasicAuth
 
-from twilio.twiml.messaging_response import MessagingResponse
-from twilio.rest import Client
+
 
 
 # ============================
@@ -2799,13 +2798,15 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
-
+from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
 
 TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
 
-twilio_client = Client(TWILIO_SID, TWILIO_TOKEN)
+twilio_client = Client(TWILIO_SID, TWILIO_TOKEN) if TWILIO_SID and TWILIO_TOKEN else None
+
 
 def download_pdf(url, filename):
     if not TWILIO_SID or not TWILIO_TOKEN:
