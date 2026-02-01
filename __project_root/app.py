@@ -2798,82 +2798,16 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
-from twilio.twiml.messaging_response import MessagingResponse
-from twilio.rest import Client
-
-TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
-TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
-
-twilio_client = Client(TWILIO_SID, TWILIO_TOKEN) if TWILIO_SID and TWILIO_TOKEN else None
-
-
-def download_pdf(url, filename):
-    if not TWILIO_SID or not TWILIO_TOKEN:
-        raise RuntimeError("TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN mancanti su Render")
-
-    r = requests.get(url, auth=HTTPBasicAuth(TWILIO_SID, TWILIO_TOKEN), timeout=30)
-    r.raise_for_status()
-    with open(filename, "wb") as f:
-        f.write(r.content)
-    return os.path.getsize(filename)
-
-def send_whatsapp(to_number, text):
-    twilio_client.messages.create(
-        from_=TWILIO_WHATSAPP_FROM,
-        to=to_number,  # es: "whatsapp:+39..."
-        body=text
-    )
-
-def process_pdf_async(from_number, media_url):
-    try:
-        filename = "/tmp/offerte.pdf"
-        size = download_pdf(media_url, filename)
-        send_whatsapp(from_number, f"✅ PDF scaricato correttamente ({size} bytes). Ora estraggo i prodotti…")
-    except Exception as e:
-        send_whatsapp(from_number, f"⚠️ Errore nel download PDF: {str(e)[:120]}")
-
-from twilio.twiml.messaging_response import MessagingResponse
-
-@app.route("/whatsapp", methods=["POST", "GET"])
-def whatsapp_webhook():
-    # GET per test manuale da browser
+@app.route("/webhook", methods=["GET", "POST"])
+def webhook():
     if request.method == "GET":
-        return "OK", 200
+        if request.args.get("hub.verify_token") == os.getenv("WHATSAPP_VERIFY_TOKEN"):
+            return request.args.get("hub.challenge")
+        return "Forbidden", 403
 
-    resp = MessagingResponse()
-    try:
-        # LOG COMPLETO (Render lo mostra)
-        print("✅ /whatsapp POST chiamato")
-        print("FORM:", dict(request.form))
-
-        body = (request.form.get("Body") or "").strip()
-        num_media = int(request.form.get("NumMedia", 0))
-
-        # Risposta immediata sempre
-        if body.lower() == "test":
-            resp.message("✅ TEST OK (webhook funziona). Ora manda un PDF.")
-        elif num_media > 0:
-            resp.message("✅ PDF ricevuto (webhook OK).")
-        else:
-            resp.message("✅ Messaggio ricevuto (webhook OK). Scrivi 'test' o manda un PDF.")
-
-    except Exception as e:
-        print("❌ ERRORE /whatsapp:", str(e))
-        # anche in errore: rispondi comunque
-        resp = MessagingResponse()
-        resp.message("⚠️ Errore interno webhook, ma sono vivo. Riprova con 'test'.")
-
-    return str(resp)
-
-
-
-
-
-@app.route("/whatsapp/ping", methods=["GET"])
-def whatsapp_ping():
+    data = request.json
+    print(data)
     return "OK", 200
-
 
 # ============================
 # ROUTE DI TEST TEMPLATE
