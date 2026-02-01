@@ -781,6 +781,21 @@ def parse_decimal(value):
 def modifica_cliente(id):
     current_datetime = datetime.now()
 
+    def normalize_phone(s: str | None) -> str | None:
+        """
+        Normalizza numero telefono:
+        - toglie spazi, +, -, parentesi
+        - lascia solo cifre
+        """
+        if not s:
+            return None
+        s = str(s).strip()
+        if not s:
+            return None
+        s = s.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        s = "".join(ch for ch in s if ch.isdigit())
+        return s or None
+
     with get_db() as db:
         cur = db.cursor(cursor_factory=RealDictCursor)
 
@@ -860,6 +875,15 @@ def modifica_cliente(id):
             zona = request.form.get('zona')
             nuova_zona = (request.form.get('nuova_zona') or '').strip()
 
+            # ✅ NUOVO: telefono cliente
+            telefono_raw = request.form.get("telefono")
+            telefono = normalize_phone(telefono_raw)
+
+            # Validazione leggera (non blocca troppo)
+            if telefono and (len(telefono) < 8 or len(telefono) > 15):
+                flash("⚠️ Telefono non valido (controlla lunghezza).", "warning")
+                telefono = None
+
             # nuova zona
             if zona == 'nuova_zona' and nuova_zona:
                 zona = nuova_zona
@@ -868,8 +892,11 @@ def modifica_cliente(id):
                 except Exception:
                     pass
 
-            cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s',
-                        (nome, zona, id))
+            # ✅ UPDATE CLIENTE con telefono
+            cur.execute(
+                'UPDATE clienti SET nome=%s, zona=%s, telefono=%s WHERE id=%s',
+                (nome, zona, telefono, id)
+            )
 
             # ---------------------------
             # PRODOTTI LAVORATI
@@ -925,7 +952,7 @@ def modifica_cliente(id):
 
             # ---------------------------
             # FATTURATO (PRIORITÀ: storico tabella)
-            # FIX: supporta modifica, eliminazione, svuota tutto, e rimuove duplicati
+            # (tuo blocco invariato)
             # ---------------------------
             salvato_storico = False
             use_storico = (request.form.get("fatturato_use_storico") == "1")
@@ -934,7 +961,6 @@ def modifica_cliente(id):
             anni_list = request.form.getlist("fatt_anno[]")
             importi_list = request.form.getlist("fatt_importo[]")
 
-            # 1) Se arrivano campi fatt_* -> usa quelli
             if mesi_list or anni_list or importi_list:
                 try:
                     righe = []
@@ -946,27 +972,23 @@ def modifica_cliente(id):
 
                         mese_i = parse_int(m)
                         anno_i = parse_int(a)
-                        imp_d = parse_decimal(imp)  # None se vuoto
+                        imp_d = parse_decimal(imp)
 
                         if mese_i and anno_i:
                             righe.append((mese_i, anno_i, imp_d))
 
-                    # DISTINCT esistenti (così gestisci duplicati già presenti)
                     cur.execute('''
                         SELECT DISTINCT mese, anno
                         FROM fatturato
                         WHERE cliente_id=%s
                     ''', (id,))
                     existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
-
                     incoming = {(m, a) for (m, a, _) in righe}
 
-                    # Se l'utente sta usando lo storico e ha svuotato tutto -> cancella tutto
                     if use_storico and not righe:
                         cur.execute('DELETE FROM fatturato WHERE cliente_id=%s', (id,))
                         salvato_storico = True
                     else:
-                        # elimina quelli rimossi dalla tabella
                         to_delete = existing - incoming
                         for (m, a) in to_delete:
                             cur.execute(
@@ -974,7 +996,6 @@ def modifica_cliente(id):
                                 (id, m, a)
                             )
 
-                        # PER OGNI (mese,anno) incoming: delete totale + insert 1 riga (elimina duplicati e aggiorna sempre)
                         for (m, a, imp) in righe:
                             cur.execute(
                                 'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
@@ -991,7 +1012,6 @@ def modifica_cliente(id):
                     flash(f"Errore storico fatturato (campi): {e}", "warning")
                     salvato_storico = False
 
-            # 2) Se NON salvato con campi, prova JSON (backup)
             if not salvato_storico:
                 fatt_json = (request.form.get("fatturato_storico_json") or "").strip()
                 if fatt_json:
@@ -1012,7 +1032,6 @@ def modifica_cliente(id):
                             WHERE cliente_id=%s
                         ''', (id,))
                         existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
-
                         incoming = {(m, a) for (m, a, _) in cleaned}
 
                         if use_storico and not cleaned:
@@ -1040,7 +1059,6 @@ def modifica_cliente(id):
                     except Exception as e:
                         flash(f"Errore storico fatturato (JSON): {e}", "warning")
 
-            # 3) Fallback: inserimento singolo (solo se NON uso storico)
             if not salvato_storico and not use_storico:
                 mese = request.form.get('mese')
                 anno = request.form.get('anno')
@@ -1054,7 +1072,6 @@ def modifica_cliente(id):
                         if imp_d is None:
                             raise ValueError("Importo non valido")
 
-                        # delete+insert: evita duplicati e garantisce update
                         cur.execute(
                             'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
                             (id, mese_i, anno_i)
@@ -1090,7 +1107,6 @@ def modifica_cliente(id):
         nuova_zona_selected = cliente['zona'] not in zone_nomi
         nuova_zona_value = cliente['zona'] if nuova_zona_selected else ''
 
-        # ricarica fatturati per tabella storico
         cur.execute('''
             SELECT mese, anno, totale AS importo
             FROM fatturato
@@ -1099,9 +1115,13 @@ def modifica_cliente(id):
         ''', (id,))
         fatturati_storico = cur.fetchall()
 
+        # ✅ NUOVO: telefono precompilato
+        telefono_cliente = (cliente.get("telefono") or "")
+
     return render_template(
         '01_clienti/03_modifica_cliente.html',
         cliente=cliente,
+        telefono_cliente=telefono_cliente,  # <-- aggiunto
         zone=zone,
         categorie=categorie,
         prodotti=prodotti,
