@@ -2808,9 +2808,8 @@ def beta_volantino_elimina(id):
 #   WHATSAPP_VERIFY_TOKEN, WHATSAPP_TOKEN, PHONE_NUMBER_ID
 #
 # DA ADATTARE:
-#   product_id_by_code(session, code)
-#   customer_phones_for_product(session, prodotto_id)
-#   import/inizializzazione db (Flask-SQLAlchemy)
+#   - IMPORT dei tuoi modelli (Prodotto/Cliente/ClienteProdotto) e del tuo db
+#   - se i nomi/campi sono diversi, modifica solo le query in product_id_by_code e customer_phones_for_product
 # =========================
 
 import os
@@ -2825,6 +2824,10 @@ import pdfplumber
 from flask import request
 
 GRAPH_VERSION = "v18.0"
+
+# TODO: ADATTA QUESTI IMPORT AL TUO PROGETTO
+# from __project_root import db
+# from __project_root.models import Prodotto, Cliente, ClienteProdotto
 
 
 # -------------------------
@@ -2918,35 +2921,56 @@ def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
 
 
 # -------------------------
-# 4) DB HELPERS (DA ADATTARE AI TUOI MODELLI)
+# 4) DB HELPERS (IMPLEMENTATI - ADATTA NOMI/CAMPI SE SERVE)
 # -------------------------
 def product_id_by_code(session, code: str):
     """
-    TODO: adatta al tuo modello.
-    Esempio:
-        p = session.query(Prodotto).filter(Prodotto.codice == code).first()
-        return p.id if p else None
+    Cerca il prodotto per codice.
+    ADATTA se il tuo campo non si chiama 'codice' o se è numerico.
     """
-    raise NotImplementedError("Implementa product_id_by_code(session, code)")
+    # match esatto
+    p = session.query(Prodotto).filter(Prodotto.codice == code).first()
+    if p:
+        return p.id
+
+    # fallback (se in DB il codice è dentro una stringa o con zeri)
+    try:
+        p = session.query(Prodotto).filter(Prodotto.codice.ilike(f"%{code}%")).first()
+        return p.id if p else None
+    except Exception:
+        return None
 
 
 def customer_phones_for_product(session, prodotto_id: int) -> list[tuple[int, str]]:
     """
-    TODO: adatta al tuo modello.
-    Esempio:
-        rows = (
-            session.query(Cliente.id, Cliente.telefono)
-            .join(ClienteProdotto, ClienteProdotto.cliente_id == Cliente.id)
-            .filter(ClienteProdotto.prodotto_id == prodotto_id)
-            .all()
-        )
-        return rows
+    Ritorna lista (cliente_id, telefono) per i clienti che lavorano quel prodotto.
+    ADATTA se:
+      - la tabella ponte non si chiama ClienteProdotto
+      - i campi non si chiamano cliente_id / prodotto_id
+      - il telefono è su altro campo
     """
-    raise NotImplementedError("Implementa customer_phones_for_product(session, prodotto_id)")
+    rows = (
+        session.query(Cliente.id, Cliente.telefono)
+        .join(ClienteProdotto, ClienteProdotto.cliente_id == Cliente.id)
+        .filter(ClienteProdotto.prodotto_id == prodotto_id)
+        .all()
+    )
+
+    out = []
+    for cid, tel in rows:
+        tel = (tel or "").replace("+", "").replace(" ", "")
+        if tel:
+            out.append((cid, tel))
+    return out
 
 
 def build_customer_offer_map(session, offers: list[dict]) -> dict[int, dict]:
-    items_by_customer = defaultdict(list)
+    """
+    customer_id -> {"phone": "...", "items": [...]}
+
+    Dedup per codice per cliente + ordinamento.
+    """
+    items_by_customer = defaultdict(dict)  # cid -> {code: offer}
     phone_by_customer = {}
 
     for o in offers:
@@ -2956,10 +2980,12 @@ def build_customer_offer_map(session, offers: list[dict]) -> dict[int, dict]:
 
         for cid, phone in customer_phones_for_product(session, pid):
             phone_by_customer[cid] = phone
-            items_by_customer[cid].append(o)
+            items_by_customer[cid][o["code"]] = o  # dedup per codice
 
     out = {}
-    for cid, items in items_by_customer.items():
+    for cid, by_code in items_by_customer.items():
+        items = list(by_code.values())
+        items.sort(key=lambda x: x["code"])
         out[cid] = {"phone": phone_by_customer[cid], "items": items}
     return out
 
@@ -3041,20 +3067,17 @@ def webhook():
                 )
                 return "OK", 200
 
-            # 3) Preview (prime 5 righe) così capiamo subito se il parsing è corretto
+            # 3) Preview (prime 5 righe)
             preview = "\n".join(
                 [f"- {o['code']} | {o['name']} | € {o['price']}" for o in offers[:5]]
             )
             send_text(from_number, f"✅ Letto PDF: {len(offers)} righe trovate.\nEsempi:\n{preview}")
 
-            # 4) DB + invio (se implementato)
+            # 4) DB + invio (serve db + modelli corretti)
             try:
-                # Assicurati che 'db' sia importato/inizializzato nel tuo progetto
                 with db.session.begin():
                     sent, _ = send_offers_to_customers(db.session, offers)
                 send_text(from_number, f"📤 Inviate offerte a {sent} clienti.")
-            except NotImplementedError:
-                send_text(from_number, "⚠️ Incrocio DB non attivo: implementa product_id_by_code e customer_phones_for_product.")
             except NameError:
                 send_text(from_number, "⚠️ 'db' non trovato: importa/inizializza db nel file dove gira questo webhook.")
             except Exception as e_db:
@@ -3077,7 +3100,7 @@ def webhook():
         send_text(
             from_number,
             "Mandami un PDF offerte come *documento* qui in chat.\n"
-            "Io estraggo codici+prezzi e preparo l'invio mirato per cliente.",
+            "Io estraggo codici+prezzi e invio un messaggio unico per cliente con i prodotti in offerta per lui.",
         )
     else:
         send_text(from_number, "Scrivi *help* oppure mandami un PDF offerte come documento.")
