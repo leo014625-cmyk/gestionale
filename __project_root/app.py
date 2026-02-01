@@ -2799,17 +2799,17 @@ def beta_volantino_elimina(id):
     return redirect(url_for('lista_volantini_beta'))
 
 # =========================
-# WhatsApp Cloud API (Meta) - BLOCCO COMPLETO AGGIORNATO (con debug)
+# WhatsApp Cloud API (Meta) - BLOCCO COMPLETO AGGIORNATO (per il tuo app.py)
 # - Riceve testo + PDF su /webhook
-# - Se riceve PDF: scarica -> parse (codice/nome/prezzo) -> preview su WA -> tenta DB+invio
-# - Debug chiaro su errori PDF / DB
+# - Se riceve PDF: scarica -> parse (codice/nome/prezzo) -> preview su WA -> incrocio DB (psycopg2) -> invio mirato
 #
 # ENV su Render:
 #   WHATSAPP_VERIFY_TOKEN, WHATSAPP_TOKEN, PHONE_NUMBER_ID
 #
-# DA ADATTARE:
-#   - IMPORT dei tuoi modelli (Prodotto/Cliente/ClienteProdotto) e del tuo db
-#   - se i nomi/campi sono diversi, modifica solo le query in product_id_by_code e customer_phones_for_product
+# NOTE IMPORTANTI:
+# - Questo blocco usa *get_db()* (psycopg2) del tuo progetto.
+# - Per inviare ai clienti serve che nella tabella "clienti" esista un campo telefono.
+#   Il codice prova a trovarlo automaticamente tra: telefono, cellulare, whatsapp, numero, tel, phone, mobile, ecc.
 # =========================
 
 import os
@@ -2825,14 +2825,9 @@ from flask import request
 
 GRAPH_VERSION = "v18.0"
 
-# TODO: ADATTA QUESTI IMPORT AL TUO PROGETTO
-# from __project_root import db
-# from __project_root.models import Prodotto, Cliente, ClienteProdotto
-
-
-# -------------------------
-# 1) SEND TEXT
-# -------------------------
+# ------------------------------------------------------------
+# 1) SEND TEXT (WhatsApp)
+# ------------------------------------------------------------
 def send_text(to: str, text: str):
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{os.getenv('PHONE_NUMBER_ID')}/messages"
     headers = {
@@ -2852,9 +2847,9 @@ def send_text(to: str, text: str):
     return r
 
 
-# -------------------------
-# 2) MEDIA DOWNLOAD (PDF ricevuto)
-# -------------------------
+# ------------------------------------------------------------
+# 2) DOWNLOAD MEDIA (PDF ricevuto)
+# ------------------------------------------------------------
 def _wa_headers():
     return {"Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}"}
 
@@ -2877,9 +2872,9 @@ def download_media_file(media_url: str, out_path: str) -> str:
     return out_path
 
 
-# -------------------------
-# 3) PDF PARSING (codice, nome, prezzo)
-# -------------------------
+# ------------------------------------------------------------
+# 3) PARSING PDF (codice, nome, prezzo)
+# ------------------------------------------------------------
 RE_CODE = r"(?P<code>\d{4,10})"
 RE_PRICE = r"(?P<price>\d{1,3}(?:[.,]\d{2}))"
 RE_NAME = r"(?P<name>[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ\s\-\+\/\.,]{2,80})"
@@ -2888,7 +2883,6 @@ LINE_RE = re.compile(
     rf"{RE_CODE}\s+(?:-|–)?\s*{RE_NAME}\s+.*?\s{RE_PRICE}\b",
     re.IGNORECASE,
 )
-
 
 def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
     offers = []
@@ -2909,7 +2903,7 @@ def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
                     }
                 )
 
-    # de-dup per codice
+    # de-dup per codice (prima occorrenza)
     seen = set()
     uniq = []
     for o in offers:
@@ -2917,70 +2911,115 @@ def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
             continue
         seen.add(o["code"])
         uniq.append(o)
+
     return uniq
 
 
-# -------------------------
-# 4) DB HELPERS (IMPLEMENTATI - ADATTA NOMI/CAMPI SE SERVE)
-# -------------------------
-def product_id_by_code(session, code: str):
+# ------------------------------------------------------------
+# 4) DB HELPERS (psycopg2) - coerenti con il tuo DB
+# ------------------------------------------------------------
+PHONE_COL_CACHE = {"value": None}
+
+def _detect_phone_column(cur) -> str | None:
     """
-    Cerca il prodotto per codice.
-    ADATTA se il tuo campo non si chiama 'codice' o se è numerico.
+    Prova a trovare una colonna telefono nella tabella clienti.
+    Cache in memoria per evitare query ripetute.
     """
+    if PHONE_COL_CACHE["value"] is not None:
+        return PHONE_COL_CACHE["value"]
+
+    cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema='public'
+          AND table_name='clienti'
+    """)
+    cols = [r["column_name"] if isinstance(r, dict) else r[0] for r in cur.fetchall()]
+    cols_l = [c.lower() for c in cols]
+
+    candidates = [
+        "telefono", "cellulare", "whatsapp", "numero", "tel",
+        "phone", "mobile", "phone_number", "telefono_whatsapp"
+    ]
+    for cand in candidates:
+        if cand in cols_l:
+            PHONE_COL_CACHE["value"] = cols[cols_l.index(cand)]
+            print("DEBUG - PHONE COLUMN DETECTED:", PHONE_COL_CACHE["value"])
+            return PHONE_COL_CACHE["value"]
+
+    PHONE_COL_CACHE["value"] = None
+    print("⚠️ DEBUG - Nessuna colonna telefono trovata in 'clienti'. Colonne:", cols)
+    return None
+
+
+def _normalize_phone(s: str) -> str:
+    s = (s or "").strip()
+    s = s.replace("+", "").replace(" ", "").replace("-", "")
+    # se mettono 0039...
+    if s.startswith("00"):
+        s = s[2:]
+    return s
+
+
+def product_id_by_code_pg(cur, code: str) -> int | None:
     # match esatto
-    p = session.query(Prodotto).filter(Prodotto.codice == code).first()
-    if p:
-        return p.id
+    cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
+    row = cur.fetchone()
+    if row:
+        return row["id"] if isinstance(row, dict) else row[0]
 
-    # fallback (se in DB il codice è dentro una stringa o con zeri)
-    try:
-        p = session.query(Prodotto).filter(Prodotto.codice.ilike(f"%{code}%")).first()
-        return p.id if p else None
-    except Exception:
-        return None
+    # fallback parziale
+    cur.execute("SELECT id FROM prodotti WHERE codice ILIKE %s LIMIT 1", (f"%{code}%",))
+    row = cur.fetchone()
+    if row:
+        return row["id"] if isinstance(row, dict) else row[0]
+    return None
 
 
-def customer_phones_for_product(session, prodotto_id: int) -> list[tuple[int, str]]:
+def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str]]:
+    phone_col = _detect_phone_column(cur)
+    if not phone_col:
+        return []
+
+    # NB: nel tuo codice usi cp.lavorato e cp.data_operazione, quindi assumiamo esista.
+    # Se in qualche DB vecchio 'lavorato' non c'è, la query fallirebbe: in tal caso va aggiornata la tabella.
+    q = f"""
+        SELECT c.id AS cliente_id, c.{phone_col} AS phone
+        FROM clienti c
+        JOIN clienti_prodotti cp ON cp.cliente_id = c.id
+        WHERE cp.prodotto_id = %s
+          AND (cp.lavorato IS TRUE OR cp.lavorato IS NULL)
+        ORDER BY c.id
     """
-    Ritorna lista (cliente_id, telefono) per i clienti che lavorano quel prodotto.
-    ADATTA se:
-      - la tabella ponte non si chiama ClienteProdotto
-      - i campi non si chiamano cliente_id / prodotto_id
-      - il telefono è su altro campo
-    """
-    rows = (
-        session.query(Cliente.id, Cliente.telefono)
-        .join(ClienteProdotto, ClienteProdotto.cliente_id == Cliente.id)
-        .filter(ClienteProdotto.prodotto_id == prodotto_id)
-        .all()
-    )
+    cur.execute(q, (prodotto_id,))
+    rows = cur.fetchall() or []
 
     out = []
-    for cid, tel in rows:
-        tel = (tel or "").replace("+", "").replace(" ", "")
-        if tel:
-            out.append((cid, tel))
+    for r in rows:
+        cid = r["cliente_id"] if isinstance(r, dict) else r[0]
+        phone = r["phone"] if isinstance(r, dict) else r[1]
+        phone = _normalize_phone(phone)
+        if phone:
+            out.append((cid, phone))
     return out
 
 
-def build_customer_offer_map(session, offers: list[dict]) -> dict[int, dict]:
+def build_customer_offer_map_pg(cur, offers: list[dict]) -> dict[int, dict]:
     """
     customer_id -> {"phone": "...", "items": [...]}
-
     Dedup per codice per cliente + ordinamento.
     """
     items_by_customer = defaultdict(dict)  # cid -> {code: offer}
     phone_by_customer = {}
 
     for o in offers:
-        pid = product_id_by_code(session, o["code"])
+        pid = product_id_by_code_pg(cur, o["code"])
         if not pid:
             continue
 
-        for cid, phone in customer_phones_for_product(session, pid):
+        for cid, phone in customer_phones_for_product_pg(cur, pid):
             phone_by_customer[cid] = phone
-            items_by_customer[cid][o["code"]] = o  # dedup per codice
+            items_by_customer[cid][o["code"]] = o
 
     out = {}
     for cid, by_code in items_by_customer.items():
@@ -2990,18 +3029,18 @@ def build_customer_offer_map(session, offers: list[dict]) -> dict[int, dict]:
     return out
 
 
-def format_customer_message(customer_items: list[dict]) -> str:
+def format_customer_message(items: list[dict]) -> str:
     lines = ["📌 *Offerte per te oggi:*"]
-    for o in customer_items[:25]:
+    for o in items[:25]:
         lines.append(f"- *{o['code']}* {o['name']} → *€ {o['price']}*")
-    if len(customer_items) > 25:
-        lines.append(f"\n(+{len(customer_items)-25} altre)")
+    if len(items) > 25:
+        lines.append(f"\n(+{len(items)-25} altre)")
     lines.append("\nRispondi con il codice per ordinare 👍")
     return "\n".join(lines)
 
 
-def send_offers_to_customers(session, offers: list[dict]) -> tuple[int, int]:
-    customer_map = build_customer_offer_map(session, offers)
+def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int]:
+    customer_map = build_customer_offer_map_pg(cur, offers)
 
     sent = 0
     for _, payload in customer_map.items():
@@ -3013,9 +3052,9 @@ def send_offers_to_customers(session, offers: list[dict]) -> tuple[int, int]:
     return sent, len(customer_map)
 
 
-# -------------------------
-# 5) WEBHOOK (testo + PDF) - AGGIORNATO CON DEBUG
-# -------------------------
+# ------------------------------------------------------------
+# 5) WEBHOOK (testo + PDF)
+# ------------------------------------------------------------
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     # Verifica iniziale Meta
@@ -3027,7 +3066,12 @@ def webhook():
     data = request.json
     print("INCOMING WEBHOOK:", data)
 
-    value = data["entry"][0]["changes"][0]["value"]
+    try:
+        value = data["entry"][0]["changes"][0]["value"]
+    except Exception:
+        print("⚠️ WEBHOOK FORMAT NON ATTESO")
+        return "OK", 200
+
     messages = value.get("messages") or []
     if not messages:
         return "OK", 200
@@ -3073,13 +3117,24 @@ def webhook():
             )
             send_text(from_number, f"✅ Letto PDF: {len(offers)} righe trovate.\nEsempi:\n{preview}")
 
-            # 4) DB + invio (serve db + modelli corretti)
+            # 4) Incrocio DB + invio mirato (psycopg2)
             try:
-                with db.session.begin():
-                    sent, _ = send_offers_to_customers(db.session, offers)
-                send_text(from_number, f"📤 Inviate offerte a {sent} clienti.")
-            except NameError:
-                send_text(from_number, "⚠️ 'db' non trovato: importa/inizializza db nel file dove gira questo webhook.")
+                with get_db() as conn:
+                    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+                    # check colonna telefono
+                    phone_col = _detect_phone_column(cur)
+                    if not phone_col:
+                        send_text(
+                            from_number,
+                            "⚠️ Non posso inviare ai clienti perché nella tabella 'clienti' non trovo un campo telefono.\n"
+                            "Aggiungi una colonna (es. 'telefono') e riprova."
+                        )
+                        return "OK", 200
+
+                    sent, total = send_offers_to_customers_pg(cur, offers)
+                    send_text(from_number, f"📤 Inviate offerte a {sent} clienti (mappa clienti: {total}).")
+
             except Exception as e_db:
                 print("DB/SEND ERROR:", repr(e_db))
                 print(traceback.format_exc())
