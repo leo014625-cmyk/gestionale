@@ -1426,7 +1426,6 @@ def fatturato_totale_clienti():
         ''')
         clienti = cur.fetchall()
     return render_template('01_clienti/05_fatturato_totale.html', clienti=clienti)
-
 # ============================
 # ROUTE PRODOTTI
 # ============================
@@ -1453,10 +1452,12 @@ def prodotti():
                 c.nome AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id = c.id
+            WHERE p.eliminato = FALSE
         '''
         params = []
+
         if q:
-            query += ' WHERE (p.nome ILIKE %s OR p.codice ILIKE %s)'
+            query += ' AND (p.nome ILIKE %s OR p.codice ILIKE %s)'
             like = f'%{q}%'
             params.extend([like, like])
 
@@ -1487,16 +1488,17 @@ def prodotti():
 
             # ✅ Categoria normale
             if cat_nome not in prodotti_per_categoria:
-                # edge: categoria esiste in DB ma non in categorie_rows (raro, ma safe)
                 prodotti_per_categoria[cat_nome] = []
+
             prodotti_per_categoria[cat_nome].append(item)
 
     return render_template(
         '02_prodotti/01_prodotti.html',
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie,
-        prodotti_senza_categoria=prodotti_senza_categoria  # ✅ per bottone + modal
+        prodotti_senza_categoria=prodotti_senza_categoria
     )
+
 
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
