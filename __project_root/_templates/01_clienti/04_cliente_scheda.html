@@ -32,6 +32,10 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 
 .kpi-title { font-size:0.85rem; color:#6c757d; margin-bottom:0.25rem; }
 .kpi-value { font-size:1.35rem; font-weight:700; }
+
+.wh-card { border:1px solid #e9ecef; border-radius: 1rem; background:#fff; }
+.wh-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background: rgba(37,211,102,0.12); }
+.wh-icon i { color:#25D366; font-size:1.5rem; }
 </style>
 {% endblock %}
 
@@ -42,6 +46,19 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
 {% else %}
   {% set stato = stato_cliente if stato_cliente is defined and stato_cliente else 'inattivo' %}
+{% endif %}
+
+{# === WHATSAPP: normalizza e decide stato === #}
+{% set tel_raw = (cliente.telefono or '') %}
+{% set whatsapp_number = tel_raw|replace(' ', '')|replace('+','')|replace('-','')|replace('(','')|replace(')','') %}
+{% set has_whatsapp = whatsapp_number|length >= 8 %}
+
+{# Se dal backend passi whatsapp_collegato = True/False, usiamo quello.
+   Altrimenti: consideriamo "collegato" solo se c'è il numero (fallback). #}
+{% if whatsapp_collegato is defined %}
+  {% set wa_linked = whatsapp_collegato %}
+{% else %}
+  {% set wa_linked = has_whatsapp %}
 {% endif %}
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -66,12 +83,60 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   </div>
 </div>
 
+<!-- ================== WHATSAPP / BOT ================== -->
+<div class="card wh-card mb-4 p-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <div class="wh-icon">
+        <i class="bi bi-whatsapp"></i>
+      </div>
+      <div>
+        <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
+          <span>WhatsApp collegato al bot</span>
+          {% if wa_linked %}
+            <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i> Collegato</span>
+          {% else %}
+            <span class="badge bg-secondary"><i class="bi bi-slash-circle me-1"></i> Non collegato</span>
+          {% endif %}
+        </div>
+
+        <div class="text-muted small">
+          {% if has_whatsapp %}
+            Numero: <span class="fw-semibold">{{ whatsapp_number }}</span>
+          {% else %}
+            Numero: <span class="fst-italic">non presente</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      {% if has_whatsapp %}
+        <a class="btn btn-success rounded-4"
+           href="https://wa.me/{{ whatsapp_number }}"
+           target="_blank" rel="noopener">
+          <i class="bi bi-chat-dots me-1"></i> Apri chat
+        </a>
+      {% endif %}
+      <a class="btn btn-outline-primary rounded-4"
+         href="{{ url_for('modifica_cliente', id=cliente.id) }}">
+        <i class="bi bi-link-45deg me-1"></i> Gestisci WhatsApp
+      </a>
+    </div>
+  </div>
+
+  {% if has_whatsapp and not wa_linked %}
+    <div class="mt-2 small text-muted">
+      Suggerimento: salva il numero e avvia la chat una volta: quando il bot riceve il primo messaggio, lo stato diventa “Collegato”.
+    </div>
+  {% endif %}
+</div>
+
 <!-- ================== METRICHE ================== -->
 <div class="row g-3 mb-4">
   {% set mesi_totali = fatturato_mensile|length %}
   {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
 
-  {# crescita: normalizzazione #}
   {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
   {% set cm = crescita_mensile if cm_defined else 0 %}
 
@@ -108,7 +173,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   <div class="col-12 col-md-3">
     <div class="card h-100 p-3 text-center">
       <div class="kpi-title">Ultimo Fatturato</div>
-      {# ricavo ultimo mese presente nel dict fatturato_mensile #}
       {% set keys = fatturato_mensile.keys()|list|sort %}
       {% if keys|length > 0 %}
         {% set last_key = keys[-1] %}
@@ -184,7 +248,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 <div class="row">
   <div class="col-md-3">
     {% for cat in categorie %}
-      {# conteggio corretto: confronto su stringa #}
       {% set ns = namespace(tot=0, lav=0) %}
       {% for p in prodotti if p.categoria_id == cat.id %}
         {% set ns.tot = ns.tot + 1 %}
@@ -237,7 +300,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
             {% set pa = prezzi_attuali.get(pid) %}
             {% set po = prezzi_offerta.get(pid) %}
             <tr>
-              <!-- ✅ aggiornato: Nome + ID prodotto -->
               <td class="fw-semibold">
                 <span class="prod-nome">{{ p.nome }}</span>
                 <span class="badge text-bg-light border ms-2">ID: {{ p.id }}</span>
@@ -347,7 +409,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   document.getElementById('filtro-mesi').addEventListener('change', e => aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
 
-  // carica la prima categoria automaticamente (se esiste)
   const first = document.querySelector(".categoria-card");
   if (first) {
     const t = document.getElementById(`tabella-template-${first.dataset.catId}`);
@@ -367,7 +428,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 function filtraProdotti(input,catId){
   const filtro = (input.value || "").toLowerCase();
   document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
-    // ✅ filtra solo sul nome, non su "ID: ..."
     const nomeEl = r.querySelector(".prod-nome");
     const nome = (nomeEl?.innerText || "").toLowerCase();
     r.style.display = nome.includes(filtro) ? "" : "none";
