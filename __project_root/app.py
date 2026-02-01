@@ -3514,7 +3514,7 @@ def scegli_categorie_import_pdf(cliente_id: int):
             return redirect(url_for("modifica_cliente", id=cliente_id))
 
     return render_template(
-        "01_clienti/06_scegli_categorie_import_pdf.html",
+        "02_prodotti/06_scegli_categorie_import_pdf.html",
         cliente_id=cliente_id,
         prodotti=prodotti,
         categorie=categorie
