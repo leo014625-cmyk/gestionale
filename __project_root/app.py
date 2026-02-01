@@ -2798,10 +2798,38 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
-import os, requests
+# =========================
+# WhatsApp Cloud API (Meta) - blocco completo aggiornato
+# - Riceve messaggi testo + documenti (PDF) su /webhook
+# - Se riceve un PDF: lo scarica via media_id -> lo parsea -> incrocia DB -> invia 1 messaggio per cliente
+# NOTE:
+# - Devi avere env vars su Render:
+#   WHATSAPP_VERIFY_TOKEN, WHATSAPP_TOKEN, PHONE_NUMBER_ID
+# - Devi adattare le funzioni DB (product_id_by_code / customer_phones_for_product) ai tuoi modelli SQLAlchemy
+# =========================
 
+import os
+import re
+import time
+from pathlib import Path
+from collections import defaultdict
+
+import requests
+import pdfplumber
+from flask import request
+
+# Se usi SQLAlchemy/Flask-SQLAlchemy
+# from your_app import db
+# from your_models import Prodotto, Cliente, ClienteProdotto
+
+GRAPH_VERSION = "v18.0"
+
+
+# -------------------------
+# 1) SENDERS (testo)
+# -------------------------
 def send_text(to: str, text: str):
-    url = f"https://graph.facebook.com/v18.0/{os.getenv('PHONE_NUMBER_ID')}/messages"
+    url = f"https://graph.facebook.com/{GRAPH_VERSION}/{os.getenv('PHONE_NUMBER_ID')}/messages"
     headers = {
         "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
         "Content-Type": "application/json",
@@ -2818,35 +2846,152 @@ def send_text(to: str, text: str):
     print("SEND_TEXT body:", r.text)
     return r
 
-import os, requests
 
-def send_pdf(to: str, pdf_url: str, filename: str = "Offerte.pdf", caption: str | None = None):
-    url = f"https://graph.facebook.com/v18.0/{os.getenv('PHONE_NUMBER_ID')}/messages"
-    headers = {
-        "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
-        "Content-Type": "application/json",
-    }
-
-    doc = {"link": pdf_url, "filename": filename}
-    if caption:
-        doc["caption"] = caption  # opzionale
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "document",
-        "document": doc,
-    }
-
-    r = requests.post(url, json=payload, headers=headers, timeout=20)
-    print("SEND_PDF status:", r.status_code)
-    print("SEND_PDF body:", r.text)
-    return r
+# -------------------------
+# 2) Media download (PDF ricevuto)
+# -------------------------
+def _wa_headers():
+    return {"Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}"}
 
 
-from flask import request
-import os
+def get_media_url(media_id: str) -> str:
+    url = f"https://graph.facebook.com/{GRAPH_VERSION}/{media_id}"
+    r = requests.get(url, headers=_wa_headers(), timeout=20)
+    r.raise_for_status()
+    return r.json()["url"]
 
+
+def download_media_file(media_url: str, out_path: str) -> str:
+    r = requests.get(media_url, headers=_wa_headers(), stream=True, timeout=60)
+    r.raise_for_status()
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "wb") as f:
+        for chunk in r.iter_content(chunk_size=1024 * 64):
+            if chunk:
+                f.write(chunk)
+    return out_path
+
+
+# -------------------------
+# 3) PDF parsing (codice, nome, prezzo)
+# -------------------------
+RE_CODE = r"(?P<code>\d{4,10})"
+RE_PRICE = r"(?P<price>\d{1,3}(?:[.,]\d{2}))"
+RE_NAME = r"(?P<name>[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ\s\-\+\/\.,]{2,80})"
+
+LINE_RE = re.compile(
+    rf"{RE_CODE}\s+(?:-|–)?\s*{RE_NAME}\s+.*?\s{RE_PRICE}\b",
+    re.IGNORECASE,
+)
+
+
+def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
+    offers = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            for raw in text.splitlines():
+                line = " ".join(raw.strip().split())
+                m = LINE_RE.search(line)
+                if not m:
+                    continue
+                offers.append(
+                    {
+                        "code": m.group("code"),
+                        "name": m.group("name").strip(),
+                        "price": m.group("price").replace(".", ","),
+                        "raw": line,
+                    }
+                )
+
+    # de-dup per codice
+    seen = set()
+    uniq = []
+    for o in offers:
+        if o["code"] in seen:
+            continue
+        seen.add(o["code"])
+        uniq.append(o)
+    return uniq
+
+
+# -------------------------
+# 4) DB helpers (DA ADATTARE AI TUOI MODELLI)
+# -------------------------
+def product_id_by_code(session, code: str):
+    """
+    TODO: adatta al tuo modello.
+    Esempio:
+        p = session.query(Prodotto).filter(Prodotto.codice == code).first()
+        return p.id if p else None
+    """
+    raise NotImplementedError("Implementa product_id_by_code(session, code)")
+
+
+def customer_phones_for_product(session, prodotto_id: int) -> list[tuple[int, str]]:
+    """
+    TODO: adatta al tuo modello.
+    Esempio:
+        rows = (
+            session.query(Cliente.id, Cliente.telefono)
+            .join(ClienteProdotto, ClienteProdotto.cliente_id == Cliente.id)
+            .filter(ClienteProdotto.prodotto_id == prodotto_id)
+            .all()
+        )
+        return rows
+    """
+    raise NotImplementedError("Implementa customer_phones_for_product(session, prodotto_id)")
+
+
+def build_customer_offer_map(session, offers: list[dict]) -> dict[int, dict]:
+    """
+    ritorna:
+    customer_id -> {"phone": "...", "items": [{"code","name","price"}...]}
+    """
+    items_by_customer = defaultdict(list)
+    phone_by_customer = {}
+
+    for o in offers:
+        pid = product_id_by_code(session, o["code"])
+        if not pid:
+            continue
+
+        for cid, phone in customer_phones_for_product(session, pid):
+            phone_by_customer[cid] = phone
+            items_by_customer[cid].append(o)
+
+    out = {}
+    for cid, items in items_by_customer.items():
+        out[cid] = {"phone": phone_by_customer[cid], "items": items}
+    return out
+
+
+def format_customer_message(customer_items: list[dict]) -> str:
+    lines = ["📌 *Offerte per te oggi:*"]
+    for o in customer_items[:25]:
+        lines.append(f"- *{o['code']}* {o['name']} → *€ {o['price']}*")
+    if len(customer_items) > 25:
+        lines.append(f"\n(+{len(customer_items)-25} altre)")
+    lines.append("\nRispondi con il codice per ordinare 👍")
+    return "\n".join(lines)
+
+
+def send_offers_to_customers(session, offers: list[dict]) -> tuple[int, int]:
+    customer_map = build_customer_offer_map(session, offers)
+
+    sent = 0
+    for _, payload in customer_map.items():
+        phone = payload["phone"]
+        text = format_customer_message(payload["items"])
+        send_text(phone, text)
+        sent += 1
+
+    return sent, len(customer_map)
+
+
+# -------------------------
+# 5) WEBHOOK (testo + PDF ricevuto)
+# -------------------------
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     # Verifica iniziale Meta
@@ -2859,41 +3004,74 @@ def webhook():
     print("INCOMING WEBHOOK:", data)
 
     value = data["entry"][0]["changes"][0]["value"]
-    messages = value.get("messages")
+    messages = value.get("messages") or []
 
     if not messages:
         return "OK", 200
 
     msg = messages[0]
     from_number = msg["from"]
-    text = msg.get("text", {}).get("body", "").lower().strip()
+    mtype = msg.get("type")
 
+    # Caso 1: ricevo un PDF (documento)
+    if mtype == "document":
+        doc = msg.get("document", {})
+        media_id = doc.get("id")
+        filename = doc.get("filename", "offerte.pdf")
+
+        print("DOC RECEIVED:", filename, media_id)
+
+        if not media_id:
+            send_text(from_number, "Ho ricevuto un PDF ma manca media_id.")
+            return "OK", 200
+
+        try:
+            # Scarica PDF da Meta
+            media_url = get_media_url(media_id)
+            local_path = f"/tmp/{int(time.time())}_{filename}".replace(" ", "_")
+            download_media_file(media_url, local_path)
+
+            # Parse offerte
+            offers = parse_offers_from_pdf(local_path)
+            if not offers:
+                send_text(
+                    from_number,
+                    "Non riesco a leggere offerte dal PDF (testo non estraibile). "
+                    "Se il PDF è un'immagine, serve OCR.",
+                )
+                return "OK", 200
+
+            # Incrocio DB + invio per cliente
+            # Esempio con Flask-SQLAlchemy:
+            # with db.session.begin():
+            #     sent, n_customers = send_offers_to_customers(db.session, offers)
+
+            # FINCHÉ NON ADATTI le funzioni DB sopra, commenta la parte invio e fai solo report a te:
+            # send_text(from_number, f"✅ Letto PDF: {len(offers)} offerte. (Ora devo incrociare con DB)")
+
+            with db.session.begin():  # <-- usa il tuo oggetto db
+                sent, n_customers = send_offers_to_customers(db.session, offers)
+
+            send_text(from_number, f"✅ Letto PDF: {len(offers)} offerte. Inviate a {sent} clienti.")
+
+        except Exception as e:
+            print("PDF FLOW ERROR:", repr(e))
+            send_text(from_number, "Errore durante lettura PDF o invio offerte. Controlla formato e riprova.")
+        return "OK", 200
+
+    # Caso 2: testo
+    text = msg.get("text", {}).get("body", "").strip().lower()
     print("IN MSG:", from_number, text)
 
-    # --- COMANDI ---
-
-    if text == "pdf":
-        send_pdf(
-            from_number,
-            "https://TUO_DOMINIO/static/volantini/offerte_febbraio.pdf",
-            filename="Offerte Febbraio.pdf",
-            caption="Ecco il volantino con le offerte attive 📄"
-        )
-
-    elif text == "help":
+    if text == "help":
         send_text(
             from_number,
-            "Comandi disponibili:\n"
-            "- pdf → ricevi volantino\n"
-            "- interessi: birra, olio, surgelati\n"
-            "- ai: domanda libera"
+            "Mandami un PDF offerte come *documento* qui in chat.\n"
+            "Io estraggo codici+prezzi e invio ad ogni cliente un messaggio unico con le sue offerte del giorno.",
         )
-
     else:
-        send_text(from_number, "Scrivi *help* per vedere i comandi disponibili.")
-
+        send_text(from_number, "Scrivi *help* oppure mandami un PDF offerte come documento.")
     return "OK", 200
-
 
 @app.route("/ping", methods=["GET"])
 def ping():
