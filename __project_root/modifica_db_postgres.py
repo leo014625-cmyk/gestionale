@@ -21,46 +21,40 @@ def aggiorna_db():
                 id SERIAL PRIMARY KEY,
                 nome TEXT NOT NULL,
                 zona TEXT,
-                telefono TEXT,
                 email TEXT,
                 data_registrazione DATE
             )
         """)
 
-        # ✅ Compatibilità DB già esistente: assicurati che 'telefono' esista
+        # ✅ Colonna telefono (WhatsApp) - compatibilità DB esistente
         cur.execute("""
             ALTER TABLE clienti
             ADD COLUMN IF NOT EXISTS telefono TEXT
         """)
 
-        # ✅ Indice per ricerche su telefono
+        # ✅ Stato collegamento WhatsApp "reale"
+        # Quando il bot riceve un messaggio da quel numero, potrai settare questi campi.
+        cur.execute("""
+            ALTER TABLE clienti
+            ADD COLUMN IF NOT EXISTS whatsapp_linked_at TIMESTAMP
+        """)
+        cur.execute("""
+            ALTER TABLE clienti
+            ADD COLUMN IF NOT EXISTS whatsapp_linked BOOLEAN NOT NULL DEFAULT FALSE
+        """)
+
+        # ✅ Indici utili
         cur.execute("""
             CREATE INDEX IF NOT EXISTS clienti_telefono_idx
             ON clienti (telefono)
         """)
-
-        # ✅ WhatsApp: attestazione collegamento al bot (true quando hai un telefono valido salvato dal sito)
         cur.execute("""
-            ALTER TABLE clienti
-            ADD COLUMN IF NOT EXISTS whatsapp_collegato BOOLEAN DEFAULT FALSE
+            CREATE INDEX IF NOT EXISTS clienti_whatsapp_linked_idx
+            ON clienti (whatsapp_linked)
         """)
-
-        # ✅ Data/ora in cui è stato collegato (opzionale ma utile in scheda cliente)
-        cur.execute("""
-            ALTER TABLE clienti
-            ADD COLUMN IF NOT EXISTS whatsapp_collegato_il TIMESTAMP
-        """)
-
-        # (FACOLTATIVO) Evita duplicati di telefono tra clienti
-        # Attivalo solo se sei sicuro che non esistano duplicati già nel DB.
-        # cur.execute("""
-        #     CREATE UNIQUE INDEX IF NOT EXISTS clienti_telefono_unique
-        #     ON clienti (telefono)
-        #     WHERE telefono IS NOT NULL AND telefono <> ''
-        # """)
 
         # ============================
-        # (OPZIONALE) WHATSAPP LINK CODES (se in futuro vuoi collegare via codice)
+        # WHATSAPP LINK CODES (opzionale, per flow "codice di collegamento")
         # ============================
         cur.execute("""
             CREATE TABLE IF NOT EXISTS whatsapp_link_codes (
@@ -101,14 +95,10 @@ def aggiorna_db():
                 categoria_id INTEGER REFERENCES categorie(id)
             )
         """)
-
-        # 🔥 CODICE PRODOTTO (compatibile con DB esistente)
         cur.execute("""
             ALTER TABLE prodotti
             ADD COLUMN IF NOT EXISTS codice VARCHAR(50)
         """)
-
-        # Indici per codice (ricerca + unicità)
         cur.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS prodotti_codice_unique
             ON prodotti (codice)
@@ -149,12 +139,9 @@ def aggiorna_db():
                 lavorato BOOLEAN DEFAULT FALSE,
                 prezzo_attuale NUMERIC,
                 prezzo_offerta NUMERIC,
-                data_operazione TIMESTAMP DEFAULT NOW(),
-                fornitore_id INTEGER REFERENCES fornitori(id)
+                data_operazione TIMESTAMP DEFAULT NOW()
             )
         """)
-
-        # ✅ compatibilità: se tabella già esiste ma manca fornitore_id
         cur.execute("""
             ALTER TABLE clienti_prodotti
             ADD COLUMN IF NOT EXISTS fornitore_id INTEGER REFERENCES fornitori(id)
@@ -184,6 +171,10 @@ def aggiorna_db():
                 anno INTEGER NOT NULL
             )
         """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno
+            ON fatturato(cliente_id, mese, anno)
+        """)
 
         # ============================
         # VOLANTINI
@@ -198,9 +189,6 @@ def aggiorna_db():
             )
         """)
 
-        # ============================
-        # VOLANTINO_PRODOTTI
-        # ============================
         cur.execute("""
             CREATE TABLE IF NOT EXISTS volantino_prodotti (
                 id SERIAL PRIMARY KEY,
@@ -213,6 +201,10 @@ def aggiorna_db():
                 eliminato BOOLEAN DEFAULT FALSE,
                 lascia_vuota BOOLEAN DEFAULT FALSE
             )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino
+            ON volantino_prodotti(volantino_id)
         """)
 
         # ============================
@@ -231,20 +223,14 @@ def aggiorna_db():
         """)
 
         # ============================
-        # INDICI
+        # INDICI EXTRA
         # ============================
         cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_cliente ON clienti_prodotti(cliente_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_prodotto ON clienti_prodotti(prodotto_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_fornitore ON clienti_prodotti(fornitore_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno ON fatturato(cliente_id, mese, anno)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino ON volantino_prodotti(volantino_id)")
 
         conn.commit()
         print("✅ Database PostgreSQL aggiornato con successo.")
-
-    except Exception as e:
-        conn.rollback()
-        raise
 
     finally:
         cur.close()
