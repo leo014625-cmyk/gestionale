@@ -20,4 +20,8 @@ psycopg2-binary==2.9.10
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.36
 
-twilio==9.4.0
+# WhatsApp/Twilio (evita versione yanked)
+twilio>=9.0.0,<10
+
+# Lettura PDF offerte
+pdfplumber==0.11.5
