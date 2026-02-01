@@ -2913,15 +2913,14 @@ def beta_volantino_elimina(id):
 # =========================
 # WhatsApp Cloud API (Meta) - BLOCCO COMPLETO AGGIORNATO (per il tuo app.py)
 # - Riceve testo + PDF su /webhook
-# - Se riceve PDF: scarica -> parse (codice/nome/prezzo) -> preview su WA -> incrocio DB (psycopg2) -> invio mirato
+# - Gestisce MENU preferenze (interactive list) e salva su DB
+# - Se riceve PDF: scarica -> parse (codice/nome/prezzo) -> preview su WA -> incrocio DB -> invio mirato
 #
 # ENV su Render:
 #   WHATSAPP_VERIFY_TOKEN, WHATSAPP_TOKEN, PHONE_NUMBER_ID
 #
 # NOTE IMPORTANTI:
 # - Questo blocco usa *get_db()* (psycopg2) del tuo progetto.
-# - Per inviare ai clienti serve che nella tabella "clienti" esista un campo telefono.
-#   Il codice prova a trovarlo automaticamente tra: telefono, cellulare, whatsapp, numero, tel, phone, mobile, ecc.
 # =========================
 
 import os
@@ -2934,6 +2933,7 @@ from collections import defaultdict
 import requests
 import pdfplumber
 from flask import request
+from psycopg2.extras import RealDictCursor
 
 GRAPH_VERSION = "v18.0"
 
@@ -2958,7 +2958,12 @@ def send_text(to: str, text: str):
     print("SEND_TEXT body:", r.text)
     return r
 
+
 def send_interactive_list(to: str, header: str, body: str, button_text: str = "Scegli"):
+    """
+    Invia un menu a lista (interactive list) su WhatsApp Cloud API.
+    Ogni riga ritorna un id che gestiamo nel webhook (interactive -> list_reply.id).
+    """
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{os.getenv('PHONE_NUMBER_ID')}/messages"
     headers = {
         "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
@@ -2979,60 +2984,22 @@ def send_interactive_list(to: str, header: str, body: str, button_text: str = "S
                     {
                         "title": "Preferenze offerte",
                         "rows": [
-                            {"id": "PREF_SCADENZA", "title": "Prodotti in scadenza", "description": "Ricevi offerte su prodotti prossimi alla scadenza"},
-                            {"id": "PREF_PESCE", "title": "Pesce fresco", "description": "Ricevi offerte e disponibilità del giorno"},
-                            {"id": "PREF_CARNE", "title": "Carne fresca", "description": "Ricevi offerte e tagli disponibili"},
-                            {"id": "PREF_STOP", "title": "Non ricevere offerte", "description": "Disattiva tutte le offerte"},
-                        ]
+                            {"id": "PREF_SCADENZA", "title": "Prodotti in scadenza", "description": "Offerte anti-spreco"},
+                            {"id": "PREF_PESCE",    "title": "Pesce fresco",          "description": "Arrivi e offerte del giorno"},
+                            {"id": "PREF_CARNE",    "title": "Carne fresca",          "description": "Arrivi e offerte del giorno"},
+                            {"id": "PREF_STOP",     "title": "Non ricevere offerte",  "description": "Stop totale messaggi promo"},
+                        ],
                     }
-                ]
-            }
-        }
+                ],
+            },
+        },
     }
 
     r = requests.post(url, json=payload, headers=headers, timeout=20)
-    print("SEND_LIST status:", r.status_code, "body:", r.text)
+    print("SEND_LIST status:", r.status_code)
+    print("SEND_LIST body:", r.text)
     return r
 
-def find_cliente_id_by_phone(cur, phone_norm: str) -> int | None:
-    cur.execute("SELECT id FROM clienti WHERE telefono=%s LIMIT 1", (phone_norm,))
-    row = cur.fetchone()
-    return (row["id"] if isinstance(row, dict) else row[0]) if row else None
-
-
-def upsert_preferenza(cur, cliente_id: int, scelta: str):
-    # scelta: PREF_SCADENZA / PREF_PESCE / PREF_CARNE / PREF_STOP
-    if scelta == "PREF_STOP":
-        cur.execute("""
-            INSERT INTO whatsapp_preferenze (cliente_id, opt_out, updated_at)
-            VALUES (%s, TRUE, NOW())
-            ON CONFLICT (cliente_id) DO UPDATE
-            SET opt_out=TRUE,
-                ricevi_scadenza=FALSE,
-                ricevi_pesce=FALSE,
-                ricevi_carne=FALSE,
-                updated_at=NOW()
-        """, (cliente_id,))
-        return
-
-    col_map = {
-        "PREF_SCADENZA": "ricevi_scadenza",
-        "PREF_PESCE": "ricevi_pesce",
-        "PREF_CARNE": "ricevi_carne",
-    }
-    col = col_map.get(scelta)
-    if not col:
-        return
-
-    # Nota: quando sceglie una categoria -> opt_out FALSE e attivo quella scelta
-    cur.execute(f"""
-        INSERT INTO whatsapp_preferenze (cliente_id, {col}, opt_out, updated_at)
-        VALUES (%s, TRUE, FALSE, NOW())
-        ON CONFLICT (cliente_id) DO UPDATE
-        SET {col}=TRUE,
-            opt_out=FALSE,
-            updated_at=NOW()
-    """, (cliente_id,))
 
 # ------------------------------------------------------------
 # 2) DOWNLOAD MEDIA (PDF ricevuto)
@@ -3071,6 +3038,7 @@ LINE_RE = re.compile(
     re.IGNORECASE,
 )
 
+
 def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
     offers = []
     with pdfplumber.open(pdf_path) as pdf:
@@ -3102,11 +3070,11 @@ def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
     return uniq
 
 
-
 # ------------------------------------------------------------
 # 4) DB HELPERS (psycopg2) - coerenti con il tuo DB
 # ------------------------------------------------------------
 PHONE_COL_CACHE = {"value": None}
+
 
 def _detect_phone_column(cur) -> str | None:
     """
@@ -3143,20 +3111,17 @@ def _detect_phone_column(cur) -> str | None:
 def _normalize_phone(s: str) -> str:
     s = (s or "").strip()
     s = s.replace("+", "").replace(" ", "").replace("-", "")
-    # se mettono 0039...
     if s.startswith("00"):
         s = s[2:]
     return s
 
 
 def product_id_by_code_pg(cur, code: str) -> int | None:
-    # match esatto
     cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
     row = cur.fetchone()
     if row:
         return row["id"] if isinstance(row, dict) else row[0]
 
-    # fallback parziale
     cur.execute("SELECT id FROM prodotti WHERE codice ILIKE %s LIMIT 1", (f"%{code}%",))
     row = cur.fetchone()
     if row:
@@ -3169,8 +3134,6 @@ def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str
     if not phone_col:
         return []
 
-    # NB: nel tuo codice usi cp.lavorato e cp.data_operazione, quindi assumiamo esista.
-    # Se in qualche DB vecchio 'lavorato' non c'è, la query fallirebbe: in tal caso va aggiornata la tabella.
     q = f"""
         SELECT c.id AS cliente_id, c.{phone_col} AS phone
         FROM clienti c
@@ -3193,10 +3156,6 @@ def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str
 
 
 def build_customer_offer_map_pg(cur, offers: list[dict]) -> dict[int, dict]:
-    """
-    customer_id -> {"phone": "...", "items": [...]}
-    Dedup per codice per cliente + ordinamento.
-    """
     items_by_customer = defaultdict(dict)  # cid -> {code: offer}
     phone_by_customer = {}
 
@@ -3277,8 +3236,6 @@ def webhook():
         try:
             with get_db() as conn:
                 cur = conn.cursor(cursor_factory=RealDictCursor)
-
-                # Se il DB non è aggiornato e manca la colonna, non blocchiamo il bot.
                 try:
                     cur.execute("""
                         UPDATE clienti
@@ -3344,6 +3301,7 @@ def webhook():
                 updated_at=NOW()
         """, (cliente_id,))
 
+    # ---- Parse payload meta ----
     try:
         value = data["entry"][0]["changes"][0]["value"]
     except Exception:
@@ -3369,8 +3327,8 @@ def webhook():
     # ------------------------------------------------------------
     if mtype == "interactive":
         interactive = msg.get("interactive") or {}
-        scelta_id = None
 
+        scelta_id = None
         lr = interactive.get("list_reply")
         if lr and isinstance(lr, dict):
             scelta_id = lr.get("id")
@@ -3392,14 +3350,7 @@ def webhook():
             with get_db() as conn:
                 cur = conn.cursor(cursor_factory=RealDictCursor)
 
-                # se non esiste ancora la tabella, non blocchiamo: avvisa
-                try:
-                    cid = find_cliente_id_by_phone(cur, pn)
-                except Exception as e:
-                    print("⚠️ preferenze: tabella/colonne mancanti?", repr(e))
-                    send_text(from_number, "⚠️ Sistema preferenze non pronto. Aggiorna il DB e riprova.")
-                    return "OK", 200
-
+                cid = find_cliente_id_by_phone(cur, pn)
                 if not cid:
                     send_text(from_number, "⚠️ Non ti trovo in anagrafica. Scrivimi dal numero salvato nel gestionale.")
                     return "OK", 200
@@ -3409,13 +3360,13 @@ def webhook():
                     conn.commit()
                 except Exception as e:
                     print("⚠️ upsert preferenza error:", repr(e))
-                    send_text(from_number, "⚠️ Errore nel salvataggio preferenze. Riprova tra poco.")
+                    send_text(from_number, "⚠️ Errore nel salvataggio preferenze. Aggiorna il DB e riprova.")
                     return "OK", 200
 
             if scelta_id == "PREF_STOP":
                 send_text(from_number, "✅ Ok, non riceverai più offerte. Se cambi idea scrivi *MENU*.")
             else:
-                send_text(from_number, "✅ Preferenza salvata! Puoi aggiungere altre categorie scrivendo *MENU*.")
+                send_text(from_number, "✅ Preferenza salvata! Per aggiungere altre categorie scrivi *MENU*.")
 
         except Exception as e:
             print("PREF SAVE ERROR:", repr(e))
@@ -3439,13 +3390,11 @@ def webhook():
             return "OK", 200
 
         try:
-            # 1) Scarico PDF da Meta
             media_url = get_media_url(media_id)
             local_path = f"/tmp/{int(time.time())}_{filename}".replace(" ", "_")
             download_media_file(media_url, local_path)
             print("PDF DOWNLOADED TO:", local_path)
 
-            # 2) Parsing PDF
             offers = parse_offers_from_pdf(local_path)
             print("OFFERS PARSED:", len(offers))
 
@@ -3457,11 +3406,9 @@ def webhook():
                 )
                 return "OK", 200
 
-            # 3) Preview (prime 5 righe)
             preview = "\n".join([f"- {o['code']} | {o['name']} | € {o['price']}" for o in offers[:5]])
             send_text(from_number, f"✅ Letto PDF: {len(offers)} righe trovate.\nEsempi:\n{preview}")
 
-            # 4) Incrocio DB + invio mirato (psycopg2)
             try:
                 with get_db() as conn:
                     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -3476,7 +3423,6 @@ def webhook():
                         return "OK", 200
 
                     sent, total = send_offers_to_customers_pg(cur, offers)
-
                     try:
                         conn.commit()
                     except Exception:
@@ -3503,13 +3449,12 @@ def webhook():
     print("IN MSG:", from_number, text)
 
     if text in ("menu", "start", "offerte", "preferenze"):
-        # ✅ menu preferenze (LIST: 4 scelte)
         send_interactive_list(
             from_number,
             header="Preferenze offerte",
             body=("Da oggi puoi ricevere offerte mirate.\n"
                   "Scegli cosa vuoi ricevere (puoi riaprire il menu quando vuoi con *MENU*)."),
-            button_text="Apri menu"
+            button_text="Apri menu",
         )
         return "OK", 200
 
