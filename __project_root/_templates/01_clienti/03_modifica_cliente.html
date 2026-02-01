@@ -72,6 +72,115 @@
   </div>
 </div>
 
+{# ============================================================
+   MODAL RISULTATO IMPORT PDF (POPUP)
+   - mostra lista completa importata
+   - se ci sono prodotti senza categoria: select + salva
+   ============================================================ #}
+{% if import_result %}
+<div class="modal fade" id="importResultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0"><i class="bi bi-filetype-pdf me-2"></i>Risultato import PDF</h5>
+          <div class="text-muted small">
+            Totale righe lette: <b>{{ import_result.totale }}</b> —
+            Assegnati/Aggiornati: <b>{{ import_result.assigned }}</b> —
+            Creati: <b>{{ import_result.created }}</b>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <h6 class="mt-1">Prodotti importati</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width:160px;">Codice</th>
+                <th>Nome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in import_result.prodotti_importati %}
+              <tr>
+                <td><code>{{ p.codice }}</code></td>
+                <td>{{ p.nome }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if import_result.da_categorizzare and import_result.da_categorizzare|length > 0 %}
+          <hr class="my-4">
+
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h6 class="mb-0">Prodotti senza categoria</h6>
+            <span class="badge text-bg-warning">
+              Da categorizzare: {{ import_result.da_categorizzare|length }}
+            </span>
+          </div>
+          <div class="text-muted small mt-1">
+            Seleziona la categoria e salva. (Puoi anche lasciarne alcuni vuoti e salvarli dopo.)
+          </div>
+
+          <form method="POST"
+                action="{{ url_for('salva_categorie_import_pdf_modal', cliente_id=cliente.id) }}"
+                class="mt-3">
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th style="width:160px;">Codice</th>
+                    <th>Nome</th>
+                    <th style="width:320px;">Categoria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in import_result.da_categorizzare %}
+                  <tr>
+                    <td><code>{{ p.codice }}</code></td>
+                    <td>{{ p.nome }}</td>
+                    <td>
+                      <select class="form-select form-select-sm" name="categoria[{{ p.id }}]">
+                        <option value="">— scegli —</option>
+                        {% for c in categorie %}
+                          <option value="{{ c.id }}">{{ c.nome }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-2">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                Chiudi
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> Salva categorie
+              </button>
+            </div>
+          </form>
+        {% else %}
+          <div class="alert alert-success mt-3 mb-0">
+            Tutti i prodotti importati hanno già una categoria ✅
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <form id="form-modifica-cliente" method="POST" novalidate>
 
   <!-- DATI BASE -->
@@ -475,6 +584,15 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
+  // ---------- AUTO-APRI MODAL DOPO IMPORT ----------
+  {% if show_import_popup and import_result %}
+  const el = document.getElementById("importResultModal");
+  if (el && window.bootstrap) {
+    const m = new bootstrap.Modal(el);
+    m.show();
+  }
+  {% endif %}
+
   // ---------- TELEFONO: NORMALIZZA + VALIDAZIONE ----------
   const telInp = document.getElementById("telefono");
   const telBadge = document.getElementById("telefono-badge");
@@ -499,7 +617,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const raw = telInp.value;
     const norm = normalizeTel(raw);
 
-    // non “rompere” mentre scrive: scrivo il valore normalizzato solo su blur/submit
     if (opts.commit) telInp.value = norm;
 
     if (!norm) {
@@ -797,7 +914,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("form-modifica-cliente")?.addEventListener("submit", (e) => {
-    // ✅ commit normalizzazione + valida telefono prima di inviare
     const okTel = validateTel({commit:true});
     if (!okTel) {
       e.preventDefault();
