@@ -1671,17 +1671,26 @@ def modifica_prodotto(id):
 @login_required
 def elimina_prodotto(id):
     with get_db() as db:
-        cur = db.cursor()
-        cur.execute('SELECT nome FROM prodotti WHERE id=%s', (id,))
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # verifica prodotto
+        cur.execute('SELECT id, nome FROM prodotti WHERE id=%s', (id,))
         prodotto = cur.fetchone()
+
         if not prodotto:
             flash('Prodotto non trovato.', 'danger')
             return redirect(url_for('prodotti'))
 
-        cur.execute('DELETE FROM prodotti WHERE id=%s', (id,))
+        # ✅ soft delete (non rompe le FK)
+        cur.execute(
+            'UPDATE prodotti SET eliminato=TRUE WHERE id=%s',
+            (id,)
+        )
+
         db.commit()
-        flash(f'Prodotto "{prodotto["nome"]}" eliminato con successo.', 'success')
-        return redirect(url_for('prodotti'))
+
+    flash(f'🗑️ Prodotto "{prodotto["nome"]}" eliminato.', 'success')
+    return redirect(url_for('prodotti'))
 
 
 @app.route('/prodotti/clienti/<int:id>')
