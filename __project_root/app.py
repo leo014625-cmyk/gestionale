@@ -1233,21 +1233,34 @@ def cliente_scheda(id):
             return redirect(url_for('clienti'))
 
         # ====================================
-        # PRODOTTI
+        # PRODOTTI (✅ SOLO NON ELIMINATI + include CODICE)
         # ====================================
         cur.execute('''
-            SELECT p.id, p.nome, p.categoria_id, COALESCE(c.nome,'–') AS categoria_nome
+            SELECT
+                p.id,
+                p.codice,
+                p.nome,
+                p.categoria_id,
+                COALESCE(c.nome,'–') AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id=c.id
-            ORDER BY c.nome, p.nome
+            WHERE COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY c.nome NULLS LAST, p.nome
         ''')
         prodotti = cur.fetchall()
 
-        # Prodotti già assegnati al cliente
+        # Prodotti già assegnati al cliente (✅ ESCLUDI ELIMINATI)
         cur.execute('''
-            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione
-            FROM clienti_prodotti
-            WHERE cliente_id=%s
+            SELECT
+                cp.prodotto_id,
+                cp.lavorato,
+                cp.prezzo_attuale,
+                cp.prezzo_offerta,
+                cp.data_operazione
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON cp.prodotto_id = p.id
+            WHERE cp.cliente_id=%s
+              AND COALESCE(p.eliminato, FALSE) = FALSE
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
@@ -1335,7 +1348,7 @@ def cliente_scheda(id):
         }
 
         # ====================================
-        # LOG COMPLETAMENTE SISTEMATO
+        # LOG (✅ ESCLUDI ELIMINATI DAI JOIN)
         # ====================================
         cur.execute('''
             SELECT descrizione, data
@@ -1345,7 +1358,9 @@ def cliente_scheda(id):
                     cp.data_operazione AS data
                 FROM clienti_prodotti cp 
                 JOIN prodotti p ON cp.prodotto_id=p.id
-                WHERE cp.cliente_id=%s AND cp.lavorato=TRUE
+                WHERE cp.cliente_id=%s
+                  AND cp.lavorato=TRUE
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
 
                 UNION ALL
 
@@ -1355,6 +1370,7 @@ def cliente_scheda(id):
                 FROM prodotti_rimossi pr 
                 JOIN prodotti p ON pr.prodotto_id=p.id
                 WHERE pr.cliente_id=%s
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
 
                 UNION ALL
 
@@ -1373,6 +1389,7 @@ def cliente_scheda(id):
                 JOIN prodotti p ON cp.prodotto_id=p.id
                 WHERE cp.cliente_id=%s 
                   AND (cp.prezzo_attuale IS NOT NULL OR cp.prezzo_offerta IS NOT NULL)
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
             ) AS logs
             ORDER BY data DESC
         ''', (id, id, id, id))
@@ -1388,7 +1405,7 @@ def cliente_scheda(id):
         "01_clienti/04_cliente_scheda.html",
         cliente=cliente,
         categorie=categorie,
-        prodotti=prodotti,
+        prodotti=prodotti,  # ✅ ora include "codice"
         prodotti_lavorati=prodotti_lavorati,
         log_cliente=log_cliente,
         fatturato_totale=fatturato_totale,
