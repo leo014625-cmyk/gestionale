@@ -3292,6 +3292,178 @@ def webhook():
         send_text(from_number, "Scrivi *help* oppure mandami un PDF offerte come documento.")
     return "OK", 200
 
+import os
+import re
+import tempfile
+from datetime import datetime
+from werkzeug.utils import secure_filename
+from psycopg2.extras import RealDictCursor
+from flask import request, redirect, url_for, flash
+
+ALLOWED_EXTENSIONS = {"pdf"}
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# codici tipo: ABC123, 001234, ART-123-XYZ
+CODE_RE = re.compile(r"\b([A-Z0-9][A-Z0-9\-_]{2,50})\b", re.IGNORECASE)
+
+def extract_text_from_pdf(path: str) -> str:
+    try:
+        import pdfplumber
+        chunks = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                chunks.append(page.extract_text() or "")
+        return "\n".join(chunks)
+    except Exception:
+        return ""
+
+def extract_items_codice_nome(text: str) -> list[dict]:
+    """
+    Estrae items da righe tipo:
+      CODICE  Nome prodotto ...
+    Ritorna: [{"codice": "...", "nome": "..."}]
+    """
+    items = []
+    if not text:
+        return items
+
+    seen = set()
+    for ln in (l.strip() for l in text.splitlines()):
+        if not ln:
+            continue
+        m = CODE_RE.search(ln)
+        if not m:
+            continue
+
+        codice = m.group(1).upper().strip("-_")
+        if not codice or codice in seen:
+            continue
+
+        nome = ln[m.end():].strip(" \t-–—:;")
+        if not nome:
+            nome = f"PRODOTTO {codice}"
+        # taglia nomi troppo lunghi
+        nome = re.sub(r"\s{2,}", " ", nome).strip()
+        if len(nome) > 200:
+            nome = nome[:200]
+
+        seen.add(codice)
+        items.append({"codice": codice, "nome": nome})
+
+    return items
+
+@app.route("/clienti/<int:cliente_id>/importa_pdf_lavorati_auto", methods=["POST"])
+@login_required
+def importa_pdf_lavorati_auto(cliente_id: int):
+    f = request.files.get("pdf")
+    if not f or f.filename == "":
+        flash("Carica un PDF.", "warning")
+        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    if not allowed_file(f.filename):
+        flash("Formato non valido: serve un PDF.", "warning")
+        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    tmp_dir = tempfile.mkdtemp(prefix="pdf_")
+    tmp_path = os.path.join(tmp_dir, secure_filename(f.filename))
+    f.save(tmp_path)
+
+    now = datetime.now()
+
+    try:
+        text = extract_text_from_pdf(tmp_path)
+        items = extract_items_codice_nome(text)
+
+        if not items:
+            flash("Non ho trovato righe con CODICE + NOME nel PDF (se è una scansione serve OCR/AI).", "warning")
+            return redirect(url_for("modifica_cliente", id=cliente_id))
+
+        created = 0
+        assigned = 0
+        updated_existing = 0
+
+        with get_db() as db:
+            cur = db.cursor(cursor_factory=RealDictCursor)
+
+            # safety: cliente esiste
+            cur.execute("SELECT id FROM clienti WHERE id=%s", (cliente_id,))
+            if not cur.fetchone():
+                flash("Cliente non trovato.", "danger")
+                return redirect(url_for("clienti"))
+
+            for it in items:
+                codice = it["codice"]
+                nome = it["nome"]
+
+                # 1) crea/recupera prodotto via codice (codice è UNIQUE)
+                cur.execute("""
+                    INSERT INTO prodotti (codice, nome, prezzo, categoria_id, id_categoria)
+                    VALUES (%s, %s, NULL, NULL, NULL)
+                    ON CONFLICT (codice) DO UPDATE
+                    SET nome = CASE
+                        WHEN prodotti.nome IS NULL OR prodotti.nome = '' THEN EXCLUDED.nome
+                        ELSE prodotti.nome
+                    END
+                    RETURNING id, (xmax = 0) AS inserted
+                """, (codice, nome))
+                pr = cur.fetchone()
+                prodotto_id = pr["id"]
+                if pr["inserted"]:
+                    created += 1
+
+                # 2) assegna lavorato (compatibile: prodotto_id e id_prodotto)
+                cur.execute("""
+                    SELECT id, lavorato
+                    FROM clienti_prodotti
+                    WHERE cliente_id=%s AND (prodotto_id=%s OR id_prodotto=%s)
+                    LIMIT 1
+                """, (cliente_id, prodotto_id, prodotto_id))
+                rel = cur.fetchone()
+
+                if rel:
+                    # aggiorna e completa entrambe le colonne (importante)
+                    cur.execute("""
+                        UPDATE clienti_prodotti
+                        SET lavorato=TRUE,
+                            data_operazione=%s,
+                            prodotto_id=%s,
+                            id_prodotto=%s
+                        WHERE id=%s
+                    """, (now, prodotto_id, prodotto_id, rel["id"]))
+                    assigned += 1
+                    if rel["lavorato"] is True:
+                        updated_existing += 1
+                else:
+                    cur.execute("""
+                        INSERT INTO clienti_prodotti
+                        (cliente_id, prodotto_id, id_prodotto, lavorato,
+                         prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
+                        VALUES (%s,%s,%s,TRUE,NULL,NULL,NULL,%s)
+                    """, (cliente_id, prodotto_id, prodotto_id, now))
+                    assigned += 1
+
+            db.commit()
+
+        flash(
+            f"✅ Import PDF completato. "
+            f"Assegnati/aggiornati: {assigned}. "
+            f"🆕 Creati prodotti: {created}.",
+            "success"
+        )
+        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+        try:
+            os.rmdir(tmp_dir)
+        except Exception:
+            pass
+
 
 @app.route("/ping", methods=["GET"])
 def ping():
