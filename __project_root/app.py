@@ -2798,27 +2798,26 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
-import requests
-import os
+import os, requests
 
-def send_text(to, text):
+def send_text(to: str, text: str):
     url = f"https://graph.facebook.com/v18.0/{os.getenv('PHONE_NUMBER_ID')}/messages"
-
     headers = {
         "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-
     payload = {
         "messaging_product": "whatsapp",
-        "to": to,
+        "to": to,  # numero senza "+"
         "type": "text",
-        "text": {
-            "body": text
-        }
+        "text": {"body": text},
     }
 
-    requests.post(url, json=payload, headers=headers)
+    r = requests.post(url, json=payload, headers=headers, timeout=20)
+    print("SEND_TEXT status:", r.status_code)
+    print("SEND_TEXT body:", r.text)
+    return r
+
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -2828,21 +2827,19 @@ def webhook():
         return "Forbidden", 403
 
     data = request.json
-
-    entry = data["entry"][0]
-    value = entry["changes"][0]["value"]
+    value = data["entry"][0]["changes"][0]["value"]
     messages = value.get("messages")
 
     if messages:
         msg = messages[0]
-        from_number = msg["from"]
-        text = msg["text"]["body"]
-
-        print(from_number, text)
+        from_number = msg["from"]  # già senza "+"
+        text = msg.get("text", {}).get("body", "")
+        print("IN:", from_number, text)
 
         send_text(from_number, "Risposta ricevuta ✅")
 
     return "OK", 200
+
 
 
 
