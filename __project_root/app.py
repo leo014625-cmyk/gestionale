@@ -817,30 +817,43 @@ def modifica_cliente(id):
         zone = cur.fetchall()
 
         # ============================
-        # CATEGORIE
+        # CATEGORIE (serve anche per popup import)
         # ============================
         cur.execute('SELECT * FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
         # ============================
-        # PRODOTTI
+        # POPUP IMPORT (da sessione)
+        # ============================
+        show_import_popup = (request.args.get("show_import") == "1")
+        import_result = session.get("pdf_import_result")
+
+        # sicurezza: mostra popup solo se appartiene a questo cliente
+        if import_result and import_result.get("cliente_id") != id:
+            import_result = None
+
+        # ============================
+        # PRODOTTI (SOLO NON ELIMINATI)
         # ============================
         cur.execute('''
             SELECT p.id, p.nome, p.categoria_id, c.nome AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id = c.id
+            WHERE p.eliminato = FALSE
             ORDER BY c.nome, p.nome
         ''')
         prodotti = cur.fetchall()
 
         # ============================
-        # PRODOTTI ASSOCIATI
+        # PRODOTTI ASSOCIATI (SOLO NON ELIMINATI)
         # ============================
         cur.execute('''
-            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, fornitori.nome AS fornitore
+            SELECT cp.prodotto_id, cp.lavorato, cp.prezzo_attuale, cp.prezzo_offerta, fornitori.nome AS fornitore
             FROM clienti_prodotti cp
+            JOIN prodotti p ON cp.prodotto_id = p.id
             LEFT JOIN fornitori ON cp.fornitore_id = fornitori.id
-            WHERE cliente_id=%s
+            WHERE cp.cliente_id=%s
+              AND p.eliminato = FALSE
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
@@ -877,7 +890,7 @@ def modifica_cliente(id):
             zona = request.form.get('zona')
             nuova_zona = (request.form.get('nuova_zona') or '').strip()
 
-            # ✅ NUOVO: telefono cliente
+            # ✅ telefono cliente
             telefono_raw = request.form.get("telefono")
             telefono = normalize_phone(telefono_raw)
 
@@ -894,15 +907,12 @@ def modifica_cliente(id):
                 except Exception:
                     pass
 
-            # ✅ LOGICA WHATSAPP COLLEGATO:
-            # - se telefono valido -> collegato TRUE e timestamp
-            # - se telefono vuoto/None -> collegato FALSE e timestamp NULL
+            # ✅ LOGICA WHATSAPP COLLEGATO
             old_tel = normalize_phone(cliente.get("telefono"))
             old_linked = bool(cliente.get("whatsapp_collegato") or False)
 
             new_linked = True if telefono else False
 
-            # aggiorna timestamp solo quando "passa a collegato" oppure cambia numero
             set_linked_at = None
             clear_linked_at = False
 
@@ -926,7 +936,6 @@ def modifica_cliente(id):
                         (nome, zona, telefono, set_linked_at, id)
                     )
                 else:
-                    # già collegato e numero uguale: non tocco whatsapp_collegato_il
                     cur.execute(
                         """
                         UPDATE clienti
@@ -937,7 +946,6 @@ def modifica_cliente(id):
                         (nome, zona, telefono, id)
                     )
             else:
-                # telefono mancante -> discollego
                 cur.execute(
                     """
                     UPDATE clienti
@@ -954,6 +962,7 @@ def modifica_cliente(id):
             # ---------------------------
             selezionati = set(request.form.getlist("prodotti_lavorati[]"))
 
+            # NB: qui iteriamo SOLO su "prodotti" già filtrati (eliminato=FALSE)
             for prodotto in prodotti:
                 pid = str(prodotto["id"])
                 lavorato = pid in selezionati
@@ -1002,8 +1011,7 @@ def modifica_cliente(id):
                     ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
             # ---------------------------
-            # FATTURATO (PRIORITÀ: storico tabella)
-            # (tuo blocco invariato)
+            # FATTURATO (tuo blocco invariato)
             # ---------------------------
             salvato_storico = False
             use_storico = (request.form.get("fatturato_use_storico") == "1")
@@ -1188,8 +1196,13 @@ def modifica_cliente(id):
         fatturati_cliente=fatturati_cliente,
         fatturati_storico=fatturati_storico,
         current_month=current_datetime.month,
-        current_year=current_datetime.year
+        current_year=current_datetime.year,
+
+        # ✅ per popup import
+        import_result=import_result,
+        show_import_popup=show_import_popup
     )
+
 
 
 import calendar
@@ -3002,6 +3015,7 @@ def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
     return uniq
 
 
+
 # ------------------------------------------------------------
 # 4) DB HELPERS (psycopg2) - coerenti con il tuo DB
 # ------------------------------------------------------------
@@ -3430,7 +3444,7 @@ def importa_pdf_lavorati_auto(cliente_id: int):
 
         created = 0
         assigned = 0
-        da_categorizzare = []  # ✅ prodotti che (anche se già esistenti) hanno categoria NULL
+        da_categorizzare = []  # prodotti che (anche se già esistenti) hanno categoria NULL
 
         with get_db() as db:
             cur = db.cursor(cursor_factory=RealDictCursor)
@@ -3460,7 +3474,7 @@ def importa_pdf_lavorati_auto(cliente_id: int):
                 if pr["inserted"]:
                     created += 1
 
-                # ✅ se non ha categoria, lo chiederemo (anche se NON è stato creato ora)
+                # se non ha categoria, lo chiederemo nel popup (anche se NON è stato creato ora)
                 if pr.get("categoria_id") is None:
                     da_categorizzare.append({
                         "id": prodotto_id,
@@ -3495,26 +3509,32 @@ def importa_pdf_lavorati_auto(cliente_id: int):
 
             db.commit()
 
-        # ✅ se ci sono prodotti senza categoria, vai alla pagina scelta categorie
-        if da_categorizzare:
-            # dedup per id (nel caso il PDF ripeta righe)
-            seen = set()
-            clean = []
-            for p in da_categorizzare:
-                if p["id"] in seen:
-                    continue
-                seen.add(p["id"])
-                clean.append(p)
+        # dedup per id (nel caso il PDF ripeta righe)
+        seen = set()
+        clean = []
+        for p in da_categorizzare:
+            if p["id"] in seen:
+                continue
+            seen.add(p["id"])
+            clean.append(p)
 
-            session["pdf_import_da_categorizzare"] = clean
-            flash(f"✅ Import OK. Ora scegli la categoria per {len(clean)} prodotti.", "warning")
-            return redirect(url_for("scegli_categorie_import_pdf", cliente_id=cliente_id))
+        # ✅ salva risultato import per popup in modifica cliente
+        session["pdf_import_result"] = {
+            "cliente_id": cliente_id,
+            "created": created,
+            "assigned": assigned,
+            "totale": len(items),
+            "prodotti_importati": items,   # [{codice,nome}, ...]
+            "da_categorizzare": clean      # [{id,codice,nome}, ...]
+        }
 
         flash(
             f"✅ Import PDF completato. Assegnati/aggiornati: {assigned}. 🆕 Creati prodotti: {created}.",
             "success"
         )
-        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+        # ✅ torna a modifica cliente e fai aprire il popup (via querystring)
+        return redirect(url_for("modifica_cliente", id=cliente_id, show_import=1))
 
     finally:
         try:
@@ -3525,6 +3545,7 @@ def importa_pdf_lavorati_auto(cliente_id: int):
             os.rmdir(tmp_dir)
         except Exception:
             pass
+
 
 
 # ============================================================
@@ -3571,6 +3592,52 @@ def scegli_categorie_import_pdf(cliente_id: int):
         prodotti=prodotti,
         categorie=categorie
     )
+
+# ============================================================
+# ROUTE SALVA CATEGORIE DAL POPUP (MODIFICA CLIENTE)
+# ============================================================
+
+@app.route("/clienti/<int:cliente_id>/importa_pdf_salva_categorie_modal", methods=["POST"])
+@login_required
+def salva_categorie_import_pdf_modal(cliente_id: int):
+    payload = session.get("pdf_import_result") or {}
+
+    # sicurezza: sessione scaduta o import di un altro cliente
+    if payload.get("cliente_id") != cliente_id:
+        flash("Sessione import scaduta o non valida. Rifai l'import.", "warning")
+        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    prodotti_da_cat = payload.get("da_categorizzare") or []
+    if not prodotti_da_cat:
+        session.pop("pdf_import_result", None)
+        flash("Nessun prodotto da categorizzare.", "info")
+        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    # mapping: categoria[<prodotto_id>] = <categoria_id>
+    mapping = {}
+    for p in prodotti_da_cat:
+        pid = str(p["id"])
+        cat = request.form.get(f"categoria[{pid}]")
+        if cat and cat.isdigit():
+            mapping[int(pid)] = int(cat)
+
+    if not mapping:
+        flash("Seleziona almeno una categoria.", "warning")
+        # riapre il popup
+        return redirect(url_for("modifica_cliente", id=cliente_id, show_import=1))
+
+    updated = 0
+    with get_db() as db:
+        cur = db.cursor(cursor_factory=RealDictCursor)
+        for pid, catid in mapping.items():
+            cur.execute("UPDATE prodotti SET categoria_id=%s WHERE id=%s", (catid, pid))
+            updated += 1
+        db.commit()
+
+    # pulizia sessione e ritorno
+    session.pop("pdf_import_result", None)
+    flash(f"✅ Categorie salvate per {updated} prodotti.", "success")
+    return redirect(url_for("modifica_cliente", id=cliente_id))
 
 
 @app.route("/ping", methods=["GET"])
