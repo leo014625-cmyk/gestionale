@@ -3353,6 +3353,8 @@ def extract_items_codice_nome(text: str) -> list[dict]:
 
     return items
 
+from flask import session  # assicurati che ci sia
+
 @app.route("/clienti/<int:cliente_id>/importa_pdf_lavorati_auto", methods=["POST"])
 @login_required
 def importa_pdf_lavorati_auto(cliente_id: int):
@@ -3371,16 +3373,9 @@ def importa_pdf_lavorati_auto(cliente_id: int):
 
     now = datetime.now()
 
-    # --- DEBUG UTILE ---
-    print("=== IMPORT PDF START ===", "cliente_id=", cliente_id, "file=", tmp_path, flush=True)
-
     try:
         text = extract_text_from_pdf(tmp_path)
         items = extract_items_codice_nome(text)
-
-        print("PDF TEXT LEN:", len(text or ""), "ITEMS FOUND:", len(items), flush=True)
-        if items[:5]:
-            print("FIRST ITEMS:", items[:5], flush=True)
 
         if not items:
             flash("Non ho trovato righe con CODICE + NOME nel PDF (se è una scansione serve OCR/AI).", "warning")
@@ -3388,39 +3383,21 @@ def importa_pdf_lavorati_auto(cliente_id: int):
 
         created = 0
         assigned = 0
-        updated_existing = 0
+        da_categorizzare = []  # ✅ prodotti che (anche se già esistenti) hanno categoria NULL
 
         with get_db() as db:
             cur = db.cursor(cursor_factory=RealDictCursor)
 
-            # safety: cliente esiste
             cur.execute("SELECT id FROM clienti WHERE id=%s", (cliente_id,))
             if not cur.fetchone():
                 flash("Cliente non trovato.", "danger")
                 return redirect(url_for("clienti"))
 
-            # --- capiamo se in clienti_prodotti esiste anche id_prodotto ---
-            cur.execute("""
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_schema='public'
-                  AND table_name='clienti_prodotti'
-                  AND column_name='id_prodotto'
-                LIMIT 1
-            """)
-            has_id_prodotto = bool(cur.fetchone())
-
             for it in items:
-                codice = (it.get("codice") or "").strip()
-                nome = (it.get("nome") or "").strip()
+                codice = it["codice"]
+                nome = it["nome"]
 
-                if not codice:
-                    continue
-
-                print("ITEM:", codice, (nome[:60] if nome else ""), flush=True)
-
-                # 1) crea/recupera prodotto via codice (codice UNIQUE)
-                #    ✅ FIX: colonne coerenti con il tuo DB: (codice, nome, categoria_id)
+                # 1) crea/recupera prodotto
                 cur.execute("""
                     INSERT INTO prodotti (codice, nome, categoria_id)
                     VALUES (%s, %s, NULL)
@@ -3429,82 +3406,65 @@ def importa_pdf_lavorati_auto(cliente_id: int):
                         WHEN prodotti.nome IS NULL OR prodotti.nome = '' THEN EXCLUDED.nome
                         ELSE prodotti.nome
                     END
-                    RETURNING id, (xmax = 0) AS inserted
+                    RETURNING id, categoria_id, (xmax = 0) AS inserted
                 """, (codice, nome))
                 pr = cur.fetchone()
                 prodotto_id = pr["id"]
                 if pr["inserted"]:
                     created += 1
 
-                # 2) assegna lavorato al cliente (compatibile con DB vecchi/nuovi)
-                if has_id_prodotto:
-                    cur.execute("""
-                        SELECT id, lavorato
-                        FROM clienti_prodotti
-                        WHERE cliente_id=%s
-                          AND (prodotto_id=%s OR id_prodotto=%s)
-                        LIMIT 1
-                    """, (cliente_id, prodotto_id, prodotto_id))
-                else:
-                    cur.execute("""
-                        SELECT id, lavorato
-                        FROM clienti_prodotti
-                        WHERE cliente_id=%s
-                          AND prodotto_id=%s
-                        LIMIT 1
-                    """, (cliente_id, prodotto_id))
+                # ✅ se non ha categoria, lo chiederemo (anche se NON è stato creato ora)
+                if pr.get("categoria_id") is None:
+                    da_categorizzare.append({
+                        "id": prodotto_id,
+                        "codice": codice,
+                        "nome": nome
+                    })
 
+                # 2) assegna lavorato
+                cur.execute("""
+                    SELECT id
+                    FROM clienti_prodotti
+                    WHERE cliente_id=%s AND prodotto_id=%s
+                    LIMIT 1
+                """, (cliente_id, prodotto_id))
                 rel = cur.fetchone()
 
                 if rel:
-                    if has_id_prodotto:
-                        cur.execute("""
-                            UPDATE clienti_prodotti
-                            SET lavorato=TRUE,
-                                data_operazione=%s,
-                                prodotto_id=%s,
-                                id_prodotto=%s
-                            WHERE id=%s
-                        """, (now, prodotto_id, prodotto_id, rel["id"]))
-                    else:
-                        cur.execute("""
-                            UPDATE clienti_prodotti
-                            SET lavorato=TRUE,
-                                data_operazione=%s,
-                                prodotto_id=%s
-                            WHERE id=%s
-                        """, (now, prodotto_id, rel["id"]))
-
+                    cur.execute("""
+                        UPDATE clienti_prodotti
+                        SET lavorato=TRUE,
+                            data_operazione=%s
+                        WHERE id=%s
+                    """, (now, rel["id"]))
                     assigned += 1
-                    if rel["lavorato"] is True:
-                        updated_existing += 1
                 else:
-                    if has_id_prodotto:
-                        cur.execute("""
-                            INSERT INTO clienti_prodotti
-                            (cliente_id, prodotto_id, id_prodotto, lavorato,
-                             prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
-                            VALUES (%s,%s,%s,TRUE,NULL,NULL,NULL,%s)
-                        """, (cliente_id, prodotto_id, prodotto_id, now))
-                    else:
-                        cur.execute("""
-                            INSERT INTO clienti_prodotti
-                            (cliente_id, prodotto_id, lavorato,
-                             prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
-                            VALUES (%s,%s,TRUE,NULL,NULL,NULL,%s)
-                        """, (cliente_id, prodotto_id, now))
-
+                    cur.execute("""
+                        INSERT INTO clienti_prodotti
+                        (cliente_id, prodotto_id, lavorato, data_operazione)
+                        VALUES (%s,%s,TRUE,%s)
+                    """, (cliente_id, prodotto_id, now))
                     assigned += 1
-
-            print("=== IMPORT PDF DONE ===", "created=", created, "assigned=", assigned,
-                  "updated_existing=", updated_existing, "has_id_prodotto=", has_id_prodotto, flush=True)
 
             db.commit()
 
+        # ✅ se ci sono prodotti senza categoria, vai alla pagina scelta categorie
+        if da_categorizzare:
+            # dedup per id (nel caso il PDF ripeta righe)
+            seen = set()
+            clean = []
+            for p in da_categorizzare:
+                if p["id"] in seen:
+                    continue
+                seen.add(p["id"])
+                clean.append(p)
+
+            session["pdf_import_da_categorizzare"] = clean
+            flash(f"✅ Import OK. Ora scegli la categoria per {len(clean)} prodotti.", "warning")
+            return redirect(url_for("scegli_categorie_import_pdf", cliente_id=cliente_id))
+
         flash(
-            f"✅ Import PDF completato. "
-            f"Assegnati/aggiornati: {assigned}. "
-            f"🆕 Creati prodotti: {created}.",
+            f"✅ Import PDF completato. Assegnati/aggiornati: {assigned}. 🆕 Creati prodotti: {created}.",
             "success"
         )
         return redirect(url_for("modifica_cliente", id=cliente_id))
@@ -3518,6 +3478,47 @@ def importa_pdf_lavorati_auto(cliente_id: int):
             os.rmdir(tmp_dir)
         except Exception:
             pass
+
+@app.route("/clienti/<int:cliente_id>/importa_pdf_scegli_categorie", methods=["GET", "POST"])
+@login_required
+def scegli_categorie_import_pdf(cliente_id: int):
+    prodotti = session.get("pdf_import_da_categorizzare") or []
+
+    if not prodotti:
+        flash("Nessun prodotto da categorizzare.", "info")
+        return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    with get_db() as db:
+        cur = db.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT id, nome FROM categorie ORDER BY nome")
+        categorie = cur.fetchall()
+
+        if request.method == "POST":
+            # form: categoria[<prodotto_id>] = <categoria_id>
+            mapping = {}
+            for p in prodotti:
+                pid = str(p["id"])
+                cat = request.form.get(f"categoria[{pid}]")
+                if cat:
+                    mapping[int(pid)] = int(cat)
+
+            # aggiorna DB
+            updated = 0
+            for pid, catid in mapping.items():
+                cur.execute("UPDATE prodotti SET categoria_id=%s WHERE id=%s", (catid, pid))
+                updated += 1
+
+            db.commit()
+            session.pop("pdf_import_da_categorizzare", None)
+            flash(f"✅ Categorie salvate per {updated} prodotti.", "success")
+            return redirect(url_for("modifica_cliente", id=cliente_id))
+
+    return render_template(
+        "01_clienti/06_scegli_categorie_import_pdf.html",
+        cliente_id=cliente_id,
+        prodotti=prodotti,
+        categorie=categorie
+    )
 
 
 @app.route("/ping", methods=["GET"])
