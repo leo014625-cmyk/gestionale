@@ -1463,27 +1463,39 @@ def prodotti():
         query += ' ORDER BY c.nome NULLS LAST, p.nome'
 
         cur.execute(query, params)
-        prodotti_rows = cur.fetchall()
+        prodotti_rows = cur.fetchall() or []
 
-        # Dizionario prodotti_per_categoria
+        # Dizionario prodotti_per_categoria (solo categorie esistenti)
         prodotti_per_categoria = {c['nome']: [] for c in categorie}
-        prodotti_per_categoria["Senza categoria"] = []  # ✅ nuova sezione
+
+        # ✅ Lista separata per bottone "Prodotti senza categoria"
+        prodotti_senza_categoria = []
 
         for p in prodotti_rows:
-            cat_nome = p.get('categoria_nome') or "Senza categoria"
-            if cat_nome not in prodotti_per_categoria:
-                prodotti_per_categoria[cat_nome] = []
-
-            prodotti_per_categoria[cat_nome].append({
+            item = {
                 'id': p['id'],
                 'nome': p['nome'],
                 'codice': p.get('codice')
-            })
+            }
+
+            cat_nome = p.get('categoria_nome')
+
+            # ✅ Senza categoria
+            if not cat_nome:
+                prodotti_senza_categoria.append(item)
+                continue
+
+            # ✅ Categoria normale
+            if cat_nome not in prodotti_per_categoria:
+                # edge: categoria esiste in DB ma non in categorie_rows (raro, ma safe)
+                prodotti_per_categoria[cat_nome] = []
+            prodotti_per_categoria[cat_nome].append(item)
 
     return render_template(
         '02_prodotti/01_prodotti.html',
         prodotti_per_categoria=prodotti_per_categoria,
-        categorie=categorie
+        categorie=categorie,
+        prodotti_senza_categoria=prodotti_senza_categoria  # ✅ per bottone + modal
     )
 
 
