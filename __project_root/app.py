@@ -1437,7 +1437,7 @@ def prodotti():
     q = request.args.get('q', '').strip()
 
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor(cursor_factory=RealDictCursor)
 
         # Recupera tutte le categorie
         cur.execute('SELECT id, nome, immagine FROM categorie ORDER BY nome')
@@ -1465,17 +1465,15 @@ def prodotti():
         cur.execute(query, params)
         prodotti_rows = cur.fetchall()
 
-        # Costruisci dizionario prodotti_per_categoria
+        # Dizionario prodotti_per_categoria
         prodotti_per_categoria = {c['nome']: [] for c in categorie}
+        prodotti_per_categoria["Senza categoria"] = []  # ✅ nuova sezione
 
         for p in prodotti_rows:
-            cat_nome = p.get('categoria_nome')
-            # Se il prodotto non ha categoria, lo ignoriamo (oppure puoi metterlo in "Senza categoria")
-            if not cat_nome:
-                continue
+            cat_nome = p.get('categoria_nome') or "Senza categoria"
             if cat_nome not in prodotti_per_categoria:
-                # nel caso esista in DB una categoria non in lista (edge), la creiamo
                 prodotti_per_categoria[cat_nome] = []
+
             prodotti_per_categoria[cat_nome].append({
                 'id': p['id'],
                 'nome': p['nome'],
@@ -1487,6 +1485,7 @@ def prodotti():
         prodotti_per_categoria=prodotti_per_categoria,
         categorie=categorie
     )
+
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
 @login_required
