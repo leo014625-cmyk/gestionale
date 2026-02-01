@@ -17,6 +17,8 @@ from requests.auth import HTTPBasicAuth
 
 
 
+
+
 # ============================
 # PATH STATIC E PLACEHOLDER
 # ============================
@@ -3312,21 +3314,72 @@ import os
 import re
 import tempfile
 from datetime import datetime
+
+import pdfplumber
 from werkzeug.utils import secure_filename
 from psycopg2.extras import RealDictCursor
-from flask import request, redirect, url_for, flash
+from flask import request, redirect, url_for, flash, session
 
 ALLOWED_EXTENSIONS = {"pdf"}
+
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# codici tipo: ABC123, 001234, ART-123-XYZ
-CODE_RE = re.compile(r"\b([A-Z0-9][A-Z0-9\-_]{2,50})\b", re.IGNORECASE)
+
+# ============================================================
+# PARSER PREGIS (ESATTO sul tuo PDF)
+# - riga prodotto: <codice 7-8 cifre> <descrizione> <PZ|KG> ...
+# ============================================================
+
+RIGA_PRODOTTO_RE = re.compile(
+    r"""
+    ^(?P<codice>\d{7,8})      # codice articolo (7–8 cifre)
+    \s+
+    (?P<nome>
+        [A-Z0-9'().,%/\-\s]+?
+    )
+    (?=\s+(PZ|KG)\b|$)        # STOP prima di PZ/KG oppure fine riga
+    """,
+    re.VERBOSE
+)
+
+
+
+def estrai_prodotti_pregis(testo_pdf: str) -> list[dict]:
+    prodotti = []
+    visti = set()
+
+    if not testo_pdf:
+        return prodotti
+
+    for raw_line in testo_pdf.splitlines():
+        line = " ".join(raw_line.split())
+        if not line:
+            continue
+
+        m = RIGA_PRODOTTO_RE.match(line)
+        if not m:
+            continue
+
+        codice = m.group("codice")
+        nome = m.group("nome").strip(" -")
+
+        if not codice or not nome:
+            continue
+
+        key = (codice, nome)
+        if key in visti:
+            continue
+
+        visti.add(key)
+        prodotti.append({"codice": codice, "nome": nome})
+
+    return prodotti
+
 
 def extract_text_from_pdf(path: str) -> str:
     try:
-        import pdfplumber
         chunks = []
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
@@ -3335,42 +3388,19 @@ def extract_text_from_pdf(path: str) -> str:
     except Exception:
         return ""
 
+
 def extract_items_codice_nome(text: str) -> list[dict]:
     """
-    Estrae items da righe tipo:
-      CODICE  Nome prodotto ...
+    ESTRAZIONE ESATTA per PREGIS:
+    prende solo righe prodotto (codice 7-8 cifre + nome fino a PZ/KG)
     Ritorna: [{"codice": "...", "nome": "..."}]
     """
-    items = []
-    if not text:
-        return items
+    return estrai_prodotti_pregis(text or "")
 
-    seen = set()
-    for ln in (l.strip() for l in text.splitlines()):
-        if not ln:
-            continue
-        m = CODE_RE.search(ln)
-        if not m:
-            continue
 
-        codice = m.group(1).upper().strip("-_")
-        if not codice or codice in seen:
-            continue
-
-        nome = ln[m.end():].strip(" \t-–—:;")
-        if not nome:
-            nome = f"PRODOTTO {codice}"
-        # taglia nomi troppo lunghi
-        nome = re.sub(r"\s{2,}", " ", nome).strip()
-        if len(nome) > 200:
-            nome = nome[:200]
-
-        seen.add(codice)
-        items.append({"codice": codice, "nome": nome})
-
-    return items
-
-from flask import session  # assicurati che ci sia
+# ============================================================
+# ROUTE IMPORT PDF LAVORATI (AUTO)
+# ============================================================
 
 @app.route("/clienti/<int:cliente_id>/importa_pdf_lavorati_auto", methods=["POST"])
 @login_required
@@ -3395,7 +3425,7 @@ def importa_pdf_lavorati_auto(cliente_id: int):
         items = extract_items_codice_nome(text)
 
         if not items:
-            flash("Non ho trovato righe con CODICE + NOME nel PDF (se è una scansione serve OCR/AI).", "warning")
+            flash("Non ho trovato righe prodotto nel PDF (controlla che sia un PDF PREGIS testuale).", "warning")
             return redirect(url_for("modifica_cliente", id=cliente_id))
 
         created = 0
@@ -3414,19 +3444,19 @@ def importa_pdf_lavorati_auto(cliente_id: int):
                 codice = it["codice"]
                 nome = it["nome"]
 
-                # 1) crea/recupera prodotto
+                # 1) crea/recupera prodotto (solo codice+nome)
                 cur.execute("""
-                    INSERT INTO prodotti (codice, nome, categoria_id)
-                    VALUES (%s, %s, NULL)
+                    INSERT INTO prodotti (codice, nome, categoria_id, eliminato)
+                    VALUES (%s, %s, NULL, FALSE)
                     ON CONFLICT (codice) DO UPDATE
-                    SET nome = CASE
-                        WHEN prodotti.nome IS NULL OR prodotti.nome = '' THEN EXCLUDED.nome
-                        ELSE prodotti.nome
-                    END
+                    SET nome = EXCLUDED.nome,
+                        eliminato = FALSE
                     RETURNING id, categoria_id, (xmax = 0) AS inserted
                 """, (codice, nome))
+
                 pr = cur.fetchone()
                 prodotto_id = pr["id"]
+
                 if pr["inserted"]:
                     created += 1
 
@@ -3495,6 +3525,11 @@ def importa_pdf_lavorati_auto(cliente_id: int):
             os.rmdir(tmp_dir)
         except Exception:
             pass
+
+
+# ============================================================
+# ROUTE SCELTA CATEGORIE POST-IMPORT
+# ============================================================
 
 @app.route("/clienti/<int:cliente_id>/importa_pdf_scegli_categorie", methods=["GET", "POST"])
 @login_required
