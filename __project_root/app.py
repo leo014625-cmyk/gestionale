@@ -2832,34 +2832,33 @@ def whatsapp_webhook():
     try:
         num_media = int(request.form.get("NumMedia", 0))
         print("📩 WhatsApp ricevuto - NumMedia:", num_media)
-        print("🔐 SID presente?", "SI" if TWILIO_SID else "NO")
-        print("🔐 TOKEN presente?", "SI" if TWILIO_TOKEN else "NO")
-
-        # stampa chiavi principali (utile)
-        print("🔎 MediaContentType0:", request.form.get("MediaContentType0"))
-        print("🔎 MediaUrl0:", request.form.get("MediaUrl0"))
 
         if num_media > 0:
             media_url = request.form.get("MediaUrl0")
             media_type = request.form.get("MediaContentType0") or ""
 
-            # accetta anche "application/pdf; charset=binary"
+            print("🔎 MediaContentType0:", media_type)
+            print("🔎 MediaUrl0:", media_url)
+
             is_pdf = media_type.lower().startswith("application/pdf")
 
             if is_pdf and media_url:
                 filename = "/tmp/offerte.pdf"
                 size = download_pdf(media_url, filename)
-                resp.message(f"📄 PDF ricevuto e scaricato ({size} bytes). Ora lo analizzo…")
+
+                # ✅ risposta sicura e molto chiara
+                resp.message(f"✅ OK! Ho scaricato il PDF ({size} bytes). Ora estraggo i prodotti…")
             else:
-                resp.message("📎 File ricevuto ma non è un PDF. Inviami un PDF delle offerte.")
+                resp.message("❌ Ho ricevuto un file, ma non è un PDF. Inviami un PDF delle offerte.")
         else:
-            resp.message("👋 Inviami un PDF con le offerte (codice, nome, prezzo).")
+            resp.message("👋 Sono attivo! Inviami un PDF con le offerte (codice, nome, prezzo).")
 
     except Exception as e:
         print("❌ ERRORE webhook:", str(e))
-        resp.message("⚠️ Errore durante il download del PDF. Controllo in corso.")
+        resp.message("⚠️ Errore durante l'elaborazione. Riprova tra poco.")
 
     return str(resp)
+
 
 @app.route("/whatsapp/ping", methods=["GET"])
 def whatsapp_ping():
