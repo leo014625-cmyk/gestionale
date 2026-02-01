@@ -2846,6 +2846,9 @@ def webhook():
     return "OK", 200
 
 
+@app.route("/ping", methods=["GET"])
+def ping():
+    return "pong", 200
 
 
 
