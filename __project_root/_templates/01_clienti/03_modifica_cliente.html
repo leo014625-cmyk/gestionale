@@ -74,8 +74,6 @@
 
 {# ============================================================
    MODAL RISULTATO IMPORT PDF (POPUP)
-   - mostra lista completa importata
-   - se ci sono prodotti senza categoria: select + salva
    ============================================================ #}
 {% if import_result %}
 <div class="modal fade" id="importResultModal" tabindex="-1" aria-hidden="true">
@@ -373,7 +371,7 @@
 
         <div class="d-flex flex-wrap gap-2">
           <input id="search-global" type="text" class="form-control form-control-sm" style="min-width:240px"
-                 placeholder="Cerca su tutti i prodotti...">
+                 placeholder="Cerca per nome, codice, fornitore...">
           <button type="button" class="btn btn-sm btn-outline-success" id="btn-show-lavorati">
             <i class="bi bi-check2-circle"></i> Solo lavorati
           </button>
@@ -408,7 +406,7 @@
 
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
             <input type="text" class="form-control form-control-sm filtro-prodotto"
-                   data-cat="{{ cat.id }}" placeholder="Cerca prodotto o fornitore nella categoria...">
+                   data-cat="{{ cat.id }}" placeholder="Cerca per nome, codice o fornitore...">
 
             <div class="d-flex flex-wrap gap-2">
               <button type="button" class="btn btn-sm btn-outline-secondary bulk-all" data-cat="{{ cat.id }}">
@@ -456,7 +454,9 @@
                   <td>
                     <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
                       <span class="prod-nome">{{ p.nome }}</span>
-                      <span class="badge text-bg-light border">ID: {{ p.id }}</span>
+                      <span class="badge text-bg-light border prod-code-badge">
+                        COD: {{ p.codice if p.codice else '—' }}
+                      </span>
                     </div>
                     <div class="text-muted small">{{ p.categoria_nome }}</div>
                   </td>
@@ -513,7 +513,7 @@
         </div>
         <div class="card-body px-4 pb-4">
           <input id="search-lavorati" type="text" class="form-control form-control-sm mb-2"
-                 placeholder="Cerca tra i lavorati...">
+                 placeholder="Cerca per nome o codice...">
           <div class="table-responsive riepilogo-table">
             <table class="table table-sm table-bordered mb-0" id="tabella-lavorati">
               <thead class="table-success sticky-top">
@@ -542,7 +542,7 @@
         </div>
         <div class="card-body px-4 pb-4">
           <input id="search-non-lavorati" type="text" class="form-control form-control-sm mb-2"
-                 placeholder="Cerca tra i non lavorati...">
+                 placeholder="Cerca per nome o codice...">
           <div class="table-responsive riepilogo-table">
             <table class="table table-sm table-bordered mb-0" id="tabella-non-lavorati">
               <thead class="table-danger sticky-top">
@@ -616,7 +616,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!telInp) return true;
     const raw = telInp.value;
     const norm = normalizeTel(raw);
-
     if (opts.commit) telInp.value = norm;
 
     if (!norm) {
@@ -636,7 +635,7 @@ document.addEventListener("DOMContentLoaded", () => {
   telInp?.addEventListener("blur",  () => validateTel({commit:true}));
   validateTel({commit:false});
 
-  // ---------- IMPORT PDF: BADGE + CONFERMA ----------
+  // ---------- IMPORT PDF: BADGE ----------
   const pdfInput = document.getElementById("pdf-input");
   const pdfBadge = document.getElementById("pdf-badge");
   const btnImport = document.getElementById("btn-import-pdf");
@@ -662,7 +661,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // ---------- DATI PRODOTTI PER RIEPILOGO ----------
   const lista = [
     {% for p in prodotti %}
-      { id:"{{ p.id }}", nome: {{ p.nome|tojson }}, categoria: {{ p.categoria_nome|tojson }}, catId:"{{ p.categoria_id }}" },
+      {
+        id:"{{ p.id }}",
+        codice: {{ (p.codice or '')|tojson }},
+        nome: {{ p.nome|tojson }},
+        categoria: {{ p.categoria_nome|tojson }},
+        catId:"{{ p.categoria_id }}"
+      },
     {% endfor %}
   ];
 
@@ -685,20 +690,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const att = norm(document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value) || "–";
       const off = norm(document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value) || "–";
 
-      const nomeConId = `<span class="d-inline-flex align-items-center gap-2 flex-wrap">
+      const cod = (p.codice || "—").toString();
+      const nomeConCod = `<span class="d-inline-flex align-items-center gap-2 flex-wrap">
         <span class="prod-nome">${p.nome}</span>
-        <span class="badge text-bg-light border">ID: ${p.id}</span>
+        <span class="badge text-bg-light border prod-code-badge">COD: ${cod}</span>
       </span>`;
 
       if (chk && chk.checked) {
         nL++;
         tblL.insertAdjacentHTML("beforeend",
-          `<tr><td>${nomeConId}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
+          `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
         );
       } else {
         nN++;
         tblN.insertAdjacentHTML("beforeend",
-          `<tr><td>${nomeConId}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
+          `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
         );
       }
 
@@ -744,22 +750,30 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiornaRiepilogo));
   document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiornaRiepilogo));
 
-  // ---------- FILTRO PER CATEGORIA ----------
+  function normalizeCodeText(txt){
+    return (txt || "").toLowerCase().replace("cod:", "").trim();
+  }
+
+  // ---------- FILTRO PER CATEGORIA (nome/codice/fornitore) ----------
   document.querySelectorAll(".filtro-prodotto").forEach(inp => {
     inp.addEventListener("keyup", function () {
-      const filtro = this.value.toLowerCase();
+      const filtro = this.value.toLowerCase().trim();
       const tab = document.querySelector(`#tabella-cat-${this.dataset.cat}`);
       const righe = tab.querySelectorAll("tbody tr");
 
       righe.forEach(r => {
         const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
         const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
-        r.style.display = (nome.includes(filtro) || forn.includes(filtro)) ? "" : "none";
+        const codTxt = (r.querySelector(".prod-code-badge")?.innerText || "");
+        const cod = normalizeCodeText(codTxt);
+
+        r.style.display = (nome.includes(filtro) || forn.includes(filtro) || cod.includes(filtro) || codTxt.toLowerCase().includes(filtro))
+          ? "" : "none";
       });
     });
   });
 
-  // ---------- FILTRO GLOBALE ----------
+  // ---------- FILTRO GLOBALE (nome/codice/fornitore/categoria) ----------
   const searchGlobal = document.getElementById("search-global");
   if (searchGlobal) {
     searchGlobal.addEventListener("input", () => {
@@ -768,7 +782,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
         const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
         const cat = (r.querySelector("td .text-muted")?.innerText || "").toLowerCase();
-        r.style.display = (nome.includes(q) || forn.includes(q) || cat.includes(q)) ? "" : "none";
+        const codTxt = (r.querySelector(".prod-code-badge")?.innerText || "");
+        const cod = normalizeCodeText(codTxt);
+
+        r.style.display = (nome.includes(q) || forn.includes(q) || cat.includes(q) || cod.includes(q) || codTxt.toLowerCase().includes(q))
+          ? "" : "none";
       });
     });
   }
@@ -815,7 +833,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ---------- RICERCA NEL RIEPILOGO ----------
+  // ---------- RICERCA NEL RIEPILOGO (già ok: include anche "COD: ...") ----------
   function filterTable(inputId, tableBodySel) {
     const inp = document.getElementById(inputId);
     const body = document.querySelector(tableBodySel);
