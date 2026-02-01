@@ -54,6 +54,29 @@
           <input type="text" class="form-control" name="nuova_zona"
                  value="{{ nuova_zona_value or '' }}" placeholder="Inserisci nuova zona">
         </div>
+
+        <!-- ✅ NUOVO: TELEFONO WHATSAPP -->
+        <div class="col-md-6">
+          <label class="form-label d-flex align-items-center justify-content-between">
+            <span>Telefono WhatsApp</span>
+            <span class="badge text-bg-light border" id="telefono-badge">Non validato</span>
+          </label>
+          <input type="text"
+                 class="form-control"
+                 name="telefono"
+                 id="telefono"
+                 value="{{ telefono_cliente if telefono_cliente is defined else (cliente.telefono or '') }}"
+                 placeholder="Es. 393331234567 (senza +)"
+                 inputmode="numeric"
+                 autocomplete="tel">
+          <div class="form-text">
+            Solo numeri, senza spazi e senza “+”. (Esempio: <b>39333...</b>)
+          </div>
+          <div class="invalid-feedback">
+            Numero non valido. Inserisci solo cifre (min 8, max 15).
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -72,10 +95,8 @@
 
     <div class="card-body px-4 pb-4">
 
-      <!-- ✅ FLAG CRITICO: evita fallback che reinserisce fatturato quando svuoti/modifichi lo storico -->
       <input type="hidden" name="fatturato_use_storico" value="1">
 
-      <!-- Inserimento rapido -->
       <div class="row g-2 align-items-end mb-3">
         <div class="col-12 col-md-3">
           <label class="form-label">Mese</label>
@@ -105,7 +126,6 @@
         </div>
       </div>
 
-      <!-- Storico fatturato -->
       <div class="border rounded-4 p-3 bg-light-subtle">
         <div class="d-flex align-items-center justify-content-between mb-2">
           <div class="fw-semibold">Storico fatturato</div>
@@ -134,7 +154,6 @@
                 {% for f in fatturati_storico %}
                 <tr>
                   <td>
-                    <!-- ✅ ora invia anche come campi di form -->
                     <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
                       {% for m,v in mesi.items() %}
                         <option value="{{ m }}" {% if m == f.mese %}selected{% endif %}>{{ v }}</option>
@@ -169,7 +188,6 @@
           </table>
         </div>
 
-        {# ✅ Lasciato come backup (se la route usa ancora il JSON) #}
         <input type="hidden" name="fatturato_storico_json" id="fatturato_storico_json" value="">
 
         <div class="small text-muted mt-2">
@@ -274,7 +292,6 @@
                   </td>
 
                   <td>
-                    <!-- ✅ aggiornato: Nome + ID -->
                     <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
                       <span class="prod-nome">{{ p.nome }}</span>
                       <span class="badge text-bg-light border">ID: {{ p.id }}</span>
@@ -405,16 +422,47 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-  // ---------- DATI PRODOTTI PER RIEPILOGO ----------
-  // ✅ uso tojson per evitare problemi con apici/caratteri speciali
-  const lista = {{ prodotti|map(attribute='__dict__')|list|tojson if false else [] }};
-</script>
+  // ---------- TELEFONO: NORMALIZZA + VALIDAZIONE LEGGERA ----------
+  const telInp = document.getElementById("telefono");
+  const telBadge = document.getElementById("telefono-badge");
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
+  function normalizeTel(v){
+    v = (v || "").toString().trim();
+    v = v.replace(/\+/g,"").replace(/\s+/g,"").replace(/[-()]/g,"");
+    v = v.replace(/[^\d]/g,"");
+    return v;
+  }
+
+  function validateTel(){
+    if (!telInp) return true;
+    const raw = telInp.value;
+    const norm = normalizeTel(raw);
+    telInp.value = norm;
+
+    if (!norm) {
+      telInp.classList.remove("is-valid","is-invalid");
+      if (telBadge) {
+        telBadge.className = "badge text-bg-light border";
+        telBadge.textContent = "Vuoto";
+      }
+      return true;
+    }
+
+    const ok = (norm.length >= 8 && norm.length <= 15);
+    telInp.classList.toggle("is-valid", ok);
+    telInp.classList.toggle("is-invalid", !ok);
+
+    if (telBadge) {
+      telBadge.className = ok ? "badge text-bg-success" : "badge text-bg-danger";
+      telBadge.textContent = ok ? "OK" : "Non valido";
+    }
+    return ok;
+  }
+
+  telInp?.addEventListener("input", validateTel);
+  validateTel();
 
   // ---------- DATI PRODOTTI PER RIEPILOGO ----------
-  // Manteniamo la tua struttura, ma mettiamo nome/categoria in modo sicuro
   const lista = [
     {% for p in prodotti %}
       { id:"{{ p.id }}", nome: {{ p.nome|tojson }}, categoria: {{ p.categoria_nome|tojson }}, catId:"{{ p.categoria_id }}" },
@@ -507,7 +555,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const righe = tab.querySelectorAll("tbody tr");
 
       righe.forEach(r => {
-        // ✅ filtra solo su nome + fornitore (evita falsi match per "ID:")
         const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
         const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
         r.style.display = (nome.includes(filtro) || forn.includes(filtro)) ? "" : "none";
@@ -672,7 +719,14 @@ document.addEventListener("DOMContentLoaded", () => {
     syncFatturatoJson();
   });
 
-  document.getElementById("form-modifica-cliente")?.addEventListener("submit", () => {
+  document.getElementById("form-modifica-cliente")?.addEventListener("submit", (e) => {
+    // ✅ valida telefono prima di inviare
+    const okTel = validateTel();
+    if (!okTel) {
+      e.preventDefault();
+      telInp?.focus();
+      return;
+    }
     syncFatturatoJson();
   });
 
