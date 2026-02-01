@@ -26,35 +26,17 @@ def aggiorna_db():
             )
         """)
 
-        # ✅ Colonna telefono (WhatsApp) - compatibilità DB esistente
-        cur.execute("""
-            ALTER TABLE clienti
-            ADD COLUMN IF NOT EXISTS telefono TEXT
-        """)
+        # ✅ Aggiunte compatibili (DB vecchio)
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS telefono TEXT""")
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked BOOLEAN NOT NULL DEFAULT FALSE""")
+        cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked_at TIMESTAMP""")
 
-        # ✅ Stato collegamento WhatsApp "reale"
-        # Quando il bot riceve un messaggio da quel numero, potrai settare questi campi.
-        cur.execute("""
-            ALTER TABLE clienti
-            ADD COLUMN IF NOT EXISTS whatsapp_linked_at TIMESTAMP
-        """)
-        cur.execute("""
-            ALTER TABLE clienti
-            ADD COLUMN IF NOT EXISTS whatsapp_linked BOOLEAN NOT NULL DEFAULT FALSE
-        """)
-
-        # ✅ Indici utili
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS clienti_telefono_idx
-            ON clienti (telefono)
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS clienti_whatsapp_linked_idx
-            ON clienti (whatsapp_linked)
-        """)
+        # Indici utili
+        cur.execute("""CREATE INDEX IF NOT EXISTS clienti_telefono_idx ON clienti (telefono)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS clienti_whatsapp_linked_idx ON clienti (whatsapp_linked)""")
 
         # ============================
-        # WHATSAPP LINK CODES (opzionale, per flow "codice di collegamento")
+        # WHATSAPP LINK CODES (opzionale)
         # ============================
         cur.execute("""
             CREATE TABLE IF NOT EXISTS whatsapp_link_codes (
@@ -65,14 +47,8 @@ def aggiorna_db():
                 used_at TIMESTAMP
             )
         """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS whatsapp_link_codes_cliente_idx
-            ON whatsapp_link_codes (cliente_id)
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS whatsapp_link_codes_used_at_idx
-            ON whatsapp_link_codes (used_at)
-        """)
+        cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_cliente_idx ON whatsapp_link_codes (cliente_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_used_at_idx ON whatsapp_link_codes (used_at)""")
 
         # ============================
         # CATEGORIE
@@ -95,18 +71,11 @@ def aggiorna_db():
                 categoria_id INTEGER REFERENCES categorie(id)
             )
         """)
-        cur.execute("""
-            ALTER TABLE prodotti
-            ADD COLUMN IF NOT EXISTS codice VARCHAR(50)
-        """)
-        cur.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS prodotti_codice_unique
-            ON prodotti (codice)
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS prodotti_codice_idx
-            ON prodotti (codice)
-        """)
+
+        # Codice prodotto compatibile
+        cur.execute("""ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS codice VARCHAR(50)""")
+        cur.execute("""CREATE UNIQUE INDEX IF NOT EXISTS prodotti_codice_unique ON prodotti (codice)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS prodotti_codice_idx ON prodotti (codice)""")
 
         # ============================
         # ZONE
@@ -142,6 +111,7 @@ def aggiorna_db():
                 data_operazione TIMESTAMP DEFAULT NOW()
             )
         """)
+
         cur.execute("""
             ALTER TABLE clienti_prodotti
             ADD COLUMN IF NOT EXISTS fornitore_id INTEGER REFERENCES fornitori(id)
@@ -171,10 +141,6 @@ def aggiorna_db():
                 anno INTEGER NOT NULL
             )
         """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno
-            ON fatturato(cliente_id, mese, anno)
-        """)
 
         # ============================
         # VOLANTINI
@@ -189,6 +155,9 @@ def aggiorna_db():
             )
         """)
 
+        # ============================
+        # VOLANTINO_PRODOTTI
+        # ============================
         cur.execute("""
             CREATE TABLE IF NOT EXISTS volantino_prodotti (
                 id SERIAL PRIMARY KEY,
@@ -201,10 +170,6 @@ def aggiorna_db():
                 eliminato BOOLEAN DEFAULT FALSE,
                 lascia_vuota BOOLEAN DEFAULT FALSE
             )
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino
-            ON volantino_prodotti(volantino_id)
         """)
 
         # ============================
@@ -223,17 +188,22 @@ def aggiorna_db():
         """)
 
         # ============================
-        # INDICI EXTRA
+        # INDICI
         # ============================
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_cliente ON clienti_prodotti(cliente_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_prodotto ON clienti_prodotti(prodotto_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_fornitore ON clienti_prodotti(fornitore_id)")
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_cliente ON clienti_prodotti(cliente_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_prodotto ON clienti_prodotti(prodotto_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_fornitore ON clienti_prodotti(fornitore_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno ON fatturato(cliente_id, mese, anno)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino ON volantino_prodotti(volantino_id)""")
 
         conn.commit()
         print("✅ Database PostgreSQL aggiornato con successo.")
 
     finally:
-        cur.close()
+        try:
+            cur.close()
+        except Exception:
+            pass
         conn.close()
 
 
