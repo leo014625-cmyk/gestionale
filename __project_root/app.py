@@ -879,7 +879,7 @@ def modifica_cliente(id):
             telefono_raw = request.form.get("telefono")
             telefono = normalize_phone(telefono_raw)
 
-            # Validazione leggera (non blocca troppo)
+            # Validazione leggera
             if telefono and (len(telefono) < 8 or len(telefono) > 15):
                 flash("⚠️ Telefono non valido (controlla lunghezza).", "warning")
                 telefono = None
@@ -892,11 +892,60 @@ def modifica_cliente(id):
                 except Exception:
                     pass
 
-            # ✅ UPDATE CLIENTE con telefono
-            cur.execute(
-                'UPDATE clienti SET nome=%s, zona=%s, telefono=%s WHERE id=%s',
-                (nome, zona, telefono, id)
-            )
+            # ✅ LOGICA WHATSAPP COLLEGATO:
+            # - se telefono valido -> collegato TRUE e timestamp
+            # - se telefono vuoto/None -> collegato FALSE e timestamp NULL
+            old_tel = normalize_phone(cliente.get("telefono"))
+            old_linked = bool(cliente.get("whatsapp_collegato") or False)
+
+            new_linked = True if telefono else False
+
+            # aggiorna timestamp solo quando "passa a collegato" oppure cambia numero
+            set_linked_at = None
+            clear_linked_at = False
+
+            if new_linked:
+                if (not old_linked) or (old_tel != telefono):
+                    set_linked_at = current_datetime
+            else:
+                clear_linked_at = True
+
+            # ✅ UPDATE CLIENTE con telefono + flag whatsapp
+            if new_linked:
+                if set_linked_at is not None:
+                    cur.execute(
+                        """
+                        UPDATE clienti
+                        SET nome=%s, zona=%s, telefono=%s,
+                            whatsapp_collegato=TRUE,
+                            whatsapp_collegato_il=%s
+                        WHERE id=%s
+                        """,
+                        (nome, zona, telefono, set_linked_at, id)
+                    )
+                else:
+                    # già collegato e numero uguale: non tocco whatsapp_collegato_il
+                    cur.execute(
+                        """
+                        UPDATE clienti
+                        SET nome=%s, zona=%s, telefono=%s,
+                            whatsapp_collegato=TRUE
+                        WHERE id=%s
+                        """,
+                        (nome, zona, telefono, id)
+                    )
+            else:
+                # telefono mancante -> discollego
+                cur.execute(
+                    """
+                    UPDATE clienti
+                    SET nome=%s, zona=%s, telefono=%s,
+                        whatsapp_collegato=FALSE,
+                        whatsapp_collegato_il=NULL
+                    WHERE id=%s
+                    """,
+                    (nome, zona, None, id)
+                )
 
             # ---------------------------
             # PRODOTTI LAVORATI
@@ -911,8 +960,8 @@ def modifica_cliente(id):
                 prezzo_offerta_raw = request.form.get(f"prezzo_offerta[{pid}]")
                 fornitore_nome = (request.form.get(f"fornitore[{pid}]") or "").strip() or None
 
-                prezzo_attuale = parse_decimal(prezzo_attuale_raw)   # None se vuoto/invalid
-                prezzo_offerta = parse_decimal(prezzo_offerta_raw)   # None se vuoto/invalid
+                prezzo_attuale = parse_decimal(prezzo_attuale_raw)
+                prezzo_offerta = parse_decimal(prezzo_offerta_raw)
 
                 # --- gestisci fornitore ---
                 fornitore_id = None
@@ -1115,13 +1164,13 @@ def modifica_cliente(id):
         ''', (id,))
         fatturati_storico = cur.fetchall()
 
-        # ✅ NUOVO: telefono precompilato
+        # ✅ telefono precompilato
         telefono_cliente = (cliente.get("telefono") or "")
 
     return render_template(
         '01_clienti/03_modifica_cliente.html',
         cliente=cliente,
-        telefono_cliente=telefono_cliente,  # <-- aggiunto
+        telefono_cliente=telefono_cliente,
         zone=zone,
         categorie=categorie,
         prodotti=prodotti,
