@@ -36,6 +36,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 .wh-card { border:1px solid #e9ecef; border-radius: 1rem; background:#fff; }
 .wh-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background: rgba(37,211,102,0.12); }
 .wh-icon i { color:#25D366; font-size:1.5rem; }
+.wh-number { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 </style>
 {% endblock %}
 
@@ -48,13 +49,13 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% set stato = stato_cliente if stato_cliente is defined and stato_cliente else 'inattivo' %}
 {% endif %}
 
-{# === WHATSAPP: normalizza e decide stato === #}
+{# === WHATSAPP: normalizza numero === #}
 {% set tel_raw = (cliente.telefono or '') %}
 {% set whatsapp_number = tel_raw|replace(' ', '')|replace('+','')|replace('-','')|replace('(','')|replace(')','') %}
 {% set has_whatsapp = whatsapp_number|length >= 8 %}
 
 {# Se dal backend passi whatsapp_collegato = True/False, usiamo quello.
-   Altrimenti: consideriamo "collegato" solo se c'è il numero (fallback). #}
+   Altrimenti fallback: "collegato" solo se c'è un numero. #}
 {% if whatsapp_collegato is defined %}
   {% set wa_linked = whatsapp_collegato %}
 {% else %}
@@ -85,11 +86,12 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 
 <!-- ================== WHATSAPP / BOT ================== -->
 <div class="card wh-card mb-4 p-3">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div class="d-flex align-items-center gap-3">
       <div class="wh-icon">
         <i class="bi bi-whatsapp"></i>
       </div>
+
       <div>
         <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
           <span>WhatsApp collegato al bot</span>
@@ -102,11 +104,17 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 
         <div class="text-muted small">
           {% if has_whatsapp %}
-            Numero: <span class="fw-semibold">{{ whatsapp_number }}</span>
+            Numero: <span class="fw-semibold wh-number">{{ whatsapp_number }}</span>
           {% else %}
             Numero: <span class="fst-italic">non presente</span>
           {% endif %}
         </div>
+
+        {% if has_whatsapp and not wa_linked %}
+          <div class="small text-muted mt-1">
+            Dopo aver salvato il numero, lo stato diventa “Collegato” quando il bot riceve il primo messaggio da quel numero.
+          </div>
+        {% endif %}
       </div>
     </div>
 
@@ -124,12 +132,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
       </a>
     </div>
   </div>
-
-  {% if has_whatsapp and not wa_linked %}
-    <div class="mt-2 small text-muted">
-      Suggerimento: salva il numero e avvia la chat una volta: quando il bot riceve il primo messaggio, lo stato diventa “Collegato”.
-    </div>
-  {% endif %}
 </div>
 
 <!-- ================== METRICHE ================== -->
