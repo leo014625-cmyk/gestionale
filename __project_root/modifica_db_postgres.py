@@ -26,17 +26,15 @@ def aggiorna_db():
             )
         """)
 
-        # ✅ Aggiunte compatibili (DB vecchio)
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS telefono TEXT""")
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked BOOLEAN NOT NULL DEFAULT FALSE""")
         cur.execute("""ALTER TABLE clienti ADD COLUMN IF NOT EXISTS whatsapp_linked_at TIMESTAMP""")
 
-        # Indici utili
         cur.execute("""CREATE INDEX IF NOT EXISTS clienti_telefono_idx ON clienti (telefono)""")
         cur.execute("""CREATE INDEX IF NOT EXISTS clienti_whatsapp_linked_idx ON clienti (whatsapp_linked)""")
 
         # ============================
-        # WHATSAPP LINK CODES (opzionale)
+        # WHATSAPP LINK CODES
         # ============================
         cur.execute("""
             CREATE TABLE IF NOT EXISTS whatsapp_link_codes (
@@ -47,6 +45,7 @@ def aggiorna_db():
                 used_at TIMESTAMP
             )
         """)
+
         cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_cliente_idx ON whatsapp_link_codes (cliente_id)""")
         cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_used_at_idx ON whatsapp_link_codes (used_at)""")
 
@@ -72,10 +71,16 @@ def aggiorna_db():
             )
         """)
 
-        # Codice prodotto compatibile
         cur.execute("""ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS codice VARCHAR(50)""")
         cur.execute("""CREATE UNIQUE INDEX IF NOT EXISTS prodotti_codice_unique ON prodotti (codice)""")
         cur.execute("""CREATE INDEX IF NOT EXISTS prodotti_codice_idx ON prodotti (codice)""")
+
+        # ✅ Cancellazione logica
+        cur.execute("""
+            ALTER TABLE prodotti
+            ADD COLUMN IF NOT EXISTS eliminato BOOLEAN NOT NULL DEFAULT FALSE
+        """)
+        cur.execute("""CREATE INDEX IF NOT EXISTS prodotti_eliminato_idx ON prodotti (eliminato)""")
 
         # ============================
         # ZONE
