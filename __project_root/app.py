@@ -2798,6 +2798,28 @@ def beta_volantino_elimina(id):
     db.session.commit()
     return redirect(url_for('lista_volantini_beta'))
 
+import requests
+import os
+
+def send_text(to, text):
+    url = f"https://graph.facebook.com/v18.0/{os.getenv('PHONE_NUMBER_ID')}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {
+            "body": text
+        }
+    }
+
+    requests.post(url, json=payload, headers=headers)
+
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
@@ -2806,15 +2828,22 @@ def webhook():
         return "Forbidden", 403
 
     data = request.json
-    print(data)
+
+    entry = data["entry"][0]
+    value = entry["changes"][0]["value"]
+    messages = value.get("messages")
+
+    if messages:
+        msg = messages[0]
+        from_number = msg["from"]
+        text = msg["text"]["body"]
+
+        print(from_number, text)
+
+        send_text(from_number, "Risposta ricevuta ✅")
+
     return "OK", 200
 
-# ============================
-# ROUTE DI TEST TEMPLATE
-# ============================
-@app.route('/test-template')
-def test_template():
-    return render_template('00_login.html')
 
 
 @app.route('/debug-template')
