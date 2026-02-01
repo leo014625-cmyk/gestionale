@@ -85,6 +85,50 @@
     </div>
   </div>
 
+  <!-- ✅ IMPORT PDF: PRODOTTI LAVORATI (AUTO) -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h5 class="mb-0"><i class="bi bi-magic me-2"></i>Import PDF prodotti lavorati</h5>
+          <div class="text-muted small">
+            Carica un PDF con <b>codice + nome prodotto</b>. Se il prodotto non esiste, viene creato automaticamente e assegnato come <b>Lavorato</b>.
+          </div>
+        </div>
+        <span class="badge text-bg-light border" id="pdf-badge">Nessun file</span>
+      </div>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+      <form method="POST"
+            action="{{ url_for('importa_pdf_lavorati_auto', cliente_id=cliente.id) }}"
+            enctype="multipart/form-data"
+            class="d-flex flex-wrap gap-2 align-items-center">
+
+        <input type="file"
+               name="pdf"
+               id="pdf-input"
+               accept="application/pdf"
+               class="form-control"
+               style="max-width:420px"
+               required>
+
+        <button type="submit" class="btn btn-primary" id="btn-import-pdf">
+          <i class="bi bi-upload"></i> Importa e assegna
+        </button>
+
+        <a class="btn btn-outline-secondary"
+           href="{{ url_for('modifica_cliente', id=cliente.id) }}">
+          <i class="bi bi-arrow-clockwise"></i> Aggiorna pagina
+        </a>
+      </form>
+
+      <div class="small text-muted mt-2">
+        Suggerimento: se il PDF è una <b>scansione</b> (immagine), potrebbe non estrarre i codici. In quel caso attiviamo il fallback OCR/AI.
+      </div>
+    </div>
+  </div>
+
   <!-- FATTURATO -->
   <div class="card shadow-sm rounded-4 mb-4">
     <div class="card-header bg-white border-0 pt-4 px-4">
@@ -469,6 +513,29 @@ document.addEventListener("DOMContentLoaded", () => {
   telInp?.addEventListener("blur",  () => validateTel({commit:true}));
   validateTel({commit:false});
 
+  // ---------- IMPORT PDF: BADGE + CONFERMA ----------
+  const pdfInput = document.getElementById("pdf-input");
+  const pdfBadge = document.getElementById("pdf-badge");
+  const btnImport = document.getElementById("btn-import-pdf");
+
+  function setPdfBadge(kind, text){
+    if (!pdfBadge) return;
+    if (kind === "ok") pdfBadge.className = "badge text-bg-success";
+    else if (kind === "bad") pdfBadge.className = "badge text-bg-danger";
+    else pdfBadge.className = "badge text-bg-light border";
+    pdfBadge.textContent = text;
+  }
+
+  if (pdfInput) {
+    pdfInput.addEventListener("change", () => {
+      const file = pdfInput.files?.[0];
+      if (!file) return setPdfBadge("empty", "Nessun file");
+      const ok = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      setPdfBadge(ok ? "ok" : "bad", ok ? file.name : "File non valido");
+      if (btnImport) btnImport.disabled = !ok;
+    });
+  }
+
   // ---------- DATI PRODOTTI PER RIEPILOGO ----------
   const lista = [
     {% for p in prodotti %}
@@ -751,5 +818,6 @@ document.addEventListener("DOMContentLoaded", () => {
 .card { border-radius: 1rem; }
 .nav-pills .nav-link { border-radius: 999px; }
 .badge-stato { font-weight: 600; }
+#pdf-badge { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 {% endblock %}
