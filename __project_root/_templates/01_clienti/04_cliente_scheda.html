@@ -54,8 +54,6 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 {% set whatsapp_number = tel_raw|replace(' ', '')|replace('+','')|replace('-','')|replace('(','')|replace(')','') %}
 {% set has_whatsapp = whatsapp_number|length >= 8 %}
 
-{# Se dal backend passi whatsapp_collegato = True/False, usiamo quello.
-   Altrimenti fallback: "collegato" solo se c'è un numero. #}
 {% if whatsapp_collegato is defined %}
   {% set wa_linked = whatsapp_collegato %}
 {% else %}
@@ -282,7 +280,7 @@ table tbody tr:hover { background:#f1f3f5 !important; }
       <span class="text-muted small">Clicca una categoria a sinistra per cambiare</span>
     </div>
 
-    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto..."
+    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto o codice..."
            onkeyup="filtraProdotti(this,'{{ cat.id }}')">
 
     <div class="table-responsive">
@@ -304,7 +302,9 @@ table tbody tr:hover { background:#f1f3f5 !important; }
             <tr>
               <td class="fw-semibold">
                 <span class="prod-nome">{{ p.nome }}</span>
-                <span class="badge text-bg-light border ms-2">ID: {{ p.id }}</span>
+                <span class="badge text-bg-light border ms-2 prod-code-badge">
+                  COD: {{ p.codice if p.codice else '—' }}
+                </span>
               </td>
 
               <td>
@@ -428,11 +428,14 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 })();
 
 function filtraProdotti(input,catId){
-  const filtro = (input.value || "").toLowerCase();
+  const filtro = (input.value || "").toLowerCase().trim();
   document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
-    const nomeEl = r.querySelector(".prod-nome");
-    const nome = (nomeEl?.innerText || "").toLowerCase();
-    r.style.display = nome.includes(filtro) ? "" : "none";
+    const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
+    const codiceTxt = (r.querySelector(".prod-code-badge")?.innerText || "").toLowerCase(); // "COD: XXXXX"
+    const codice = codiceTxt.replace("cod:", "").trim();
+
+    const ok = nome.includes(filtro) || codice.includes(filtro) || codiceTxt.includes(filtro);
+    r.style.display = ok ? "" : "none";
   });
 }
 </script>
