@@ -2833,34 +2833,39 @@ def process_pdf_async(from_number, media_url):
     except Exception as e:
         send_whatsapp(from_number, f"⚠️ Errore nel download PDF: {str(e)[:120]}")
 
-@app.route("/whatsapp", methods=["POST"])
+from twilio.twiml.messaging_response import MessagingResponse
+
+@app.route("/whatsapp", methods=["POST", "GET"])
 def whatsapp_webhook():
-    from_number = request.form.get("From")  # es: "whatsapp:+39..."
-    num_media = int(request.form.get("NumMedia", 0))
+    # GET per test manuale da browser
+    if request.method == "GET":
+        return "OK", 200
 
     resp = MessagingResponse()
+    try:
+        # LOG COMPLETO (Render lo mostra)
+        print("✅ /whatsapp POST chiamato")
+        print("FORM:", dict(request.form))
 
-    if num_media > 0:
-        media_url = request.form.get("MediaUrl0")
-        media_type = (request.form.get("MediaContentType0") or "").lower()
+        body = (request.form.get("Body") or "").strip()
+        num_media = int(request.form.get("NumMedia", 0))
 
-        if media_type.startswith("application/pdf") and media_url:
-            # ✅ rispondi subito (così WhatsApp la mostra)
-            resp.message("📩 Ricevuto! Sto elaborando il PDF…")
-
-            # ✅ lavoro pesante fuori dal webhook
-            t = threading.Thread(target=process_pdf_async, args=(from_number, media_url), daemon=True)
-            t.start()
+        # Risposta immediata sempre
+        if body.lower() == "test":
+            resp.message("✅ TEST OK (webhook funziona). Ora manda un PDF.")
+        elif num_media > 0:
+            resp.message("✅ PDF ricevuto (webhook OK).")
         else:
-            resp.message("📎 File ricevuto ma non è un PDF. Inviami un PDF delle offerte.")
-    else:
-        text = (request.form.get("Body") or "").strip().lower()
-        if text == "test":
-            resp.message("✅ Test OK. Ora inviami un PDF.")
-        else:
-            resp.message("👋 Inviami un PDF con le offerte (codice, nome, prezzo).")
+            resp.message("✅ Messaggio ricevuto (webhook OK). Scrivi 'test' o manda un PDF.")
+
+    except Exception as e:
+        print("❌ ERRORE /whatsapp:", str(e))
+        # anche in errore: rispondi comunque
+        resp = MessagingResponse()
+        resp.message("⚠️ Errore interno webhook, ma sono vivo. Riprova con 'test'.")
 
     return str(resp)
+
 
 
 
