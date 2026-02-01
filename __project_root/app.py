@@ -2808,7 +2808,7 @@ def send_text(to: str, text: str):
     }
     payload = {
         "messaging_product": "whatsapp",
-        "to": to,  # numero senza "+"
+        "to": to,  # es: 39333xxxxxxx (senza +)
         "type": "text",
         "text": {"body": text},
     }
@@ -2819,6 +2819,9 @@ def send_text(to: str, text: str):
     return r
 
 
+from flask import request
+import os
+
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
@@ -2827,6 +2830,8 @@ def webhook():
         return "Forbidden", 403
 
     data = request.json
+    print("INCOMING WEBHOOK:", data)
+
     value = data["entry"][0]["changes"][0]["value"]
     messages = value.get("messages")
 
@@ -2834,11 +2839,12 @@ def webhook():
         msg = messages[0]
         from_number = msg["from"]  # già senza "+"
         text = msg.get("text", {}).get("body", "")
-        print("IN:", from_number, text)
+        print("IN MSG:", from_number, text)
 
         send_text(from_number, "Risposta ricevuta ✅")
 
     return "OK", 200
+
 
 
 
