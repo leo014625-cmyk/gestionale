@@ -2818,12 +2818,38 @@ def send_text(to: str, text: str):
     print("SEND_TEXT body:", r.text)
     return r
 
+import os, requests
+
+def send_pdf(to: str, pdf_url: str, filename: str = "Offerte.pdf", caption: str | None = None):
+    url = f"https://graph.facebook.com/v18.0/{os.getenv('PHONE_NUMBER_ID')}/messages"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
+        "Content-Type": "application/json",
+    }
+
+    doc = {"link": pdf_url, "filename": filename}
+    if caption:
+        doc["caption"] = caption  # opzionale
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "document",
+        "document": doc,
+    }
+
+    r = requests.post(url, json=payload, headers=headers, timeout=20)
+    print("SEND_PDF status:", r.status_code)
+    print("SEND_PDF body:", r.text)
+    return r
+
 
 from flask import request
 import os
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
+    # Verifica iniziale Meta
     if request.method == "GET":
         if request.args.get("hub.verify_token") == os.getenv("WHATSAPP_VERIFY_TOKEN"):
             return request.args.get("hub.challenge")
@@ -2835,13 +2861,36 @@ def webhook():
     value = data["entry"][0]["changes"][0]["value"]
     messages = value.get("messages")
 
-    if messages:
-        msg = messages[0]
-        from_number = msg["from"]  # già senza "+"
-        text = msg.get("text", {}).get("body", "")
-        print("IN MSG:", from_number, text)
+    if not messages:
+        return "OK", 200
 
-        send_text(from_number, "Risposta ricevuta ✅")
+    msg = messages[0]
+    from_number = msg["from"]
+    text = msg.get("text", {}).get("body", "").lower().strip()
+
+    print("IN MSG:", from_number, text)
+
+    # --- COMANDI ---
+
+    if text == "pdf":
+        send_pdf(
+            from_number,
+            "https://TUO_DOMINIO/static/volantini/offerte_febbraio.pdf",
+            filename="Offerte Febbraio.pdf",
+            caption="Ecco il volantino con le offerte attive 📄"
+        )
+
+    elif text == "help":
+        send_text(
+            from_number,
+            "Comandi disponibili:\n"
+            "- pdf → ricevi volantino\n"
+            "- interessi: birra, olio, surgelati\n"
+            "- ai: domanda libera"
+        )
+
+    else:
+        send_text(from_number, "Scrivi *help* per vedere i comandi disponibili.")
 
     return "OK", 200
 
