@@ -3372,9 +3372,16 @@ def importa_pdf_lavorati_auto(cliente_id: int):
 
     now = datetime.now()
 
+    # --- DEBUG UTILE ---
+    print("=== IMPORT PDF START ===", "cliente_id=", cliente_id, "file=", tmp_path, flush=True)
+
     try:
         text = extract_text_from_pdf(tmp_path)
         items = extract_items_codice_nome(text)
+
+        print("PDF TEXT LEN:", len(text or ""), "ITEMS FOUND:", len(items), flush=True)
+        if items[:5]:
+            print("FIRST ITEMS:", items[:5], flush=True)
 
         if not items:
             flash("Non ho trovato righe con CODICE + NOME nel PDF (se è una scansione serve OCR/AI).", "warning")
@@ -3393,14 +3400,31 @@ def importa_pdf_lavorati_auto(cliente_id: int):
                 flash("Cliente non trovato.", "danger")
                 return redirect(url_for("clienti"))
 
-            for it in items:
-                codice = it["codice"]
-                nome = it["nome"]
+            # --- capiamo se in clienti_prodotti esiste anche id_prodotto ---
+            cur.execute("""
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema='public'
+                  AND table_name='clienti_prodotti'
+                  AND column_name='id_prodotto'
+                LIMIT 1
+            """)
+            has_id_prodotto = bool(cur.fetchone())
 
-                # 1) crea/recupera prodotto via codice (codice è UNIQUE)
+            for it in items:
+                codice = (it.get("codice") or "").strip()
+                nome = (it.get("nome") or "").strip()
+
+                if not codice:
+                    continue
+
+                print("ITEM:", codice, (nome[:60] if nome else ""), flush=True)
+
+                # 1) crea/recupera prodotto via codice (codice UNIQUE)
+                #    ✅ FIX: colonne coerenti con il tuo DB: (codice, nome, categoria_id)
                 cur.execute("""
-                    INSERT INTO prodotti (codice, nome, prezzo, categoria_id, id_categoria)
-                    VALUES (%s, %s, NULL, NULL, NULL)
+                    INSERT INTO prodotti (codice, nome, categoria_id)
+                    VALUES (%s, %s, NULL)
                     ON CONFLICT (codice) DO UPDATE
                     SET nome = CASE
                         WHEN prodotti.nome IS NULL OR prodotti.nome = '' THEN EXCLUDED.nome
@@ -3413,36 +3437,68 @@ def importa_pdf_lavorati_auto(cliente_id: int):
                 if pr["inserted"]:
                     created += 1
 
-                # 2) assegna lavorato (compatibile: prodotto_id e id_prodotto)
-                cur.execute("""
-                    SELECT id, lavorato
-                    FROM clienti_prodotti
-                    WHERE cliente_id=%s AND (prodotto_id=%s OR id_prodotto=%s)
-                    LIMIT 1
-                """, (cliente_id, prodotto_id, prodotto_id))
+                # 2) assegna lavorato al cliente (compatibile con DB vecchi/nuovi)
+                if has_id_prodotto:
+                    cur.execute("""
+                        SELECT id, lavorato
+                        FROM clienti_prodotti
+                        WHERE cliente_id=%s
+                          AND (prodotto_id=%s OR id_prodotto=%s)
+                        LIMIT 1
+                    """, (cliente_id, prodotto_id, prodotto_id))
+                else:
+                    cur.execute("""
+                        SELECT id, lavorato
+                        FROM clienti_prodotti
+                        WHERE cliente_id=%s
+                          AND prodotto_id=%s
+                        LIMIT 1
+                    """, (cliente_id, prodotto_id))
+
                 rel = cur.fetchone()
 
                 if rel:
-                    # aggiorna e completa entrambe le colonne (importante)
-                    cur.execute("""
-                        UPDATE clienti_prodotti
-                        SET lavorato=TRUE,
-                            data_operazione=%s,
-                            prodotto_id=%s,
-                            id_prodotto=%s
-                        WHERE id=%s
-                    """, (now, prodotto_id, prodotto_id, rel["id"]))
+                    if has_id_prodotto:
+                        cur.execute("""
+                            UPDATE clienti_prodotti
+                            SET lavorato=TRUE,
+                                data_operazione=%s,
+                                prodotto_id=%s,
+                                id_prodotto=%s
+                            WHERE id=%s
+                        """, (now, prodotto_id, prodotto_id, rel["id"]))
+                    else:
+                        cur.execute("""
+                            UPDATE clienti_prodotti
+                            SET lavorato=TRUE,
+                                data_operazione=%s,
+                                prodotto_id=%s
+                            WHERE id=%s
+                        """, (now, prodotto_id, rel["id"]))
+
                     assigned += 1
                     if rel["lavorato"] is True:
                         updated_existing += 1
                 else:
-                    cur.execute("""
-                        INSERT INTO clienti_prodotti
-                        (cliente_id, prodotto_id, id_prodotto, lavorato,
-                         prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
-                        VALUES (%s,%s,%s,TRUE,NULL,NULL,NULL,%s)
-                    """, (cliente_id, prodotto_id, prodotto_id, now))
+                    if has_id_prodotto:
+                        cur.execute("""
+                            INSERT INTO clienti_prodotti
+                            (cliente_id, prodotto_id, id_prodotto, lavorato,
+                             prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
+                            VALUES (%s,%s,%s,TRUE,NULL,NULL,NULL,%s)
+                        """, (cliente_id, prodotto_id, prodotto_id, now))
+                    else:
+                        cur.execute("""
+                            INSERT INTO clienti_prodotti
+                            (cliente_id, prodotto_id, lavorato,
+                             prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
+                            VALUES (%s,%s,TRUE,NULL,NULL,NULL,%s)
+                        """, (cliente_id, prodotto_id, now))
+
                     assigned += 1
+
+            print("=== IMPORT PDF DONE ===", "created=", created, "assigned=", assigned,
+                  "updated_existing=", updated_existing, "has_id_prodotto=", has_id_prodotto, flush=True)
 
             db.commit()
 
