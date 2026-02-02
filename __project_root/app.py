@@ -3822,57 +3822,67 @@ def broadcast_preferenze():
 
     return redirect(url_for("clienti"))
 
-# ============================
-# DASHBOARD BOT
-# ============================
+from flask import render_template, request, redirect, url_for, flash
+from psycopg2.extras import RealDictCursor
 
 @app.route("/bot")
 def bot_dashboard():
-    messaggi = BotMessage.query.order_by(BotMessage.id.desc()).all()
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT id, titolo, contenuto, canale, tipo, categoria, consenso, attivo, created_at
+            FROM bot_messages
+            ORDER BY id DESC
+        """)
+        messaggi = cur.fetchall() or []
 
-    return render_template(
-        "06_bot/06_dashboard_bot.html",
-        messaggi=messaggi
-    )
+    return render_template("06_bot/06_dashboard_bot.html", messaggi=messaggi)
 
-
-# ============================
-# SALVA MESSAGGIO BOT
-# ============================
 
 @app.route("/bot/salva", methods=["POST"])
 def salva_bot_message():
+    titolo = (request.form.get("titolo") or "").strip()
+    contenuto = (request.form.get("contenuto") or "").strip()
+    canale = (request.form.get("canale") or "whatsapp").strip()
+    tipo = (request.form.get("tipo") or "promo").strip()
+    categoria = (request.form.get("categoria") or "").strip() or None
+    consenso = True if (request.form.get("consenso") == "1") else False
 
-    nuovo = BotMessage(
-        titolo=request.form.get("titolo"),
-        contenuto=request.form.get("contenuto"),
-        canale=request.form.get("canale"),
-        tipo=request.form.get("tipo"),
-        categoria=request.form.get("categoria"),
-        consenso=True if request.form.get("consenso") == "1" else False,
-        attivo=True
-    )
+    if not titolo or not contenuto:
+        flash("Titolo e contenuto sono obbligatori.", "warning")
+        return redirect(url_for("bot_dashboard"))
 
-    db.session.add(nuovo)
-    db.session.commit()
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            INSERT INTO bot_messages (titolo, contenuto, canale, tipo, categoria, consenso, attivo)
+            VALUES (%s, %s, %s, %s, %s, %s, TRUE)
+        """, (titolo, contenuto, canale, tipo, categoria, consenso))
+        conn.commit()
 
+    flash("✅ Messaggio salvato.", "success")
     return redirect(url_for("bot_dashboard"))
 
-
-# ============================
-# TOGGLE ON/OFF
-# ============================
 
 @app.route("/bot/toggle/<int:id>")
 def toggle_bot_message(id):
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            UPDATE bot_messages
+            SET attivo = NOT attivo
+            WHERE id = %s
+            RETURNING attivo
+        """, (id,))
+        row = cur.fetchone()
+        conn.commit()
 
-    msg = BotMessage.query.get_or_404(id)
-    msg.attivo = not msg.attivo
-
-    db.session.commit()
+    if row:
+        flash("✅ Stato aggiornato.", "success")
+    else:
+        flash("Messaggio non trovato.", "warning")
 
     return redirect(url_for("bot_dashboard"))
-
 
 
 @app.route("/ping", methods=["GET"])
