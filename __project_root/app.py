@@ -3836,7 +3836,8 @@ def bot_dashboard():
         """)
         messaggi = cur.fetchall() or []
 
-    return render_template("06_bot/06_dashboard_bot.html", messaggi=messaggi)
+    return render_template("06_bot/06_bot_dashboard.html", messaggi=messaggi)
+
 
 
 @app.route("/bot/salva", methods=["POST"])
