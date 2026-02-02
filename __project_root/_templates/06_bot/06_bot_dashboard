@@ -1,0 +1,126 @@
+{% extends "01_base.html" %}
+{% block title %}Bot & Messaggi{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1>🤖 Bot & Messaggi</h1>
+      <div class="text-muted">Gestisci i messaggi automatici per WhatsApp/SMS</div>
+    </div>
+
+    <button class="btn btn-success rounded-4" data-bs-toggle="modal" data-bs-target="#modalNuovoMessaggio">
+      ➕ Nuovo Messaggio
+    </button>
+  </div>
+
+  <div class="row">
+
+    <!-- LISTA MESSAGGI -->
+    <div class="col-md-4">
+      <div class="card shadow-sm rounded-4">
+        <div class="card-header fw-bold">
+          Messaggi Salvati
+        </div>
+
+        <div class="list-group list-group-flush">
+          {% for msg in messaggi %}
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">{{ msg.titolo }}</div>
+              <small class="text-muted">{{ msg.canale|upper }} | {{ msg.tipo }}</small>
+            </div>
+
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('toggle_bot_message', id=msg.id) }}"
+                 class="btn btn-sm {{ 'btn-success' if msg.attivo else 'btn-outline-secondary' }}">
+                {{ "ON" if msg.attivo else "OFF" }}
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- EDITOR -->
+    <div class="col-md-8">
+      <div class="card shadow-sm rounded-4">
+        <div class="card-header fw-bold">
+          Crea / Modifica Messaggio
+        </div>
+
+        <div class="card-body">
+
+          <form method="POST" action="{{ url_for('salva_bot_message') }}">
+
+            <div class="mb-3">
+              <label class="form-label">Titolo</label>
+              <input type="text" name="titolo" class="form-control" required>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col">
+                <label class="form-label">Canale</label>
+                <select name="canale" class="form-select">
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="sms">SMS</option>
+                </select>
+              </div>
+
+              <div class="col">
+                <label class="form-label">Tipo</label>
+                <select name="tipo" class="form-select">
+                  <option value="promo">Promo</option>
+                  <option value="info">Info</option>
+                  <option value="followup">Follow-up</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Testo Messaggio</label>
+              <textarea name="contenuto" rows="7" class="form-control" required></textarea>
+              <small class="text-muted">
+                Variabili disponibili: {{'{{nome}}'}}, {{'{{attivita}}'}}
+              </small>
+            </div>
+
+            <hr>
+
+            <h6>Target Clienti</h6>
+
+            <div class="row mb-3">
+              <div class="col">
+                <label class="form-label">Categoria</label>
+                <select name="categoria" class="form-select">
+                  <option value="">Tutte</option>
+                  <option value="bar">Bar</option>
+                  <option value="ristorante">Ristorante</option>
+                  <option value="pizzeria">Pizzeria</option>
+                </select>
+              </div>
+
+              <div class="col">
+                <label class="form-label">Solo con consenso marketing</label>
+                <select name="consenso" class="form-select">
+                  <option value="1">Sì</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </div>
+
+            <button class="btn btn-primary rounded-4">
+              💾 Salva Messaggio
+            </button>
+
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
