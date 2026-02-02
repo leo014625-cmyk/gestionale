@@ -3786,6 +3786,42 @@ def salva_categorie_import_pdf_modal(cliente_id: int):
     flash(f"✅ Categorie salvate per {updated} prodotti.", "success")
     return redirect(url_for("modifica_cliente", id=cliente_id))
 
+@app.route("/admin/whatsapp/broadcast-preferenze")
+@login_required
+def broadcast_preferenze():
+    try:
+        with get_db() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            cur.execute("""
+                SELECT telefono
+                FROM clienti
+                WHERE telefono IS NOT NULL
+                  AND whatsapp_linked = TRUE
+            """)
+            rows = cur.fetchall()
+
+            count = 0
+            for r in rows:
+                phone = r["telefono"]
+                send_text(
+                    phone,
+                    "👋 Ciao!\n"
+                    "Da oggi puoi ricevere offerte mirate su WhatsApp.\n\n"
+                    "Scegli cosa vuoi ricevere:\n"
+                    "• Prodotti in scadenza\n"
+                    "• Pesce fresco\n"
+                    "• Carne fresca\n\n"
+                    "Scrivi *MENU* per scegliere."
+                )
+                count += 1
+
+        flash(f"Inviato messaggio preferenze a {count} clienti.", "success")
+    except Exception as e:
+        flash(f"Errore invio broadcast: {e}", "danger")
+
+    return redirect(url_for("clienti"))
+
 
 @app.route("/ping", methods=["GET"])
 def ping():
