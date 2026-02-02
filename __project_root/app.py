@@ -3830,6 +3830,31 @@ def bot_dashboard():
         messaggi=messaggi
     )
 
+@app.route("/bot/salva", methods=["POST"])
+def salva_bot_message():
+
+    nuovo = BotMessage(
+        titolo=request.form["titolo"],
+        contenuto=request.form["contenuto"],
+        canale=request.form["canale"],
+        tipo=request.form["tipo"],
+        categoria=request.form.get("categoria"),
+        consenso=True if request.form.get("consenso") == "1" else False,
+        attivo=True
+    )
+
+    db.session.add(nuovo)
+    db.session.commit()
+
+    return redirect(url_for("bot_dashboard"))
+
+@app.route("/bot/toggle/<int:id>")
+def toggle_bot_message(id):
+    msg = BotMessage.query.get_or_404(id)
+    msg.attivo = not msg.attivo
+    db.session.commit()
+    return redirect(url_for("bot_dashboard"))
+
 
 @app.route("/ping", methods=["GET"])
 def ping():
