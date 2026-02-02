@@ -3822,22 +3822,32 @@ def broadcast_preferenze():
 
     return redirect(url_for("clienti"))
 
+# ============================
+# DASHBOARD BOT
+# ============================
+
 @app.route("/bot")
 def bot_dashboard():
     messaggi = BotMessage.query.order_by(BotMessage.id.desc()).all()
+
     return render_template(
         "06_bot/06_dashboard_bot.html",
         messaggi=messaggi
     )
 
+
+# ============================
+# SALVA MESSAGGIO BOT
+# ============================
+
 @app.route("/bot/salva", methods=["POST"])
 def salva_bot_message():
 
     nuovo = BotMessage(
-        titolo=request.form["titolo"],
-        contenuto=request.form["contenuto"],
-        canale=request.form["canale"],
-        tipo=request.form["tipo"],
+        titolo=request.form.get("titolo"),
+        contenuto=request.form.get("contenuto"),
+        canale=request.form.get("canale"),
+        tipo=request.form.get("tipo"),
         categoria=request.form.get("categoria"),
         consenso=True if request.form.get("consenso") == "1" else False,
         attivo=True
@@ -3848,12 +3858,21 @@ def salva_bot_message():
 
     return redirect(url_for("bot_dashboard"))
 
+
+# ============================
+# TOGGLE ON/OFF
+# ============================
+
 @app.route("/bot/toggle/<int:id>")
 def toggle_bot_message(id):
+
     msg = BotMessage.query.get_or_404(id)
     msg.attivo = not msg.attivo
+
     db.session.commit()
+
     return redirect(url_for("bot_dashboard"))
+
 
 
 @app.route("/ping", methods=["GET"])
