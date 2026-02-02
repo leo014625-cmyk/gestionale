@@ -3822,6 +3822,14 @@ def broadcast_preferenze():
 
     return redirect(url_for("clienti"))
 
+@app.route("/bot")
+def bot_dashboard():
+    messaggi = BotMessage.query.order_by(BotMessage.id.desc()).all()
+    return render_template(
+        "06_bot/06_dashboard_bot.html",
+        messaggi=messaggi
+    )
+
 
 @app.route("/ping", methods=["GET"])
 def ping():
