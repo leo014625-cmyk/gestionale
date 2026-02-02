@@ -49,7 +49,7 @@ def aggiorna_db():
         cur.execute("""CREATE INDEX IF NOT EXISTS whatsapp_link_codes_used_at_idx ON whatsapp_link_codes (used_at)""")
 
         # ============================
-        # WHATSAPP PREFERENZE (NUOVO)
+        # WHATSAPP PREFERENZE
         # ============================
         cur.execute("""
             CREATE TABLE IF NOT EXISTS whatsapp_preferenze (
@@ -92,6 +92,28 @@ def aggiorna_db():
               END IF;
             END $$;
         """)
+
+        # ============================
+        # ✅ BOT MESSAGES (NUOVO)
+        # ============================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bot_messages (
+                id SERIAL PRIMARY KEY,
+                titolo VARCHAR(120) NOT NULL,
+                contenuto TEXT NOT NULL,
+                canale VARCHAR(20) NOT NULL DEFAULT 'whatsapp',
+                tipo VARCHAR(30) NOT NULL DEFAULT 'promo',
+                categoria VARCHAR(50),
+                consenso BOOLEAN NOT NULL DEFAULT TRUE,
+                attivo BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        """)
+        cur.execute("""CREATE INDEX IF NOT EXISTS bot_messages_attivo_idx ON bot_messages(attivo)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS bot_messages_canale_idx ON bot_messages(canale)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS bot_messages_tipo_idx ON bot_messages(tipo)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS bot_messages_categoria_idx ON bot_messages(categoria)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS bot_messages_created_at_idx ON bot_messages(created_at)""")
 
         # ============================
         # CATEGORIE
@@ -230,31 +252,3 @@ def aggiorna_db():
                 nome TEXT NOT NULL,
                 data_creazione TIMESTAMP DEFAULT NOW(),
                 prezzo NUMERIC NOT NULL DEFAULT 0,
-                immagine TEXT,
-                sfondo TEXT,
-                layout TEXT
-            )
-        """)
-
-        # ============================
-        # INDICI
-        # ============================
-        cur.execute("""CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_cliente ON clienti_prodotti(cliente_id)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_prodotto ON clienti_prodotti(prodotto_id)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS idx_clienti_prodotti_fornitore ON clienti_prodotti(fornitore_id)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS idx_fatturato_cliente_mese_anno ON fatturato(cliente_id, mese, anno)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS idx_volantino_prodotti_volantino ON volantino_prodotti(volantino_id)""")
-
-        conn.commit()
-        print("✅ Database PostgreSQL aggiornato con successo.")
-
-    finally:
-        try:
-            cur.close()
-        except Exception:
-            pass
-        conn.close()
-
-
-if __name__ == "__main__":
-    aggiorna_db()
