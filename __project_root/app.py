@@ -3825,65 +3825,123 @@ def broadcast_preferenze():
 from flask import render_template, request, redirect, url_for, flash
 from psycopg2.extras import RealDictCursor
 
+# --------------------------------------------------
+# BOT DASHBOARD - PREFERENZE + CLIENTI + INVIO
+# --------------------------------------------------
+
+def _segment_where(pref: str) -> str:
+    pref = (pref or "").lower()
+
+    if pref == "scadenza":
+        return "wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE"
+
+    if pref == "pesce":
+        return "wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE"
+
+    if pref == "carne":
+        return "wp.opt_out = FALSE AND wp.ricevi_carne = TRUE"
+
+    if pref == "stop":
+        return "wp.opt_out = TRUE"
+
+    if pref == "nessuna":
+        return "wp.cliente_id IS NULL"
+
+    # default: tutti collegati
+    return "c.whatsapp_linked = TRUE"
+
+
 @app.route("/bot")
 def bot_dashboard():
+    pref = (request.args.get("pref") or "scadenza").lower()
+
     with get_db() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # ---------------------------
+        # CONTATORI PREFERENZE
+        # ---------------------------
         cur.execute("""
-            SELECT id, titolo, contenuto, canale, tipo, categoria, consenso, attivo, created_at
-            FROM bot_messages
-            ORDER BY id DESC
+            SELECT
+              SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE THEN 1 ELSE 0 END) AS n_scadenza,
+              SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE THEN 1 ELSE 0 END) AS n_pesce,
+              SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_carne = TRUE THEN 1 ELSE 0 END) AS n_carne,
+              SUM(CASE WHEN wp.opt_out = TRUE THEN 1 ELSE 0 END) AS n_stop,
+              SUM(CASE WHEN wp.cliente_id IS NULL THEN 1 ELSE 0 END) AS n_nessuna
+            FROM clienti c
+            LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+            WHERE c.telefono IS NOT NULL
+              AND c.whatsapp_linked = TRUE
         """)
-        messaggi = cur.fetchall() or []
+        counts = cur.fetchone() or {}
 
-    return render_template("06_bot/06_bot_dashboard.html", messaggi=messaggi)
+        # ---------------------------
+        # CLIENTI DEL SEGMENTO
+        # ---------------------------
+        where = _segment_where(pref)
+
+        cur.execute(f"""
+            SELECT
+              c.id,
+              c.nome,
+              c.zona,
+              c.telefono,
+              wp.opt_out,
+              wp.ricevi_scadenza,
+              wp.ricevi_pesce,
+              wp.ricevi_carne,
+              wp.updated_at
+            FROM clienti c
+            LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+            WHERE c.telefono IS NOT NULL
+              AND c.whatsapp_linked = TRUE
+              AND ({where})
+            ORDER BY c.nome
+            LIMIT 500
+        """)
+        clienti = cur.fetchall() or []
+
+    return render_template(
+        "06_bot/06_bot_dashboard.html",
+        pref=pref,
+        counts=counts,
+        clienti=clienti
+    )
 
 
+@app.route("/bot/invia", methods=["POST"])
+def bot_invia():
+    pref = (request.form.get("pref") or "scadenza").lower()
+    testo = (request.form.get("testo") or "").strip()
 
-@app.route("/bot/salva", methods=["POST"])
-def salva_bot_message():
-    titolo = (request.form.get("titolo") or "").strip()
-    contenuto = (request.form.get("contenuto") or "").strip()
-    canale = (request.form.get("canale") or "whatsapp").strip()
-    tipo = (request.form.get("tipo") or "promo").strip()
-    categoria = (request.form.get("categoria") or "").strip() or None
-    consenso = True if (request.form.get("consenso") == "1") else False
-
-    if not titolo or not contenuto:
-        flash("Titolo e contenuto sono obbligatori.", "warning")
-        return redirect(url_for("bot_dashboard"))
+    if not testo:
+        flash("Scrivi un messaggio prima di inviare.", "warning")
+        return redirect(url_for("bot_dashboard", pref=pref))
 
     with get_db() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            INSERT INTO bot_messages (titolo, contenuto, canale, tipo, categoria, consenso, attivo)
-            VALUES (%s, %s, %s, %s, %s, %s, TRUE)
-        """, (titolo, contenuto, canale, tipo, categoria, consenso))
-        conn.commit()
+        where = _segment_where(pref)
 
-    flash("✅ Messaggio salvato.", "success")
-    return redirect(url_for("bot_dashboard"))
+        cur.execute(f"""
+            SELECT c.telefono
+            FROM clienti c
+            LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+            WHERE c.telefono IS NOT NULL
+              AND c.whatsapp_linked = TRUE
+              AND ({where})
+        """)
+        rows = cur.fetchall() or []
 
+    sent = 0
+    for r in rows:
+        phone = (r["telefono"] or "")
+        phone = phone.replace("+", "").replace(" ", "").replace("-", "")
+        if phone:
+            send_text(phone, testo)
+            sent += 1
 
-@app.route("/bot/toggle/<int:id>")
-def toggle_bot_message(id):
-    with get_db() as conn:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            UPDATE bot_messages
-            SET attivo = NOT attivo
-            WHERE id = %s
-            RETURNING attivo
-        """, (id,))
-        row = cur.fetchone()
-        conn.commit()
-
-    if row:
-        flash("✅ Stato aggiornato.", "success")
-    else:
-        flash("Messaggio non trovato.", "warning")
-
-    return redirect(url_for("bot_dashboard"))
+    flash(f"📤 Inviato a {sent} clienti (segmento: {pref}).", "success")
+    return redirect(url_for("bot_dashboard", pref=pref))
 
 
 @app.route("/ping", methods=["GET"])
