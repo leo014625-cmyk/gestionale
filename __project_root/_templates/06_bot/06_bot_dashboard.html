@@ -1,128 +1,146 @@
 {% extends "01_base.html" %}
-{% block title %}Bot & Messaggi{% endblock %}
+{% block title %}Bot WhatsApp{% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container py-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>
-      <h1>🤖 Bot & Messaggi</h1>
-      <div class="text-muted">Gestisci i messaggi automatici per WhatsApp/SMS</div>
+      <h1 class="mb-1">🤖 Bot WhatsApp</h1>
+      <div class="text-muted">Preferenze clienti + invio messaggi mirati</div>
     </div>
-
-    <button class="btn btn-success rounded-4" data-bs-toggle="modal" data-bs-target="#modalNuovoMessaggio">
-      ➕ Nuovo Messaggio
-    </button>
   </div>
 
-  <div class="row">
+  <!-- TABS PREFERENZE -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-primary rounded-4 {% if pref=='scadenza' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='scadenza') }}">
+      ⏳ Scadenze <span class="badge text-bg-primary ms-1">{{ counts.n_scadenza or 0 }}</span>
+    </a>
 
-    <!-- LISTA MESSAGGI -->
-    <div class="col-md-4">
+    <a class="btn btn-outline-primary rounded-4 {% if pref=='pesce' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='pesce') }}">
+      🐟 Pesce <span class="badge text-bg-primary ms-1">{{ counts.n_pesce or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-primary rounded-4 {% if pref=='carne' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='carne') }}">
+      🥩 Carne <span class="badge text-bg-primary ms-1">{{ counts.n_carne or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-secondary rounded-4 {% if pref=='stop' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='stop') }}">
+      ⛔ Stop <span class="badge text-bg-secondary ms-1">{{ counts.n_stop or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-dark rounded-4 {% if pref=='nessuna' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='nessuna') }}">
+      ❓ Nessuna risposta <span class="badge text-bg-dark ms-1">{{ counts.n_nessuna or 0 }}</span>
+    </a>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- BOX INVIO -->
+    <div class="col-12 col-lg-4">
       <div class="card shadow-sm rounded-4">
         <div class="card-header fw-bold">
-          Messaggi Salvati
+          ✉️ Invia messaggio
         </div>
 
-        <div class="list-group list-group-flush">
-          {% for msg in messaggi %}
-          <div class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <div class="fw-semibold">{{ msg.titolo }}</div>
-              <small class="text-muted">{{ msg.canale|upper }} | {{ msg.tipo }}</small>
+        <div class="card-body">
+          <div class="mb-2 text-muted">
+            Target selezionato:
+            <span class="fw-bold text-uppercase">{{ pref }}</span>
+          </div>
+
+          <form method="POST" action="{{ url_for('bot_invia') }}">
+            <input type="hidden" name="pref" value="{{ pref }}">
+
+            <div class="mb-3">
+              <label class="form-label">Messaggio WhatsApp</label>
+              <textarea class="form-control rounded-4" name="testo" rows="6"
+                        placeholder="Scrivi qui il messaggio da inviare..."></textarea>
+              <small class="text-muted">
+                Suggerimento: usa un testo breve, con emoji e call-to-action.
+              </small>
             </div>
 
-            <div class="d-flex gap-2">
-              <a href="{{ url_for('toggle_bot_message', id=msg.id) }}"
-                 class="btn btn-sm {{ 'btn-success' if msg.attivo else 'btn-outline-secondary' }}">
-                {{ "ON" if msg.attivo else "OFF" }}
-              </a>
-            </div>
+            <button class="btn btn-success rounded-4 w-100">
+              📤 Invia al segmento
+            </button>
+          </form>
+
+          <hr class="my-3">
+
+          <div class="small text-muted">
+            <div class="fw-semibold mb-1">💡 Da WhatsApp (admin):</div>
+            <div>- scrivi <code>STATS</code> per contatori</div>
+            <div>- scrivi <code>SEND PESCE testo...</code></div>
+            <div>- scrivi <code>SEND CARNE testo...</code></div>
+            <div>- scrivi <code>SEND SCADENZA testo...</code></div>
           </div>
-          {% endfor %}
         </div>
       </div>
     </div>
 
-    <!-- EDITOR -->
-    <div class="col-md-8">
+    <!-- LISTA CLIENTI -->
+    <div class="col-12 col-lg-8">
       <div class="card shadow-sm rounded-4">
-        <div class="card-header fw-bold">
-          Crea / Modifica Messaggio
+        <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+          <span>👥 Clienti nel segmento</span>
+          <span class="badge text-bg-light border">{{ clienti|length }}</span>
         </div>
 
-        <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Cliente</th>
+                <th class="d-none d-md-table-cell">Zona</th>
+                <th>Telefono</th>
+                <th>Preferenze</th>
+                <th class="d-none d-lg-table-cell">Aggiornato</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in clienti %}
+              <tr>
+                <td class="fw-semibold">{{ c.nome }}</td>
+                <td class="d-none d-md-table-cell">{{ c.zona or "-" }}</td>
+                <td><span class="font-monospace">{{ c.telefono }}</span></td>
 
-          <form method="POST" action="{{ url_for('salva_bot_message') }}">
+                <td>
+                  {% if c.opt_out %}
+                    <span class="badge bg-secondary">STOP</span>
+                  {% else %}
+                    {% if c.ricevi_scadenza %}<span class="badge bg-warning text-dark">SCAD</span>{% endif %}
+                    {% if c.ricevi_pesce %}<span class="badge bg-info text-dark">PESCE</span>{% endif %}
+                    {% if c.ricevi_carne %}<span class="badge bg-danger">CARNE</span>{% endif %}
+                    {% if (not c.ricevi_scadenza) and (not c.ricevi_pesce) and (not c.ricevi_carne) %}
+                      <span class="badge bg-dark">NESSUNA</span>
+                    {% endif %}
+                  {% endif %}
+                </td>
 
-            <div class="mb-3">
-              <label class="form-label">Titolo</label>
-              <input type="text" name="titolo" class="form-control" required>
-            </div>
-
-            <div class="row mb-3">
-              <div class="col">
-                <label class="form-label">Canale</label>
-                <select name="canale" class="form-select">
-                  <option value="whatsapp">WhatsApp</option>
-                  <option value="sms">SMS</option>
-                </select>
-              </div>
-
-              <div class="col">
-                <label class="form-label">Tipo</label>
-                <select name="tipo" class="form-select">
-                  <option value="promo">Promo</option>
-                  <option value="info">Info</option>
-                  <option value="followup">Follow-up</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Testo Messaggio</label>
-              <textarea name="contenuto" rows="7" class="form-control" required></textarea>
-              <small class="text-muted">
-                Variabili disponibili: {{'{{nome}}'}}, {{'{{attivita}}'}}
-              </small>
-            </div>
-
-            <hr>
-
-            <h6>Target Clienti</h6>
-
-            <div class="row mb-3">
-              <div class="col">
-                <label class="form-label">Categoria</label>
-                <select name="categoria" class="form-select">
-                  <option value="">Tutte</option>
-                  <option value="bar">Bar</option>
-                  <option value="ristorante">Ristorante</option>
-                  <option value="pizzeria">Pizzeria</option>
-                </select>
-              </div>
-
-              <div class="col">
-                <label class="form-label">Solo con consenso marketing</label>
-                <select name="consenso" class="form-select">
-                  <option value="1">Sì</option>
-                  <option value="0">No</option>
-                </select>
-              </div>
-            </div>
-
-            <button class="btn btn-primary rounded-4">
-              💾 Salva Messaggio
-            </button>
-
-          </form>
-
+                <td class="d-none d-lg-table-cell">
+                  <small class="text-muted">{{ c.updated_at or "-" }}</small>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  Nessun cliente in questo segmento.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+
       </div>
     </div>
 
   </div>
 </div>
 {% endblock %}
-
-
