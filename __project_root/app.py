@@ -3198,6 +3198,29 @@ def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int]:
 
     return sent, len(customer_map)
 
+def _normalize_phone_admin(s: str | None) -> str:
+    s = (s or "").strip()
+    s = s.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    s = "".join(ch for ch in s if ch.isdigit())
+    if s.startswith("00"):
+        s = s[2:]
+    return s
+
+def _admin_list() -> set[str]:
+    raw = os.getenv("ADMIN_WHATSAPP", "")
+    admins = set()
+    for a in raw.split(","):
+        a = _normalize_phone_admin(a)
+        if a:
+            admins.add(a)
+            # se è italiano senza 39, aggiungi anche la versione con 39
+            if len(a) == 10 and not a.startswith("39"):
+                admins.add("39" + a)
+    return admins
+
+def is_admin(from_number: str | None) -> bool:
+    n = _normalize_phone_admin(from_number)
+    return n in _admin_list()
 
 # ------------------------------------------------------------
 # 5) WEBHOOK (testo + PDF + MENU preferenze)
@@ -3447,6 +3470,91 @@ def webhook():
     # ------------------------------------------------------------
     text = (msg.get("text", {}) or {}).get("body", "").strip().lower()
     print("IN MSG:", from_number, text)
+        # =========================
+    # ✅ COMANDI ADMIN (solo tuoi numeri)
+    # =========================
+    if is_admin(from_number):
+        raw_body = (msg.get("text", {}) or {}).get("body", "").strip()
+        low = raw_body.lower()
+
+        # STATS
+        if low == "stats":
+            with get_db() as conn:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("""
+                    SELECT
+                      SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE THEN 1 ELSE 0 END) AS scadenza,
+                      SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE THEN 1 ELSE 0 END) AS pesce,
+                      SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_carne = TRUE THEN 1 ELSE 0 END) AS carne,
+                      SUM(CASE WHEN wp.opt_out = TRUE THEN 1 ELSE 0 END) AS stop,
+                      SUM(CASE WHEN wp.cliente_id IS NULL THEN 1 ELSE 0 END) AS nessuna
+                    FROM clienti c
+                    LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+                    WHERE c.telefono IS NOT NULL
+                      AND c.whatsapp_linked = TRUE
+                """)
+                c = cur.fetchone() or {}
+
+            send_text(from_number,
+                "📊 *Preferenze WhatsApp*\n"
+                f"⏳ Scadenza: *{c.get('scadenza',0) or 0}*\n"
+                f"🐟 Pesce: *{c.get('pesce',0) or 0}*\n"
+                f"🥩 Carne: *{c.get('carne',0) or 0}*\n"
+                f"⛔ Stop: *{c.get('stop',0) or 0}*\n"
+                f"❓ Nessuna: *{c.get('nessuna',0) or 0}*\n\n"
+                "Comandi:\n"
+                "• SEND PESCE testo...\n"
+                "• SEND CARNE testo...\n"
+                "• SEND SCADENZA testo..."
+            )
+            return "OK", 200
+
+        # SEND <PREF> <TESTO...>
+        if low.startswith("send "):
+            parts = raw_body.split(" ", 2)
+            if len(parts) < 3:
+                send_text(from_number, "Uso: *SEND PESCE testo...*\nEsempio: SEND PESCE Offerta branzino oggi...")
+                return "OK", 200
+
+            _, pref_cmd, testo_cmd = parts
+            pref_cmd = pref_cmd.strip().lower()
+
+            map_pref = {
+                "scadenza": "scadenza",
+                "pesce": "pesce",
+                "carne": "carne",
+                "stop": "stop",
+                "nessuna": "nessuna",
+                "tutti": "tutti"
+            }
+            if pref_cmd not in map_pref:
+                send_text(from_number, "Pref non valida. Usa: SCADENZA / PESCE / CARNE / STOP / NESSUNA / TUTTI")
+                return "OK", 200
+
+            # recupera target
+            where = _segment_where(map_pref[pref_cmd])
+            with get_db() as conn:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(f"""
+                    SELECT c.telefono
+                    FROM clienti c
+                    LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+                    WHERE c.telefono IS NOT NULL
+                      AND c.whatsapp_linked = TRUE
+                      AND ({where})
+                """)
+                rows = cur.fetchall() or []
+
+            sent = 0
+            for r in rows:
+                phone = (r["telefono"] or "").replace("+", "").replace(" ", "").replace("-", "")
+                if phone:
+                    send_text(phone, testo_cmd)
+                    sent += 1
+
+            send_text(from_number, f"📤 Inviato a *{sent}* clienti (segmento: *{pref_cmd}*).")
+            return "OK", 200
+
 
     if text in ("menu", "start", "offerte", "preferenze"):
         send_interactive_list(
