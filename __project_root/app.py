@@ -3245,13 +3245,18 @@ def _segment_where(pref: str) -> str:
 # ------------------------------------------------------------
 @app.route("/twilio/webhook", methods=["POST"])
 def twilio_webhook():
-    # Twilio manda form-encoded:
-    # From="whatsapp:+39334..." Body="testo"
     from_raw = request.values.get("From", "")
     body = (request.values.get("Body", "") or "").strip()
 
-    from_number = _normalize_phone(from_raw)  # "39334..."
+    from_number = _normalize_phone(from_raw)
     if not from_number:
+        return "OK", 200
+
+    # ✅ anti-loop: ignora se Twilio ti manda eventi dal tuo stesso numero WhatsApp From
+    from_env = os.getenv("TWILIO_WHATSAPP_FROM", "")
+    from_norm = _normalize_phone(from_env)
+    if from_norm and from_number == from_norm:
+        print("TWILIO LOOP IGNORATO (From = numero Twilio)")
         return "OK", 200
 
     print("TWILIO IN:", from_number, body)
@@ -3259,93 +3264,15 @@ def twilio_webhook():
     text = body.strip()
     low = text.lower()
 
-    # ------------------------
-    # ADMIN COMMANDS
-    # ------------------------
-    if is_admin(from_number):
-        if low == "stats":
-            with get_db() as conn:
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute("""
-                    SELECT
-                      SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE THEN 1 ELSE 0 END) AS scadenza,
-                      SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE THEN 1 ELSE 0 END) AS pesce,
-                      SUM(CASE WHEN wp.opt_out = FALSE AND wp.ricevi_carne = TRUE THEN 1 ELSE 0 END) AS carne,
-                      SUM(CASE WHEN wp.opt_out = TRUE THEN 1 ELSE 0 END) AS stop,
-                      SUM(CASE WHEN wp.cliente_id IS NULL THEN 1 ELSE 0 END) AS nessuna
-                    FROM clienti c
-                    LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
-                    WHERE c.telefono IS NOT NULL
-                      AND c.whatsapp_linked = TRUE
-                """)
-                c = cur.fetchone() or {}
+    def safe_send(to, msg):
+        try:
+            send_text(to, msg)
+        except Exception as e:
+            print("TWILIO SEND ERROR:", repr(e))
 
-            send_text(from_number,
-                "📊 *Preferenze WhatsApp*\n"
-                f"⏳ Scadenza: *{c.get('scadenza',0) or 0}*\n"
-                f"🐟 Pesce: *{c.get('pesce',0) or 0}*\n"
-                f"🥩 Carne: *{c.get('carne',0) or 0}*\n"
-                f"⛔ Stop: *{c.get('stop',0) or 0}*\n"
-                f"❓ Nessuna: *{c.get('nessuna',0) or 0}*\n\n"
-                "Comandi:\n"
-                "• SEND PESCE testo...\n"
-                "• SEND CARNE testo...\n"
-                "• SEND SCADENZA testo...\n"
-                "• SEND TUTTI testo..."
-            )
-            return "OK", 200
-
-        if low.startswith("send "):
-            parts = text.split(" ", 2)
-            if len(parts) < 3:
-                send_text(from_number, "Uso: *SEND PESCE testo...*")
-                return "OK", 200
-
-            _, pref_cmd, testo_cmd = parts
-            pref_cmd = pref_cmd.strip().lower()
-
-            map_pref = {
-                "scadenza": "scadenza",
-                "pesce": "pesce",
-                "carne": "carne",
-                "stop": "stop",
-                "nessuna": "nessuna",
-                "tutti": "tutti",
-            }
-            if pref_cmd not in map_pref:
-                send_text(from_number, "Pref non valida. Usa: SCADENZA / PESCE / CARNE / STOP / NESSUNA / TUTTI")
-                return "OK", 200
-
-            where = _segment_where(map_pref[pref_cmd])
-
-            with get_db() as conn:
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute(f"""
-                    SELECT c.telefono
-                    FROM clienti c
-                    LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
-                    WHERE c.telefono IS NOT NULL
-                      AND c.whatsapp_linked = TRUE
-                      AND ({where})
-                """)
-                rows = cur.fetchall() or []
-
-            sent = 0
-            for r in rows:
-                phone = _normalize_phone(r.get("telefono"))
-                if phone:
-                    send_text(phone, testo_cmd)
-                    sent += 1
-                    time.sleep(0.15)  # piccola pausa per non sparare troppo
-
-            send_text(from_number, f"📤 Inviato a *{sent}* clienti (segmento: *{pref_cmd}*).")
-            return "OK", 200
-
-    # ------------------------
-    # MENU PREFERENZE (testuale)
-    # ------------------------
+    # MENU
     if low in ("menu", "start", "offerte", "preferenze"):
-        send_text(from_number,
+        safe_send(from_number,
             "📌 *Preferenze offerte*\n"
             "Rispondi con:\n"
             "1 = Scadenze\n"
@@ -3355,22 +3282,15 @@ def twilio_webhook():
         )
         return "OK", 200
 
-    scelta_map = {
-        "1": "PREF_SCADENZA",
-        "2": "PREF_PESCE",
-        "3": "PREF_CARNE",
-        "0": "PREF_STOP",
-    }
+    scelta_map = {"1":"PREF_SCADENZA","2":"PREF_PESCE","3":"PREF_CARNE","0":"PREF_STOP"}
     if low in scelta_map:
         scelta_id = scelta_map[low]
-
         try:
             with get_db() as conn:
                 cur = conn.cursor(cursor_factory=RealDictCursor)
-
                 cid = find_cliente_id_by_phone(cur, from_number)
                 if not cid:
-                    send_text(from_number, "⚠️ Non ti trovo in anagrafica. Usa il numero salvato nel gestionale.")
+                    safe_send(from_number, "⚠️ Non ti trovo in anagrafica. Usa il numero salvato nel gestionale.")
                     return "OK", 200
 
                 upsert_preferenza(cur, cid, scelta_id)
@@ -3378,19 +3298,17 @@ def twilio_webhook():
                 conn.commit()
 
             if scelta_id == "PREF_STOP":
-                send_text(from_number, "✅ Ok, non riceverai più offerte. Se cambi idea scrivi *MENU*.")
+                safe_send(from_number, "✅ Ok, non riceverai più offerte. Se cambi idea scrivi *MENU*.")
             else:
-                send_text(from_number, "✅ Preferenza salvata! Se vuoi cambiare, scrivi *MENU*.")
-
+                safe_send(from_number, "✅ Preferenza salvata! Se vuoi cambiare, scrivi *MENU*.")
         except Exception as e:
             print("TWILIO PREF ERROR:", repr(e))
-            print(traceback.format_exc())
-            send_text(from_number, "⚠️ Errore nel salvataggio preferenze. Riprova tra poco.")
-
+            safe_send(from_number, "⚠️ Errore nel salvataggio preferenze. Riprova tra poco.")
         return "OK", 200
 
-    send_text(from_number, "Scrivi *MENU* per scegliere preferenze oppure *STATS* (solo admin).")
+    safe_send(from_number, "Scrivi *MENU* per scegliere preferenze.")
     return "OK", 200
+
 
 
 # ------------------------------------------------------------
