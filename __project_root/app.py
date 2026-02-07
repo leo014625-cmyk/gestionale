@@ -3359,6 +3359,12 @@ def broadcast_preferenze():
 #    (tu hai già /bot e /bot/invia che usano send_text)
 # ------------------------------------------------------------
 
+@app.route("/bot", methods=["GET"])
+@login_required
+def bot_dashboard():
+    pref = request.args.get("pref", "").strip().lower()
+    return render_template("06_bot/01_bot_dashboard.html", pref=pref)
+
 
 @app.route("/ping", methods=["GET"])
 def ping():
