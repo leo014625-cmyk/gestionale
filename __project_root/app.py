@@ -113,6 +113,69 @@ def login_required(f):
     return decorated_function
 
 # ============================
+# EXPORT DB ROUTE
+# ============================
+import os, sqlite3
+from flask import send_file
+
+@app.route('/export-db')
+def export_db():
+    try:
+        sqlite_file = os.path.join(BASE_DIR, 'gestionale.db')
+        if os.path.exists(sqlite_file):
+            try:
+                os.remove(sqlite_file)
+            except Exception:
+                pass
+                
+        sqlite_conn = sqlite3.connect(sqlite_file)
+        sqlite_cur = sqlite_conn.cursor()
+        
+        with get_db() as pg_db:
+            pg_cur = pg_db.cursor()
+            
+            tables = [
+                'zone', 'categorie', 'prodotti', 'clienti', 
+                'clienti_prodotti', 'prodotti_rimossi', 'fatturato', 
+                'volantini', 'volantino_prodotti', 'promo_lampo', 
+                'visite', 'whatsapp_link_codes', 'whatsapp_preferenze', 
+                'bot_messages', 'fornitori'
+            ]
+            
+            for table in tables:
+                try:
+                    pg_cur.execute(f"SELECT * FROM {table} LIMIT 1")
+                except Exception:
+                    pg_db.rollback()
+                    continue
+                    
+                columns = [desc[0] for desc in pg_cur.description]
+                col_defs = [f"{col} TEXT" for col in columns]
+                
+                sqlite_cur.execute(f"CREATE TABLE IF NOT EXISTS {table} ({', '.join(col_defs)})")
+                
+                pg_cur.execute(f"SELECT * FROM {table}")
+                rows = pg_cur.fetchall()
+                
+                if rows:
+                    placeholders = ', '.join(['?'] * len(columns))
+                    insert_query = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
+                    
+                    tuples = []
+                    for row in rows:
+                        t = tuple(row[col] for col in columns)
+                        tuples.append(t)
+                        
+                    sqlite_cur.executemany(insert_query, tuples)
+                    
+        sqlite_conn.commit()
+        sqlite_conn.close()
+        
+        return send_file(sqlite_file, as_attachment=True, download_name='gestionale.db')
+    except Exception as e:
+        return f"Errore durante l'esportazione: {str(e)}", 500
+
+# ============================
 # TEST ROUTE
 # ============================
 @app.route('/test-login')
