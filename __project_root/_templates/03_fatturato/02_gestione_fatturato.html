@@ -1,0 +1,444 @@
+{% extends "01_base.html" %}
+
+{% block title %}Gestione Semplificata Fatturato - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="background: #f8fafc; min-height: 100vh; font-family: 'Outfit', 'Inter', sans-serif;">
+
+  <!-- Header Section with sleek breadcrumbs & clean action buttons -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 1px;">
+          <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-decoration-none text-muted">Home</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('fatturato') }}" class="text-decoration-none text-muted">Fatturato</a></li>
+          <li class="breadcrumb-item active text-primary" aria-current="page">Gestione Rapida</li>
+        </ol>
+      </nav>
+      <h1 class="text-dark fw-bold mb-1" style="letter-spacing: -0.5px;">
+        <i class="bi bi-lightning-charge-fill text-warning me-2 animate-bounce"></i> Aggiornamento Semplificato Fatturati
+      </h1>
+      <p class="text-muted mb-0 small">Inserisci, modifica e naviga tra i fatturati mensili dei clienti in tempo record.</p>
+    </div>
+    
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary rounded-pill fw-semibold px-4 shadow-sm bg-white" style="transition: all 0.3s ease;">
+        <i class="bi bi-people-fill me-1"></i> Dashboard Clienti
+      </a>
+      <a href="{{ url_for('fatturato') }}" class="btn btn-outline-secondary rounded-pill fw-semibold px-4 shadow-sm bg-white" style="transition: all 0.3s ease;">
+        <i class="bi bi-arrow-left me-1"></i> Riepilogo Grafici
+      </a>
+    </div>
+  </div>
+
+  <!-- Month & Year Selector Card -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);">
+    <div class="card-body p-4">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label fw-bold small text-secondary text-uppercase" style="letter-spacing: 0.5px;">Mese di Riferimento</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-month text-primary"></i></span>
+            <select name="mese" class="form-select border-0 bg-light rounded-end fw-semibold">
+              {% for m in range(1, 13) %}
+              <option value="{{ m }}" {% if mese == m %}selected{% endif %}>
+                {{ ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'][m-1] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        
+        <div class="col-md-3">
+          <label class="form-label fw-bold small text-secondary text-uppercase" style="letter-spacing: 0.5px;">Anno</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-0"><i class="bi bi-hash text-primary"></i></span>
+            <input type="number" name="anno" class="form-control border-0 bg-light rounded-end fw-semibold" value="{{ anno }}" min="2020" max="2030">
+          </div>
+        </div>
+        
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-primary w-100 rounded-3 fw-bold py-2 shadow-sm" style="transition: all 0.2s;">
+            <i class="bi bi-arrow-repeat me-1"></i> Carica Mese
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main interactive sheet -->
+  <form method="POST" action="{{ url_for('salva_gestione_fatturato') }}" id="fatturato-form">
+    <input type="hidden" name="mese" value="{{ mese }}">
+    <input type="hidden" name="anno" value="{{ anno }}">
+  
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+      <!-- Toolbar containing Search, Counters & Global batch action buttons -->
+      <div class="card-header border-0 bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3 flex-grow-1" style="max-width: 500px;">
+          <div class="input-group">
+            <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="cerca-cliente" class="form-control border-0 bg-light rounded-end fw-medium" placeholder="Filtra clienti per nome o zona... (Premi Esc per pulire)">
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+          <button type="button" class="btn btn-outline-info rounded-pill btn-sm fw-semibold px-3" id="btn-copia-tutti" title="Copia il valore del mese precedente per tutti i campi attualmente vuoti.">
+            <i class="bi bi-arrow-down-left-square me-1"></i> Copia da mese prec. (Vuoti)
+          </button>
+          
+          <button type="submit" class="btn btn-success rounded-pill fw-bold px-4 shadow-sm btn-hover-grow">
+            <i class="bi bi-check-circle-fill me-1"></i> Salva Modifiche
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick KPI Strip -->
+      <div class="bg-light px-4 py-2 border-top border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3 small fw-bold text-secondary">
+        <div>
+          <span>MESE SELEZIONATO: </span>
+          <span class="badge bg-primary rounded-pill px-2.5 py-1 text-uppercase">{{ ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'][mese-1] }} {{ anno }}</span>
+        </div>
+        <div>
+          <span>MESE PRECEDENTE DI CONFRONTO: </span>
+          <span class="badge bg-secondary rounded-pill px-2.5 py-1 text-uppercase">{{ ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'][prev_mese-1] }} {{ prev_anno }}</span>
+        </div>
+        <div>
+          <span class="text-uppercase">Clienti visualizzati: </span>
+          <span id="counter-clienti" class="text-dark">{{ clienti|length }}</span> / {{ clienti|length }}
+        </div>
+      </div>
+
+      <!-- Table Body with Excel-style bindings and mouse highlights -->
+      <div class="card-body p-0" style="max-height: 580px; overflow-y: auto;">
+        <table class="table table-hover align-middle mb-0" id="tabella-fatturati">
+          <thead class="bg-light sticky-top shadow-sm border-bottom" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10;">
+            <tr>
+              <th class="ps-4 py-3" style="width: 40%;">Nome Cliente</th>
+              <th class="py-3" style="width: 15%;">Zona</th>
+              <th class="pe-4 text-end py-3" style="width: 45%;">Importo Mese (€)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in clienti %}
+            <tr class="client-row" data-client-name="{{ c.nome|lower }}" data-client-id="{{ c.id }}" data-client-zona="{{ (c.zona or '')|lower }}">
+              <!-- Client Name -->
+              <td class="ps-4">
+                <div class="fw-bold text-dark fs-6">{{ c.nome }}</div>
+              </td>
+              
+              <!-- Zone -->
+              <td>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill fw-semibold" style="font-size: 0.8rem;">
+                  {{ c.zona or 'Nessuna Zona' }}
+                </span>
+              </td>
+              
+              <!-- Input field with Excel bindings, Non Lavorato switch, and quick helper value -->
+              <td class="pe-4 text-end">
+                <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap">
+                  <!-- Previous month quick copy helper -->
+                  {% if c.prev_importo is not none and c.prev_importo != '' and c.prev_importo != 0 %}
+                  <button type="button" class="btn btn-sm btn-link p-0 text-muted text-decoration-none quick-copy-prev font-monospace" 
+                          data-prev-value="{{ c.prev_importo }}" 
+                          title="Clicca per copiare il fatturato del mese precedente ({{ prev_mese }}/{{ prev_anno }})">
+                    <i class="bi bi-arrow-right-short text-info fw-bold"></i>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-2">
+                      Mese prec: €{{ "%.2f"|format(c.prev_importo|float) }}
+                    </span>
+                  </button>
+                  {% else %}
+                  <span class="text-muted small fst-italic font-monospace" style="font-size: 0.75rem; opacity: 0.6;">Mese prec: n/d</span>
+                  {% endif %}
+
+                  <!-- "Non Lavorato" Switch -->
+                  <div class="form-check form-switch mb-0 d-flex align-items-center gap-1 bg-light border rounded-pill px-2.5 py-1">
+                    <input class="form-check-input switch-non-lavorato cursor-pointer" type="checkbox" role="switch" 
+                           id="nl_switch_{{ c.id }}" data-client-id="{{ c.id }}"
+                           {% if c.importo == 0 or c.importo == 0.0 %}checked{% endif %}
+                           title="Segna come non lavorato per questo mese (imposta a 0)">
+                    <label class="form-check-label small text-secondary fw-bold cursor-pointer" for="nl_switch_{{ c.id }}" style="font-size: 0.7rem; white-space: nowrap; user-select: none;">Non Lavorato</label>
+                  </div>
+                  
+                  <!-- Main Input -->
+                  <div class="input-group input-group-sm" style="width: 140px;">
+                    <span class="input-group-text bg-white border-end-0 text-secondary fw-semibold">€</span>
+                    <input type="number" step="0.01" min="0" 
+                           name="fatturato_{{ c.id }}" 
+                           class="form-control text-end border-start-0 fw-bold input-fatturato bg-white" 
+                           value="{% if c.importo == 0 or c.importo == 0.0 %}0.00{% else %}{{ c.importo or '' }}{% endif %}" 
+                           placeholder="0.00" 
+                           data-client-id="{{ c.id }}"
+                           {% if c.importo == 0 or c.importo == 0.0 %}disabled style="background-color: #f1f5f9 !important; color: #94a3b8 !important;"{% endif %}
+                           style="border-color: #cbd5e1; border-radius: 0 0.375rem 0.375rem 0; font-size: 0.95rem; transition: all 0.2s;"
+                           onfocus="this.select(); this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
+                           onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            
+            <tr id="no-results-row" style="display: none;">
+              <td colspan="3" class="text-center py-5 text-muted fst-italic">
+                <i class="bi bi-search fs-3 mb-2 d-block text-secondary opacity-50"></i>
+                Nessun cliente corrisponde ai criteri di ricerca inseriti.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+<style>
+  /* Rich Premium Transitions */
+  .animate-bounce {
+    animation: bounce 2s infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  
+  .btn-hover-grow {
+    transition: all 0.2s ease-in-out;
+  }
+  .btn-hover-grow:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  }
+  
+  /* Spreadsheet interaction improvements */
+  #tabella-fatturati tbody tr {
+    transition: background-color 0.15s ease;
+  }
+  #tabella-fatturati tbody tr:hover {
+    background-color: #f1f5f9 !important;
+  }
+  
+  /* Focus highlight row helper */
+  #tabella-fatturati tbody tr.row-focused {
+    background-color: #eff6ff !important;
+    border-left: 4px solid #3b82f6;
+  }
+  
+  /* Quick Copy Animation */
+  .flash-copied {
+    animation: flashGreen 0.4s ease-out;
+  }
+  @keyframes flashGreen {
+    0% { background-color: #d1fae5; }
+    100% { background-color: transparent; }
+  }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const cercaInput = document.getElementById("cerca-cliente");
+  const righeClienti = document.querySelectorAll(".client-row");
+  const noResultsRow = document.getElementById("no-results-row");
+  const counterClienti = document.getElementById("counter-clienti");
+  const inputsFatturato = Array.from(document.querySelectorAll(".input-fatturato"));
+
+  // --- 1. REALTIME SMART FILTERING ---
+  function filtraClienti() {
+    const query = cercaInput.value.toLowerCase().trim();
+    let contatoreVisibili = 0;
+    
+    righeClienti.forEach(riga => {
+      const nome = riga.getAttribute("data-client-name");
+      const zona = riga.getAttribute("data-client-zona");
+      
+      if (nome.includes(query) || zona.includes(query)) {
+        riga.style.display = "";
+        contatoreVisibili++;
+      } else {
+        riga.style.display = "none";
+      }
+    });
+
+    counterClienti.textContent = contatoreVisibili;
+    if (contatoreVisibili === 0) {
+      noResultsRow.style.display = "";
+    } else {
+      noResultsRow.style.display = "none";
+    }
+  }
+  
+  cercaInput.addEventListener("input", filtraClienti);
+  
+  // Clear search on ESC key
+  cercaInput.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+      cercaInput.value = "";
+      filtraClienti();
+    }
+  });
+
+  // --- 2. EXCEL-STYLE KEYBOARD NAVIGATION ---
+  inputsFatturato.forEach((input, index) => {
+    // Row selection style focus helpers
+    input.addEventListener("focus", function() {
+      // Clean previously focused rows
+      document.querySelectorAll(".client-row").forEach(r => r.classList.remove("row-focused"));
+      const tr = input.closest("tr");
+      if (tr) tr.classList.add("row-focused");
+    });
+
+    input.addEventListener("blur", function() {
+      const tr = input.closest("tr");
+      if (tr) tr.classList.remove("row-focused");
+    });
+
+    input.addEventListener("keydown", function(e) {
+      // Find list of currently visible inputs (respecting the active search filter)
+      const visibleInputs = inputsFatturato.filter(inp => {
+        const tr = inp.closest("tr");
+        return tr && tr.style.display !== "none" && !inp.disabled;
+      });
+      
+      const currentIdx = visibleInputs.indexOf(input);
+      if (currentIdx === -1) return;
+
+      if (e.key === "Enter" || e.key === "ArrowDown") {
+        e.preventDefault(); // Stop form submission on Enter
+        const nextInput = visibleInputs[currentIdx + 1];
+        if (nextInput) {
+          nextInput.focus();
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prevInput = visibleInputs[currentIdx - 1];
+        if (prevInput) {
+          prevInput.focus();
+        }
+      }
+    });
+  });
+
+  // --- 3. QUICK COPY HELPER FOR SINGLE CLIENT ---
+  document.querySelectorAll(".quick-copy-prev").forEach(button => {
+    button.addEventListener("click", function(e) {
+      e.preventDefault();
+      const prevVal = button.getAttribute("data-prev-value");
+      const tr = button.closest("tr");
+      if (!tr) return;
+      
+      const input = tr.querySelector(".input-fatturato");
+      const sw = tr.querySelector(".switch-non-lavorato");
+      
+      if (input) {
+        // If copy value is valid, reactivate input if it was disabled as "Non Lavorato"
+        if (sw && sw.checked) {
+          sw.checked = false;
+          input.disabled = false;
+          input.style.backgroundColor = "#ffffff";
+          input.style.color = "";
+          input.style.textDecoration = "";
+          tr.classList.remove("text-muted");
+        }
+        
+        input.value = parseFloat(prevVal).toFixed(2);
+        input.focus();
+        
+        // Add subtle feedback animation
+        tr.classList.add("flash-copied");
+        setTimeout(() => {
+          tr.classList.remove("flash-copied");
+        }, 500);
+      }
+    });
+  });
+
+  // --- 4. BATCH COPY HELPER FOR EMPTY FIELDS ---
+  const btnCopiaTutti = document.getElementById("btn-copia-tutti");
+  if (btnCopiaTutti) {
+    btnCopiaTutti.addEventListener("click", function(e) {
+      e.preventDefault();
+      let count = 0;
+      
+      document.querySelectorAll(".client-row").forEach(tr => {
+        // Only target currently visible fields or all fields
+        const input = tr.querySelector(".input-fatturato");
+        const button = tr.querySelector(".quick-copy-prev");
+        const sw = tr.querySelector(".switch-non-lavorato");
+        
+        if (input && button && (!input.value || parseFloat(input.value) === 0)) {
+          const prevVal = button.getAttribute("data-prev-value");
+          if (prevVal) {
+            if (sw && sw.checked) {
+              sw.checked = false;
+              input.disabled = false;
+              input.style.backgroundColor = "#ffffff";
+              input.style.color = "";
+              input.style.textDecoration = "";
+              tr.classList.remove("text-muted");
+            }
+            
+            input.value = parseFloat(prevVal).toFixed(2);
+            tr.classList.add("flash-copied");
+            setTimeout(() => {
+              tr.classList.remove("flash-copied");
+            }, 500);
+            count++;
+          }
+        }
+      });
+      
+      if (count > 0) {
+        // Show non-intrusive floating message
+        const toast = document.createElement("div");
+        toast.className = "position-fixed bottom-0 end-0 m-4 p-3 bg-info text-white rounded-3 shadow-lg fw-bold z-index-50 animate-bounce";
+        toast.innerHTML = `<i class="bi bi-info-circle me-2"></i> Copiati ${count} fatturati dal mese precedente!`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.remove();
+        }, 3000);
+      }
+    });
+  }
+
+  // --- 5. NON LAVORATO SWITCH HANDLING ---
+  document.querySelectorAll(".switch-non-lavorato").forEach(sw => {
+    sw.addEventListener("change", function() {
+      const clientId = sw.getAttribute("data-client-id");
+      const input = document.querySelector(`.input-fatturato[data-client-id="${clientId}"]`);
+      const tr = sw.closest("tr");
+      if (input && tr) {
+        if (sw.checked) {
+          // Segna come non lavorato
+          input.value = "0.00";
+          input.disabled = true;
+          input.style.backgroundColor = "#f1f5f9";
+          input.style.color = "#94a3b8";
+          input.style.textDecoration = "line-through";
+          tr.classList.add("text-muted");
+        } else {
+          // Riapri l'input
+          input.value = "";
+          input.disabled = false;
+          input.style.backgroundColor = "#ffffff";
+          input.style.color = "";
+          input.style.textDecoration = "";
+          tr.classList.remove("text-muted");
+          input.focus();
+        }
+      }
+    });
+    
+    // Trigger initial state visual classes if checked on load
+    if (sw.checked) {
+      const clientId = sw.getAttribute("data-client-id");
+      const input = document.querySelector(`.input-fatturato[data-client-id="${clientId}"]`);
+      const tr = sw.closest("tr");
+      if (input && tr) {
+        input.style.textDecoration = "line-through";
+        tr.classList.add("text-muted");
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

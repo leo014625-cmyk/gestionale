@@ -1,0 +1,53 @@
+{% extends "01_base.html" %}
+
+{% block title %}Ordini Settimanali - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="fw-bold mb-1">Pianificazione Ordini Settimanali</h1>
+    <p class="text-muted mb-0">Visualizza quali clienti hanno lo scarico previsto nei vari giorni della settimana.</p>
+</div>
+
+<div class="row g-4">
+    {% set giorni = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'] %}
+    {% for i in range(1, 8) %}
+    {% set giorno_index = i if i < 7 else 0 %}
+    <div class="col-12 col-md-6 col-xl">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header border-0 bg-transparent pt-4 px-4 pb-0">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h5 class="fw-bold mb-0 text-dark">{{ giorni[i-1] }}</h5>
+                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">{{ ordini_per_giorno.get(giorno_index|string, [])|length }} Clienti</span>
+                </div>
+            </div>
+            <div class="card-body p-4 pt-2">
+                <div class="list-group list-group-flush">
+                    {% for c in ordini_per_giorno.get(giorno_index|string, []) %}
+                    <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="list-group-item list-group-item-action px-0 py-2 border-0 d-flex flex-column">
+                        <span class="fw-semibold small text-primary">{{ c.nome }}</span>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{ c.zona }}</small>
+                    </a>
+                    {% else %}
+                    <p class="text-muted small fst-italic py-3">Nessuno scarico previsto.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 mt-5 bg-primary bg-opacity-10">
+    <div class="card-body p-4 d-flex align-items-center gap-3">
+        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="bi bi-info-circle"></i>
+        </div>
+        <div>
+            <p class="mb-0 small fw-medium text-primary">
+                Puoi gestire i giorni di scarico di ogni cliente direttamente dalla pagina <strong>Modifica Cliente</strong>. 
+                I clienti appariranno automaticamente in questa lista in base alle preferenze salvate.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

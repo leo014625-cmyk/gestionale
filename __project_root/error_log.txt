@@ -1,0 +1,56 @@
+
+--- ERROR IN CLIENTE_SCHEDA (2026-03-11 10:14:00.171719) ---
+Traceback (most recent call last):
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/app.py", line 1533, in cliente_scheda
+    return render_template(
+        "01_clienti/04_cliente_scheda.html",
+    ...<17 lines>...
+        upcoming_visits=upcoming_visits
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/templating.py", line 131, in _render
+    rv = template.render(context)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/_templates/01_clienti/04_cliente_scheda.html", line 1, in top-level template code
+    {% extends "01_base.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/_templates/01_base.html", line 313, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/_templates/01_clienti/04_cliente_scheda.html", line 43, in block 'content'
+    <div class="metric-value {% if crescita_mensile|default(0) < 0 %}text-danger{% else %}text-success{% endif %}">
+    ^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'int'
+
+--- ERROR IN CLIENTE_SCHEDA (2026-03-11 10:18:31.681285) ---
+Traceback (most recent call last):
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/app.py", line 1533, in cliente_scheda
+    return render_template(
+        "01_clienti/04_cliente_scheda.html",
+    ...<17 lines>...
+        upcoming_visits=upcoming_visits
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/templating.py", line 131, in _render
+    rv = template.render(context)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/_templates/01_clienti/04_cliente_scheda.html", line 1, in top-level template code
+    {% extends "01_base.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/_templates/01_base.html", line 313, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/leonardogiorgini/gestionale_horeca1/__project_root/_templates/01_clienti/04_cliente_scheda.html", line 43, in block 'content'
+    <div class="metric-value {% if crescita_mensile|default(0) < 0 %}text-danger{% else %}text-success{% endif %}">
+    ^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'int'

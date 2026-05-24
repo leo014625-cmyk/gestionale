@@ -1,0 +1,100 @@
+{% extends "01_base.html" %}
+
+{% block title %}Gestione Prodotti Clienti - Horeca CRM{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold text-dark m-0">Gestione Prodotti Clienti</h2>
+      <p class="text-muted mb-0">Riepilogo e aggiornamento listini per clienti attivi.</p>
+    </div>
+    {% if is_saturday %}
+    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="bi bi-calendar-check-fill me-1"></i> Ricordo del Sabato</span>
+    {% endif %}
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light text-uppercase text-secondary" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+            <tr>
+              <th class="ps-4">Cliente</th>
+              <th>Zona</th>
+              <th>Ultimo Aggiornamento</th>
+              <th>Prodotti Lavorati</th>
+              <th>Status</th>
+              <th class="pe-4">Carica Elenco PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in clienti %}
+            <tr>
+              <td class="ps-4">
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-dark text-decoration-none">
+                  {{ c.nome }}
+                </a>
+              </td>
+              <td>
+                <span class="badge bg-opacity-10 bg-secondary text-secondary rounded-pill px-2">
+                  {{ c.zona or '–' }}
+                </span>
+              </td>
+              <td>
+                {% if c.ultima_importazione %}
+                  <div class="small fw-medium">{{ c.ultima_importazione.strftime('%d/%m/%Y') }}</div>
+                  <div class="extra-small text-muted">{{ c.ultima_importazione.strftime('%H:%M') }}</div>
+                {% else %}
+                  <span class="text-muted small fst-italic">Nessuna importazione</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2">
+                  {{ c.count_lavorati }} active
+                </span>
+                {% if c.count_ex > 0 %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2 ms-1">
+                  {{ c.count_ex }} ex
+                </span>
+                {% endif %}
+              </td>
+              <td>
+                {% if c.count_warnings > 0 %}
+                <span class="badge bg-warning text-dark rounded-pill px-2 d-inline-flex align-items-center gap-1">
+                  <i class="bi bi-exclamation-circle-fill"></i> {{ c.count_warnings }} Misses
+                </span>
+                {% else %}
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2">OK</span>
+                {% endif %}
+              </td>
+              <td class="pe-4">
+                <form action="{{ url_for('importa_pdf_lavorati_auto', id=c.id) }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+                  <!-- file selection -->
+                  <input type="file" name="pdf" class="form-control form-control-sm rounded-pill" style="max-width: 180px;" required>
+                  <button type="submit" class="btn btn-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Importa listino">
+                    <i class="bi bi-upload"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not clienti %}
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted fst-italic">Nessun cliente attivo trovato.</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .extra-small { font-size: 0.75rem; }
+  .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.015); }
+</style>
+{% endblock %}

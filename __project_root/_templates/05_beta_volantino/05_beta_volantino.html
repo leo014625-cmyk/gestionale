@@ -1,0 +1,2265 @@
+{% extends "01_base.html" %}
+
+{% block title %}Editor Volantino Griglia - Gestionale Horeca{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column h-100" style="min-height: calc(100vh - 100px);">
+    
+    <!-- HEADER EDITOR -->
+    <div class="d-flex align-items-center justify-content-between p-3 bg-white border-bottom shadow-sm rounded-4 mb-3">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('lista_volantini_beta') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Indietro
+            </a>
+            <input type="text" id="volantino-nome" class="form-control fw-bold border-0 fs-5" 
+                   value="{{ nome_volantino if nome_volantino else 'Nuovo Volantino' }}" 
+                   style="max-width: 300px; background: transparent;">
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span id="save-status" class="text-muted small d-none"><i class="bi bi-check2"></i> Salvato</span>
+            <button id="btn-size-modal" class="btn btn-outline-dark" title="Imposta Dimensioni Volantino" data-bs-toggle="modal" data-bs-target="#sizeModal">
+                <i class="bi bi-arrows-fullscreen"></i> Dimensioni
+            </button>
+            <button id="btn-bg-modal" class="btn btn-outline-primary" title="Gestisci lo Sfondo del Volantino" data-bs-toggle="modal" data-bs-target="#bgModal">
+                <i class="bi bi-image"></i> Sfondo Volantino
+            </button>
+            <button id="btn-export-png" class="btn btn-outline-secondary" title="Scarica come Immagine (PNG)">
+                <i class="bi bi-file-image"></i> PNG
+            </button>
+            <button id="btn-export-pdf" class="btn btn-outline-secondary" title="Scarica come Documento (PDF)">
+                <i class="bi bi-file-pdf"></i> PDF
+            </button>
+            {% if tipo_volantino and (tipo_volantino.startswith('promo_') or tipo_volantino in ['mensile', 'scadenza', 'scadenze']) %}
+            <button class="btn btn-warning fw-bold border-0 shadow-sm rounded-pill px-3" id="btn-save-template" title="Salva queste impostazioni come predefinite per le future promozioni di questo tipo">
+                <i class="bi bi-star-fill"></i> Salva come Predefinito
+            </button>
+            {% endif %}
+            <button id="btn-save" class="btn btn-primary">
+                <i class="bi bi-save"></i> Salva
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN EDITOR AREA -->
+    <div class="row flex-grow-1 g-3">
+        
+        <!-- SIDEBAR SINISTRA (Prodotti) -->
+        <div class="col-md-2 d-flex flex-column">
+            <div class="card shadow-sm rounded-4 h-100 border-0">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                    <h6 class="mb-2"><i class="bi bi-box-seam"></i> Prodotti</h6>
+                    <input type="text" id="search-products" class="form-control form-control-sm mb-2" placeholder="Cerca prodotto...">
+                    <div class="text-muted small fst-italic mb-2 p-1 bg-light rounded text-center">
+                        <i class="bi bi-info-circle"></i> Seleziona una casella sul volantino, poi clicca un prodotto per riempirla.
+                    </div>
+                    <!-- Nuova Iniezione Live PDF -->
+                    <div class="d-flex gap-2 mb-2 border-top pt-2">
+                        <input type="file" id="pdf-inject-upload" accept=".pdf" class="d-none">
+                        <button id="btn-pdf-inject" class="btn btn-outline-danger btn-sm w-100 fw-bold" title="Estrai prodotti da PDF e riempi le celle vuote"><i class="bi bi-file-pdf"></i> Popola Griglia Automatica da PDF</button>
+                    </div>
+                </div>
+                <div class="card-body overflow-auto p-2" id="products-list" style="max-height: 60vh;">
+                    <div class="text-center text-muted mt-4">
+                        <div class="spinner-border spinner-border-sm" role="status"></div><br>Caricamento prodotti...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AREA CANVAS (Centro) -->
+        <div class="col-md-7 d-flex flex-column" id="canvas-wrapper">
+            <div class="card shadow-sm rounded-4 h-100 border-0 bg-light">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 border-bottom shadow-sm flex-wrap gap-2" id="multi-page-controls" style="display:none!important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-secondary px-3 rounded-pill" id="btn-page-prev" disabled><i class="bi bi-chevron-left"></i> Prec</button>
+                        <div class="fw-bold fs-6 text-primary" id="page-indicator">Foglio 1 di N</div>
+                        <button class="btn btn-sm btn-outline-primary px-3 rounded-pill" id="btn-page-next" disabled>Succ <i class="bi bi-chevron-right"></i></button>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-bold" id="btn-apply-all-pages" title="Applica i parametri di questo foglio (colonne, altezza, gap, padding) a TUTTI i fogli"><i class="bi bi-layers"></i> Applica a Tutti i Fogli</button>
+                        <button class="btn btn-sm btn-outline-info rounded-pill px-3 fw-bold" id="btn-quick-edit" title="Modifica Rapida Prodotti del Foglio"><i class="bi bi-list-check"></i> Modifica Rapida</button>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" id="btn-add-page" title="Aggiungi un nuovo foglio vuoto"><i class="bi bi-plus-circle"></i> Aggiungi Foglio</button>
+                        <button class="btn btn-sm btn-outline-danger rounded-pill px-3" id="btn-delete-page" title="Elimina questo foglio"><i class="bi bi-trash"></i> Elimina Foglio</button>
+                    </div>
+                </div>
+                <div class="card-body p-0 overflow-auto d-flex justify-content-center align-items-start" style="height: 70vh;" id="canvas-scroll-area">
+                    
+                    <!-- IL FOGLIO A4 -->
+                    <div id="flyer-canvas" class="my-4 shadow" style="width: 2800px; height: 1250px; transform-origin: top center; overflow: hidden; display: flex; flex-direction: column; position: relative; background-color: #ffffff;">
+                        
+                        <!-- OVERLAY OMBRE TEMA (pointer-events: none per cliccare sotto) -->
+                        <div id="flyer-overlay-shadow" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;"></div>
+                        
+                        <!-- INTESTAZIONE (LOGO / TITOLO) -->
+                        <div id="flyer-header" class="header-area p-3 border-bottom" style="min-height: 150px; cursor: pointer; display: flex; justify-content: space-between; align-items: stretch; gap: 10px; width: 100%;">
+                            <div id="header-slot-left" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; width: 33.333%;"></div>
+                            <div id="header-slot-center" style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 33.333%;"></div>
+                            <div id="header-slot-right" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-end; width: 33.333%;"></div>
+                        </div>
+
+                        <!-- Elementi Header Nascosti (vengono spostati negli slot via JS) -->
+                        <div id="header-elements-storage" class="d-none">
+                            <div id="header-logo-container" class="text-center mb-2">
+                                <img id="header-logo" src="" alt="Clicca per inserire Logo" style="max-width: 100%; object-fit: contain; display: none;">
+                                <div id="header-logo-placeholder" class="text-muted text-center" style="border: 2px dashed #ccc; padding: 20px;">
+                                    <i class="bi bi-image fs-1"></i><br>Carica URL Logo
+                                </div>
+                            </div>
+                            <div id="header-title-container" class="text-center">
+                                <h2 id="header-title" class="m-0" style="color: #333;">TITOLO PROMO</h2>
+                            </div>
+                        </div>
+
+                        <!-- GRIGLIA PRODOTTI -->
+                        <div id="flyer-grid" class="flex-grow-1" style="display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 0px;">
+                            <!-- Le 9 celle (3x3 default) verranno generate via JS -->
+                        </div>
+
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top-0 d-flex justify-content-between align-items-center py-2">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" id="btn-zoom-out"><i class="bi bi-zoom-out"></i></button>
+                        <button class="btn btn-outline-secondary" disabled id="zoom-level">100%</button>
+                        <button class="btn btn-outline-secondary" id="btn-zoom-in"><i class="bi bi-zoom-in"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANNELLO PROPRIETA' (Destra) -->
+        <div class="col-md-3 d-flex flex-column">
+            <div class="card shadow-sm rounded-4 h-100 border-0">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-2">
+                    <h6 class="mb-0"><i class="bi bi-sliders"></i> Proprietà Selezione</h6>
+                </div>
+                <div class="card-body p-0" id="properties-panel" style="max-height: calc(100vh - 250px); overflow-y: auto;">
+                    <div class="text-muted small fst-italic text-center p-3 d-none" id="no-selection-msg">Seleziona una casella o l'intestazione sul foglio.</div>
+                    
+                    <div class="px-3 pt-2">
+                        <!-- Bottone Forzatura Sfondo -->
+                        <button id="btn-force-bg-select" class="btn btn-primary btn-sm w-100 mb-2 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#bgModal">
+                            <i class="bi bi-image"></i> Gestisci Sfondo Libero
+                        </button>
+                    </div>
+
+                    <div class="accordion accordion-flush" id="accordionProperties">
+                        
+                        <!-- SEZIONE: FOGLIO E DIMENSIONI -->
+                        <div class="accordion-item" id="item-flyer-base">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFlyer">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i> Dimensioni & Foglio
+                                </button>
+                            </h2>
+                            <div id="collapseFlyer" class="accordion-collapse collapse show" data-bs-parent="#accordionProperties">
+                                <div class="accordion-body p-2" id="flyer-base-props">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="prop-flyer-border">
+                                        <label class="form-check-label small" for="prop-flyer-border">Bordo Esterno Visibile</label>
+                                    </div>
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <label class="small text-muted mb-0" style="font-size:0.6rem;">Colore Sfondo</label>
+                                            <input type="color" id="prop-flyer-bgcolor" class="form-control form-control-sm form-control-color w-100 border-0" value="#ffffff">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="small text-muted mb-0" style="font-size:0.6rem;">Colonne Griglia</label>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input type="range" class="form-range" id="prop-global-cols" min="1" max="8" step="1" value="3">
+                                                <input type="number" id="inp-global-cols" class="form-control form-control-sm border-0 bg-light text-center px-1" style="width: 35px;" min="1" max="8">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <hr class="my-2 opacity-25">
+                                    <div class="p-2 border rounded-3 mb-2 bg-light">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="text-uppercase text-secondary fw-bold" style="font-size: 0.65rem;">Dimensioni Foglio</div>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary py-0" style="font-size: 0.6rem;" id="preset-a4-v">A4 Vert.</button>
+                                                <button class="btn btn-outline-primary py-0" style="font-size: 0.6rem;" id="preset-a4-h">A4 Orizz.</button>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <label class="text-muted" style="font-size:0.6rem;">Larghezza (px)</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" class="form-range" id="prop-global-width" min="800" max="8000" step="50" value="1250">
+                                                    <input type="number" id="inp-global-width" class="form-control form-control-sm border-0 bg-light px-1" style="width: 50px;" min="800" max="8000" value="1250">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="text-muted" style="font-size:0.6rem;">Altezza (px)</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" class="form-range" id="prop-global-height" min="800" max="8000" step="50" value="1750">
+                                                    <input type="number" id="inp-global-height" class="form-control form-control-sm border-0 bg-light px-1" style="width: 50px;" min="800" max="8000" value="1750">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="p-2 border rounded-3 mb-2">
+                                        <label class="small text-muted mb-0" style="font-size:0.65rem;">Larghezza Griglia (px)</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="range" class="form-range flex-grow-1" id="prop-global-grid-width" min="400" max="5000" step="50" value="1800">
+                                            <input type="number" id="inp-global-grid-width" class="form-control form-control-sm border-0 bg-light px-1" style="width: 55px;" min="400" max="5000">
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="small text-muted mb-0" style="font-size:0.65rem;">Altezza Celle (0 = Auto)</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="range" class="form-range flex-grow-1" id="prop-global-row-height" min="0" max="1000" step="10" value="0">
+                                            <input type="number" id="inp-global-row-height" class="form-control form-control-sm border-0 bg-light px-1" style="width: 50px;" min="0" max="1000">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button id="btn-add-cell" class="btn btn-sm btn-white border w-50"><i class="bi bi-plus-circle me-1"></i> + Cella</button>
+                                        <button id="btn-remove-cell" class="btn btn-sm btn-white border w-50"><i class="bi bi-dash-circle me-1"></i> - Cella</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE: TESTI GLOBALI -->
+                        <div class="accordion-item" id="item-global-texts">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTexts">
+                                    <i class="bi bi-fonts me-2"></i> Grandezza Font Globali
+                                </button>
+                            </h2>
+                            <div id="collapseTexts" class="accordion-collapse collapse" data-bs-parent="#accordionProperties">
+                                <div class="accordion-body p-2">
+                                    <div class="row g-2">
+                                        <div class="col-6 border-end">
+                                            <label class="text-muted d-block text-center" style="font-size:0.6rem;">Nomi (rem)</label>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input type="range" class="form-range flex-grow-1" id="prop-global-namesize" min="0.5" max="5.0" step="0.1" value="1.0">
+                                                <span id="lbl-global-namesize" class="small text-muted" style="min-width:18px;">1.0</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="text-muted d-block text-center" style="font-size:0.6rem;">Prezzi (rem)</label>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input type="range" class="form-range flex-grow-1" id="prop-global-pricesize" min="0.5" max="6.0" step="0.1" value="1.8">
+                                                <span id="lbl-global-pricesize" class="small text-muted" style="min-width:18px;">1.8</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE: MARGINI -->
+                        <div class="accordion-item" id="item-grid-margins">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGrid">
+                                    <i class="bi bi-layout-sidebar-inset me-2"></i> Inquadratura & Margini
+                                </button>
+                            </h2>
+                            <div id="collapseGrid" class="accordion-collapse collapse" data-bs-parent="#accordionProperties">
+                                <div class="accordion-body p-2">
+                                    <div class="p-2 border rounded-3 mb-2 bg-light">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <label class="text-muted" style="font-size:0.6rem;">Margine Top (px)</label>
+                                                <input type="range" class="form-range" id="prop-grid-pad-top" min="0" max="2500" step="10" value="0">
+                                                <span id="lbl-grid-pad-top" class="small text-muted" style="font-size:0.65rem;">0px</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="text-muted" style="font-size:0.6rem;">Margine Bottom (px)</label>
+                                                <input type="range" class="form-range" id="prop-grid-pad-bot" min="0" max="2500" step="10" value="0">
+                                                <span id="lbl-grid-pad-bot" class="small text-muted" style="font-size:0.65rem;">0px</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="text-muted d-block text-center mb-0" style="font-size:0.6rem;">Margine Lati</label>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input type="range" class="form-range" id="prop-grid-pad-sides" min="0" max="1500" step="10" value="0">
+                                                <span id="lbl-grid-pad-sides" class="small text-muted" style="font-size:0.65rem;">0px</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 border-start">
+                                            <label class="text-muted d-block text-center mb-0" style="font-size:0.6rem;">Spazio (Gap) Celle</label>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input type="range" class="form-range" id="prop-grid-gap" min="0" max="300" step="5" value="0">
+                                                <span id="lbl-grid-gap" class="small text-muted" style="font-size:0.65rem;">0px</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE: SFONDO VOLANTINO -->
+                        <div class="accordion-item" id="item-flyer-bg">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBg">
+                                    <i class="bi bi-image me-2"></i> Sfondo Volantino
+                                </button>
+                            </h2>
+                            <div id="collapseBg" class="accordion-collapse collapse" data-bs-parent="#accordionProperties">
+                                <div class="accordion-body p-2" id="flyer-bg-props">
+                                    <button class="btn btn-outline-primary btn-sm w-100 mb-3 fw-bold" data-bs-toggle="modal" data-bs-target="#bgModal">
+                                        <i class="bi bi-pencil-square"></i> Sostituisci Immagine Sfondo
+                                    </button>
+                                    <div class="p-2 border rounded-3 border-0 bg-light mb-2">
+                                        <div class="text-uppercase text-secondary fw-bold mb-1" style="font-size: 0.6rem;">Scala Sfondo (%)</div>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <label class="text-muted" style="font-size:0.6rem;">Larghezza</label>
+                                                <input type="range" class="form-range" id="prop-bg-width" min="10" max="500" step="1" value="100">
+                                                <span id="lbl-bg-width" class="small text-muted" style="font-size:0.65rem;">100%</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="text-muted" style="font-size:0.6rem;">Altezza</label>
+                                                <input type="range" class="form-range" id="prop-bg-height" min="10" max="500" step="1" value="100">
+                                                <span id="lbl-bg-height" class="small text-muted" style="font-size:0.65rem;">100%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="p-2 border rounded-3 mb-2">
+                                        <div class="text-uppercase text-secondary fw-bold mb-1" style="font-size: 0.6rem;">Posizione (%)</div>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <input type="range" class="form-range" id="prop-bg-pos-x" min="0" max="100" step="1" value="50">
+                                                <div class="text-center small text-muted" style="font-size:0.6rem;">X: <span id="lbl-bg-pos-x">50%</span></div>
+                                            </div>
+                                            <div class="col-6">
+                                                <input type="range" class="form-range" id="prop-bg-pos-y" min="0" max="100" step="1" value="50">
+                                                <div class="text-center small text-muted" style="font-size:0.6rem;">Y: <span id="lbl-bg-pos-y">50%</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="small text-muted mb-1" style="font-size:0.65rem;">Ripetizione / Fit</label>
+                                        <select id="prop-bg-repeat" class="form-select form-select-sm border-0 bg-light">
+                                            <option value="no-repeat">Singolo</option>
+                                            <option value="repeat">Mosaico</option>
+                                            <option value="repeat-x">Orizzontale</option>
+                                            <option value="repeat-y">Verticale</option>
+                                            <option value="cover">Copri Tutto</option>
+                                            <option value="contain">Contieni</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE: INTESTAZIONE -->
+                        <div class="accordion-item" id="item-header-props">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHeader">
+                                    <i class="bi bi-card-heading me-2"></i> Intestazione
+                                </button>
+                            </h2>
+                            <div id="collapseHeader" class="accordion-collapse collapse" data-bs-parent="#accordionProperties">
+                                <div class="accordion-body p-2" id="header-props">
+                                    <div class="p-2 border rounded-3 mb-2">
+                                        <div class="row g-1 align-items-center mb-1">
+                                            <div class="col-4 small text-muted" style="font-size: 0.65rem;">Logo</div>
+                                            <div class="col-8">
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    <button class="btn btn-white border btn-logo-pos p-1" data-pos="left"><i class="bi bi-align-start"></i></button>
+                                                    <button class="btn btn-white border btn-logo-pos p-1" data-pos="center"><i class="bi bi-align-center"></i></button>
+                                                    <button class="btn btn-white border btn-logo-pos p-1" data-pos="right"><i class="bi bi-align-end"></i></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-1 align-items-center">
+                                            <div class="col-4 small text-muted" style="font-size: 0.65rem;">Titolo</div>
+                                            <div class="col-8">
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    <button class="btn btn-white border btn-title-pos p-1" data-pos="left"><i class="bi bi-text-left"></i></button>
+                                                    <button class="btn btn-white border btn-title-pos p-1" data-pos="center"><i class="bi bi-text-center"></i></button>
+                                                    <button class="btn btn-white border btn-title-pos p-1" data-pos="right"><i class="bi bi-text-right"></i></button>
+                                                    <button class="btn btn-white border btn-title-pos p-1" data-pos="none"><i class="bi bi-eye-slash"></i></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-2 border rounded-3">
+                                        <input type="text" id="prop-header-title" class="form-control form-control-sm border-0 bg-light mb-2" placeholder="Testo Titolo">
+                                        <div class="row g-1 mb-2">
+                                            <div class="col-6">
+                                                <input type="color" id="prop-header-color" class="form-control form-control-sm form-control-color w-100 border-0" title="Colore Titolo">
+                                            </div>
+                                            <div class="col-6">
+                                                <input type="number" id="prop-header-size" class="form-control form-control-sm border-0 bg-light" placeholder="Size (px)">
+                                            </div>
+                                        </div>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="prop-header-logo" class="form-control border-0 bg-light" placeholder="URL Logo">
+                                            <button class="btn btn-light border" type="button" id="btn-upload-logo"><i class="bi bi-upload"></i></button>
+                                        </div>
+                                        <input type="file" id="file-upload-logo" class="d-none" accept="image/*">
+                                        
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-6">
+                                                <label class="small text-muted mb-0" style="font-size:0.65rem;">Altezza (px)</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" class="form-range" id="prop-header-logo-size" min="20" max="600" step="10" value="120">
+                                                    <span id="lbl-header-logo-size" class="small text-muted">120px</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="small text-muted mb-0" style="font-size:0.65rem;">Larghezza Max (%)</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" class="form-range" id="prop-header-logo-width" min="10" max="100" step="5" value="100">
+                                                    <span id="lbl-header-logo-width" class="small text-muted">100%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE: CASELLA SELEZIONATA -->
+                        <div class="accordion-item d-none" id="item-cell-props">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button fw-bold py-2 bg-light-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCell">
+                                    <i class="bi bi-tag-fill me-2"></i> Casella <span id="lbl-cell-id" class="ms-1 text-muted small"></span>
+                                </button>
+                            </h2>
+                            <div id="collapseCell" class="accordion-collapse collapse" data-bs-parent="#accordionProperties">
+                                <div class="accordion-body p-2" id="cell-props">
+                                    <!-- AZIONI RAPIDE -->
+                                    <div class="mb-3">
+                                        <button class="btn btn-outline-danger btn-sm w-100 fw-bold rounded-3" id="btn-empty-cell"><i class="bi bi-eraser me-1"></i> Svuota Casella</button>
+                                    </div>
+
+                                    <!-- STRUTTURA & UNIONE -->
+                                    <div class="mb-3 p-2 bg-light rounded-3">
+                                        <div class="text-uppercase text-secondary fw-bold mb-1" style="font-size: 0.65rem;">Struttura & Unione</div>
+                                        <div class="row g-1 text-center">
+                                            <div class="col-6">
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    <button class="btn btn-white border btn-shape px-1" data-col="1" data-row="0">1C</button>
+                                                    <button class="btn btn-white border btn-shape px-1" data-col="2" data-row="0">2C</button>
+                                                    <button class="btn btn-white border btn-shape px-1" data-col="3" data-row="0">3C</button>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    <button class="btn btn-white border btn-shape px-1" data-col="0" data-row="1">1R</button>
+                                                    <button class="btn btn-white border btn-shape px-1" data-col="0" data-row="2">2R</button>
+                                                    <button class="btn btn-white border btn-shape px-1" data-col="0" data-row="3">3R</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- CONTENUTO & TESTI -->
+                                    <div class="mb-3 p-2 border rounded-3">
+                                        <div class="text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.65rem;">Testi & Contenuti</div>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-7">
+                                                <textarea id="prop-cell-name" class="form-control form-control-sm border-0 bg-light" rows="2" placeholder="Nome Prodotto"></textarea>
+                                            </div>
+                                            <div class="col-5">
+                                                <input type="text" id="prop-cell-price" class="form-control form-control-sm border-0 bg-light fw-bold text-danger" placeholder="Prezzo">
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-12">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text border-0 bg-light small">Cod.</span>
+                                                    <input type="text" id="prop-cell-code" class="form-control border-0 bg-light" placeholder="Codice prodotto">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-1">
+                                            <div class="col-6">
+                                                <select id="prop-cell-layout" class="form-select form-select-sm border-0 bg-light fw-bold text-dark">
+                                                    <option value="vertical-below">Prezzo Sotto (Standard)</option>
+                                                    <option value="vertical-above">Prezzo Sopra</option>
+                                                    <option value="split-bottom">Foto Centro, Nome/Cod Sx, Prezzo Dx</option>
+                                                    <option value="horizontal-left">Foto a Sinistra</option>
+                                                    <option value="horizontal-right">Foto a Destra</option>
+                                                    <option value="overlay">Testo su Foto (Overlay)</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    <button class="btn btn-white border btn-cell-align" data-align="left"><i class="bi bi-text-left"></i></button>
+                                                    <button class="btn btn-white border btn-cell-align" data-align="center"><i class="bi bi-text-center"></i></button>
+                                                    <button class="btn btn-white border btn-cell-align" data-align="right"><i class="bi bi-text-right"></i></button>
+                                                </div>
+                                                <input type="hidden" id="prop-cell-align" value="center">
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <input type="text" id="prop-cell-scadenza" class="form-control form-control-sm border-0 bg-light" placeholder="Scadenza / Info (es: 15/10)">
+                                        </div>
+                                        <div class="row g-2 mt-2 pt-2 border-top border-light">
+                                            <div class="col-6">
+                                                <div class="form-check form-switch pt-1">
+                                                    <input class="form-check-input" type="checkbox" id="prop-cell-bg-transparent-quick">
+                                                    <label class="form-check-label small fw-bold" style="font-size:0.75rem; cursor:pointer;" for="prop-cell-bg-transparent-quick">Sfondo Trasparente</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <button type="button" id="btn-cell-remove-img-bg-quick" class="btn btn-outline-danger btn-sm w-100 fw-bold border-2 rounded-pill py-1" style="font-size: 0.72rem;" title="Rimuovi lo sfondo bianco/colorato dall'immagine con AI (rembg)">
+                                                    <i class="bi bi-magic"></i> Rimuovi Sfondo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- VISUAL & LAYOUT -->
+                                    <div class="mb-3 p-2 border rounded-3">
+                                        <div class="text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.65rem;">Visual & Foto</div>
+                                        
+                                        <div class="input-group input-group-sm mb-2">
+                                            <input type="text" id="prop-cell-img" class="form-control border-0 bg-light" placeholder="URL Immagine">
+                                            <button class="btn btn-warning" type="button" id="btn-suggest-cell-img" title="Suggerisci Immagine (Web)"><i class="bi bi-lightbulb-fill text-dark"></i></button>
+                                            <button class="btn btn-light border" type="button" id="btn-upload-cell-img" title="Carica dal PC"><i class="bi bi-upload"></i></button>
+                                        </div>
+                                        <div class="mb-2">
+                                            <button type="button" id="btn-cell-remove-img-bg" class="btn btn-outline-danger btn-sm w-100 fw-bold border-2 rounded-pill shadow-sm py-1" style="font-size: 0.75rem;" title="Rimuovi lo sfondo bianco/colorato dall'immagine usando l'intelligenza artificiale (rembg)">
+                                                <i class="bi bi-magic"></i> Rimuovi Sfondo Immagine
+                                            </button>
+                                        </div>
+                                        
+                                        <input type="file" id="file-upload-cell-img" class="d-none" accept="image/*">
+                                        
+                                        <label class="small text-muted mb-0" style="font-size:0.65rem;">Zoom Immagine (%)</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="range" id="prop-cell-img-zoom" class="form-range flex-grow-1" min="10" max="250" step="1" value="100">
+                                            <input type="number" id="inp-cell-img-zoom" class="form-control form-control-sm border-0 bg-light text-center px-1" style="width: 50px;" min="10" max="250">
+                                        </div>
+
+                                        <label class="small text-muted mb-0 mt-2 d-block" style="font-size:0.65rem;">Rotazione Foto (deg)</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="range" id="prop-cell-img-rotate" class="form-range flex-grow-1" min="-180" max="180" step="1" value="0">
+                                            <input type="number" id="inp-cell-img-rotate" class="form-control form-control-sm border-0 bg-light text-center px-1" style="width: 50px;" min="-180" max="180">
+                                        </div>
+
+                                        <div class="row g-1 mt-2">
+                                            <div class="col-6">
+                                                <label class="small text-muted mb-0" style="font-size:0.6rem;">Offset X (px)</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" id="prop-cell-img-x" class="form-range flex-grow-1" min="-200" max="200" step="1" value="0">
+                                                    <input type="number" id="inp-cell-img-x" class="form-control form-control-sm border-0 bg-light text-center px-1" style="width: 40px;" min="-200" max="200">
+                                                </div>
+                                            </div>
+                                            <div class="col-6 border-start">
+                                                <label class="small text-muted mb-0 mx-1" style="font-size:0.6rem;">Offset Y (px)</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" id="prop-cell-img-y" class="form-range flex-grow-1" min="-200" max="200" step="1" value="0">
+                                                    <input type="number" id="inp-cell-img-y" class="form-control form-control-sm border-0 bg-light text-center px-1" style="width: 40px;" min="-200" max="200">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- OVERLAY OPTIONS -->
+                                    <div id="overlay-options" style="display: none;" class="p-2 bg-light border rounded-3 mb-3">
+                                        <label class="text-uppercase text-secondary fw-bold mb-2 d-block" style="font-size: 0.65rem;">Opzioni Overlay</label>
+                                        <div class="row g-1 mb-2">
+                                            <div class="col-6">
+                                                <select id="prop-cell-badge-style" class="form-select form-select-sm">
+                                                    <option value="none">Senza Badge</option>
+                                                    <option value="circle-red">Cerchio Rosso</option>
+                                                    <option value="circle-yellow">Cerchio Giallo</option>
+                                                    <option value="rect-dark">Nero</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <select id="prop-cell-badge-pos" class="form-select form-select-sm">
+                                                    <option value="bottom-right">Basso DX</option>
+                                                    <option value="bottom-left">Basso SX</option>
+                                                    <option value="top-right">Alto DX</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <input type="range" id="prop-cell-badge-zoom" class="form-range" min="20" max="300" step="10" value="100">
+                                    </div>
+
+                                    <!-- SPAZIATURE -->
+                                    <div class="mb-3 p-2 border rounded-3">
+                                        <div class="text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.65rem;">Spaziatura Interna (Verticale)</div>
+                                        <div class="row g-2">
+                                            <div class="col-6 border-end">
+                                                <label class="text-muted d-block text-center" style="font-size:0.6rem;">Spazio Top</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" id="prop-cell-pad-top" class="form-range flex-grow-1" min="0" max="500" step="5" value="15">
+                                                    <span id="lbl-cell-pad-top" class="small text-muted" style="min-width:20px;">15</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="text-muted d-block text-center" style="font-size:0.6rem;">Spazio Bottom</label>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <input type="range" id="prop-cell-pad-bot" class="form-range flex-grow-1" min="0" max="500" step="5" value="15">
+                                                    <span id="lbl-cell-pad-bot" class="small text-muted" style="min-width:20px;">15</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- COLORI -->
+                                    <div class="p-2 border rounded-3">
+                                        <div class="text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.65rem;">Stile & Colori</div>
+                                        <div class="row g-1 mb-2">
+                                            <div class="col-4">
+                                                <div class="small text-muted text-center" style="font-size:0.6rem;">Testo</div>
+                                                <input type="color" id="prop-cell-namecolor" class="form-control form-control-sm form-control-color w-100 border-0" title="Colore Nome">
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="small text-muted text-center" style="font-size:0.6rem;">Prezzo</div>
+                                                <input type="color" id="prop-cell-pricecolor" class="form-control form-control-sm form-control-color w-100 border-0" title="Colore Prezzo">
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="small text-muted text-center" style="font-size:0.6rem;">Sfondo</div>
+                                                <input type="color" id="prop-cell-bgcolor" class="form-control form-control-sm form-control-color w-100 border-0" title="Colore Sfondo">
+                                            </div>
+                                        </div>
+                                        <div class="form-check form-switch mt-1">
+                                            <input class="form-check-input" type="checkbox" id="prop-cell-bg-transparent">
+                                            <label class="form-check-label small" for="prop-cell-bg-transparent">Fondo Trasparente</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div> <!-- End Accordion -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Suggerimenti Immagini -->
+<div class="modal fade" id="modalSuggerimentiImg" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 bg-light">
+        <h5 class="modal-title fw-bold"><i class="bi bi-images me-2 text-primary"></i>Cerca Immagine dal Web</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4 bg-light">
+        <div id="loaderSuggerimenti" class="text-center py-5 d-none">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-3 fw-bold">Ricerca in corso su Web...</p>
+        </div>
+        <div class="row g-3" id="gridSuggerimenti">
+            <!-- Le immagini appariranno qui -->
+        </div>
+      </div>
+      <div class="modal-footer border-0 bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Annulla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Modifica Rapida Prodotti -->
+<div class="modal fade" id="modalQuickEdit" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 bg-info bg-opacity-10">
+        <h5 class="modal-title fw-bold text-info-emphasis"><i class="bi bi-list-check me-2"></i>Modifica Rapida Prodotti (Tutti i Fogli)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4 bg-light">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle bg-white rounded-3 shadow-sm" id="tableQuickEdit">
+                <thead class="table-light">
+                    <tr>
+                        <th width="30%">Nome Prodotto</th>
+                        <th width="15%">Prezzo</th>
+                        <th width="15%">Scadenza</th>
+                        <th width="20%">Foglio</th>
+                        <th width="20%" class="text-center">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="quickEditTbody">
+                    <!-- JS fills this -->
+                </tbody>
+            </table>
+        </div>
+      </div>
+      <div class="modal-footer border-0 bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" id="btn-save-quick-edit">Salva Modifiche</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Sfondo Volantino -->
+<div class="modal fade" id="bgModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-image"></i> Sfondo Volantino Libero</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 small">
+            Applica un'immagine full-screen dietro l'intero volantino.
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label small mb-1 fw-bold">Sfondo Attuale</label>
+            <div class="d-flex align-items-center mb-2">
+                <img id="current-bg-preview" src="" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #ccc; display: none;" class="me-2 rounded">
+                <span id="current-bg-name" class="small text-muted">Nessuno sfondo</span>
+            </div>
+            <button class="btn btn-outline-danger btn-sm w-100" id="btn-remove-bg"><i class="bi bi-eraser"></i> Rimuovi Sfondo (Torna bianco)</button>
+        </div>
+        
+        <hr>
+        
+        <h6 class="small fw-bold">1. Incolla Link Immagine URL</h6>
+        <div class="input-group input-group-sm mb-3">
+            <input type="text" id="prop-bg-url" class="form-control" placeholder="https://miosito.it/sfondo.jpg">
+            <button class="btn btn-primary" id="btn-apply-bg-url">Applica Link</button>
+        </div>
+
+        <h6 class="small fw-bold">2. Carica dal Dispositivo (Libreria Server)</h6>
+        <div class="input-group input-group-sm mb-2">
+            <input type="text" id="prop-bg-name" class="form-control" placeholder="Nome Sfondo (es. Speciale Natale)">
+            <button class="btn btn-outline-secondary" id="btn-upload-bg-file" title="Scegli file da PC o Telefono"><i class="bi bi-search"></i> Sfoglia...</button>
+            <input type="file" id="file-upload-bg" class="d-none" accept="image/*">
+        </div>
+        <button class="btn btn-success btn-sm w-100 mb-3" id="btn-save-bg"><i class="bi bi-upload"></i> Carica e Applica</button>
+
+        <h6 class="small fw-bold border-bottom pb-1 mt-3">Sfondi Registrati</h6>
+        <div id="bg-library-list" class="row g-2 mt-1" style="max-height: 200px; overflow-y: auto;">
+            <div class="text-center text-muted small w-100 py-3">Caricamento in corso...</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Dimensioni Volantino -->
+<div class="modal fade" id="sizeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-arrows-fullscreen"></i> Dimensioni Volantino</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label small fw-bold">Formati Predefiniti</label>
+            <select id="prop-flyer-preset" class="form-select form-select-sm">
+                <option value="">-- Seleziona --</option>
+                <option value="a4">Verticale Standard (A4 approx)</option>
+                <option value="orizzontale">Orizzontale (Panorama)</option>
+                <option value="striscia">Striscione Lungo</option>
+                <option value="quadrato">Quadrato (Social)</option>
+            </select>
+        </div>
+        <div class="row g-2">
+            <div class="col-6 mb-3">
+                <label class="form-label small fw-bold">Larghezza (px)</label>
+                <input type="number" id="prop-flyer-width" class="form-control" min="800" max="8000">
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label small fw-bold">Altezza (px)</label>
+                <input type="number" id="prop-flyer-height" class="form-control" min="800" max="8000">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-bold">Grandezza Base Testo (rem)</label>
+            <input type="number" id="prop-flyer-namesize" class="form-control" min="0.2" max="8.0" step="0.1">
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-bold">Grandezza Base Prezzo (rem)</label>
+            <input type="number" id="prop-flyer-pricesize" class="form-control" min="0.5" max="10.0" step="0.1">
+        </div>
+        <div class="alert alert-info small py-2 mb-0">
+            Il bordo interno di 50px si applicherà automaticamente intorno a queste dimensioni, sovrapponendosi allo Sfondo.
+        </div>
+      </div>
+      <div class="modal-footer p-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-apply-size">Applica</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Librerie di Esportazione -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+#flyer-canvas {
+    transition: transform 0.2s;
+}
+.header-area {
+    transition: background 0.2s;
+}
+.header-area:hover {
+    background: #f8f9fa;
+}
+.header-area.selected {
+    border: 3px solid #0d6efd !important;
+    background: #e9ecef;
+}
+.flyer-bg-selected {
+    border: 3px solid #198754 !important;
+}
+.cell-slot {
+    background: #ffffff;
+    transition: all 0.2s;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.grid-cell {
+    border: 2px solid #555; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: transparent; 
+    overflow: hidden;
+    position: relative;
+    min-height: 180px; 
+}
+.grid-cell:hover {
+    border-color: #0d6efd;
+    box-shadow: inset 0 0 0 1px #0d6efd;
+}
+.grid-cell.selected {
+    border: 3px solid #0d6efd;
+    z-index: 10;
+}
+.grid-cell.hidden {
+    display: none !important;
+}
+
+.cell-content-img {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 10px;
+    min-height: 50px;
+}
+.cell-content-img img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+.cell-content-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 5px;
+}
+.cell-content-price {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #e60000;
+}
+
+/* Modalità Esportazione */
+.exporting .grid-cell {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.product-item {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.product-item:hover {
+    background: #e9ecef;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Dati passati dal backend in modo sicuro -->
+<script id="layout-json-data" type="application/json">
+    {{ layout_json|safe if layout_json else '{}' }}
+</script>
+
+<script>
+window.onerror = function(msg, url, line) {
+    console.error("JS Error:", msg, "at", url, "line", line);
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    
+    const canvasContainer = document.getElementById("flyer-canvas");
+    const volantinoId = "{{ volantino_id if volantino_id else '' }}";
+    
+    let currentDocPages = [];
+    let currentPageIndex = 0;
+    let layoutData = { header: {}, grid: [], background: null };
+    
+    // Lista sfondi
+    let sfondiLibrary = [];
+    
+    // Parsiamo il JSON se valido (dal tag script sicuro)
+    try {
+        const layoutRaw = document.getElementById('layout-json-data').textContent;
+        const parsed = JSON.parse(layoutRaw);
+        if(parsed && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+            if (parsed.isMultiPage && Array.isArray(parsed.pages) && parsed.pages.length > 0) {
+                currentDocPages = parsed.pages;
+                layoutData = currentDocPages[0];
+            } else {
+                currentDocPages = [parsed];
+                layoutData = currentDocPages[0];
+            }
+        } else {
+            currentDocPages = [layoutData];
+        }
+    } catch(e) {
+        console.error("Errore parsing layoutData:", e);
+        currentDocPages = [layoutData];
+    }
+    
+    if (!layoutData) layoutData = { header: {}, grid: [], background: null, global: {} };
+    if (!layoutData.global) layoutData.global = {};
+    if (!layoutData.header) layoutData.header = {};
+    if (!layoutData.grid) layoutData.grid = [];
+
+    console.log("LayoutData loaded:", layoutData);
+
+    function saveCurrentPageToDoc() {
+        if (currentDocPages.length > 0) {
+            currentDocPages[currentPageIndex] = JSON.parse(JSON.stringify(layoutData));
+        }
+    }
+
+    const btnSaveTemplate = document.getElementById("btn-save-template");
+    if (btnSaveTemplate) {
+        btnSaveTemplate.addEventListener("click", async () => {
+            const btnOriginal = btnSaveTemplate.innerHTML;
+            btnSaveTemplate.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvataggio...';
+            btnSaveTemplate.disabled = true;
+            try {
+                saveCurrentPageToDoc();
+                const currentData = layoutData;
+                
+                const resp = await fetch("{{ url_for('salva_template_promo') }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        tipo: "{{ tipo_volantino }}",
+                        global: currentData.global,
+                        header: currentData.header,
+                        background: currentData.background,
+                        grid: currentData.grid
+                    })
+                });
+                const res = await resp.json();
+                if(res.success) {
+                    alert("Template visuale salvato con successo! Le prossime promozioni caricheranno queste impostazioni di base automaticamente.");
+                } else {
+                    alert("Errore salvataggio template: " + (res.message || ''));
+                }
+            } catch(e) {
+                alert("Errore salvataggio template");
+                console.error(e);
+            }
+            btnSaveTemplate.innerHTML = btnOriginal;
+            btnSaveTemplate.disabled = false;
+        });
+    }
+
+    function updatePaginationUI() {
+        const pan = document.getElementById("multi-page-controls");
+        if (!pan) return;
+        if (currentDocPages.length > 1) {
+            pan.style.setProperty("display", "flex", "important");
+            document.getElementById("page-indicator").innerText = `Foglio ${currentPageIndex + 1} di ${currentDocPages.length}`;
+            document.getElementById("btn-page-prev").disabled = (currentPageIndex === 0);
+            document.getElementById("btn-page-next").disabled = (currentPageIndex === currentDocPages.length - 1);
+        } else {
+            pan.style.setProperty("display", "none", "important");
+        }
+    }
+    
+    const btnPrev = document.getElementById("btn-page-prev");
+    if (btnPrev) {
+        btnPrev.addEventListener("click", () => {
+            if (currentPageIndex > 0) {
+                saveCurrentPageToDoc();
+                currentPageIndex--;
+                layoutData = currentDocPages[currentPageIndex];
+                renderLayout();
+                updatePaginationUI();
+            }
+        });
+    }
+
+    const btnNext = document.getElementById("btn-page-next");
+    if (btnNext) {
+        btnNext.addEventListener("click", () => {
+            if (currentPageIndex < currentDocPages.length - 1) {
+                saveCurrentPageToDoc();
+                currentPageIndex++;
+                layoutData = currentDocPages[currentPageIndex];
+                renderLayout();
+                updatePaginationUI();
+            }
+        });
+    }
+
+    // --- ELIMINA FOGLIO CORRENTE ---
+    const btnDeletePage = document.getElementById("btn-delete-page");
+    if (btnDeletePage) {
+        btnDeletePage.addEventListener("click", () => {
+            if (currentDocPages.length <= 1) {
+                alert("Non puoi eliminare l'unico foglio rimasto!");
+                return;
+            }
+            if (!confirm(`Sei sicuro di voler eliminare il Foglio ${currentPageIndex + 1}? L'operazione è irreversibile.`)) return;
+            
+            currentDocPages.splice(currentPageIndex, 1);
+            if (currentPageIndex >= currentDocPages.length) {
+                currentPageIndex = currentDocPages.length - 1;
+            }
+            layoutData = currentDocPages[currentPageIndex];
+            renderLayout();
+            updatePaginationUI();
+        });
+    }
+
+    // --- APPLICA PARAMETRI A TUTTI I FOGLI ---
+    const btnApplyAll = document.getElementById("btn-apply-all-pages");
+    if (btnApplyAll) {
+        btnApplyAll.addEventListener("click", () => {
+            if (currentDocPages.length <= 1) {
+                alert("C'è un solo foglio, nessun altro foglio da aggiornare.");
+                return;
+            }
+            saveCurrentPageToDoc();
+            const currentGlobal = JSON.parse(JSON.stringify(layoutData.global));
+            const currentHeader = JSON.parse(JSON.stringify(layoutData.header));
+            const currentBg = layoutData.background ? JSON.parse(JSON.stringify(layoutData.background)) : null;
+            
+            for (let i = 0; i < currentDocPages.length; i++) {
+                if (i === currentPageIndex) continue;
+                currentDocPages[i].global = JSON.parse(JSON.stringify(currentGlobal));
+                currentDocPages[i].header = JSON.parse(JSON.stringify(currentHeader));
+                if (currentBg) {
+                    currentDocPages[i].background = JSON.parse(JSON.stringify(currentBg));
+                }
+            }
+            alert(`✅ Parametri applicati a tutti i ${currentDocPages.length} fogli!`);
+        });
+    }
+
+    const btnAddPage = document.getElementById("btn-add-page");
+    if (btnAddPage) {
+        btnAddPage.addEventListener("click", () => {
+            saveCurrentPageToDoc();
+            const newPage = JSON.parse(JSON.stringify(layoutData));
+            if(newPage.grid && Array.isArray(newPage.grid)) {
+                newPage.grid.forEach(cell => {
+                    cell.productId = null;
+                    cell.name = "";
+                    cell.price = "";
+                    cell.img = "";
+                });
+            }
+            currentDocPages.push(newPage);
+            currentPageIndex = currentDocPages.length - 1;
+            layoutData = currentDocPages[currentPageIndex];
+            renderLayout();
+            updatePaginationUI();
+            alert("Nuovo foglio aggiunto!");
+        });
+    }
+
+    if (!layoutData.grid || !Array.isArray(layoutData.grid) || layoutData.grid.length === 0) {
+        layoutData.grid = [];
+        for(let i=1; i<=9; i++) {
+            layoutData.grid.push({
+                id: 'cell_' + i,
+                colSpan: 1,
+                rowSpan: 1,
+                isHidden: false,
+                productId: null,
+                name: "PRODOTTO " + i,
+                price: "€ 0,00",
+                img: "",
+                bgTransparent: true, // Default trasparente per vedere lo sfondo
+                bgColor: "#ffffff",
+                nameColor: "#000000",
+                priceColor: "#e60000"
+            });
+        }
+    }
+    
+    if(!layoutData.header) {
+        layoutData.header = {
+            title: "OFFERTE SPECIALI", titleColor: "#000000", titleSize: 48, logoUrl: "", logoSize: 180, logoPos: "center", titlePos: "right"
+        };
+    } else {
+        if (layoutData.header.logoSize === undefined) layoutData.header.logoSize = 180;
+        if (layoutData.header.logoPos === undefined) layoutData.header.logoPos = "center";
+        if (layoutData.header.titlePos === undefined) layoutData.header.titlePos = "right";
+    }
+
+    if(!layoutData.global) layoutData.global = {};
+    
+    if(layoutData.global.width === undefined) layoutData.global.width = 1250; // Verticale
+    if(layoutData.global.height === undefined) layoutData.global.height = 1750; // Verticale
+    if(layoutData.global.border === undefined) layoutData.global.border = false;
+    if(layoutData.global.bgColor === undefined) layoutData.global.bgColor = "#ffffff";
+    if(layoutData.global.nameSize === undefined) layoutData.global.nameSize = 1.0;
+    if(layoutData.global.priceSize === undefined) layoutData.global.priceSize = 1.8;
+    if(layoutData.global.paddingTop === undefined) layoutData.global.paddingTop = 150; // Spazio per header/grafica
+    if(layoutData.global.paddingBottom === undefined) layoutData.global.paddingBottom = 100;
+    if(layoutData.global.paddingSides === undefined) layoutData.global.paddingSides = 100;
+    if(layoutData.global.gridGap === undefined) layoutData.global.gridGap = 20;
+    if(layoutData.global.gridWidth === undefined) layoutData.global.gridWidth = 1050;
+    if(layoutData.global.cols === undefined) layoutData.global.cols = 3;
+    if(layoutData.global.rowHeight === undefined) layoutData.global.rowHeight = 350;
+    
+    if(layoutData.global.bgWidth === undefined) layoutData.global.bgWidth = 100;
+    if(layoutData.global.bgHeight === undefined) layoutData.global.bgHeight = 100;
+    if(layoutData.global.bgPosX === undefined) layoutData.global.bgPosX = 50;
+    if(layoutData.global.bgPosY === undefined) layoutData.global.bgPosY = 50;
+    if(layoutData.global.bgRepeat === undefined) layoutData.global.bgRepeat = "cover";
+
+    const gridContainer = document.getElementById("flyer-grid");
+    const headerContainer = document.getElementById("flyer-header");
+    let selectedType = null; 
+
+    const pnlEmpty = document.getElementById("no-selection-msg");
+    const pnlHeader = document.getElementById("header-props");
+    const pnlCell = document.getElementById("cell-props");
+    const pnlFlyerBase = document.getElementById("flyer-base-props");
+    
+    const inpFBorder = document.getElementById("prop-flyer-border");
+    const inpFBgColor = document.getElementById("prop-flyer-bgcolor");
+    const inpFPadTop = document.getElementById("prop-grid-pad-top");
+    const inpFPadBot = document.getElementById("prop-grid-pad-bot");
+    const inpFPadSides = document.getElementById("prop-grid-pad-sides");
+    const inpFGridGap = document.getElementById("prop-grid-gap");
+    
+    const inpFBgWidth = document.getElementById("prop-bg-width");
+    const inpFBgHeight = document.getElementById("prop-bg-height");
+    const inpFBgPosX = document.getElementById("prop-bg-pos-x");
+    const inpFBgPosY = document.getElementById("prop-bg-pos-y");
+
+    const inpGNameSize = document.getElementById("prop-global-namesize");
+    const lblGNameSize = document.getElementById("lbl-global-namesize");
+    const inpGPriceSize = document.getElementById("prop-global-pricesize");
+    const lblGPriceSize = document.getElementById("lbl-global-pricesize");
+
+    const inpGWidth = document.getElementById("prop-global-width");
+    const inpGHeight = document.getElementById("prop-global-height");
+    const inpGGridWidth = document.getElementById("prop-global-grid-width");
+    const inpGCols = document.getElementById("prop-global-cols");
+    const inpGRowHeight = document.getElementById("prop-global-row-height");
+    
+    const inpCPadTop = document.getElementById("prop-cell-pad-top");
+    const lblCPadTop = document.getElementById("lbl-cell-pad-top");
+    const inpCPadBot = document.getElementById("prop-cell-pad-bot");
+    const lblCPadBot = document.getElementById("lbl-cell-pad-bot");
+
+    const inpBgRepeat = document.getElementById("prop-bg-repeat");
+
+    const inpHTitle = document.getElementById("prop-header-title");
+    const inpHColor = document.getElementById("prop-header-color");
+    const inpHSize = document.getElementById("prop-header-size");
+    const inpHLogo = document.getElementById("prop-header-logo");
+    const inpHLogoSize = document.getElementById("prop-header-logo-size");
+    const lblHLogoSize = document.getElementById("lbl-header-logo-size");
+    const inpHLogoWidth = document.getElementById("prop-header-logo-width");
+    const lblHLogoWidth = document.getElementById("lbl-header-logo-width");
+
+    const inpCName = document.getElementById("prop-cell-name");
+    const inpCCode = document.getElementById("prop-cell-code");
+    const inpCPrice = document.getElementById("prop-cell-price");
+    const inpCImg = document.getElementById("prop-cell-img");
+    const inpCBgColor = document.getElementById("prop-cell-bgcolor");
+    const inpCNameColor = document.getElementById("prop-cell-namecolor");
+    const inpCPriceColor = document.getElementById("prop-cell-pricecolor");
+    const inpCBgTransparent = document.getElementById("prop-cell-bg-transparent");
+    const inpCBgTransparentQuick = document.getElementById("prop-cell-bg-transparent-quick");
+    const inpCLayout = document.getElementById("prop-cell-layout");
+    const inpCScadenza = document.getElementById("prop-cell-scadenza");
+    const inpCPricePos = document.getElementById("prop-cell-pricepos");
+    const inpCBadgePos = document.getElementById("prop-cell-badge-pos");
+    const inpCBadgeStyle = document.getElementById("prop-cell-badge-style");
+    const inpCImgZoom = document.getElementById("prop-cell-img-zoom");
+    const inpCBadgeZoom = document.getElementById("prop-cell-badge-zoom");
+
+    let prodottiData = [];
+    fetch("{{ url_for('api_prodotti_volantino') }}")
+        .then(r => r.json())
+        .then(data => {
+            prodottiData = data;
+            renderProductsList(data);
+        });
+
+    function renderProductsList(list) {
+        const container = document.getElementById("products-list");
+        container.innerHTML = "";
+        if (list.length === 0) {
+            container.innerHTML = `<div class="text-muted small text-center mt-3">Nessun prodotto trovato.</div>`;
+            return;
+        }
+
+        list.forEach(p => {
+            const div = document.createElement('div');
+            div.className = "product-item p-2 border-bottom";
+            const prc = p.prezzo && p.prezzo !== "None" ? parseFloat(p.prezzo).toFixed(2) : "0.00";
+            div.innerHTML = `
+                <div class="fw-bold small">${p.nome}</div>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                    <span class="badge text-bg-light border">${p.codice||'-'}</span>
+                    <span class="text-success fw-bold small">€ ${prc}</span>
+                </div>
+            `;
+            
+            div.addEventListener('click', () => {
+                if(selectedType && selectedType.startsWith('cell_')) {
+                    const cellData = layoutData.grid.find(c => c.id === selectedType);
+                    if(cellData) {
+                        cellData.productId = p.id;
+                        
+                        // Logica: Rimuovi KG o PZ dal nome e mettilo nel prezzo
+                        let name = p.nome || "";
+                        let unit = "";
+                        const unitMatch = name.match(/\s(KG|PZ|GR|LT|ML|CL)\b/i);
+                        if (unitMatch) {
+                            unit = unitMatch[1].toUpperCase();
+                            name = name.replace(unitMatch[0], "").trim();
+                        }
+                        
+                        cellData.name = name;
+                        cellData.price = (p.prezzo && p.prezzo !== "None") ? `€ ${parseFloat(p.prezzo).toFixed(2)} ${unit}`.trim() : `€ 0.00 ${unit}`.trim();
+                        cellData.img = p.immagine ? "{{ url_for('static', filename='uploads/volantino_prodotti/') }}" + p.immagine : ("https://via.placeholder.com/300?text=" + encodeURIComponent(name.substring(0, 15)));
+                        
+                        renderGrid();
+                        selectElement(selectedType); 
+                    }
+                } else {
+                    alert("Seleziona prima una casella vuota sul volantino!");
+                }
+            });
+            container.appendChild(div);
+        });
+    }
+
+    document.getElementById("search-products").addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        const filtered = prodottiData.filter(p => p.nome.toLowerCase().includes(q) || (p.codice || "").toLowerCase().includes(q));
+        renderProductsList(filtered);
+    });
+
+    function renderHeader() {
+        const h = layoutData.header;
+        const logoCont = document.getElementById("header-logo-container");
+        const titleCont = document.getElementById("header-title-container");
+        const img = document.getElementById("header-logo");
+        const placeholder = document.getElementById("header-logo-placeholder");
+        const titleText = document.getElementById("header-title");
+        const lSize = h.logoSize !== undefined ? h.logoSize : 100;
+
+        if(h.logoUrl) {
+            img.src = h.logoUrl;
+            img.style.display = "inline-block";
+            
+            // Retro-compatibilità: se lSize era una percentuale (es. 100), convertiamo a px
+            let heightPx = lSize <= 400 ? (120 * (lSize / 100)) : lSize; 
+            // Se l'utente l'ha appena salvato, è già il numero di px.
+            if(lSize > 10) heightPx = lSize; 
+
+            img.style.height = heightPx + "px";
+            img.style.maxWidth = (h.logoWidth !== undefined ? h.logoWidth : 100) + "%";
+            img.style.objectFit = "contain";
+            
+            placeholder.style.display = "none";
+        } else {
+            img.style.display = "none";
+            placeholder.style.display = "block";
+        }
+
+        titleText.innerText = h.title || "";
+        titleText.style.color = h.titleColor;
+        titleText.style.fontSize = h.titleSize + "px";
+        
+        const slotL = document.getElementById("header-slot-left");
+        const slotC = document.getElementById("header-slot-center");
+        const slotR = document.getElementById("header-slot-right");
+        
+        document.getElementById("header-elements-storage").appendChild(logoCont);
+        document.getElementById("header-elements-storage").appendChild(titleCont);
+
+        logoCont.style.width = "100%";
+        logoCont.style.display = "flex";
+        img.style.mixBlendMode = "multiply";
+
+        if(h.logoPos === 'center') {
+            logoCont.style.justifyContent = "center";
+            titleCont.style.textAlign = "center";
+        } else if(h.logoPos === 'right') {
+            logoCont.style.justifyContent = "flex-end";
+            titleCont.style.textAlign = "right";
+        } else {
+            logoCont.style.justifyContent = "flex-start";
+            titleCont.style.textAlign = "left";
+        }
+
+        const slotMap = { "left": slotL, "center": slotC, "right": slotR };
+        if(h.logoPos !== 'none' && slotMap[h.logoPos]) slotMap[h.logoPos].appendChild(logoCont);
+        if(h.titlePos !== 'none' && slotMap[h.titlePos]) slotMap[h.titlePos].appendChild(titleCont);
+        
+        const theme = layoutData.global.theme || 'standard';
+        let headerVisible = (theme === 'standard');
+        document.getElementById("flyer-header").style.display = headerVisible ? 'flex' : 'none';
+    }
+
+    function renderGrid() {
+        gridContainer.innerHTML = "";
+        layoutData.grid.forEach(cell => {
+            const div = document.createElement("div");
+            div.className = "grid-cell";
+            div.id = cell.id;
+            
+            if(cell.isHidden) {
+                div.classList.add("hidden");
+            } else {
+                div.style.gridColumn = "span " + cell.colSpan;
+                div.style.gridRow = "span " + cell.rowSpan;
+                const hasGlobalBg = !!(layoutData.background && layoutData.background.url);
+                const isBgVisible = !hasGlobalBg && (cell.bgTransparent === false);
+                div.style.backgroundColor = isBgVisible ? (cell.bgColor || "#ffffff") : "transparent";
+                div.style.border = "2px solid #555"; 
+                div.style.paddingTop = (cell.cellPadTop !== undefined ? cell.cellPadTop : 15) + "px";
+                div.style.paddingBottom = (cell.cellPadBot !== undefined ? cell.cellPadBot : 15) + "px";
+                
+                const customLayout = cell.cellLayout || "vertical";
+                const tAlign = cell.textAlign || "center";
+                const pPos = cell.pricePos || "below";
+                const globalNameSize = layoutData.global.nameSize || 1.0;
+                const globalPriceSize = layoutData.global.priceSize || 1.8;
+                const imgZoomScale = (cell.imgZoom !== undefined ? cell.imgZoom : 100) / 100;
+                const badgeZoomScale = (cell.badgeZoom !== undefined ? cell.badgeZoom : 100) / 100;
+                const imgRotate = (cell.imgRotate !== undefined) ? cell.imgRotate : 0;
+                const imgX = (cell.imgX !== undefined) ? cell.imgX : 0;
+                const imgY = (cell.imgY !== undefined) ? cell.imgY : 0;
+                
+                const htmlName = `<div style="color: ${cell.nameColor || '#333'}; font-size: ${globalNameSize}rem; line-height: 1.2; font-weight: bold; margin-bottom: 5px; min-height: ${globalNameSize * 3.8}rem; display: flex; align-items: flex-start; justify-content: ${tAlign === 'center' ? 'center' : (tAlign === 'right' ? 'flex-end' : 'flex-start')}; text-align: ${tAlign};">${(cell.name || '').replace(/\\n/g, '<br>')}</div>`;
+                const codeHtml = cell.code ? `<div style="font-size: 0.8rem; color: #666; margin-top: 2px; font-weight: bold; opacity: 0.8;">Cod. ${cell.code}</div>` : '';
+                const htmlPrice = `<div style="color: ${cell.priceColor || '#e60000'}; font-size: ${globalPriceSize}rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0; min-height: ${globalPriceSize * 1.2}rem; display: flex; align-items: center; flex-direction: column; justify-content: ${tAlign === 'center' ? 'center' : (tAlign === 'right' ? 'flex-end' : 'flex-start')}; text-align: ${tAlign};"><div>${cell.price || ''}</div>${codeHtml}</div>`;
+                const htmlScad = cell.scadenza ? `<div style="font-size:0.9rem; color:#555; margin-top:2px;">SCAD: ${cell.scadenza}</div>` : '';
+                const htmlTextGroup = pPos === 'above' ? htmlPrice + htmlName + htmlScad : htmlName + htmlPrice + htmlScad;
+                const imgStyle = `max-width: 100%; max-height: 100%; object-fit: contain; mix-blend-mode: multiply; transform: translate(${imgX}px, ${imgY}px) scale(${imgZoomScale}) rotate(${imgRotate}deg); transition: transform 0.2s;`;                let innerHtml = "";
+                if (customLayout === "vertical") {
+                    div.style.display = "grid";
+                    div.style.gridTemplateRows = "1fr auto auto auto";
+                    div.style.gap = "5px";
+                    innerHtml = `
+                        <div class="cell-content-img" style="display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; min-height: 0;">
+                            ${cell.img ? `<img src="${cell.img}" alt="Prodotto" crossorigin="anonymous" style="${imgStyle}">` : `<div style="height:50px;"></div>`}
+                        </div>
+                        <div class="cell-content-name" style="text-align: ${tAlign};">${htmlName}</div>
+                        <div class="cell-content-price" style="text-align: ${tAlign}; position: relative;">
+                            ${htmlPrice}
+                        </div>
+                        <div class="cell-content-scad" style="text-align: ${tAlign};">${htmlScad}</div>
+                    `;
+                } else if (customLayout === "split-bottom") {
+                    div.style.display = "grid";
+                    div.style.gridTemplateRows = "1fr auto";
+                    div.style.gridTemplateColumns = "1fr 1fr";
+                    div.style.gap = "10px";
+                    div.style.position = "relative";
+                    
+                    const htmlNameLeft = `<div style="color: ${cell.nameColor || '#333'}; font-size: ${globalNameSize * 0.95}rem; line-height: 1.25; font-weight: bold; text-align: left; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; min-height: ${globalNameSize * 2.8}rem;">
+                        <div>${(cell.name || '').replace(/\\n/g, '<br>')}</div>
+                        ${codeHtml}
+                        ${cell.scadenza ? `<div style="font-size:0.8rem; color:#666; margin-top:2px; font-weight: bold;">SCAD: ${cell.scadenza}</div>` : ''}
+                    </div>`;
+                    
+                    const htmlPriceRight = `<div style="color: ${cell.priceColor || '#e60000'}; font-size: ${globalPriceSize * 1.05}rem; font-weight: 900; letter-spacing: -0.5px; text-align: right; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;">
+                        <div>${cell.price || ''}</div>
+                    </div>`;
+                    
+                    innerHtml = `
+                        <div class="cell-content-img" style="grid-column: span 2; display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; min-height: 0;">
+                            ${cell.img ? `<img src="${cell.img}" alt="Prodotto" crossorigin="anonymous" style="${imgStyle}">` : `<div style="height:50px;"></div>`}
+                        </div>
+                        <div class="cell-content-left" style="grid-column: 1; padding-left: 10px; padding-bottom: 5px;">
+                            ${htmlNameLeft}
+                        </div>
+                        <div class="cell-content-right" style="grid-column: 2; padding-right: 10px; padding-bottom: 5px;">
+                            ${htmlPriceRight}
+                        </div>
+                    `;
+                } else if (customLayout === "horizontal-left") {
+                    div.style.display = "flex"; 
+                    div.style.flexDirection = "row";
+                    innerHtml = `<div style="flex: 0 0 45%; max-width: 45%; display: flex; justify-content: center; align-items: center; padding-right: 15px; min-height: 0; overflow: hidden;">${cell.img ? `<img src="${cell.img}" alt="Prodotto" crossorigin="anonymous" style="${imgStyle}">` : `<div style="height:50px;"></div>`}</div><div style="flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: ${tAlign}; overflow: hidden;">${htmlTextGroup}</div>`;
+                } else if (customLayout === "horizontal-right") {
+                    div.style.display = "flex"; 
+                    div.style.flexDirection = "row";
+                    innerHtml = `<div style="flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: ${tAlign}; overflow: hidden;">${htmlTextGroup}</div><div style="flex: 0 0 45%; max-width: 45%; display: flex; justify-content: center; align-items: center; padding-left: 15px; min-height: 0; overflow: hidden;">${cell.img ? `<img src="${cell.img}" alt="Prodotto" crossorigin="anonymous" style="${imgStyle}">` : `<div style="height:50px;"></div>`}</div>`;
+                } else if (customLayout === "overlay") {
+                    div.style.display = "block"; div.style.position = "relative"; div.style.overflow = "hidden";
+                    const bgImgUrl = cell.img ? cell.img : "https://via.placeholder.com/400?text=" + encodeURIComponent(cell.name.substring(0, 15));
+                    const overlayImgStyle = `position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: contain; padding: 20px; z-index: 1; transform: scale(${imgZoomScale}); transition: transform 0.2s;`;
+                    const htmlNameBox = `<div style="position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 8px; text-align: ${tAlign}; box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 2;"><div style="color: ${cell.nameColor || '#333'}; font-size: ${globalNameSize}rem; line-height: 1.2; font-weight: bold;">${(cell.name || '').replace(/\\n/g, '<br>')}</div>${cell.scadenza ? `<div style="font-size:0.9rem; color:#555; margin-top:2px;">SCAD: ${cell.scadenza}</div>` : ''}</div>`;
+                    const bStyle = cell.badgeStyle || 'none';
+                    const bPos = cell.badgePos || 'bottom-right';
+                    let badgeCss = `position: absolute; z-index: 3; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; transition: transform 0.2s; `;
+                    let baseTransform = `scale(${badgeZoomScale})`;
+                    if (bStyle === 'circle-red') { badgeCss += "background-color: #e60000; color: #ffffff !important; border-radius: 50%; width: 140px; height: 140px; font-size: 2.2rem; box-shadow: 0 8px 15px rgba(230,0,0,0.4); border: 4px solid white;"; baseTransform += " rotate(-5deg)"; }
+                    else if (bStyle === 'circle-yellow') { badgeCss += "background-color: #ffcc00; color: #000000 !important; border-radius: 50%; width: 140px; height: 140px; font-size: 2.2rem; box-shadow: 0 8px 15px rgba(255,204,0,0.4); border: 4px solid #e60000;"; baseTransform += " rotate(-5deg)"; }
+                    else if (bStyle === 'rect-dark') { badgeCss += "background-color: #222222; color: #ffffff !important; border-radius: 8px; padding: 15px 25px; font-size: 2rem; box-shadow: 0 8px 15px rgba(0,0,0,0.3); border: 2px solid white;"; }
+                    else { badgeCss += `color: ${cell.priceColor || '#e60000'}; font-size: 2.5rem; text-shadow: 2px 2px 0px white, -2px -2px 0px white, 2px -2px 0px white, -2px 2px 0px white;`; }
+                    badgeCss += ` transform: ${baseTransform}; transform-origin: center center;`;
+                    if (bPos === 'top-right') badgeCss += "top: 15px; right: 15px;";
+                    else if (bPos === 'bottom-left') badgeCss += "bottom: 15px; left: 15px;";
+                    else badgeCss += "bottom: 15px; right: 15px;";
+                    innerHtml = `<img src="${bgImgUrl}" crossorigin="anonymous" style="${overlayImgStyle}">${htmlNameBox}<div style="${badgeCss}">${cell.price || ''}</div>`;
+                }
+                div.innerHTML = innerHtml;
+                if(selectedType === cell.id) div.classList.add("selected");
+                div.addEventListener("click", (e) => { e.stopPropagation(); selectElement(cell.id); });
+                div.addEventListener("dragover", (e) => { e.preventDefault(); div.style.border = "3px dashed #007bff"; });
+                div.addEventListener("dragleave", (e) => { e.preventDefault(); div.style.border = "2px solid #555"; });
+                div.addEventListener("drop", async (e) => {
+                    e.preventDefault(); div.style.border = "2px solid #555";
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) await handleFileUpload(files[0], cell.id);
+                    else {
+                        const html = e.dataTransfer.getData("text/html");
+                        const match = html.match(/src="([^"]+)"/);
+                        let url = match ? match[1] : e.dataTransfer.getData("text/plain");
+                        if (url && url.startsWith("http")) await handleUrlDrop(url, cell.id);
+                    }
+                });
+            }
+            gridContainer.appendChild(div);
+        });
+    }
+
+    function renderBackground() {
+        const bg = layoutData.background;
+        const mainCanvas = document.getElementById("flyer-canvas");
+        const glob = layoutData.global;
+        if (!mainCanvas) return;
+
+        // --- Dimensioni e layout globale ---
+        if(glob) {
+            mainCanvas.style.width = (glob.width || 2800) + "px";
+            mainCanvas.style.height = (glob.height || 1250) + "px";
+            
+            const gridContainerDom = document.getElementById("flyer-grid");
+            const headerAreaDom = document.getElementById("flyer-header");
+            const gWidthPx = glob.gridWidth !== undefined ? glob.gridWidth : 1800;
+            
+            if (gridContainerDom) {
+                gridContainerDom.style.width = gWidthPx + "px";
+                gridContainerDom.style.margin = "0 auto";
+                gridContainerDom.style.gridTemplateColumns = "repeat(" + (glob.cols || 3) + ", 1fr)";
+                gridContainerDom.style.gridAutoRows = (glob.rowHeight || 0) > 0 ? (glob.rowHeight + "px") : "1fr";
+                gridContainerDom.style.paddingTop = (glob.paddingTop || 0) + "px";
+                gridContainerDom.style.paddingBottom = (glob.paddingBottom || 0) + "px";
+                gridContainerDom.style.paddingLeft = (glob.paddingSides || 0) + "px";
+                gridContainerDom.style.paddingRight = (glob.paddingSides || 0) + "px";
+                gridContainerDom.style.gap = (glob.gridGap || 0) + "px";
+                
+                // Forza trasparenza rimuovendo classi Bootstrap
+                gridContainerDom.classList.remove("bg-white");
+                gridContainerDom.style.backgroundColor = "transparent";
+                gridContainerDom.style.position = "relative";
+                gridContainerDom.style.zIndex = "1";
+            }
+            
+            if (headerAreaDom) {
+                headerAreaDom.style.width = gWidthPx + "px";
+                headerAreaDom.style.margin = "0 auto";
+                
+                // Forza trasparenza rimuovendo classi Bootstrap
+                headerAreaDom.classList.remove("bg-white");
+                headerAreaDom.style.backgroundColor = "transparent";
+                headerAreaDom.style.position = "relative";
+                headerAreaDom.style.zIndex = "1";
+            }
+            
+            const overlayShadow = document.getElementById('flyer-overlay-shadow');
+            if (overlayShadow) {
+                overlayShadow.style.boxShadow = glob.border ? "inset 0 0 0 50px rgba(255,255,255,0)" : "none";
+            }
+        }
+
+        // --- Sfondo immagine: applicato TRAMITE TAG IMG ASSOLUTO ---
+        let bgImgNode = document.getElementById("flyer-bg-img-node");
+        if (!bgImgNode) {
+            bgImgNode = document.createElement("img");
+            bgImgNode.id = "flyer-bg-img-node";
+            bgImgNode.style.position = "absolute";
+            bgImgNode.style.zIndex = "0";
+            bgImgNode.style.pointerEvents = "none";
+            // Inserisci come primo figlio assoluto per stare dietro a tutto
+            mainCanvas.insertBefore(bgImgNode, mainCanvas.firstChild);
+        }
+
+        if (bg && bg.url) {
+            console.log("SFONDO: applico immagine diretta (img tag) su #flyer-canvas:", bg.url);
+            bgImgNode.src = bg.url;
+            bgImgNode.style.display = "block";
+            
+            // Applica dimensioni e posizioni scelte dall'utente
+            bgImgNode.style.width = (glob.bgWidth !== undefined ? glob.bgWidth : 100) + "%";
+            bgImgNode.style.height = (glob.bgHeight !== undefined ? glob.bgHeight : 100) + "%";
+            bgImgNode.style.left = (glob.bgPosX !== undefined ? glob.bgPosX : 50) + "%";
+            bgImgNode.style.top = (glob.bgPosY !== undefined ? glob.bgPosY : 50) + "%";
+            bgImgNode.style.transform = "translate(-50%, -50%)"; // Ancora al centro
+            bgImgNode.style.objectFit = "fill"; // Permette di deformarla se l'utente cambia width/height
+            
+            // Forza sfondo bianco su canvas a trasparente
+            mainCanvas.style.setProperty('background-color', 'transparent', 'important');
+            mainCanvas.style.setProperty('background-image', 'none', 'important');
+            
+            const preview = document.getElementById("current-bg-preview");
+            if (preview) {
+                preview.src = bg.url;
+                preview.style.display = "block";
+            }
+            const nameLbl = document.getElementById("current-bg-name");
+            if (nameLbl) nameLbl.innerText = bg.nome || "Sfondo Personalizzato";
+            
+        } else {
+            // Nessuno sfondo: torniamo al bianco
+            if (bgImgNode) bgImgNode.style.display = "none";
+            mainCanvas.style.backgroundImage = "none";
+            mainCanvas.style.backgroundColor = "#ffffff";
+            
+            const preview = document.getElementById("current-bg-preview");
+            if (preview) preview.style.display = "none";
+            const nameLbl = document.getElementById("current-bg-name");
+            if (nameLbl) nameLbl.innerText = "Nessuno sfondo";
+        }
+    }
+
+    async function loadLibraryBackgrounds() {
+        const pnl = document.getElementById("bg-library-list");
+        if(!pnl) return;
+        try {
+            const resp = await fetch("{{ url_for('get_sfondi_volantino') }}");
+            if (!resp.ok) throw new Error("Errore server: " + resp.status);
+            
+            // Verifica che la risposta sia JSON (se siamo reindirizzati al login, avremo HTML)
+            const contentType = resp.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                window.location.reload(); // Probabilmente sessione scaduta, ricarica per andare al login
+                return;
+            }
+
+            const data = await resp.json();
+            pnl.innerHTML = "";
+            if (data.length === 0) {
+                pnl.innerHTML = '<div class="text-muted small w-100 text-center py-2">Nessuno sfondo salvato.</div>';
+                return;
+            }
+            data.forEach(b => {
+                const col = document.createElement("div"); 
+                col.className = "col-4";
+                const btn = document.createElement("div"); 
+                btn.className = "p-1 border rounded text-center position-relative"; 
+                btn.style.cursor = "pointer";
+                
+                const img = document.createElement("img");
+                img.src = b.url;
+                img.crossOrigin = "anonymous";
+                img.style.width = "100%";
+                img.style.height = "40px";
+                img.style.objectFit = "cover";
+                img.style.borderRadius = "3px";
+                
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "small mt-1 text-truncate";
+                nameDiv.style.fontSize = "0.75rem";
+                nameDiv.innerText = b.nome;
+                
+                btn.appendChild(img);
+                btn.appendChild(nameDiv);
+                btn.onclick = () => { 
+                    layoutData.background = { url: b.url, nome: b.nome }; 
+                    renderLayout(); // Forza ricaricamento con trasparenze
+                };
+                col.appendChild(btn); 
+                pnl.appendChild(col);
+            });
+        } catch(err) { 
+            console.error("Errore caricamento sfondi:", err);
+            pnl.innerHTML = '<div class="text-danger small w-100 text-center py-2">Errore caricamento sfondi: ' + err.message + '</div>'; 
+        }
+    }
+
+    document.getElementById("btn-apply-bg-url").addEventListener("click", () => {
+        const urlInp = document.getElementById("prop-bg-url");
+        const url = urlInp.value.trim();
+        console.log("Tentativo applicazione sfondo da URL:", url);
+        if(url) { 
+            layoutData.background = { url: url, nome: "URL Esterno" }; 
+            renderLayout(); // Ricarica tutto per gestire le trasparenze
+            const mod = document.getElementById('bgModal');
+            bootstrap.Modal.getOrCreateInstance(mod).hide(); 
+            alert("Sfondo da URL applicato!");
+            urlInp.value = "";
+        } else {
+            alert("Inserisci un link valido.");
+        }
+    });
+
+    document.getElementById("btn-remove-bg").addEventListener("click", () => { 
+        layoutData.background = null; 
+        renderLayout(); 
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('bgModal')).hide(); 
+    });
+
+    inpFBorder.addEventListener("change", (e) => { layoutData.global.border = e.target.checked; renderBackground(); });
+    inpFBgColor.addEventListener("input", (e) => { layoutData.global.bgColor = e.target.value; renderBackground(); });
+    inpFPadTop.addEventListener("input", (e) => { layoutData.global.paddingTop = parseInt(e.target.value); document.getElementById('lbl-grid-pad-top').innerText = e.target.value + "px"; renderBackground(); });
+    inpFPadBot.addEventListener("input", (e) => { layoutData.global.paddingBottom = parseInt(e.target.value); document.getElementById('lbl-grid-pad-bot').innerText = e.target.value + "px"; renderBackground(); });
+    inpFPadSides.addEventListener("input", (e) => { layoutData.global.paddingSides = parseInt(e.target.value); document.getElementById('lbl-grid-pad-sides').innerText = e.target.value + "px"; renderBackground(); });
+    inpFGridGap.addEventListener("input", (e) => { layoutData.global.gridGap = parseInt(e.target.value); document.getElementById('lbl-grid-gap').innerText = e.target.value + "px"; renderBackground(); });
+    inpFBgWidth.addEventListener("input", (e) => { layoutData.global.bgWidth = parseInt(e.target.value); document.getElementById('lbl-bg-width').innerText = e.target.value + "%"; renderBackground(); });
+    inpFBgHeight.addEventListener("input", (e) => { layoutData.global.bgHeight = parseInt(e.target.value); document.getElementById('lbl-bg-height').innerText = e.target.value + "%"; renderBackground(); });
+    inpFBgPosX.addEventListener("input", (e) => { layoutData.global.bgPosX = parseInt(e.target.value); document.getElementById('lbl-bg-pos-x').innerText = e.target.value + "%"; renderBackground(); });
+    inpFBgPosY.addEventListener("input", (e) => { layoutData.global.bgPosY = parseInt(e.target.value); document.getElementById('lbl-bg-pos-y').innerText = e.target.value + "%"; renderBackground(); });
+    inpGNameSize.addEventListener("input", (e) => { layoutData.global.nameSize = parseFloat(e.target.value); lblGNameSize.innerText = e.target.value; renderGrid(); });
+    inpGPriceSize.addEventListener("input", (e) => { layoutData.global.priceSize = parseFloat(e.target.value); lblGPriceSize.innerText = e.target.value; renderGrid(); });
+
+    document.getElementById("btn-add-cell").addEventListener("click", () => {
+        layoutData.grid.push({ id: "cell_" + (layoutData.grid.length + 1), colSpan: 1, rowSpan: 1, name: "Nuovo", price: "", img: "", bgTransparent: true });
+        renderGrid();
+    });
+
+    document.getElementById("btn-remove-cell").addEventListener("click", () => { if(layoutData.grid.length > 1) { layoutData.grid.pop(); renderGrid(); } });
+
+    function setupRangeSync(rangeId, numberId, propName, isGlobal = false) {
+        const rangeEl = document.getElementById(rangeId); const numberEl = document.getElementById(numberId);
+        if (!rangeEl || !numberEl) return;
+        function sync(value) {
+            rangeEl.value = value; numberEl.value = value;
+            if (isGlobal) layoutData.global[propName] = parseFloat(value); else { const cell = layoutData.grid.find(c => c.id === selectedType); if (cell) cell[propName] = parseFloat(value); }
+            if (isGlobal) renderBackground(); else renderGrid();
+        }
+        rangeEl.addEventListener("input", (e) => sync(e.target.value));
+        numberEl.addEventListener("input", (e) => sync(e.target.value));
+    }
+    setupRangeSync("prop-cell-img-zoom", "inp-cell-img-zoom", "imgZoom");
+    setupRangeSync("prop-cell-img-rotate", "inp-cell-img-rotate", "imgRotate");
+    setupRangeSync("prop-cell-img-x", "inp-cell-img-x", "imgX");
+    setupRangeSync("prop-cell-img-y", "inp-cell-img-y", "imgY");
+    setupRangeSync("prop-global-cols", "inp-global-cols", "cols", true);
+    setupRangeSync("prop-global-width", "inp-global-width", "width", true);
+    setupRangeSync("prop-global-height", "inp-global-height", "height", true);
+    setupRangeSync("prop-global-grid-width", "inp-global-grid-width", "gridWidth", true);
+    setupRangeSync("prop-global-row-height", "inp-global-row-height", "rowHeight", true);
+
+    // Preset Dimensioni A4
+    document.getElementById("preset-a4-v").addEventListener("click", () => {
+        layoutData.global.width = 1250;
+        layoutData.global.height = 1750;
+        layoutData.global.gridWidth = 1050;
+        layoutData.global.paddingTop = 150;
+        selectElement("flyer"); // Aggiorna input visivi
+        renderLayout();
+    });
+    document.getElementById("preset-a4-h").addEventListener("click", () => {
+        layoutData.global.width = 1750;
+        layoutData.global.height = 1250;
+        layoutData.global.gridWidth = 1550;
+        layoutData.global.paddingTop = 80;
+        selectElement("flyer"); // Aggiorna input visivi
+        renderLayout();
+    });
+
+    inpBgRepeat.addEventListener("change", (e) => { layoutData.global.bgRepeat = e.target.value; renderBackground(); });
+
+    const fileUploadBg = document.getElementById('file-upload-bg');
+    document.getElementById('btn-upload-bg-file').addEventListener('click', () => fileUploadBg.click());
+    document.getElementById('btn-save-bg').addEventListener('click', async () => {
+        const nomeInp = document.getElementById('prop-bg-name');
+        const nome = nomeInp.value.trim() || "Sfondo " + new Date().toLocaleTimeString(); 
+        const file = fileUploadBg.files[0];
+        
+        if(!file) return alert("Per favore, seleziona prima un file immagine cliccando su 'Sfoglia...'.");
+        
+        console.log("Inizio upload sfondo locale:", file.name);
+        const fd = new FormData(); 
+        fd.append('file', file); 
+        fd.append('nome', nome);
+        
+        try {
+            const resp = await fetch("{{ url_for('upload_sfondo_volantino') }}", { method: 'POST', body: fd });
+            if (!resp.ok) throw new Error("Errore server: " + resp.status);
+            
+            const data = await resp.json();
+            if(data.success) { 
+                console.log("Upload completato con successo:", data.url);
+                layoutData.background = { url: data.url, nome: nome }; 
+                renderLayout(); // Forza ricaricamento con tutte le trasparenze
+                
+                // Pulisci e chiudi
+                nomeInp.value = "";
+                fileUploadBg.value = "";
+                loadLibraryBackgrounds(); 
+                bootstrap.Modal.getInstance(document.getElementById('bgModal')).hide();
+                alert("Sfondo caricato e applicato correttamente!");
+            } else {
+                alert("Errore dal server: " + (data.message || "Impossibile caricare l'immagine."));
+            }
+        } catch(e) {
+            console.error("Errore durante l'upload dello sfondo:", e);
+            alert("Errore tecnico durante il caricamento. Controlla la connessione o riprova tra poco.");
+        }
+    });
+
+    const pdfInput = document.getElementById('pdf-inject-upload');
+    const btnPdf = document.getElementById('btn-pdf-inject');
+    btnPdf.addEventListener('click', () => pdfInput.click());
+    pdfInput.addEventListener('change', async (e) => {
+        if(!e.target.files.length) return;
+        const fd = new FormData(); fd.append('file', e.target.files[0]);
+        const resp = await fetch("{{ url_for('api_estrai_prodotti_da_pdf') }}", { method: 'POST', body: fd });
+        const data = await resp.json();
+        if(data.success && data.prodotti) {
+            let pIdx = 0;
+            layoutData.grid.forEach(c => { if(!c.productId && !c.isHidden && pIdx < data.prodotti.length) { const p = data.prodotti[pIdx++]; c.productId = p.id; c.name = p.nome; c.price = p.prezzo; c.img = p.immagine; } });
+            renderGrid();
+        }
+    });
+
+    const modSizeModal = document.getElementById('sizeModal');
+    document.getElementById('btn-apply-size').addEventListener('click', () => {
+        layoutData.global.width = parseInt(document.getElementById('prop-flyer-width').value) || 2800;
+        layoutData.global.height = parseInt(document.getElementById('prop-flyer-height').value) || 1250;
+        layoutData.global.nameSize = parseFloat(document.getElementById('prop-flyer-namesize').value) || 1.0;
+        layoutData.global.priceSize = parseFloat(document.getElementById('prop-flyer-pricesize').value) || 1.8;
+        renderLayout();
+        bootstrap.Modal.getOrCreateInstance(modSizeModal).hide();
+    });
+
+    document.getElementById("flyer-canvas").addEventListener("click", (e) => {
+        if (e.target.id === 'flyer-canvas' || e.target.id === 'flyer-overlay-shadow') selectElement("flyer");
+        else if (e.target.id === 'flyer-grid') selectElement("background");
+    });
+
+    function selectElement(type) {
+        selectedType = type;
+        document.querySelectorAll(".selected").forEach(el => el.classList.remove("selected", "flyer-bg-selected"));
+        if (type === "header") {
+            document.getElementById("flyer-header").classList.add("selected");
+            const coll = document.getElementById('collapseHeader');
+            if(coll) bootstrap.Collapse.getOrCreateInstance(coll).show();
+            document.getElementById('item-cell-props').classList.add('d-none');
+            inpHTitle.value = layoutData.header.title; inpHColor.value = layoutData.header.titleColor; inpHSize.value = layoutData.header.titleSize; inpHLogo.value = layoutData.header.logoUrl || "";
+            inpHLogoSize.value = layoutData.header.logoSize || 120; lblHLogoSize.innerText = inpHLogoSize.value + "px";
+            if(inpHLogoWidth) { inpHLogoWidth.value = layoutData.header.logoWidth || 100; lblHLogoWidth.innerText = inpHLogoWidth.value + "%"; }
+            syncHeaderButtons();
+        } else if (type === "flyer" || type === "background") {
+            document.getElementById("flyer-canvas").classList.add("flyer-bg-selected");
+            const targetId = (type === "background") ? 'collapseBg' : 'collapseFlyer';
+            const coll = document.getElementById(targetId);
+            if(coll) bootstrap.Collapse.getOrCreateInstance(coll).show();
+            document.getElementById('item-cell-props').classList.add('d-none');
+            inpFBorder.checked = layoutData.global.border; inpFBgColor.value = layoutData.global.bgColor;
+            inpFPadTop.value = layoutData.global.paddingTop || 0; inpFPadBot.value = layoutData.global.paddingBottom || 0;
+            inpFBgWidth.value = layoutData.global.bgWidth || 100; inpFBgHeight.value = layoutData.global.bgHeight || 100;
+            inpGNameSize.value = layoutData.global.nameSize || 1.0; inpGPriceSize.value = layoutData.global.priceSize || 1.8;
+            
+            // Sincronizza sia range che number input per le dimensioni
+            inpGCols.value = layoutData.global.cols || 3; document.getElementById("inp-global-cols").value = layoutData.global.cols || 3;
+            inpGWidth.value = layoutData.global.width || 1250; document.getElementById("inp-global-width").value = layoutData.global.width || 1250;
+            inpGHeight.value = layoutData.global.height || 1750; document.getElementById("inp-global-height").value = layoutData.global.height || 1750;
+            const currentGridWidth = layoutData.global.gridWidth || 1050;
+            document.getElementById("prop-global-grid-width").value = currentGridWidth;
+            document.getElementById("inp-global-grid-width").value = currentGridWidth;
+        } else if (type && type.startsWith("cell_")) {
+            const cell = layoutData.grid.find(c => c.id === type); if (!cell) return;
+            document.getElementById(type).classList.add("selected");
+            document.getElementById('item-cell-props').classList.remove('d-none');
+            const coll = document.getElementById('collapseCell');
+            if(coll) bootstrap.Collapse.getOrCreateInstance(coll).show();
+            inpCName.value = cell.name || ""; inpCCode.value = cell.code || ""; inpCPrice.value = cell.price || ""; inpCImg.value = cell.img || "";
+            inpCImgZoom.value = cell.imgZoom || 100; inpCBgColor.value = cell.bgColor || "#ffffff"; inpCBgTransparent.checked = cell.bgTransparent;
+            if (inpCBgTransparentQuick) inpCBgTransparentQuick.checked = cell.bgTransparent;
+            let layoutVal = cell.cellLayout || "vertical";
+            if (layoutVal === "vertical") {
+                layoutVal = (cell.pricePos === "above") ? "vertical-above" : "vertical-below";
+            }
+            inpCLayout.value = layoutVal;
+            inpCScadenza.value = cell.scadenza || "";
+            document.getElementById("overlay-options").style.display = (cell.cellLayout === "overlay") ? "block" : "none";
+        }
+    }
+
+    function syncHeaderButtons() {
+        document.querySelectorAll(".btn-logo-pos").forEach(btn => { if(btn.dataset.pos === layoutData.header.logoPos) { btn.classList.add("btn-primary"); btn.classList.remove("btn-outline-secondary"); } else { btn.classList.remove("btn-primary"); btn.classList.add("btn-outline-secondary"); } });
+        document.querySelectorAll(".btn-title-pos").forEach(btn => { if(btn.dataset.pos === layoutData.header.titlePos) { btn.classList.add("btn-primary"); btn.classList.remove("btn-outline-secondary"); } else { btn.classList.remove("btn-primary"); btn.classList.add("btn-outline-secondary"); } });
+    }
+
+    headerContainer.addEventListener("click", () => selectElement("header"));
+
+    [inpHTitle, inpHColor, inpHSize, inpHLogo, inpHLogoSize, inpHLogoWidth].forEach(inp => {
+        if(inp) inp.addEventListener("input", () => {
+            layoutData.header.title = inpHTitle.value; layoutData.header.titleColor = inpHColor.value; layoutData.header.titleSize = parseInt(inpHSize.value) || 32; layoutData.header.logoUrl = inpHLogo.value; layoutData.header.logoSize = parseInt(inpHLogoSize.value) || 120;
+            if(inpHLogoWidth) layoutData.header.logoWidth = parseInt(inpHLogoWidth.value) || 100;
+            if(inp === inpHLogoSize) lblHLogoSize.innerText = inpHLogoSize.value + "px";
+            if(inp === inpHLogoWidth) lblHLogoWidth.innerText = inpHLogoWidth.value + "%";
+            renderHeader();
+        });
+    });
+
+    document.querySelectorAll(".btn-logo-pos").forEach(btn => { btn.addEventListener("click", () => { layoutData.header.logoPos = btn.dataset.pos; renderHeader(); syncHeaderButtons(); }); });
+    document.querySelectorAll(".btn-title-pos").forEach(btn => { btn.addEventListener("click", () => { layoutData.header.titlePos = btn.dataset.pos; renderHeader(); syncHeaderButtons(); }); });
+
+    document.getElementById('btn-upload-logo').addEventListener('click', () => document.getElementById('file-upload-logo').click());
+    document.getElementById('file-upload-logo').addEventListener('change', async (e) => {
+        const fd = new FormData(); fd.append("image", e.target.files[0]);
+        const resp = await fetch("{{ url_for('api_upload_image') }}", { method: 'POST', body: fd });
+        const data = await resp.json();
+        if(data.status === 'ok') { inpHLogo.value = data.url; inpHLogo.dispatchEvent(new Event('input')); }
+    });
+
+    [inpCName, inpCCode, inpCPrice, inpCImg, inpCImgZoom, inpCBgColor, inpCBgTransparent, inpCLayout, inpCScadenza].forEach(inp => {
+        inp.addEventListener("input", () => {
+            if(!selectedType || !selectedType.startsWith("cell_")) return;
+            const cell = layoutData.grid.find(c => c.id === selectedType);
+            if(cell) {
+                cell.name = inpCName.value;
+                cell.code = inpCCode.value;
+                cell.price = inpCPrice.value;
+                cell.img = inpCImg.value;
+                cell.imgZoom = parseInt(inpCImgZoom.value) || 100;
+                cell.bgColor = inpCBgColor.value;
+                cell.bgTransparent = inpCBgTransparent.checked;
+                cell.scadenza = inpCScadenza.value;
+                
+                let layoutVal = inpCLayout.value;
+                if (layoutVal === "vertical-above" || layoutVal === "vertical-below") {
+                    cell.cellLayout = "vertical";
+                    cell.pricePos = (layoutVal === "vertical-above") ? "above" : "below";
+                } else {
+                    cell.cellLayout = layoutVal;
+                    cell.pricePos = "below";
+                }
+                
+                if(inpCBgTransparentQuick) inpCBgTransparentQuick.checked = inpCBgTransparent.checked;
+                document.getElementById('overlay-options').style.display = (cell.cellLayout === 'overlay') ? 'block' : 'none';
+                renderGrid();
+            }
+        });
+    });
+
+    if (inpCBgTransparentQuick) {
+        inpCBgTransparentQuick.addEventListener("change", () => {
+            if(!selectedType || !selectedType.startsWith("cell_")) return;
+            const cell = layoutData.grid.find(c => c.id === selectedType);
+            if(cell) {
+                cell.bgTransparent = inpCBgTransparentQuick.checked;
+                inpCBgTransparent.checked = inpCBgTransparentQuick.checked;
+                renderGrid();
+            }
+        });
+    }
+
+    async function handleFileUpload(file, targetCellId) {
+        const fd = new FormData(); fd.append("image", file); fd.append("remove_bg", "true");
+        const resp = await fetch("{{ url_for('api_upload_image') }}", { method: 'POST', body: fd });
+        const data = await resp.json();
+        if(data.status === 'ok') { const cell = layoutData.grid.find(c => c.id === targetCellId); if(cell) { cell.img = data.url; renderGrid(); if(selectedType === targetCellId) inpCImg.value = data.url; } }
+    }
+
+    async function handleUrlDrop(url, targetCellId) {
+        const resp = await fetch("/api/salva_immagine_suggerita", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ image_url: url }) });
+        const data = await resp.json();
+        if(data.status === 'ok') { const cell = layoutData.grid.find(c => c.id === targetCellId); if(cell) { cell.img = data.url; renderGrid(); if(selectedType === targetCellId) inpCImg.value = data.url; } }
+    }
+
+    document.getElementById('btn-upload-cell-img').addEventListener('click', () => document.getElementById('file-upload-cell-img').click());
+
+    async function triggerImageBackgroundRemoval() {
+        const cell = layoutData.grid.find(c => c.id === selectedType);
+        if (!cell || !cell.img || cell.img === "/static/no-image.png") {
+            return alert("Nessuna immagine presente in questa cella.");
+        }
+        
+        const btn1 = document.getElementById("btn-cell-remove-img-bg");
+        const btn2 = document.getElementById("btn-cell-remove-img-bg-quick");
+        
+        const originalHtml1 = btn1 ? btn1.innerHTML : "";
+        const originalHtml2 = btn2 ? btn2.innerHTML : "";
+        
+        const spinner = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Elaborazione...';
+        if (btn1) { btn1.innerHTML = spinner; btn1.disabled = true; }
+        if (btn2) { btn2.innerHTML = spinner; btn2.disabled = true; }
+        
+        try {
+            const resp = await fetch("/api/rimuovi_sfondo_immagine_url", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    img_url: cell.img,
+                    product_id: cell.productId
+                })
+            });
+            const res = await resp.json();
+            if (res.success) {
+                cell.img = res.url;
+                renderGrid();
+                inpCImg.value = res.url;
+                alert("Sfondo rimosso con successo!");
+            } else {
+                alert("Errore durante la rimozione dello sfondo: " + (res.message || ''));
+            }
+        } catch(e) {
+            alert("Errore durante la rimozione dello sfondo");
+            console.error(e);
+        }
+        
+        if (btn1) { btn1.innerHTML = originalHtml1; btn1.disabled = false; }
+        if (btn2) { btn2.innerHTML = originalHtml2; btn2.disabled = false; }
+    }
+    
+    document.getElementById("btn-cell-remove-img-bg").addEventListener("click", triggerImageBackgroundRemoval);
+    if(document.getElementById("btn-cell-remove-img-bg-quick")) {
+        document.getElementById("btn-cell-remove-img-bg-quick").addEventListener("click", triggerImageBackgroundRemoval);
+    }
+    document.getElementById('file-upload-cell-img').addEventListener('change', async (e) => { await handleFileUpload(e.target.files[0], selectedType); });
+
+    document.getElementById("btn-suggest-cell-img").addEventListener("click", async () => {
+        const cell = layoutData.grid.find(c => c.id === selectedType); if(!cell || !cell.name) return alert("Nome prodotto vuoto.");
+        const modal = new bootstrap.Modal(document.getElementById('modalSuggerimentiImg')); modal.show();
+        const grid = document.getElementById('gridSuggerimenti'); const loader = document.getElementById('loaderSuggerimenti');
+        grid.innerHTML = ""; loader.classList.remove("d-none");
+        const res = await fetch("/api/cerca_immagini_prodotto?q=" + encodeURIComponent(cell.name));
+        const data = await res.json(); loader.classList.add("d-none");
+        if(data.status === "ok") data.images.slice(0, 9).forEach(url => {
+            const d = document.createElement("div"); d.className="col-4"; d.innerHTML=`<img src="${url}" style="width:100%; height:80px; object-fit:contain; cursor:pointer;" onclick="selezionaImmagineSuggerita('${url}')">`;
+            grid.appendChild(d);
+        });
+    });
+
+    window.selezionaImmagineSuggerita = async function(url) {
+        await handleUrlDrop(url, selectedType); bootstrap.Modal.getInstance(document.getElementById('modalSuggerimentiImg')).hide();
+    };
+
+    let quickEditProducts = [];
+    document.getElementById("btn-quick-edit").addEventListener("click", () => {
+        quickEditProducts = [];
+        currentDocPages.forEach((page, pIdx) => {
+            page.grid.forEach(cell => {
+                if (!cell.isHidden && (cell.name || cell.price || cell.img || cell.productId)) {
+                    quickEditProducts.push({
+                        ...cell,
+                        _pageIndex: pIdx
+                    });
+                }
+            });
+        });
+        renderQuickEditTable();
+        new bootstrap.Modal(document.getElementById('modalQuickEdit')).show();
+    });
+
+    let dragSrcEl = null;
+
+    window.renderQuickEditTable = function() {
+        const tbody = document.getElementById("quickEditTbody"); 
+        tbody.innerHTML = "";
+        
+        const numPages = Math.max(currentDocPages.length, 1);
+        
+        quickEditProducts.forEach((p, idx) => {
+            const tr = document.createElement("tr");
+            tr.draggable = true;
+            tr.dataset.idx = idx;
+            
+            // Event Listener per Drag & Drop
+            tr.addEventListener('dragstart', function(e) {
+                saveQeState();
+                dragSrcEl = this;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.innerHTML);
+                this.style.opacity = '0.4';
+            });
+            tr.addEventListener('dragover', function(e) {
+                if (e.preventDefault) e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                return false;
+            });
+            tr.addEventListener('dragenter', function(e) {
+                this.classList.add('table-info');
+            });
+            tr.addEventListener('dragleave', function(e) {
+                this.classList.remove('table-info');
+            });
+            tr.addEventListener('drop', function(e) {
+                if (e.stopPropagation) e.stopPropagation();
+                this.classList.remove('table-info');
+                if (dragSrcEl !== this) {
+                    const fromIdx = parseInt(dragSrcEl.dataset.idx);
+                    const toIdx = parseInt(this.dataset.idx);
+                    const item = quickEditProducts.splice(fromIdx, 1)[0];
+                    quickEditProducts.splice(toIdx, 0, item);
+                    renderQuickEditTable();
+                }
+                return false;
+            });
+            tr.addEventListener('dragend', function(e) {
+                this.style.opacity = '1';
+                document.querySelectorAll('#quickEditTbody tr').forEach(row => {
+                    row.classList.remove('table-info');
+                });
+            });
+
+            let pageOptions = "";
+            for(let i=0; i <= numPages; i++) {
+                pageOptions += `<option value="${i}" ${p._pageIndex === i ? 'selected' : ''}>Foglio ${i+1}</option>`;
+            }
+
+            tr.innerHTML = `
+                <td><input type="text" class="form-control form-control-sm" id="qe-name-${idx}" value="${(p.name||'').replace(/"/g, '&quot;')}"></td>
+                <td><input type="text" class="form-control form-control-sm" id="qe-price-${idx}" value="${(p.price||'').replace(/"/g, '&quot;')}"></td>
+                <td><input type="text" class="form-control form-control-sm" id="qe-scad-${idx}" value="${(p.scadenza||'').replace(/"/g, '&quot;')}"></td>
+                <td>
+                    <select class="form-select form-select-sm" id="qe-page-${idx}">
+                        ${pageOptions}
+                    </select>
+                </td>
+                <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" style="cursor: grab;" title="Tieni premuto per trascinare" disabled><i class="bi bi-arrows-move"></i></button>
+                        <button class="btn btn-outline-danger" onclick="deleteQeProduct(${idx})" title="Elimina"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    window.deleteQeProduct = function(idx) {
+        saveQeState();
+        quickEditProducts.splice(idx, 1);
+        renderQuickEditTable();
+    };
+
+    function saveQeState() {
+        quickEditProducts.forEach((p, idx) => {
+            const n = document.getElementById(`qe-name-${idx}`);
+            const pr = document.getElementById(`qe-price-${idx}`);
+            const sc = document.getElementById(`qe-scad-${idx}`);
+            const pg = document.getElementById(`qe-page-${idx}`);
+            if(n) p.name = n.value;
+            if(pr) p.price = pr.value;
+            if(sc) p.scadenza = sc.value;
+            if(pg) p._pageIndex = parseInt(pg.value);
+        });
+    }
+
+    document.getElementById("btn-save-quick-edit").addEventListener("click", () => {
+        saveQeState();
+        
+        // Raggruppa i prodotti per pagina
+        const newPages = [];
+        quickEditProducts.forEach(p => {
+            const targetPage = p._pageIndex;
+            while(newPages.length <= targetPage) {
+                // Clona il global e l'header dalla prima pagina se esiste
+                const templatePage = currentDocPages[0] || layoutData;
+                newPages.push({
+                    global: JSON.parse(JSON.stringify(templatePage.global || {})),
+                    header: JSON.parse(JSON.stringify(templatePage.header || {})),
+                    background: templatePage.background ? JSON.parse(JSON.stringify(templatePage.background)) : null,
+                    grid: []
+                });
+            }
+            // Ripulisce il pageIndex interno prima di rimetterlo nella grid
+            const cellData = { ...p };
+            delete cellData._pageIndex;
+            cellData.id = "cell_" + (newPages[targetPage].grid.length + 1);
+            newPages[targetPage].grid.push(cellData);
+        });
+        
+        // Assicura che ci sia almeno una pagina
+        if(newPages.length === 0) {
+            const templatePage = currentDocPages[0] || layoutData;
+            newPages.push({
+                global: JSON.parse(JSON.stringify(templatePage.global || {})),
+                header: JSON.parse(JSON.stringify(templatePage.header || {})),
+                background: templatePage.background ? JSON.parse(JSON.stringify(templatePage.background)) : null,
+                grid: []
+            });
+        }
+        
+        currentDocPages = newPages;
+        
+        // Mantiene la pagina corrente valida
+        if(currentPageIndex >= currentDocPages.length) currentPageIndex = currentDocPages.length - 1;
+        layoutData = currentDocPages[currentPageIndex];
+        
+        updatePaginationUI();
+        renderLayout(); 
+        bootstrap.Modal.getInstance(document.getElementById('modalQuickEdit')).hide();
+    });
+
+    document.getElementById("btn-empty-cell").addEventListener("click", () => { const cell = layoutData.grid.find(c => c.id === selectedType); if(cell) { cell.productId=null; cell.name=""; cell.price=""; cell.img=""; renderGrid(); selectElement(selectedType); } });
+
+    document.querySelectorAll(".btn-shape").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const cell = layoutData.grid.find(c => c.id === selectedType);
+            const reqCol = parseInt(btn.dataset.col); const reqRow = parseInt(btn.dataset.row);
+            if(reqCol > 0) cell.colSpan = reqCol; if(reqRow > 0) cell.rowSpan = reqRow;
+            layoutData.grid.forEach(c => c.isHidden = false);
+            layoutData.grid.forEach((c, i) => { if(c.colSpan > 1) for(let s=1; s<c.colSpan; s++) if(i+s < layoutData.grid.length) layoutData.grid[i+s].isHidden=true; if(c.rowSpan > 1) for(let s=1; s<c.rowSpan; s++) { let t = i+(3*s); if(t < layoutData.grid.length) layoutData.grid[t].isHidden=true; } });
+            renderGrid(); selectElement(selectedType);
+        });
+    });
+
+    let zoom = 0.8; function setZoom(v) { zoom = v; canvasContainer.style.transform = `scale(${zoom})`; document.getElementById('zoom-level').innerText = Math.round(zoom*100)+'%'; }
+    document.getElementById("btn-zoom-in").addEventListener("click", () => setZoom(Math.min(zoom+0.1, 2)));
+    document.getElementById("btn-zoom-out").addEventListener("click", () => setZoom(Math.max(zoom-0.1, 0.1)));
+    setTimeout(() => setZoom(0.8), 100);
+
+    function renderLayout() { 
+        renderBackground(); 
+        renderHeader(); 
+        renderGrid(); 
+    }
+    renderLayout(); updatePaginationUI(); loadLibraryBackgrounds();
+
+    async function captureCanvas() {
+        const oldT = canvasContainer.style.transform; 
+        canvasContainer.style.transform = 'none';
+        
+        // Forza il browser a ricalcolare il layout senza il ridimensionamento (zoom)
+        // altrimenti html2canvas cattura l'immagine "rimpicciolita"
+        await new Promise(r => setTimeout(r, 200));
+        
+        // Nascondi temporaneamente gli indicatori di selezione per lo scatto
+        const selEls = document.querySelectorAll('.selected');
+        const bgSelEls = document.querySelectorAll('.flyer-bg-selected');
+        selEls.forEach(el => el.classList.remove('selected'));
+        bgSelEls.forEach(el => el.classList.remove('flyer-bg-selected'));
+        
+        // Usa una scala più alta (es. 3) per garantire altissima risoluzione
+        const c = await html2canvas(canvasContainer, { scale: 3, useCORS: true });
+        
+        // Ripristina gli indicatori di selezione
+        selEls.forEach(el => el.classList.add('selected'));
+        bgSelEls.forEach(el => el.classList.add('flyer-bg-selected'));
+        
+        canvasContainer.style.transform = oldT; 
+        return c;
+    }
+
+    document.getElementById("btn-export-png").addEventListener("click", async () => { 
+        saveCurrentPageToDoc();
+        const originalIndex = currentPageIndex;
+        const captures = [];
+        let totalHeight = 0;
+        let maxWidth = 0;
+
+        // Cattura tutte le pagine
+        for (let i = 0; i < currentDocPages.length; i++) {
+            currentPageIndex = i;
+            layoutData = currentDocPages[i];
+            renderLayout();
+            await new Promise(r => setTimeout(r, 200)); // Attendi render
+            const c = await captureCanvas();
+            captures.push(c);
+            totalHeight += c.height;
+            if (c.width > maxWidth) maxWidth = c.width;
+        }
+
+        // Unisci in un unico PNG verticale
+        const finalCanvas = document.createElement("canvas");
+        finalCanvas.width = maxWidth;
+        finalCanvas.height = totalHeight;
+        const ctx = finalCanvas.getContext("2d");
+        
+        let currentY = 0;
+        for (let c of captures) {
+            const x = (maxWidth - c.width) / 2; // Centra orizzontalmente
+            ctx.drawImage(c, x, currentY);
+            currentY += c.height;
+        }
+
+        const l = document.createElement('a'); 
+        l.download='volantino_completo.png'; 
+        l.href=finalCanvas.toDataURL('image/png'); 
+        l.click(); 
+
+        // Ripristina pagina originaria
+        currentPageIndex = originalIndex;
+        layoutData = currentDocPages[currentPageIndex];
+        renderLayout();
+        updatePaginationUI();
+    });
+    
+    document.getElementById("btn-export-pdf").addEventListener("click", async () => {
+        saveCurrentPageToDoc();
+        const originalIndex = currentPageIndex;
+        const { jsPDF } = window.jspdf;
+        let pdf = null;
+
+        for (let i = 0; i < currentDocPages.length; i++) {
+            currentPageIndex = i;
+            layoutData = currentDocPages[i];
+            renderLayout();
+            await new Promise(r => setTimeout(r, 200));
+            
+            const c = await captureCanvas();
+            const imgData = c.toDataURL('image/jpeg', 0.95);
+            const orientation = c.width > c.height ? 'l' : 'p';
+            
+            if (!pdf) {
+                pdf = new jsPDF({ orientation: orientation, unit: 'px', format: [c.width, c.height] });
+            } else {
+                pdf.addPage([c.width, c.height], orientation);
+            }
+            pdf.addImage(imgData, 'JPEG', 0, 0, c.width, c.height);
+        }
+
+        pdf.save('volantino_completo.pdf');
+
+        // Ripristina pagina originaria
+        currentPageIndex = originalIndex;
+        layoutData = currentDocPages[currentPageIndex];
+        renderLayout();
+        updatePaginationUI();
+    });
+
+    document.getElementById("btn-save").addEventListener("click", async () => {
+        saveCurrentPageToDoc();
+        const c = await captureCanvas();
+        const payload = { 
+            id: volantinoId, 
+            nome: document.getElementById("volantino-nome").value, 
+            layout: { isMultiPage: true, pages: currentDocPages }, 
+            thumbnail: c.toDataURL('image/jpeg', 0.5), 
+            tipo: "{{ tipo_volantino }}" 
+        };
+        await fetch("{{ url_for('salva_volantino_beta') }}", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        alert("Volantino multi-pagina salvato con successo!");
+    });
+
+});
+</script>
+{% endblock %}
