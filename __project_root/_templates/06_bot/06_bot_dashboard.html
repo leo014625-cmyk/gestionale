@@ -4,158 +4,143 @@
 {% block content %}
 <div class="container py-4">
 
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-        <div>
-            <h1 class="mb-1">🤖 Bot WhatsApp</h1>
-            <div class="text-muted">Preferenze clienti + invio messaggi mirati</div>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="mb-1">🤖 Bot WhatsApp</h1>
+      <div class="text-muted">Preferenze clienti + invio messaggi mirati</div>
+    </div>
+  </div>
+
+  <!-- TABS PREFERENZE -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-primary rounded-4 {% if pref=='scadenza' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='scadenza') }}">
+      ⏳ Scadenze <span class="badge text-bg-primary ms-1">{{ counts.n_scadenza or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-primary rounded-4 {% if pref=='pesce' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='pesce') }}">
+      🐟 Pesce <span class="badge text-bg-primary ms-1">{{ counts.n_pesce or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-primary rounded-4 {% if pref=='carne' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='carne') }}">
+      🥩 Carne <span class="badge text-bg-primary ms-1">{{ counts.n_carne or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-secondary rounded-4 {% if pref=='stop' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='stop') }}">
+      ⛔ Stop <span class="badge text-bg-secondary ms-1">{{ counts.n_stop or 0 }}</span>
+    </a>
+
+    <a class="btn btn-outline-dark rounded-4 {% if pref=='nessuna' %}active{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='nessuna') }}">
+      ❓ Nessuna risposta <span class="badge text-bg-dark ms-1">{{ counts.n_nessuna or 0 }}</span>
+    </a>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- BOX INVIO -->
+    <div class="col-12 col-lg-4">
+      <div class="card shadow-sm rounded-4">
+        <div class="card-header fw-bold">
+          ✉️ Invia messaggio
         </div>
-    </div>
 
-    <!-- TABS PREFERENZE -->
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <a class="btn btn-outline-primary rounded-4 {% if pref=='scadenza' %}active{% endif %}"
-            href="{{ url_for('bot_dashboard', pref='scadenza') }}">
-            ⏳ Scadenze <span class="badge text-bg-primary ms-1">{{ counts.n_scadenza or 0 }}</span>
-        </a>
+        <div class="card-body">
+          <div class="mb-2 text-muted">
+            Target selezionato:
+            <span class="fw-bold text-uppercase">{{ pref }}</span>
+          </div>
 
-        <a class="btn btn-outline-primary rounded-4 {% if pref=='pesce' %}active{% endif %}"
-            href="{{ url_for('bot_dashboard', pref='pesce') }}">
-            🐟 Pesce <span class="badge text-bg-primary ms-1">{{ counts.n_pesce or 0 }}</span>
-        </a>
+          <form method="POST" action="{{ url_for('bot_invia') }}">
+            <input type="hidden" name="pref" value="{{ pref }}">
 
-        <a class="btn btn-outline-primary rounded-4 {% if pref=='carne' %}active{% endif %}"
-            href="{{ url_for('bot_dashboard', pref='carne') }}">
-            🥩 Carne <span class="badge text-bg-primary ms-1">{{ counts.n_carne or 0 }}</span>
-        </a>
-
-        <a class="btn btn-outline-secondary rounded-4 {% if pref=='stop' %}active{% endif %}"
-            href="{{ url_for('bot_dashboard', pref='stop') }}">
-            ⛔ Stop <span class="badge text-bg-secondary ms-1">{{ counts.n_stop or 0 }}</span>
-        </a>
-
-        <a class="btn btn-outline-dark rounded-4 {% if pref=='nessuna' %}active{% endif %}"
-            href="{{ url_for('bot_dashboard', pref='nessuna') }}">
-            ❓ Nessuna risposta <span class="badge text-bg-dark ms-1">{{ counts.n_nessuna or 0 }}</span>
-        </a>
-    </div>
-
-    <div class="row g-3">
-
-        <!-- BOX INVIO -->
-        <div class="col-12 col-lg-4">
-            <div class="card shadow-sm rounded-4">
-                <div class="card-header fw-bold">
-                    ✉️ Invia messaggio
-                </div>
-
-                <div class="card-body">
-                    <div class="mb-2 text-muted">
-                        Target selezionato:
-                        <span class="fw-bold text-uppercase">{{ pref }}</span>
-                    </div>
-
-                    <form method="POST" action="{{ url_for('bot_invia') }}">
-                        <input type="hidden" name="pref" value="{{ pref }}">
-
-                        <div class="mb-3">
-                            <label class="form-label">Messaggio WhatsApp</label>
-                            <textarea class="form-control rounded-4" name="testo" rows="6"
-                                placeholder="Scrivi qui il messaggio da inviare..."></textarea>
-                            <small class="text-muted">
-                                Suggerimento: usa un testo breve, con emoji e call-to-action.
-                            </small>
-                        </div>
-
-                        <button class="btn btn-success rounded-4 w-100">
-                            📤 Invia al segmento
-                        </button>
-                    </form>
-
-                    <hr class="my-3">
-
-                    <!-- PDF OFFERS -->
-                    <div class="mb-2 fw-semibold">📄 Invia Offerte da PDF</div>
-                    <form method="POST" action="/bot/invia-pdf" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <input type="file" class="form-control rounded-4" name="pdf_file" accept="application/pdf" required>
-                            <small class="text-muted">Il bot leggerà i prodotti e li mapperà sui clienti che li lavorano.</small>
-                        </div>
-                        <button class="btn btn-primary rounded-4 w-100">
-                            🚀 Invia Offerte Target
-                        </button>
-                    </form>
-
-                    <hr class="my-3">
-
-                    <div class="small text-muted">
-                        <div class="fw-semibold mb-1">💡 Da WhatsApp (admin):</div>
-                        <div>- scrivi <code>STATS</code> per contatori</div>
-                        <div>- scrivi <code>SEND PESCE testo...</code></div>
-                        <div>- scrivi <code>SEND CARNE testo...</code></div>
-                        <div>- scrivi <code>SEND SCADENZA testo...</code></div>
-                    </div>
-                </div>
+            <div class="mb-3">
+              <label class="form-label">Messaggio WhatsApp</label>
+              <textarea class="form-control rounded-4" name="testo" rows="6"
+                        placeholder="Scrivi qui il messaggio da inviare..."></textarea>
+              <small class="text-muted">
+                Suggerimento: usa un testo breve, con emoji e call-to-action.
+              </small>
             </div>
+
+            <button class="btn btn-success rounded-4 w-100">
+              📤 Invia al segmento
+            </button>
+          </form>
+
+          <hr class="my-3">
+
+          <div class="small text-muted">
+            <div class="fw-semibold mb-1">💡 Da WhatsApp (admin):</div>
+            <div>- scrivi <code>STATS</code> per contatori</div>
+            <div>- scrivi <code>SEND PESCE testo...</code></div>
+            <div>- scrivi <code>SEND CARNE testo...</code></div>
+            <div>- scrivi <code>SEND SCADENZA testo...</code></div>
+          </div>
         </div>
-
-        <!-- LISTA CLIENTI -->
-        <div class="col-12 col-lg-8">
-            <div class="card shadow-sm rounded-4">
-                <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-                    <span>👥 Clienti nel segmento</span>
-                    <span class="badge text-bg-light border">{{ clienti|length }}</span>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Cliente</th>
-                                <th class="d-none d-md-table-cell">Zona</th>
-                                <th>Telefono</th>
-                                <th>Preferenze</th>
-                                <th class="d-none d-lg-table-cell">Aggiornato</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for c in clienti %}
-                            <tr>
-                                <td class="fw-semibold">{{ c.nome }}</td>
-                                <td class="d-none d-md-table-cell">{{ c.zona or "-" }}</td>
-                                <td><span class="font-monospace">{{ c.telefono }}</span></td>
-
-                                <td>
-                                    {% if c.opt_out %}
-                                    <span class="badge bg-secondary">STOP</span>
-                                    {% else %}
-                                    {% if c.ricevi_scadenza %}<span class="badge bg-warning text-dark">SCAD</span>{%
-                                    endif %}
-                                    {% if c.ricevi_pesce %}<span class="badge bg-info text-dark">PESCE</span>{% endif %}
-                                    {% if c.ricevi_carne %}<span class="badge bg-danger">CARNE</span>{% endif %}
-                                    {% if (not c.ricevi_scadenza) and (not c.ricevi_pesce) and (not c.ricevi_carne) %}
-                                    <span class="badge bg-dark">NESSUNA</span>
-                                    {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td class="d-none d-lg-table-cell">
-                                    <small class="text-muted">{{ c.updated_at or "-" }}</small>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
-                                    Nessun cliente in questo segmento.
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-            </div>
-        </div>
-
+      </div>
     </div>
+
+    <!-- LISTA CLIENTI -->
+    <div class="col-12 col-lg-8">
+      <div class="card shadow-sm rounded-4">
+        <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+          <span>👥 Clienti nel segmento</span>
+          <span class="badge text-bg-light border">{{ clienti|length }}</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Cliente</th>
+                <th class="d-none d-md-table-cell">Zona</th>
+                <th>Telefono</th>
+                <th>Preferenze</th>
+                <th class="d-none d-lg-table-cell">Aggiornato</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in clienti %}
+              <tr>
+                <td class="fw-semibold">{{ c.nome }}</td>
+                <td class="d-none d-md-table-cell">{{ c.zona or "-" }}</td>
+                <td><span class="font-monospace">{{ c.telefono }}</span></td>
+
+                <td>
+                  {% if c.opt_out %}
+                    <span class="badge bg-secondary">STOP</span>
+                  {% else %}
+                    {% if c.ricevi_scadenza %}<span class="badge bg-warning text-dark">SCAD</span>{% endif %}
+                    {% if c.ricevi_pesce %}<span class="badge bg-info text-dark">PESCE</span>{% endif %}
+                    {% if c.ricevi_carne %}<span class="badge bg-danger">CARNE</span>{% endif %}
+                    {% if (not c.ricevi_scadenza) and (not c.ricevi_pesce) and (not c.ricevi_carne) %}
+                      <span class="badge bg-dark">NESSUNA</span>
+                    {% endif %}
+                  {% endif %}
+                </td>
+
+                <td class="d-none d-lg-table-cell">
+                  <small class="text-muted">{{ c.updated_at or "-" }}</small>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  Nessun cliente in questo segmento.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
 </div>
 {% endblock %}

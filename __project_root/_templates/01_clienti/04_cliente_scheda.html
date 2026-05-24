@@ -5,290 +5,439 @@
 {% block styles %}
 {{ super() }}
 <style>
-  /* ------------------ Card Categorie ------------------ */
-  .categoria-card {
-      cursor: pointer;
-      transition: all 0.4s ease;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #ffffff;
-      padding: 1.5rem 1rem;
-      box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 120px;
-      text-align: center;
-      font-weight: 600;
-      color: #1a1a1a;
-  }
+body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
+h1,h5 { font-weight:600; }
 
-  .categoria-card:hover {
-      transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
-      background-color: #ffffff;
-  }
+.card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
+.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
 
-  /* ------------------ Barra ricerca ------------------ */
-  .search-bar {
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      width: 100%;
-      margin-bottom: 0.75rem;
-  }
+.categoria-card { cursor:pointer; padding:1.5rem; text-align:center; margin-bottom:1rem; }
+.categoria-card i { font-size:2.5rem; color:#0d6efd; margin-bottom:0.5rem; }
+.categoria-card .prod-count { font-size:0.8rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; display:block; margin-top:0.25rem; }
 
-  /* ------------------ Badge Prezzi ------------------ */
-  .badge-prezzo-attuale { background-color: #28a745; color: #fff; font-size: 0.75rem; padding: 0.25em 0.5em; border-radius: 5px; }
-  .badge-prezzo-offerta { background-color: #fd7e14; color: #fff; font-size: 0.75rem; padding: 0.25em 0.5em; border-radius: 5px; }
+.badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
+.badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
+.badge-soft-danger { background-color: rgba(220,53,69,0.15); color:#dc3545; }
+.badge-soft-warning { background-color: rgba(253,126,20,0.15); color:#fd7e14; }
 
-  /* ------------------ Tabella Prodotti ------------------ */
-  table tbody tr.table-success:hover,
-  table tbody tr.table-danger:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
+.search-bar { padding:0.5rem 1rem; border:1px solid #ddd; border-radius:1rem; width:100%; margin-bottom:0.5rem; font-size:0.9rem; }
+.search-bar:focus { border-color:#0d6efd; box-shadow:0 0 0 0.15rem rgba(13,110,253,0.25); outline:none; }
 
-  /* ------------------ Log Cliente ------------------ */
-  .log-container {
-      color: #000;
-      max-height: 220px;
-      overflow-y: auto;
-  }
+.log-container { max-height:220px; overflow-y:auto; border-radius:1rem; padding:0.5rem 0.75rem; background:#fff; border:1px solid #eaeaea; }
+table tbody tr { transition:0.2s; }
+table tbody tr:hover { background:#f1f3f5 !important; }
+
+.price-offer { color:#28a745; font-weight:600; }
+.note-data { display:block; font-size:0.75rem; color:#6c757d; margin-top:0.25rem; }
+
+.kpi-title { font-size:0.85rem; color:#6c757d; margin-bottom:0.25rem; }
+.kpi-value { font-size:1.35rem; font-weight:700; }
+
+.wh-card { border:1px solid #e9ecef; border-radius: 1rem; background:#fff; }
+.wh-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background: rgba(37,211,102,0.12); }
+.wh-icon i { color:#25D366; font-size:1.5rem; }
+.wh-number { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1 class="mb-4">
-  Scheda Cliente: {{ cliente.nome }}
-  {% if stato_cliente == 'attivo' %}
-    <span class="badge bg-success ms-3"><i class="bi bi-circle-fill"></i> Attivo</span>
-  {% elif stato_cliente == 'bloccato' %}
-    <span class="badge bg-danger ms-3"><i class="bi bi-circle-fill"></i> Bloccato</span>
-  {% else %}
-    <span class="badge bg-secondary ms-3"><i class="bi bi-circle-fill"></i> Inattivo</span>
-  {% endif %}
-</h1>
 
-<div class="row g-4 mb-4">
-  <!-- Dati cliente e log -->
-  <div class="col-12 col-md-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <p><strong>Zona:</strong> {{ cliente.zona or '–' }}</p>
-        <p><strong>Fatturato Totale:</strong>
-          {% if fatturato_totale and fatturato_totale|float > 0 %}
-            <span class="fw-bold text-success">{{ "%.2f"|format(fatturato_totale) }} €</span>
+{# === STATO CLIENTE: coerente con lista, ma con fallback === #}
+{% if stati_clienti is defined and stati_clienti %}
+  {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
+{% else %}
+  {% set stato = stato_cliente if stato_cliente is defined and stato_cliente else 'inattivo' %}
+{% endif %}
+
+{# === WHATSAPP: normalizza numero === #}
+{% set tel_raw = (cliente.telefono or '') %}
+{% set whatsapp_number = tel_raw|replace(' ', '')|replace('+','')|replace('-','')|replace('(','')|replace(')','') %}
+{% set has_whatsapp = whatsapp_number|length >= 8 %}
+
+{% if whatsapp_collegato is defined %}
+  {% set wa_linked = whatsapp_collegato %}
+{% else %}
+  {% set wa_linked = has_whatsapp %}
+{% endif %}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div class="d-flex align-items-center gap-3">
+    <h1 class="mb-0">{{ cliente.nome }}</h1>
+    {% if stato == 'attivo' %}
+      <span class="badge bg-success"><i class="bi bi-circle-fill me-1"></i> Attivo</span>
+    {% elif stato == 'bloccato' %}
+      <span class="badge bg-danger"><i class="bi bi-circle-fill me-1"></i> Bloccato</span>
+    {% else %}
+      <span class="badge bg-secondary"><i class="bi bi-circle-fill me-1"></i> Inattivo</span>
+    {% endif %}
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4">
+      <i class="bi bi-pencil-square me-1"></i> Modifica
+    </a>
+    <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4">
+      <i class="bi bi-arrow-left me-1"></i> Lista clienti
+    </a>
+  </div>
+</div>
+
+<!-- ================== WHATSAPP / BOT ================== -->
+<div class="card wh-card mb-4 p-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="wh-icon">
+        <i class="bi bi-whatsapp"></i>
+      </div>
+
+      <div>
+        <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
+          <span>WhatsApp collegato al bot</span>
+          {% if wa_linked %}
+            <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i> Collegato</span>
           {% else %}
-            <span class="text-muted fst-italic">Nessun dato disponibile</span>
+            <span class="badge bg-secondary"><i class="bi bi-slash-circle me-1"></i> Non collegato</span>
           {% endif %}
-        </p>
+        </div>
 
-        <h6 class="mt-4">Ultimi 5 Log</h6>
-        {% if log_cliente %}
-          {% set log_ordinati = log_cliente | sort(attribute='data', reverse=true) %}
-          {% set log_recenti = log_ordinati[:5] %}
-          <div class="border rounded p-2 log-container">
-            <ul class="list-unstyled mb-0">
-              {% for log in log_recenti %}
-                <li class="d-flex justify-content-between align-items-center border-bottom py-1">
-                  <div>
-                    {% if 'Aggiunto prodotto' in log.descrizione %}
-                      <i class="bi bi-plus-circle-fill text-success me-2"></i>
-                    {% elif 'Rimosso prodotto' in log.descrizione %}
-                      <i class="bi bi-dash-circle-fill text-danger me-2"></i>
-                    {% elif 'Fatturato aggiornato' in log.descrizione %}
-                      <i class="bi bi-currency-euro text-primary me-2"></i>
-                    {% else %}
-                      <i class="bi bi-info-circle-fill text-secondary me-2"></i>
-                    {% endif %}
-                    {{ log.descrizione }}
-                  </div>
-                  <small class="text-muted">{{ log.data.strftime("%d/%m/%Y %H:%M") if log.data else '–' }}</small>
-                </li>
-              {% endfor %}
-            </ul>
+        <div class="text-muted small">
+          {% if has_whatsapp %}
+            Numero: <span class="fw-semibold wh-number">{{ whatsapp_number }}</span>
+          {% else %}
+            Numero: <span class="fst-italic">non presente</span>
+          {% endif %}
+        </div>
+
+        {% if has_whatsapp and not wa_linked %}
+          <div class="small text-muted mt-1">
+            Dopo aver salvato il numero, lo stato diventa “Collegato” quando il bot riceve il primo messaggio da quel numero.
           </div>
-        {% else %}
-          <p class="text-muted fst-italic">Nessun log disponibile.</p>
         {% endif %}
       </div>
     </div>
+
+    <div class="d-flex gap-2">
+      {% if has_whatsapp %}
+        <a class="btn btn-success rounded-4"
+           href="https://wa.me/{{ whatsapp_number }}"
+           target="_blank" rel="noopener">
+          <i class="bi bi-chat-dots me-1"></i> Apri chat
+        </a>
+      {% endif %}
+      <a class="btn btn-outline-primary rounded-4"
+         href="{{ url_for('modifica_cliente', id=cliente.id) }}">
+        <i class="bi bi-link-45deg me-1"></i> Gestisci WhatsApp
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ================== METRICHE ================== -->
+<div class="row g-3 mb-4">
+  {% set mesi_totali = fatturato_mensile|length %}
+  {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
+
+  {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
+  {% set cm = crescita_mensile if cm_defined else 0 %}
+
+  <div class="col-12 col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <div class="kpi-title">Fatturato Totale</div>
+      <div class="kpi-value text-success">{{ "%.2f"|format(fatturato_totale or 0) }} €</div>
+    </div>
   </div>
 
-  <!-- Grafico fatturato -->
-  <div class="col-12 col-md-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-bar-chart-fill me-2"></i> Andamento Fatturato</span>
+  <div class="col-12 col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <div class="kpi-title">Media Mensile</div>
+      <div class="kpi-value text-info">{{ "%.2f"|format(media) }} €</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <div class="kpi-title">Crescita Mensile</div>
+      <div class="kpi-value text-{% if cm_defined and cm < 0 %}danger{% else %}success{% endif %}">
+        {% if cm_defined %}
+          {{ cm }} %
+          {% if cm > 0 %}<i class="bi bi-arrow-up-short text-success"></i>{% endif %}
+          {% if cm < 0 %}<i class="bi bi-arrow-down-short text-danger"></i>{% endif %}
+        {% else %}
+          –
+        {% endif %}
+      </div>
+      <div class="text-muted small">Confronto ultimi 2 mesi chiusi</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-3">
+    <div class="card h-100 p-3 text-center">
+      <div class="kpi-title">Ultimo Fatturato</div>
+      {% set keys = fatturato_mensile.keys()|list|sort %}
+      {% if keys|length > 0 %}
+        {% set last_key = keys[-1] %}
+        <div class="kpi-value text-primary">{{ last_key }}</div>
+        <div class="text-muted small">
+          {{ "%.2f"|format(fatturato_mensile[last_key] or 0) }} €
+        </div>
+      {% else %}
+        <div class="kpi-value text-muted">–</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ================== GRAFICO + LOG ================== -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold"><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
         <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
           <option value="ultimi3" selected>Ultimi 3 mesi</option>
-          <option value="tutti">Tutti i mesi</option>
+          <option value="ultimi6">Ultimi 6 mesi</option>
+          <option value="tutti">Tutti</option>
         </select>
       </div>
-      <div class="card-body">
-        <canvas id="fatturatoMensileChart" height="220"></canvas>
-        {% if variazione_fatturato_cliente is not none %}
-          <p class="mt-3 mb-0 text-center">
-            Andamento rispetto al mese precedente: 
-            <strong>{{ "%.2f"|format(variazione_fatturato_cliente) }}%</strong>
-          </p>
-        {% endif %}
+      <canvas id="fatturatoMensileChart"></canvas>
+      <div class="text-muted small mt-2">
+        Nota: mostra lo storico aggregato per mese.
       </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 p-3">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h6 class="mb-0 fw-semibold">Ultimi Log</h6>
+      </div>
+
+      {% if log_cliente %}
+        {% set ultimi_log = log_cliente|sort(attribute='data', reverse=true) %}
+        <div class="log-container">
+          <ul class="list-unstyled mb-0">
+            {% for log in ultimi_log[:8] %}
+              <li class="d-flex justify-content-between gap-2 border-bottom py-1">
+                <div class="pe-2">
+                  {% if 'Fatturato aggiornato' in log.descrizione %}
+                    <i class="bi bi-currency-euro text-primary me-1"></i>
+                  {% elif 'Aggiunto prodotto' in log.descrizione or 'Rimosso prodotto' in log.descrizione %}
+                    <i class="bi bi-box-seam text-success me-1"></i>
+                  {% elif 'Prezzo prodotto modificato' in log.descrizione %}
+                    <i class="bi bi-tag-fill text-warning me-1"></i>
+                  {% else %}
+                    <i class="bi bi-info-circle-fill text-secondary me-1"></i>
+                  {% endif %}
+                  {{ log.descrizione }}
+                </div>
+                <small class="text-muted text-nowrap">
+                  {{ log.data.strftime("%d/%m/%Y") if log.data else '–' }}
+                </small>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <p class="text-muted fst-italic mb-0">Nessun log disponibile.</p>
+      {% endif %}
     </div>
   </div>
 </div>
 
-<!-- Card categorie -->
-<div class="row g-4 mb-4">
-  {% for cat in categorie %}
-    <div class="col-md-4">
-      <div class="categoria-card" data-cat-id="{{ cat.id }}" data-cat-nome="{{ cat.nome }}">
-        <i class="bi bi-box-seam mb-2 fs-3 text-primary"></i>
-        <h5>{{ cat.nome }}</h5>
-        <small>Clicca per vedere i prodotti</small>
-      </div>
-    </div>
-  {% endfor %}
-</div>
+<!-- ================== CATEGORIE + PRODOTTI ================== -->
+<div class="row">
+  <div class="col-md-3">
+    {% for cat in categorie %}
+      {% set ns = namespace(tot=0, lav=0) %}
+      {% for p in prodotti if p.categoria_id == cat.id %}
+        {% set ns.tot = ns.tot + 1 %}
+        {% if (p.id|string) in prodotti_lavorati %}
+          {% set ns.lav = ns.lav + 1 %}
+        {% endif %}
+      {% endfor %}
 
-<!-- Contenitore unico per la tabella -->
-<div id="contenitore-tabella" class="mt-4"></div>
-
-<!-- Templates nascosti per ogni tabella categoria -->
-{% for cat in categorie %}
-  <template id="tabella-template-{{ cat.id }}">
-    <div class="card shadow-sm">
-      <div class="card-body p-3">
-        <h5 class="border-bottom pb-2 mb-3">{{ cat.nome }}</h5>
-
-        <!-- Barra di ricerca -->
-        <input type="text" class="search-bar" placeholder="Cerca prodotto..." onkeyup="filtraProdotti(this, '{{ cat.id }}')">
-
-        <div class="table-responsive">
-          <table class="table table-hover mb-0" id="tabella-prodotti-{{ cat.id }}">
-            <thead class="table-light">
-              <tr>
-                <th>Prodotto</th>
-                <th>Stato</th>
-                <th>Prezzo Attuale (€)</th>
-                <th>Prezzo Offerta (€)</th>
-                <th>Ultima Modifica</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% set lavorati_str = prodotti_lavorati | map('string') | list %}
-              {% for p in prodotti|sort(attribute='nome') if p.categoria_id == cat.id %}
-                {% set pid = p.id|string %}
-                {% set lavorato = pid in lavorati_str %}
-                <tr class="align-middle {% if lavorato %}table-success{% else %}table-danger{% endif %}">
-                  <td><strong>{{ p.nome }}</strong></td>
-                  <td>
-                    {% if lavorato %}
-                      <span class="badge bg-success">Lavorato</span>
-                    {% else %}
-                      <span class="badge bg-danger">Non Lavorato</span>
-                    {% endif %}
-                  </td>
-                  <td>{% if prezzi_attuali.get(pid) is not none %}{{ "%.2f"|format(prezzi_attuali[pid]) }}{% else %}–{% endif %}</td>
-                  <td>
-                    {% if prezzi_offerta.get(pid) is not none %}
-                      <span class="badge bg-warning" data-bs-toggle="tooltip" 
-                            title="Ultima modifica: {{ prodotti_data.get(pid) }}">
-                        {{ "%.2f"|format(prezzi_offerta[pid]) }}
-                      </span>
-                    {% else %}
-                      –
-                    {% endif %}
-                  </td>
-                  <td>{{ prodotti_data.get(pid) or '–' }}</td>
-                </tr>
-              {% else %}
-                <tr>
-                  <td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto in questa categoria</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="card categoria-card" data-cat-id="{{ cat.id }}">
+        <div class="d-flex flex-column align-items-center justify-content-center p-3">
+          <i class="bi bi-box-seam mb-2"></i>
+          <h5 class="mb-1">{{ cat.nome }}</h5>
+          <small class="text-muted">{{ ns.lav }} / {{ ns.tot }} prodotti lavorati</small>
         </div>
       </div>
+    {% endfor %}
+  </div>
+
+  <div class="col-md-9">
+    <div id="contenitore-tabella"></div>
+  </div>
+</div>
+
+<!-- ================== TEMPLATE PER TABELLE ================== -->
+{% for cat in categorie %}
+<template id="tabella-template-{{ cat.id }}">
+  <div class="card p-3 mb-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-2 mb-3">
+      <h5 class="mb-0">{{ cat.nome }}</h5>
+      <span class="text-muted small">Clicca una categoria a sinistra per cambiare</span>
     </div>
-  </template>
+
+    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto o codice..."
+           onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
+        <thead class="table-light">
+          <tr>
+            <th>Prodotto</th>
+            <th>Data operazione</th>
+            <th>Prezzo Attuale (€)</th>
+            <th>Prezzo Offerta (€)</th>
+            <th>Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in prodotti|sort(attribute='nome') if p.categoria_id == cat.id %}
+            {% set pid = p.id|string %}
+            {% set pa = prezzi_attuali.get(pid) %}
+            {% set po = prezzi_offerta.get(pid) %}
+            <tr>
+              <td class="fw-semibold">
+                <span class="prod-nome">{{ p.nome }}</span>
+                <span class="badge text-bg-light border ms-2 prod-code-badge">
+                  COD: {{ p.codice if p.codice else '—' }}
+                </span>
+              </td>
+
+              <td>
+                {% if prodotti_data.get(pid) %}
+                  {{ prodotti_data[pid].strftime("%d/%m/%Y") }}
+                {% else %}
+                  <span class="text-muted">–</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if pa is not none %}
+                  {{ "%.2f"|format(pa) }}
+                {% else %}
+                  <span class="text-muted">–</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if po is not none %}
+                  <span class="price-offer">{{ "%.2f"|format(po) }}</span>
+                {% else %}
+                  <span class="text-muted">–</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if pid in prodotti_lavorati %}
+                  <span class="badge bg-success">Lavorato</span>
+                {% else %}
+                  <span class="badge bg-secondary">Non lavorato</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
 {% endfor %}
 
-<a href="{{ url_for('clienti') }}" class="btn btn-secondary mb-4">
-  <i class="bi bi-arrow-left me-1"></i> Torna alla lista clienti
-</a>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 (() => {
-  const fatturatoMensileRaw = {{ fatturato_mensile|default({})|tojson }};
-  const mesiOrdinati = Object.keys(fatturatoMensileRaw).sort();
-  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-
-  function formattaLabel(m) {
-    const [anno, mese] = m.split('-');
-    return mesiNomi[parseInt(mese,10)-1]+" '"+anno.slice(2);
-  }
-
-  function getDataset(tipo){
-    let mesi = (tipo==='ultimi3') ? mesiOrdinati.slice(-3) : mesiOrdinati;
-    return { labels: mesi.map(formattaLabel), valori: mesi.map(m=>fatturatoMensileRaw[m]) };
-  }
-
-  const ctx = document.getElementById('fatturatoMensileChart').getContext('2d');
+  const fatturato = {{ fatturato_mensile|default({})|tojson }};
+  const mesi = Object.keys(fatturato).sort();
+  const canvas = document.getElementById('fatturatoMensileChart');
+  const ctx = canvas.getContext('2d');
   let chart;
 
-  function aggiornaGrafico(tipo='ultimi3'){
-    const dataset = getDataset(tipo);
-    if(chart) chart.destroy();
-    chart = new Chart(ctx, {
+  const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const formatta = m => {
+    const [anno,mese]=m.split('-');
+    return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+  };
+
+  const getSlice = (tipo) => {
+    if (tipo === 'ultimi3') return mesi.slice(-3);
+    if (tipo === 'ultimi6') return mesi.slice(-6);
+    return mesi;
+  };
+
+  const getData = tipo => {
+    const s = getSlice(tipo);
+    return { labels: s.map(formatta), dati: s.map(m => fatturato[m] || 0) };
+  };
+
+  const gradient = ctx.createLinearGradient(0,0,0,150);
+  gradient.addColorStop(0,'rgba(13,110,253,0.8)');
+  gradient.addColorStop(1,'rgba(13,110,253,0.2)');
+
+  const aggiornaGrafico = tipo => {
+    const d = getData(tipo);
+    if (chart) chart.destroy();
+    chart = new Chart(ctx,{
       type:'bar',
-      data:{ labels: dataset.labels, datasets:[{ label:'Fatturato (€)', data:dataset.valori, backgroundColor:'rgba(74,144,226,0.8)', borderRadius:5, borderSkipped:false }]},
-      options:{ responsive:true, plugins:{ legend:{ display:false }}, scales:{ x:{ grid:{ display:false }}, y:{ beginAtZero:true }}}
+      data:{
+        labels:d.labels,
+        datasets:[{
+          data:d.dati,
+          backgroundColor:gradient,
+          borderRadius:6,
+          borderSkipped:false
+        }]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true}}
+      }
     });
-  }
+  };
 
   document.getElementById('filtro-mesi').addEventListener('change', e => aggiornaGrafico(e.target.value));
   aggiornaGrafico('ultimi3');
 
-  // Tooltip Bootstrap
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-  tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+  const first = document.querySelector(".categoria-card");
+  if (first) {
+    const t = document.getElementById(`tabella-template-${first.dataset.catId}`);
+    const container = document.getElementById("contenitore-tabella");
+    if (t && container) container.innerHTML = t.innerHTML;
+  }
 
-  // Gestione apertura categorie
-  const cards = document.querySelectorAll(".categoria-card");
-  const contenitore = document.getElementById("contenitore-tabella");
-
-  cards.forEach(card => {
-    card.addEventListener("click", () => {
-      const catId = card.dataset.catId;
-      const template = document.getElementById(`tabella-template-${catId}`);
-      contenitore.innerHTML = "";
-      if (template) contenitore.innerHTML = template.innerHTML;
+  document.querySelectorAll(".categoria-card").forEach(card=>{
+    card.addEventListener("click",()=> {
+      const t = document.getElementById(`tabella-template-${card.dataset.catId}`);
+      const container = document.getElementById("contenitore-tabella");
+      if (t && container) container.innerHTML = t.innerHTML;
     });
   });
 })();
 
-// Funzione ricerca prodotti
-function filtraProdotti(input, catId) {
-  const filtro = input.value.toLowerCase();
-  const tabella = document.querySelector(`#tabella-prodotti-${catId} tbody`);
-  const righe = tabella.getElementsByTagName("tr");
+function filtraProdotti(input,catId){
+  const filtro = (input.value || "").toLowerCase().trim();
+  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
+    const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
+    const codiceTxt = (r.querySelector(".prod-code-badge")?.innerText || "").toLowerCase(); // "COD: XXXXX"
+    const codice = codiceTxt.replace("cod:", "").trim();
 
-  for (let riga of righe) {
-    const celle = riga.getElementsByTagName("td");
-    if (celle.length > 0) {
-      const nomeProdotto = celle[0].innerText.toLowerCase();
-      riga.style.display = nomeProdotto.includes(filtro) ? "" : "none";
-    }
-  }
+    const ok = nome.includes(filtro) || codice.includes(filtro) || codiceTxt.includes(filtro);
+    r.style.display = ok ? "" : "none";
+  });
 }
 </script>
-{% endblock %}
 
+{% endblock %}

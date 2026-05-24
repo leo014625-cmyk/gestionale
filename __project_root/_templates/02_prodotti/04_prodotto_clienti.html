@@ -4,9 +4,21 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h1 class="mb-4">
-    Clienti che lavorano il prodotto: <strong>{{ prodotto.nome }}</strong>
-  </h1>
+
+  <div class="mb-4">
+    <h1 class="mb-1">
+      Clienti che lavorano il prodotto
+    </h1>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <h4 class="mb-0 fw-semibold">{{ prodotto.nome }}</h4>
+
+      {% if prodotto.codice %}
+        <span class="badge bg-secondary">
+          <i class="bi bi-upc-scan me-1"></i> COD: {{ prodotto.codice }}
+        </span>
+      {% endif %}
+    </div>
+  </div>
 
   {% if clienti %}
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
@@ -14,13 +26,20 @@
         <div class="col">
           <div class="card shadow-sm h-100 border-0 hover-scale">
             <div class="card-body d-flex flex-column justify-content-between">
+
               <div>
-                <h5 class="card-title">{{ cliente.nome }}</h5>
-                <p class="card-text text-muted small mb-0">Zona: {{ cliente.zona or '–' }}</p>
+                <h5 class="card-title mb-1">{{ cliente.nome }}</h5>
+                <p class="card-text text-muted small mb-0">
+                  <i class="bi bi-geo-alt me-1"></i>
+                  Zona: {{ cliente.zona or '–' }}
+                </p>
               </div>
-              <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-outline-primary mt-3">
-                🔍 Scheda
+
+              <a href="{{ url_for('cliente_scheda', id=cliente.id) }}"
+                 class="btn btn-outline-primary mt-3 d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-search"></i> Scheda
               </a>
+
             </div>
           </div>
         </div>
@@ -32,9 +51,10 @@
     </div>
   {% endif %}
 
-  <a href="{{ url_for('prodotti') }}" class="btn btn-secondary mt-4">
-    ← Torna alla lista prodotti
+  <a href="{{ url_for('prodotti') }}" class="btn btn-secondary mt-4 d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left"></i> Torna alla lista prodotti
   </a>
+
 </div>
 {% endblock %}
 
@@ -42,14 +62,14 @@
 {{ super() }}
 <style>
 .hover-scale {
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .hover-scale:hover {
-  transform: scale(1.03);
-  box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+  transform: translateY(-6px);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.18);
 }
 .card-title {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 600;
 }
 .card-text {
@@ -57,4 +77,3 @@
 }
 </style>
 {% endblock %}
-

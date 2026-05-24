@@ -14,26 +14,24 @@
     <!-- Immagine prodotto -->
     <div class="mb-3">
       <label for="immagine" class="form-label">🖼 Immagine Prodotto</label>
-      {% if promo['immagine'] %}
-        <div class="mb-2">
-          <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}" 
-               alt="Immagine attuale" class="img-thumbnail" style="max-height:150px;">
-        </div>
-      {% endif %}
-      <input type="file" id="immagine" name="immagine" class="form-control" accept="image/*">
+      <div class="mb-2">
+        <img id="preview-immagine" 
+             src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) if promo['immagine'] else url_for('static', filename='no-image.png') }}" 
+             alt="Anteprima Immagine" class="img-thumbnail" style="max-height:150px;">
+      </div>
+      <input type="file" id="immagine" name="immagine" class="form-control" accept="image/*" onchange="previewImage(this, 'preview-immagine')">
       <div class="form-text">Lascia vuoto se non vuoi cambiare l'immagine.</div>
     </div>
 
     <!-- Sfondo volantino -->
     <div class="mb-3">
       <label for="sfondo" class="form-label">🌄 Sfondo Volantino</label>
-      {% if promo['sfondo'] %}
-        <div class="mb-2">
-          <img src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['sfondo']) }}" 
-               alt="Sfondo attuale" class="img-thumbnail" style="max-height:150px;">
-        </div>
-      {% endif %}
-      <input type="file" id="sfondo" name="sfondo" class="form-control" accept="image/*">
+      <div class="mb-2">
+        <img id="preview-sfondo" 
+             src="{{ url_for('static', filename='uploads/promolampo/' ~ promo['sfondo']) if promo['sfondo'] else url_for('static', filename='no-image.png') }}" 
+             alt="Anteprima Sfondo" class="img-thumbnail" style="max-height:150px;">
+      </div>
+      <input type="file" id="sfondo" name="sfondo" class="form-control" accept="image/*" onchange="previewImage(this, 'preview-sfondo')">
       <div class="form-text">Lascia vuoto se non vuoi cambiare lo sfondo.</div>
     </div>
 
@@ -53,6 +51,19 @@
   </form>
 </div>
 
+<script>
+function previewImage(input, previewId) {
+  const preview = document.getElementById(previewId);
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+    }
+    reader.readAsDataURL(input.files[0]);
+  } else {
+    preview.src = "{{ url_for('static', filename='no-image.png') }}";
+  }
+}
+</script>
+
 {% endblock %}
-
-

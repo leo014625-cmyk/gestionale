@@ -4,7 +4,7 @@
 <div class="container-fluid mt-4">
   <h2 class="mb-3">🖌 Editor Promo Lampo</h2>
 
-  <!-- 🔧 Pannello strumenti in alto -->
+  <!-- 🔧 Pannello strumenti -->
   <div class="card p-3 shadow-sm mb-3">
     <div class="d-flex flex-wrap gap-3 align-items-center">
 
@@ -81,14 +81,12 @@
   <!-- Area editor -->
   <div class="text-center position-relative">
     <canvas id="promoCanvas"></canvas>
-    <div id="centerTip" class="position-absolute top-50 start-50 translate-middle bg-success text-white p-1 rounded d-none">Centrato!</div>
     <div class="mt-3">
       <a href="{{ url_for('lista_volantini_completa') }}" class="btn btn-secondary">⬅ Torna alla lista</a>
     </div>
   </div>
 </div>
 
-<!-- Librerie -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -99,184 +97,145 @@ document.addEventListener("DOMContentLoaded", function() {
   canvas.setHeight(1400);
   let selectedObj = null;
 
-  const centerX = canvas.getWidth()/2;
-  const centerY = canvas.getHeight()/2;
-  const tolerance = 5;
+  // Carica sfondo e oggetti iniziali
+  {% set bg_image = promo['sfondo'] if promo['sfondo'] else 'no-image.png' %}
+  fabric.Image.fromURL("{{ url_for('static', filename='uploads/promolampo/' ~ bg_image) }}", function(img) {
+    img.scaleToWidth(canvas.getWidth());
+    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
 
-  // --- Linee centrali ---
-  const lineH = new fabric.Line([centerX,0,centerX,canvas.getHeight()], { stroke:'rgba(0,0,0,0.3)', selectable:false, evented:false });
-  const lineV = new fabric.Line([0,centerY,canvas.getWidth(),centerY], { stroke:'rgba(0,0,0,0.3)', selectable:false, evented:false });
-  canvas.add(lineH,lineV);
-
-  const centerTip = document.getElementById("centerTip");
-
-  function checkCenter(obj){
-    const objCenterX = obj.left + (obj.width*obj.scaleX)/2;
-    const objCenterY = obj.top + (obj.height*obj.scaleY)/2;
-    let horiz = Math.abs(objCenterX - centerX) <= tolerance;
-    let vert = Math.abs(objCenterY - centerY) <= tolerance;
-
-    obj.set({ stroke:(horiz||vert)?'lime':null, strokeWidth:(horiz||vert)?2:0 });
-    canvas.renderAll();
-
-    if(horiz && vert){
-      centerTip.classList.remove("d-none");
-      setTimeout(()=>centerTip.classList.add("d-none"),1000);
-    }
-  }
-
-  // --- Carica sfondo/layout ---
-  {% if promo['layout'] %}
-    canvas.loadFromJSON(`{{ promo['layout']|safe }}`, canvas.renderAll.bind(canvas));
-  {% else %}
-    {% if promo['sfondo'] %}
-      fabric.Image.fromURL("{{ url_for('static', filename='uploads/promolampo/' ~ promo['sfondo']) }}", function(img) {
-        img.scaleToWidth(canvas.getWidth());
-        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
-      });
-    {% else %}
-      canvas.setBackgroundColor("#f9f9f9", canvas.renderAll.bind(canvas));
+    {% if promo['immagine'] %}
+    fabric.Image.fromURL("{{ url_for('static', filename='uploads/promolampo/' ~ promo['immagine']) }}", function(prodImg){
+      prodImg.scaleToWidth(400);
+      prodImg.set({ left:300, top:300 });
+      canvas.add(prodImg);
+    });
     {% endif %}
-  {% endif %}
 
-  // --- Aggiungi immagine ---
-  document.getElementById("addImage").addEventListener("change", function(e) {
-    const file = e.target.files[0];
-    if(file){
-      const reader = new FileReader();
-      reader.onload = (f) => {
-        fabric.Image.fromURL(f.target.result, function(img) {
-          img.scaleToWidth(200);
-          img.set({ left:100, top:100 });
-          canvas.add(img);
-          canvas.setActiveObject(img);
-          checkCenter(img);
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    {% if promo['nome'] %}
+    const nameText = new fabric.Textbox("{{ promo['nome'] }}", {
+      left: 50, top: 50, fontSize: 48, fill: "#000", fontWeight: "bold", width: 900
+    });
+    canvas.add(nameText);
+    {% endif %}
+
+    {% if promo['prezzo'] %}
+    const radius = 50;
+    const color = "#FF6600";
+    const shapeObj = new fabric.Circle({ radius, fill: color, originX:'center', originY:'center' });
+    const priceText = new fabric.Text("{{ promo['prezzo'] }}€", { fontSize:33, fill:'white', fontWeight:'bold', originX:'center', originY:'center', textAlign:'center' });
+    const priceGroup = new fabric.Group([shapeObj, priceText], { left:800, top:300, originX:'center', originY:'center' });
+    canvas.add(priceGroup);
+    {% endif %}
   });
 
-  // --- Aggiungi testo ---
-  document.getElementById("addText").addEventListener("click", function() {
-    const value = document.getElementById("newText").value.trim();
-    if(!value) return;
-    const width = parseInt(document.getElementById("textWidth").value)||300;
-    const text = new fabric.Textbox(value, {
-      left:100, top:100,
-      fontSize:28,
-      fill: document.getElementById("fontColor").value,
-      fontWeight: 'normal',
-      width: width,
-      editable:true
+  // 🔹 Selezione oggetti
+  canvas.on("selection:created", e => selectedObj = e.selected[0]);
+  canvas.on("selection:updated", e => selectedObj = e.selected[0]);
+  canvas.on("selection:cleared", () => selectedObj = null);
+
+  // 🔹 Aggiungi testo
+  document.getElementById("addText").addEventListener("click", () => {
+    const textVal = document.getElementById("newText").value;
+    if(!textVal) return;
+    const text = new fabric.Textbox(textVal, {
+      left: 100, top: 100, fontSize: parseInt(document.getElementById("fontSize").value),
+      fill: document.getElementById("fontColor").value, width: parseInt(document.getElementById("textWidth").value)
     });
     canvas.add(text);
-    canvas.setActiveObject(text);
-    document.getElementById("newText").value = "";
-    checkCenter(text);
   });
 
-  // --- Toggle grassetto ---
-  document.getElementById("toggleBold").addEventListener("click", function() {
-    if(selectedObj && selectedObj.type==="textbox"){
-      selectedObj.fontWeight = selectedObj.fontWeight==="bold"?"normal":"bold";
-      canvas.renderAll();
-    }
+  // 🔹 Aggiungi immagine
+  document.getElementById("addImage").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = f => {
+      fabric.Image.fromURL(f.target.result, img => {
+        img.scaleToWidth(300);
+        img.set({ left:200, top:200 });
+        canvas.add(img);
+      });
+    };
+    reader.readAsDataURL(file);
   });
 
-  // --- Aggiorna colore testo ---
-  document.getElementById("fontColor").addEventListener("input", function(){
-    if(selectedObj && selectedObj.type==="textbox"){
-      selectedObj.set({ fill: this.value });
-      canvas.renderAll();
-    }
-  });
-
-  // --- Aggiungi prezzo con forme moderne ---
-  document.getElementById("addPrice").addEventListener("click", function() {
-    const value = document.getElementById("priceValue").value.trim();
+  // 🔹 Aggiungi prezzo
+  document.getElementById("addPrice").addEventListener("click", () => {
+    const value = document.getElementById("priceValue").value;
     if(!value) return;
-
-    const radius = 50;
     const color = document.getElementById("priceColor").value;
     const shape = document.getElementById("priceShape").value;
     let shapeObj;
-
-    switch(shape){
-      case "circle":
-        shapeObj = new fabric.Circle({ radius, fill: color, originX:'center', originY:'center' });
-        break;
-      case "ellipse":
-        shapeObj = new fabric.Ellipse({ rx: radius, ry: radius*0.6, fill: color, originX:'center', originY:'center' });
-        break;
-      case "roundedRect":
-        shapeObj = new fabric.Rect({ width: radius*2, height: radius*1.2, rx:20, ry:20, fill: color, originX:'center', originY:'center' });
-        break;
-    }
-
-    const text = new fabric.Text(value+"€", { fontSize:33, fill:'white', fontWeight:'bold', originX:'center', originY:'center', textAlign:'center' });
-    const group = new fabric.Group([shapeObj,text], { left:150, top:150, originX:'center', originY:'center' });
+    if(shape === "circle") shapeObj = new fabric.Circle({ radius:50, fill:color, originX:'center', originY:'center' });
+    if(shape === "ellipse") shapeObj = new fabric.Ellipse({ rx:70, ry:50, fill:color, originX:'center', originY:'center' });
+    if(shape === "roundedRect") shapeObj = new fabric.Rect({ width:120, height:70, rx:20, ry:20, fill:color, originX:'center', originY:'center' });
+    const priceText = new fabric.Text(value+"€", { fontSize:32, fill:"white", fontWeight:"bold", originX:'center', originY:'center' });
+    const group = new fabric.Group([shapeObj, priceText], { left:400, top:400 });
     canvas.add(group);
-    canvas.setActiveObject(group);
-    document.getElementById("priceValue").value="";
-    checkCenter(group);
   });
 
-  // --- Aggiorna controlli selezione ---
-  canvas.on("selection:created", updateControls);
-  canvas.on("selection:updated", updateControls);
-  canvas.on("selection:cleared", ()=>{ selectedObj=null; });
-
-  function updateControls(e){
-    selectedObj = e.selected[0];
-    if(!selectedObj) return;
-    document.getElementById("posX").value = Math.round(selectedObj.left||0);
-    document.getElementById("posY").value = Math.round(selectedObj.top||0);
-    document.getElementById("scaleObj").value = Math.round((selectedObj.scaleX||1)*100);
-    if(selectedObj.type==="textbox"||selectedObj.type==="text"){
-      document.getElementById("fontSize").value = selectedObj.fontSize||28;
-      document.getElementById("textWidth").value = selectedObj.width||300;
+  // 🔹 Bold toggle
+  document.getElementById("toggleBold").addEventListener("click", () => {
+    if(selectedObj && selectedObj.type === "textbox"){
+      selectedObj.set("fontWeight", selectedObj.fontWeight === "bold" ? "normal" : "bold");
+      canvas.renderAll();
     }
-  }
-
-  // --- Modifica da pannello ---
-  document.getElementById("posX").addEventListener("input", function(){ if(selectedObj){ selectedObj.left=parseInt(this.value); canvas.renderAll(); checkCenter(selectedObj); }});
-  document.getElementById("posY").addEventListener("input", function(){ if(selectedObj){ selectedObj.top=parseInt(this.value); canvas.renderAll(); checkCenter(selectedObj); }});
-  document.getElementById("scaleObj").addEventListener("input", function(){ if(selectedObj){ let scale=this.value/100; selectedObj.scaleX=scale; selectedObj.scaleY=scale; canvas.renderAll(); checkCenter(selectedObj); }});
-  document.getElementById("fontSize").addEventListener("input", function(){ if(selectedObj&&selectedObj.type==="textbox"){ selectedObj.fontSize=parseInt(this.value); canvas.renderAll(); }});
-  document.getElementById("textWidth").addEventListener("input", function(){ if(selectedObj&&selectedObj.type==="textbox"){ selectedObj.set({ width:parseInt(this.value) }); canvas.renderAll(); }});
-
-  // --- Elimina ---
-  document.getElementById("deleteObj").addEventListener("click", function(){ if(selectedObj){ canvas.remove(selectedObj); selectedObj=null; canvas.renderAll(); }});
-
-  // --- Reset ---
-  document.getElementById("resetCanvas").addEventListener("click", function(){ if(confirm("Resettare il layout?")) location.reload(); });
-
-  // --- Salva layout ---
-  document.getElementById("saveLayout").addEventListener("click", function(){
-    const layoutJSON = JSON.stringify(canvas.toJSON());
-    fetch("{{ url_for('salva_layout', promo_id=promo['id']) }}", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ layout: layoutJSON }) })
-      .then(res=>{ if(res.ok) alert("Layout salvato correttamente!"); });
   });
 
-  // --- Scarica PNG ---
-  document.getElementById("downloadPng").addEventListener("click", function(){
-    const dataURL = canvas.toDataURL({ format:"png", quality:1 });
+  // 🔹 Cambia colore testo
+  document.getElementById("fontColor").addEventListener("input", e => {
+    if(selectedObj && selectedObj.type === "textbox"){
+      selectedObj.set("fill", e.target.value);
+      canvas.renderAll();
+    }
+  });
+
+  // 🔹 Posizione
+  document.getElementById("posX").addEventListener("input", e => { if(selectedObj){ selectedObj.left = parseInt(e.target.value); canvas.renderAll(); }});
+  document.getElementById("posY").addEventListener("input", e => { if(selectedObj){ selectedObj.top = parseInt(e.target.value); canvas.renderAll(); }});
+
+  // 🔹 Scala
+  document.getElementById("scaleObj").addEventListener("input", e => {
+    if(selectedObj){
+      const scale = parseInt(e.target.value)/100;
+      selectedObj.scaleX = scale;
+      selectedObj.scaleY = scale;
+      canvas.renderAll();
+    }
+  });
+
+  // 🔹 Font size e larghezza testo
+  document.getElementById("fontSize").addEventListener("input", e => { if(selectedObj && selectedObj.type==="textbox"){ selectedObj.set("fontSize", parseInt(e.target.value)); canvas.renderAll(); }});
+  document.getElementById("textWidth").addEventListener("input", e => { if(selectedObj && selectedObj.type==="textbox"){ selectedObj.set("width", parseInt(e.target.value)); canvas.renderAll(); }});
+
+  // 🔹 Elimina
+  document.getElementById("deleteObj").addEventListener("click", () => { if(selectedObj){ canvas.remove(selectedObj); selectedObj=null; }});
+
+  // 🔹 Reset
+  document.getElementById("resetCanvas").addEventListener("click", () => { canvas.clear(); });
+
+  // 🔹 Download PNG
+  document.getElementById("downloadPng").addEventListener("click", () => {
     const link = document.createElement("a");
-    link.href = dataURL;
-    link.download = "{{ promo['nome']|replace(' ','_') }}.png";
+    link.href = canvas.toDataURL({ format:"png" });
+    link.download = "promo.png";
     link.click();
   });
 
-  // --- Scarica PDF ---
-  document.getElementById("downloadPdf").addEventListener("click", function(){
+  // 🔹 Download PDF
+  document.getElementById("downloadPdf").addEventListener("click", () => {
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p","pt",[canvas.getWidth(),canvas.getHeight()]);
-    const dataURL = canvas.toDataURL({ format:"png", quality:1 });
-    pdf.addImage(dataURL,"PNG",0,0,canvas.getWidth(),canvas.getHeight());
-    pdf.save("{{ promo['nome']|replace(' ','_') }}.pdf");
+    const pdf = new jsPDF("p","pt","a4");
+    pdf.addImage(canvas.toDataURL({ format:"png" }), "PNG", 0, 0, 595, 842);
+    pdf.save("promo.pdf");
   });
 
+  // 🔹 Salva Layout (serializza oggetti in JSON)
+  document.getElementById("saveLayout").addEventListener("click", () => {
+    const layout = JSON.stringify(canvas.toJSON());
+    console.log("💾 Layout salvato:", layout);
+    alert("Layout salvato in console log! (da integrare con backend)");
+  });
 });
 </script>
 

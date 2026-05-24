@@ -5,302 +5,959 @@
 {% block content %}
 
 {% set mesi = {
-    1: 'Gennaio', 2: 'Febbraio', 3: 'Marzo', 4: 'Aprile',
-    5: 'Maggio', 6: 'Giugno', 7: 'Luglio', 8: 'Agosto',
-    9: 'Settembre', 10: 'Ottobre', 11: 'Novembre', 12: 'Dicembre'
+    1:'Gennaio',2:'Febbraio',3:'Marzo',4:'Aprile',
+    5:'Maggio',6:'Giugno',7:'Luglio',8:'Agosto',
+    9:'Settembre',10:'Ottobre',11:'Novembre',12:'Dicembre'
 } %}
 
-<h1 class="mb-4">Modifica Cliente</h1>
-
-<form method="POST" novalidate>
-  <!-- Nome cliente -->
-  <div class="mb-3">
-    <label for="nome" class="form-label">Nome cliente</label>
-    <input type="text" class="form-control" id="nome" name="nome" value="{{ cliente.nome }}" required autofocus>
-  </div>
-
-  <!-- Zona -->
-  <div class="mb-3">
-    <label for="zona" class="form-label">Zona</label>
-    <select class="form-select" id="zona" name="zona" required>
-      {% for z in zone %}
-        <option value="{{ z.nome }}" {% if z.nome == cliente.zona %}selected{% endif %}>{{ z.nome }}</option>
-      {% endfor %}
-      <option disabled>──────────</option>
-      <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>+ Aggiungi nuova zona</option>
-    </select>
-    <div class="form-text">Seleziona una zona esistente o aggiungine una nuova.</div>
-  </div>
-
-  <!-- Nuova zona -->
-  <div class="mb-3 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
-    <label for="nuova_zona" class="form-label">Nuova Zona</label>
-    <input type="text" class="form-control" id="nuova_zona" name="nuova_zona" placeholder="Inserisci nuova zona" value="{{ nuova_zona_value or '' }}">
-  </div>
-
-  <!-- Fatturato -->
-  <fieldset class="mb-4">
-    <legend>Fatturato Mensile</legend>
-    <div class="row g-3 align-items-center mb-3">
-      <div class="col-auto">
-        <label for="mese" class="col-form-label">Mese</label>
-      </div>
-      <div class="col-auto">
-        <select id="mese" name="mese" class="form-select" required>
-          {% for k, v in mesi.items() %}
-            <option value="{{ k }}" {% if k == (fatturato_mese or current_month) %}selected{% endif %}>{{ v }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-auto">
-        <label for="anno" class="col-form-label">Anno</label>
-      </div>
-      <div class="col-auto">
-        <input type="number" id="anno" name="anno" class="form-control" value="{{ fatturato_anno or current_year }}" min="2000" max="2100" required>
-      </div>
-    </div>
-
-    <div class="mb-3">
-      <label for="fatturato_mensile" class="form-label">Importo (€)</label>
-      <input type="number" step="0.01" min="0" class="form-control" id="fatturato_mensile" name="fatturato_mensile" placeholder="Inserisci fatturato mensile" value="{{ fatturato_importo or '' }}">
-      <div class="form-text">Lascia vuoto se non vuoi aggiungere un fatturato.</div>
-    </div>
-
-    <button type="button" class="btn btn-outline-secondary mt-2" data-bs-toggle="modal" data-bs-target="#modalFatturato">
-      Visualizza e modifica fatturati
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="mb-0">Modifica Cliente</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Indietro
+    </a>
+    <button form="form-modifica-cliente" class="btn btn-primary">
+      <i class="bi bi-save"></i> Salva
     </button>
-  </fieldset>
-
-  <!-- Prodotti con card moderne -->
-  <div class="mb-4">
-    <h4 class="mb-3">Prodotti</h4>
-
-    {% if categorie %}
-      <ul class="nav nav-tabs mb-3" id="prodottiTabs" role="tablist">
-        {% for categoria in categorie %}
-          <li class="nav-item" role="presentation">
-            <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ categoria.id }}" data-bs-toggle="tab" data-bs-target="#cat-{{ categoria.id }}" type="button" role="tab">
-              {{ categoria.nome }}
-              {% if categoria.id|string in categorie_lavorate %}
-                <i class="bi bi-check-circle-fill text-success ms-1"></i>
-              {% endif %}
-            </button>
-          </li>
-        {% endfor %}
-      </ul>
-
-      <div class="tab-content">
-        {% for categoria in categorie %}
-          <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ categoria.id }}" role="tabpanel">
-            {% set prodotti_cat = prodotti|selectattr("categoria_id", "equalto", categoria.id)|list %}
-            {% if prodotti_cat %}
-              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                {% for prodotto in prodotti_cat %}
-                  <div class="col">
-                    <div class="card h-100 shadow-sm prodotto-card {% if prodotto.id|string in prodotti_lavorati %}bg-success bg-opacity-10{% else %}bg-white{% endif %}">
-                      <div class="card-body d-flex flex-column">
-                        <div class="form-check mb-2">
-                          <input class="form-check-input" type="checkbox" id="prodotto{{ prodotto.id }}" name="prodotti_lavorati[]" value="{{ prodotto.id }}" {% if prodotto.id|string in prodotti_lavorati %}checked{% endif %}>
-                          <label class="form-check-label fw-bold" for="prodotto{{ prodotto.id }}">
-                            {{ prodotto.nome }}
-                          </label>
-                          <span class="badge bg-secondary ms-1">{{ prodotto.categoria_nome }}</span>
-                        </div>
-                        <div class="mt-auto prezzi-wrapper {% if prodotto.id|string in prodotti_lavorati %}d-none{% endif %}" id="prezzi-{{ prodotto.id }}">
-                          <div class="mb-2">
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_attuale[{{ prodotto.id }}]" placeholder="Prezzo attuale €" value="{{ prezzi_attuali.get(prodotto.id|string, '') }}">
-                          </div>
-                          <div>
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="prezzo_offerta[{{ prodotto.id }}]" placeholder="Prezzo offerta €" value="{{ prezzi_offerta.get(prodotto.id|string, '') }}">
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="text-muted">Nessun prodotto in questa categoria.</p>
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="text-muted">Nessuna categoria disponibile.</p>
-    {% endif %}
   </div>
+</div>
 
-  <!-- Tabelle Prodotti -->
-  <hr>
-  <div class="row">
-    <div class="col-md-6">
-      <h5>Prodotti Lavorati</h5>
-      <table class="table table-bordered table-striped mb-4" id="tabella-lavorati">
-        <thead class="table-success">
-          <tr><th>Prodotto</th><th>Categoria</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="col-md-6">
-      <h5>Prodotti Non Lavorati</h5>
-      <table class="table table-bordered table-striped" id="tabella-non-lavorati">
-        <thead class="table-danger">
-          <tr><th>Prodotto</th><th>Categoria</th><th>Prezzo Attuale</th><th>Prezzo Offerta</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+{# ✅ FORM SEPARATO PER IMPORT PDF (NO FORM ANNIDATO!) #}
+<form id="form-import-pdf"
+      method="POST"
+      action="{{ url_for('importa_pdf_lavorati_auto', cliente_id=cliente.id) }}"
+      enctype="multipart/form-data"></form>
+
+{# ✅ CARD IMPORT PDF FUORI DAL FORM PRINCIPALE #}
+<div class="card shadow-sm rounded-4 mb-4">
+  <div class="card-header bg-white border-0 pt-4 px-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h5 class="mb-0"><i class="bi bi-magic me-2"></i>Import PDF prodotti lavorati</h5>
+        <div class="text-muted small">
+          Carica un PDF con <b>codice + nome prodotto</b>. Se il prodotto non esiste, viene creato automaticamente e assegnato come <b>Lavorato</b>.
+        </div>
+      </div>
+      <span class="badge text-bg-light border" id="pdf-badge">Nessun file</span>
     </div>
   </div>
 
-  <!-- Pulsanti -->
-  <button type="submit" class="btn btn-primary">Salva modifiche</button>
-  <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">Annulla</a>
-</form>
+  <div class="card-body px-4 pb-4">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <input type="file"
+             name="pdf"
+             id="pdf-input"
+             accept="application/pdf"
+             class="form-control"
+             style="max-width:420px"
+             required
+             form="form-import-pdf">
 
-<!-- Modal Fatturato -->
-<div class="modal fade" id="modalFatturato" tabindex="-1" aria-labelledby="modalFatturatoLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalFatturatoLabel">Fatturati Mensili</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body">
-        <table class="table table-striped">
-          <thead>
-            <tr><th>Mese</th><th>Anno</th><th>Importo (€)</th></tr>
-          </thead>
-          <tbody>
-            {% for f in fatturati_cliente %}
-            <tr>
-              <td>{{ mesi[f.mese] }}</td>
-              <td>{{ f.anno }}</td>
-              <td>
-                <input type="number" class="form-control form-control-sm" value="{{ f.totale }}" data-fatt-id="{{ f.id }}">
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="3" class="text-muted">Nessun fatturato inserito</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="salvaFatturatiModal">Salva modifiche</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-      </div>
+      <button type="submit"
+              class="btn btn-primary"
+              id="btn-import-pdf"
+              form="form-import-pdf">
+        <i class="bi bi-upload"></i> Importa e assegna
+      </button>
+
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('modifica_cliente', id=cliente.id) }}">
+        <i class="bi bi-arrow-clockwise"></i> Aggiorna pagina
+      </a>
+    </div>
+
+    <div class="small text-muted mt-2">
+      Suggerimento: se il PDF è una <b>scansione</b> (immagine), potrebbe non estrarre i codici. In quel caso attiviamo il fallback OCR/AI.
     </div>
   </div>
 </div>
 
+{# ============================================================
+   MODAL RISULTATO IMPORT PDF (POPUP)
+   ============================================================ #}
+{% if import_result %}
+<div class="modal fade" id="importResultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0"><i class="bi bi-filetype-pdf me-2"></i>Risultato import PDF</h5>
+          <div class="text-muted small">
+            Totale righe lette: <b>{{ import_result.totale }}</b> —
+            Assegnati/Aggiornati: <b>{{ import_result.assigned }}</b> —
+            Creati: <b>{{ import_result.created }}</b>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <h6 class="mt-1">Prodotti importati</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width:160px;">Codice</th>
+                <th>Nome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in import_result.prodotti_importati %}
+              <tr>
+                <td><code>{{ p.codice }}</code></td>
+                <td>{{ p.nome }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if import_result.da_categorizzare and import_result.da_categorizzare|length > 0 %}
+          <hr class="my-4">
+
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h6 class="mb-0">Prodotti senza categoria</h6>
+            <span class="badge text-bg-warning">
+              Da categorizzare: {{ import_result.da_categorizzare|length }}
+            </span>
+          </div>
+          <div class="text-muted small mt-1">
+            Seleziona la categoria e salva. (Puoi anche lasciarne alcuni vuoti e salvarli dopo.)
+          </div>
+
+          <form method="POST"
+                action="{{ url_for('salva_categorie_import_pdf_modal', cliente_id=cliente.id) }}"
+                class="mt-3">
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th style="width:160px;">Codice</th>
+                    <th>Nome</th>
+                    <th style="width:320px;">Categoria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in import_result.da_categorizzare %}
+                  <tr>
+                    <td><code>{{ p.codice }}</code></td>
+                    <td>{{ p.nome }}</td>
+                    <td>
+                      <select class="form-select form-select-sm" name="categoria[{{ p.id }}]">
+                        <option value="">— scegli —</option>
+                        {% for c in categorie %}
+                          <option value="{{ c.id }}">{{ c.nome }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-2">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                Chiudi
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> Salva categorie
+              </button>
+            </div>
+          </form>
+        {% else %}
+          <div class="alert alert-success mt-3 mb-0">
+            Tutti i prodotti importati hanno già una categoria ✅
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<form id="form-modifica-cliente" method="POST" novalidate>
+
+  <!-- DATI BASE -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-body">
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Nome cliente</label>
+          <input type="text" class="form-control" name="nome" value="{{ cliente.nome }}" required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Zona</label>
+          <select class="form-select" name="zona" id="zona">
+            {% for z in zone %}
+              <option value="{{ z.nome }}" {% if cliente.zona == z.nome %}selected{% endif %}>
+                {{ z.nome }}
+              </option>
+            {% endfor %}
+            <option disabled>──────────</option>
+            <option value="nuova_zona" {% if nuova_zona_selected %}selected{% endif %}>
+              + Aggiungi nuova zona
+            </option>
+          </select>
+        </div>
+
+        <div class="col-12 {% if not nuova_zona_selected %}d-none{% endif %}" id="nuova-zona-wrapper">
+          <label class="form-label">Nuova zona</label>
+          <input type="text" class="form-control" name="nuova_zona"
+                 value="{{ nuova_zona_value or '' }}" placeholder="Inserisci nuova zona">
+        </div>
+
+        <!-- ✅ TELEFONO WHATSAPP -->
+        <div class="col-md-6">
+          <label class="form-label d-flex align-items-center justify-content-between">
+            <span>Telefono WhatsApp</span>
+            <span class="badge text-bg-light border" id="telefono-badge">Vuoto</span>
+          </label>
+
+          <input type="text"
+                 class="form-control"
+                 name="telefono"
+                 id="telefono"
+                 value="{{ telefono_cliente if telefono_cliente is defined else (cliente.telefono or '') }}"
+                 placeholder="Es. 393331234567 (senza +)"
+                 inputmode="numeric"
+                 autocomplete="tel">
+
+          <div class="form-text">
+            Solo numeri (min 8, max 15). Consigliato formato: <b>39...</b> senza “+” e senza spazi.
+          </div>
+
+          <div class="invalid-feedback">
+            Numero non valido. Inserisci solo cifre (min 8, max 15).
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FATTURATO -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Fatturato mensile</h5>
+          <div class="text-muted small">Aggiungi/aggiorna un mese e gestisci lo storico in tabella.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+
+      <input type="hidden" name="fatturato_use_storico" value="1">
+
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Mese</label>
+          <select class="form-select" name="mese">
+            {% for m,v in mesi.items() %}
+              <option value="{{ m }}" {% if m == fatturato_mese %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Anno</label>
+          <input type="number" class="form-control" name="anno"
+                 value="{{ fatturato_anno or current_year }}" min="2000" max="2100">
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Importo (€)</label>
+          <input type="number" step="0.01" class="form-control" name="fatturato_mensile"
+                 value="{{ fatturato_importo or '' }}" placeholder="Es. 1250.00">
+        </div>
+
+        <div class="col-12 col-md-2 d-grid">
+          <button type="button" class="btn btn-outline-primary" id="btn-add-fatturato">
+            <i class="bi bi-plus-circle"></i> Aggiungi
+          </button>
+        </div>
+      </div>
+
+      <div class="border rounded-4 p-3 bg-light-subtle">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fw-semibold">Storico fatturato</div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="fatturato-sort">
+              <i class="bi bi-sort-down"></i> Ordina
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="fatturato-clear">
+              <i class="bi bi-trash"></i> Svuota tabella
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0" id="tabella-fatturato">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width:140px;">Mese</th>
+                <th style="width:120px;">Anno</th>
+                <th>Importo (€)</th>
+                <th style="width:90px;" class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="fatturato-body">
+              {% if fatturati_storico is defined and fatturati_storico %}
+                {% for f in fatturati_storico %}
+                <tr>
+                  <td>
+                    <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
+                      {% for m,v in mesi.items() %}
+                        <option value="{{ m }}" {% if m == f.mese %}selected{% endif %}>{{ v }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm fatt-anno"
+                           name="fatt_anno[]"
+                           value="{{ f.anno }}" min="2000" max="2100">
+                  </td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm fatt-importo"
+                           name="fatt_importo[]"
+                           step="0.01" min="0" value="{{ f.importo }}">
+                  </td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger fatt-del">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr class="text-muted">
+                  <td colspan="4" class="py-3">
+                    Nessuno storico disponibile.
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <input type="hidden" name="fatturato_storico_json" id="fatturato_storico_json" value="">
+
+        <div class="small text-muted mt-2">
+          Puoi modificare direttamente le righe: al salvataggio invio sia i campi (fatt_*) sia un JSON di supporto.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PRODOTTI -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+          <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Prodotti</h5>
+          <div class="text-muted small">
+            Spunta “Lavorato”, inserisci fornitore e prezzi. Usa filtri e azioni massive.
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <input id="search-global" type="text" class="form-control form-control-sm" style="min-width:240px"
+                 placeholder="Cerca per nome, codice, fornitore...">
+          <button type="button" class="btn btn-sm btn-outline-success" id="btn-show-lavorati">
+            <i class="bi bi-check2-circle"></i> Solo lavorati
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger" id="btn-show-non-lavorati">
+            <i class="bi bi-x-circle"></i> Solo non lavorati
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-show-tutti">
+            <i class="bi bi-collection"></i> Tutti
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+
+      {% if categorie %}
+      <ul class="nav nav-pills mb-3 flex-wrap" id="tabs-categorie" role="tablist">
+        {% for cat in categorie %}
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link {% if loop.first %}active{% endif %}"
+                  data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}" role="tab">
+            {{ cat.nome }}
+            <span class="badge text-bg-light ms-2" id="badge-cat-{{ cat.id }}">0</span>
+          </button>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <div class="tab-content">
+        {% for cat in categorie %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat.id }}" role="tabpanel">
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <input type="text" class="form-control form-control-sm filtro-prodotto"
+                   data-cat="{{ cat.id }}" placeholder="Cerca per nome, codice o fornitore...">
+
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary bulk-all" data-cat="{{ cat.id }}">
+                Seleziona tutti
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary bulk-none" data-cat="{{ cat.id }}">
+                Nessuno
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary bulk-visible" data-cat="{{ cat.id }}">
+                Solo visibili
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle tabella-prodotti-cat"
+                   id="tabella-cat-{{ cat.id }}">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th class="text-center" style="width:70px;">Stato</th>
+                  <th>Prodotto</th>
+                  <th style="width:220px;">Fornitore</th>
+                  <th style="width:160px;">Prezzo Attuale</th>
+                  <th style="width:160px;">Prezzo Offerta</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                {% for p in prodotti if p.categoria_id == cat.id %}
+                {% set pid = p.id|string %}
+                <tr data-cat="{{ cat.id }}" data-pid="{{ p.id }}" class="riga-prodotto">
+
+                  <td class="text-center">
+                    <div class="d-flex flex-column align-items-center gap-1">
+                      <input type="checkbox" class="form-check-input chk-lavorato"
+                             name="prodotti_lavorati[]"
+                             value="{{ p.id }}"
+                             {% if pid in prodotti_lavorati %}checked{% endif %}>
+                      <span class="badge badge-stato {% if pid in prodotti_lavorati %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                        {% if pid in prodotti_lavorati %}Lavorato{% else %}No{% endif %}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
+                      <span class="prod-nome">{{ p.nome }}</span>
+                      <span class="badge text-bg-light border prod-code-badge">
+                        COD: {{ p.codice if p.codice else '—' }}
+                      </span>
+                    </div>
+                    <div class="text-muted small">{{ p.categoria_nome }}</div>
+                  </td>
+
+                  <td>
+                    <input type="text" class="form-control form-control-sm inp-fornitore"
+                           name="fornitore[{{ p.id }}]"
+                           value="{{ fornitori.get(pid) }}">
+                  </td>
+
+                  <td>
+                    <input type="number" class="form-control form-control-sm inp-prezzo"
+                           step="0.01" min="0"
+                           name="prezzo_attuale[{{ p.id }}]"
+                           value="{{ prezzi_attuali.get(pid,'') }}"
+                           placeholder="—">
+                  </td>
+
+                  <td>
+                    <input type="number" class="form-control form-control-sm inp-prezzo"
+                           step="0.01" min="0"
+                           name="prezzo_offerta[{{ p.id }}]"
+                           value="{{ prezzi_offerta.get(pid,'') }}"
+                           placeholder="—">
+                  </td>
+
+                </tr>
+                {% endfor %}
+
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- RIEPILOGO -->
+  <div class="row g-3 mb-4">
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <div class="d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">
+              <i class="bi bi-check2-circle me-2 text-success"></i>Prodotti Lavorati
+            </h5>
+            <span class="badge text-bg-success" id="count-lavorati">0</span>
+          </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+          <input id="search-lavorati" type="text" class="form-control form-control-sm mb-2"
+                 placeholder="Cerca per nome o codice...">
+          <div class="table-responsive riepilogo-table">
+            <table class="table table-sm table-bordered mb-0" id="tabella-lavorati">
+              <thead class="table-success sticky-top">
+                <tr>
+                  <th>Prodotto</th>
+                  <th>Categoria</th>
+                  <th>Fornitore</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <div class="d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">
+              <i class="bi bi-x-circle me-2 text-danger"></i>Prodotti Non Lavorati
+            </h5>
+            <span class="badge text-bg-danger" id="count-non-lavorati">0</span>
+          </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+          <input id="search-non-lavorati" type="text" class="form-control form-control-sm mb-2"
+                 placeholder="Cerca per nome o codice...">
+          <div class="table-responsive riepilogo-table">
+            <table class="table table-sm table-bordered mb-0" id="tabella-non-lavorati">
+              <thead class="table-danger sticky-top">
+                <tr>
+                  <th>Prodotto</th>
+                  <th>Categoria</th>
+                  <th>Fornitore</th>
+                  <th>Prezzo Attuale</th>
+                  <th>Prezzo Offerta</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">
+            Tip: puoi compilare prezzi anche senza spuntare “Lavorato”. Il riepilogo li mostra comunque.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary">
+      <i class="bi bi-save"></i> Salva modifiche
+    </button>
+    <a href="{{ url_for('clienti') }}" class="btn btn-secondary ms-2">
+      Annulla
+    </a>
+  </div>
+
+</form>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  // --- Nuova zona ---
-  const zonaSelect = document.getElementById('zona');
-  const nuovaZonaWrapper = document.getElementById('nuova-zona-wrapper');
-  const nuovaZonaInput = document.getElementById('nuova_zona');
+document.addEventListener("DOMContentLoaded", () => {
 
-  zonaSelect.addEventListener('change', function () {
-    const isNew = zonaSelect.value === 'nuova_zona';
-    nuovaZonaWrapper.classList.toggle('d-none', !isNew);
-    nuovaZonaInput.required = isNew;
-    if (isNew) nuovaZonaInput.focus();
-  });
+  // ---------- AUTO-APRI MODAL DOPO IMPORT ----------
+  {% if show_import_popup and import_result %}
+  const el = document.getElementById("importResultModal");
+  if (el && window.bootstrap) {
+    const m = new bootstrap.Modal(el);
+    m.show();
+  }
+  {% endif %}
 
-  // --- Prodotti ---
-  const prodotti = [
-    {% for prodotto in prodotti %}
-      { id: '{{ prodotto.id }}', nome: '{{ prodotto.nome }}', categoria: '{{ prodotto.categoria_nome }}' },
-    {% endfor %}
-  ];
+  // ---------- TELEFONO: NORMALIZZA + VALIDAZIONE ----------
+  const telInp = document.getElementById("telefono");
+  const telBadge = document.getElementById("telefono-badge");
 
-  const lavoratiTbody = document.querySelector('#tabella-lavorati tbody');
-  const nonLavoratiTbody = document.querySelector('#tabella-non-lavorati tbody');
+  function normalizeTel(v){
+    v = (v || "").toString().trim();
+    v = v.replace(/\+/g,"").replace(/\s+/g,"").replace(/[-()]/g,"");
+    v = v.replace(/[^\d]/g,"");
+    return v;
+  }
 
-  function aggiornaTabelle() {
-    lavoratiTbody.innerHTML = '';
-    nonLavoratiTbody.innerHTML = '';
+  function setBadge(kind, text){
+    if (!telBadge) return;
+    if (kind === "ok")      telBadge.className = "badge text-bg-success";
+    else if (kind === "bad")telBadge.className = "badge text-bg-danger";
+    else                    telBadge.className = "badge text-bg-light border";
+    telBadge.textContent = text;
+  }
 
-    prodotti.forEach(p => {
-      const checkbox = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
-      if (checkbox && checkbox.checked) {
-        lavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td></tr>`);
-      } else {
-        const attuale = document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value || '–';
-        const offerta = document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value || '–';
-        nonLavoratiTbody.insertAdjacentHTML('beforeend', `<tr><td>${p.nome}</td><td>${p.categoria}</td><td>${attuale}</td><td>${offerta}</td></tr>`);
-      }
+  function validateTel(opts={commit:false}){
+    if (!telInp) return true;
+    const raw = telInp.value;
+    const norm = normalizeTel(raw);
+    if (opts.commit) telInp.value = norm;
+
+    if (!norm) {
+      telInp.classList.remove("is-valid","is-invalid");
+      setBadge("empty", "Vuoto");
+      return true;
+    }
+
+    const ok = (norm.length >= 8 && norm.length <= 15);
+    telInp.classList.toggle("is-valid", ok);
+    telInp.classList.toggle("is-invalid", !ok);
+    setBadge(ok ? "ok" : "bad", ok ? "OK" : "Non valido");
+    return ok;
+  }
+
+  telInp?.addEventListener("input", () => validateTel({commit:false}));
+  telInp?.addEventListener("blur",  () => validateTel({commit:true}));
+  validateTel({commit:false});
+
+  // ---------- IMPORT PDF: BADGE ----------
+  const pdfInput = document.getElementById("pdf-input");
+  const pdfBadge = document.getElementById("pdf-badge");
+  const btnImport = document.getElementById("btn-import-pdf");
+
+  function setPdfBadge(kind, text){
+    if (!pdfBadge) return;
+    if (kind === "ok") pdfBadge.className = "badge text-bg-success";
+    else if (kind === "bad") pdfBadge.className = "badge text-bg-danger";
+    else pdfBadge.className = "badge text-bg-light border";
+    pdfBadge.textContent = text;
+  }
+
+  if (pdfInput) {
+    pdfInput.addEventListener("change", () => {
+      const file = pdfInput.files?.[0];
+      if (!file) return setPdfBadge("empty", "Nessun file");
+      const ok = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      setPdfBadge(ok ? "ok" : "bad", ok ? file.name : "File non valido");
+      if (btnImport) btnImport.disabled = !ok;
     });
   }
 
-  aggiornaTabelle();
+  // ---------- DATI PRODOTTI PER RIEPILOGO ----------
+  const lista = [
+    {% for p in prodotti %}
+      {
+        id:"{{ p.id }}",
+        codice: {{ (p.codice or '')|tojson }},
+        nome: {{ p.nome|tojson }},
+        categoria: {{ p.categoria_nome|tojson }},
+        catId:"{{ p.categoria_id }}"
+      },
+    {% endfor %}
+  ];
 
-  document.querySelectorAll('input[name="prodotti_lavorati[]"]').forEach(chk => {
-    chk.addEventListener('change', function () {
-      const wrapper = document.getElementById('prezzi-' + this.value);
-      wrapper.classList.toggle('d-none', this.checked);
-      aggiornaTabelle();
-    });
-  });
+  const tblL = document.querySelector("#tabella-lavorati tbody");
+  const tblN = document.querySelector("#tabella-non-lavorati tbody");
+  const countL = document.getElementById("count-lavorati");
+  const countN = document.getElementById("count-non-lavorati");
 
-  // --- Salvataggio fatturati dal modal via fetch ---
-  document.getElementById('salvaFatturatiModal').addEventListener('click', function() {
-    const inputs = document.querySelectorAll('#modalFatturato tbody input[data-fatt-id]');
-    const data = [];
+  function norm(v){ return (v ?? "").toString().trim(); }
 
-    inputs.forEach(i => {
-        data.push({ id: i.dataset.fattId, importo: parseFloat(i.value) });
-    });
+  function aggiornaRiepilogo() {
+    tblL.innerHTML = "";
+    tblN.innerHTML = "";
 
-    fetch("{{ url_for('aggiorna_fatturati') }}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fatturati: data, cliente_id: {{ cliente.id }} })
-    })
-    .then(res => res.json())
-    .then(resp => {
-        if (resp.success) {
-            alert("Fatturati aggiornati correttamente!");
-            location.reload();
-        } else {
-            alert("Errore nel salvataggio: " + resp.message);
+    let nL = 0, nN = 0;
+
+    lista.forEach(p => {
+      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      const forn = norm(document.querySelector(`input[name="fornitore[${p.id}]"]`)?.value) || "–";
+      const att = norm(document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value) || "–";
+      const off = norm(document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value) || "–";
+
+      const cod = (p.codice || "—").toString();
+      const nomeConCod = `<span class="d-inline-flex align-items-center gap-2 flex-wrap">
+        <span class="prod-nome">${p.nome}</span>
+        <span class="badge text-bg-light border prod-code-badge">COD: ${cod}</span>
+      </span>`;
+
+      if (chk && chk.checked) {
+        nL++;
+        tblL.insertAdjacentHTML("beforeend",
+          `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
+        );
+      } else {
+        nN++;
+        tblN.insertAdjacentHTML("beforeend",
+          `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
+        );
+      }
+
+      const row = document.querySelector(`tr.riga-prodotto[data-pid="${p.id}"]`);
+      if (row) {
+        const badge = row.querySelector(".badge-stato");
+        if (badge) {
+          if (chk && chk.checked) {
+            badge.className = "badge badge-stato text-bg-success";
+            badge.textContent = "Lavorato";
+          } else {
+            badge.className = "badge badge-stato text-bg-secondary";
+            badge.textContent = "No";
+          }
         }
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Errore di comunicazione con il server.");
+      }
+    });
+
+    countL.textContent = nL;
+    countN.textContent = nN;
+
+    aggiornaBadgeCategorie();
+  }
+
+  function aggiornaBadgeCategorie() {
+    const cats = new Map();
+    lista.forEach(p => {
+      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      const key = p.catId;
+      if (!cats.has(key)) cats.set(key, { tot:0, lav:0 });
+      const obj = cats.get(key);
+      obj.tot++;
+      if (chk && chk.checked) obj.lav++;
+    });
+
+    cats.forEach((v, k) => {
+      const b = document.getElementById(`badge-cat-${k}`);
+      if (b) b.textContent = `${v.lav}/${v.tot}`;
+    });
+  }
+
+  aggiornaRiepilogo();
+  document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiornaRiepilogo));
+  document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiornaRiepilogo));
+
+  function normalizeCodeText(txt){
+    return (txt || "").toLowerCase().replace("cod:", "").trim();
+  }
+
+  // ---------- FILTRO PER CATEGORIA (nome/codice/fornitore) ----------
+  document.querySelectorAll(".filtro-prodotto").forEach(inp => {
+    inp.addEventListener("keyup", function () {
+      const filtro = this.value.toLowerCase().trim();
+      const tab = document.querySelector(`#tabella-cat-${this.dataset.cat}`);
+      const righe = tab.querySelectorAll("tbody tr");
+
+      righe.forEach(r => {
+        const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
+        const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
+        const codTxt = (r.querySelector(".prod-code-badge")?.innerText || "");
+        const cod = normalizeCodeText(codTxt);
+
+        r.style.display = (nome.includes(filtro) || forn.includes(filtro) || cod.includes(filtro) || codTxt.toLowerCase().includes(filtro))
+          ? "" : "none";
+      });
     });
   });
+
+  // ---------- FILTRO GLOBALE (nome/codice/fornitore/categoria) ----------
+  const searchGlobal = document.getElementById("search-global");
+  if (searchGlobal) {
+    searchGlobal.addEventListener("input", () => {
+      const q = searchGlobal.value.toLowerCase().trim();
+      document.querySelectorAll("tr.riga-prodotto").forEach(r => {
+        const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
+        const forn = (r.querySelector(".inp-fornitore")?.value || "").toLowerCase();
+        const cat = (r.querySelector("td .text-muted")?.innerText || "").toLowerCase();
+        const codTxt = (r.querySelector(".prod-code-badge")?.innerText || "");
+        const cod = normalizeCodeText(codTxt);
+
+        r.style.display = (nome.includes(q) || forn.includes(q) || cat.includes(q) || cod.includes(q) || codTxt.toLowerCase().includes(q))
+          ? "" : "none";
+      });
+    });
+  }
+
+  // ---------- TOGGLE SOLO LAVORATI / NON LAVORATI / TUTTI ----------
+  function showMode(mode) {
+    document.querySelectorAll("tr.riga-prodotto").forEach(r => {
+      const pid = r.dataset.pid;
+      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${pid}"]`);
+      const isLav = !!(chk && chk.checked);
+
+      if (mode === "lavorati") r.style.display = isLav ? "" : "none";
+      else if (mode === "non") r.style.display = !isLav ? "" : "none";
+      else r.style.display = "";
+    });
+  }
+  document.getElementById("btn-show-lavorati")?.addEventListener("click", () => showMode("lavorati"));
+  document.getElementById("btn-show-non-lavorati")?.addEventListener("click", () => showMode("non"));
+  document.getElementById("btn-show-tutti")?.addEventListener("click", () => showMode("all"));
+
+  // ---------- BULK ACTIONS PER CATEGORIA ----------
+  function getCatRows(catId) {
+    return Array.from(document.querySelectorAll(`#tabella-cat-${catId} tbody tr`));
+  }
+  function setRowsChecked(rows, checked) {
+    rows.forEach(r => {
+      if (r.style.display === "none") return;
+      const chk = r.querySelector(".chk-lavorato");
+      if (chk) chk.checked = checked;
+    });
+    aggiornaRiepilogo();
+  }
+
+  document.querySelectorAll(".bulk-all").forEach(btn => {
+    btn.addEventListener("click", () => setRowsChecked(getCatRows(btn.dataset.cat), true));
+  });
+  document.querySelectorAll(".bulk-none").forEach(btn => {
+    btn.addEventListener("click", () => setRowsChecked(getCatRows(btn.dataset.cat), false));
+  });
+  document.querySelectorAll(".bulk-visible").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const rows = getCatRows(btn.dataset.cat).filter(r => r.style.display !== "none");
+      setRowsChecked(rows, true);
+    });
+  });
+
+  // ---------- RICERCA NEL RIEPILOGO (già ok: include anche "COD: ...") ----------
+  function filterTable(inputId, tableBodySel) {
+    const inp = document.getElementById(inputId);
+    const body = document.querySelector(tableBodySel);
+    if (!inp || !body) return;
+
+    inp.addEventListener("input", () => {
+      const q = inp.value.toLowerCase().trim();
+      body.querySelectorAll("tr").forEach(tr => {
+        tr.style.display = tr.innerText.toLowerCase().includes(q) ? "" : "none";
+      });
+    });
+  }
+  filterTable("search-lavorati", "#tabella-lavorati tbody");
+  filterTable("search-non-lavorati", "#tabella-non-lavorati tbody");
+
+  // ---------- FATTURATO: aggiunta righe + JSON backup ----------
+  const btnAddFat = document.getElementById("btn-add-fatturato");
+  const fatBody = document.getElementById("fatturato-body");
+  const fatJson = document.getElementById("fatturato_storico_json");
+
+  function rowToObj(tr) {
+    const mese = tr.querySelector(".fatt-mese")?.value;
+    const anno = tr.querySelector(".fatt-anno")?.value;
+    const importo = tr.querySelector(".fatt-importo")?.value;
+    return {
+      mese: parseInt(mese || "0", 10),
+      anno: parseInt(anno || "0", 10),
+      importo: parseFloat(importo || "0")
+    };
+  }
+
+  function syncFatturatoJson() {
+    if (!fatBody || !fatJson) return;
+    const rows = Array.from(fatBody.querySelectorAll("tr")).filter(r => r.querySelector(".fatt-mese"));
+    const data = rows.map(rowToObj).filter(o => o.mese && o.anno);
+    fatJson.value = data.length ? JSON.stringify(data) : "";
+  }
+
+  function bindRow(tr) {
+    tr.querySelector(".fatt-del")?.addEventListener("click", () => {
+      tr.remove();
+      syncFatturatoJson();
+    });
+    tr.querySelectorAll("input,select").forEach(el => el.addEventListener("input", syncFatturatoJson));
+  }
+
+  document.querySelectorAll("#fatturato-body tr").forEach(tr => {
+    if (tr.querySelector(".fatt-mese")) bindRow(tr);
+  });
+  syncFatturatoJson();
+
+  if (btnAddFat && fatBody) {
+    btnAddFat.addEventListener("click", () => {
+      const meseSel = document.querySelector("select[name='mese']");
+      const annoInp = document.querySelector("input[name='anno']");
+      const impInp  = document.querySelector("input[name='fatturato_mensile']");
+      const meseVal = meseSel?.value || "";
+      const annoVal = annoInp?.value || "";
+      const impVal  = impInp?.value || "";
+
+      const newRow = document.createElement("tr");
+      newRow.innerHTML = `
+        <td>
+          <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
+            ${Array.from(meseSel.options).map(o => `<option value="${o.value}" ${o.value===meseVal?'selected':''}>${o.text}</option>`).join("")}
+          </select>
+        </td>
+        <td><input type="number" class="form-control form-control-sm fatt-anno" name="fatt_anno[]" value="${annoVal}" min="2000" max="2100"></td>
+        <td><input type="number" class="form-control form-control-sm fatt-importo" name="fatt_importo[]" step="0.01" min="0" value="${impVal}"></td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger fatt-del"><i class="bi bi-x-lg"></i></button>
+        </td>
+      `;
+      fatBody.appendChild(newRow);
+      bindRow(newRow);
+      syncFatturatoJson();
+    });
+  }
+
+  document.getElementById("fatturato-clear")?.addEventListener("click", () => {
+    if (!fatBody) return;
+    fatBody.innerHTML = "";
+    syncFatturatoJson();
+  });
+
+  document.getElementById("fatturato-sort")?.addEventListener("click", () => {
+    if (!fatBody) return;
+    const rows = Array.from(fatBody.querySelectorAll("tr")).filter(r => r.querySelector(".fatt-mese"));
+    rows.sort((a,b) => {
+      const A = rowToObj(a), B = rowToObj(b);
+      return (B.anno - A.anno) || (B.mese - A.mese);
+    });
+    fatBody.innerHTML = "";
+    rows.forEach(r => fatBody.appendChild(r));
+    syncFatturatoJson();
+  });
+
+  document.getElementById("form-modifica-cliente")?.addEventListener("submit", (e) => {
+    const okTel = validateTel({commit:true});
+    if (!okTel) {
+      e.preventDefault();
+      telInp?.focus();
+      return;
+    }
+    syncFatturatoJson();
+  });
+
+  // ---------- NUOVA ZONA ----------
+  const zonaSelect = document.getElementById("zona");
+  const nuovaZonaWrapper = document.getElementById("nuova-zona-wrapper");
+  zonaSelect?.addEventListener("change", () =>
+    nuovaZonaWrapper.classList.toggle("d-none", zonaSelect.value !== "nuova_zona")
+  );
+
 });
 </script>
 
 <style>
-/* Card prodotti moderna */
-.prodotto-card {
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.prodotto-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
-}
-.card .form-check { cursor: pointer; }
-.card .form-check-input { margin-top: 0.2rem; }
-.card .badge { font-size: 0.75rem; }
-.prezzi-wrapper input { width: 100%; }
-
-/* Colore più chiaro per prodotti lavorati */
-.prodotto-card.bg-success.bg-opacity-10 {
-  background-color: #d4edda !important; /* verde chiaro */
-}
+.table-hover tbody tr:hover { background:#f5faff; }
+.sticky-top { top: 0; z-index: 5; }
+.riepilogo-table { max-height: 360px; overflow:auto; border-radius: 0.75rem; }
+.card { border-radius: 1rem; }
+.nav-pills .nav-link { border-radius: 999px; }
+.badge-stato { font-weight: 600; }
+#pdf-badge { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
-
 {% endblock %}
-
-
-
-

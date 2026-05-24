@@ -1,30 +1,51 @@
 import os
-import sqlite3
+import json
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify
 from datetime import datetime, timedelta
-from jinja2 import FileSystemLoader
-from collections import defaultdict
 from werkzeug.utils import secure_filename
-from dateutil.relativedelta import relativedelta
 from PIL import Image, ImageDraw
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from dateutil.relativedelta import relativedelta
+from collections import defaultdict
+from flask_sqlalchemy import SQLAlchemy
+import threading
+import requests
+from requests.auth import HTTPBasicAuth
+
+
+
+
+
 
 # ============================
 # PATH STATIC E PLACEHOLDER
 # ============================
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # __project_root
-TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dentro __project_root
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")  # STATIC dentro il progetto
 
-# Static si trova in ../gestionale/static
-STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "gestionale", "static"))
 NO_IMAGE_PATH = os.path.join(STATIC_DIR, "no-image.png")
+
+# Cartelle upload
+UPLOAD_FOLDER_VOLANTINI = os.path.join(STATIC_DIR, "uploads", "volantini")
+UPLOAD_FOLDER_VOLANTINI_PRODOTTI = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti")
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "uploads", "promo")
+UPLOAD_FOLDER_PROMOLAMPO = os.path.join(STATIC_DIR, "uploads", "promolampo")
+
+# Creazione cartelle se non esistono
+for folder in [
+    UPLOAD_FOLDER_VOLANTINI,
+    UPLOAD_FOLDER_VOLANTINI_PRODOTTI,
+    UPLOAD_FOLDER_PROMO,
+    UPLOAD_FOLDER_PROMOLAMPO,
+]:
+    os.makedirs(folder, exist_ok=True)
 
 # 🔹 Crea immagine placeholder se non esiste
 if not os.path.exists(NO_IMAGE_PATH):
-    os.makedirs(STATIC_DIR, exist_ok=True)
-    img = Image.new("RGB", (100, 100), color=(220, 220, 220))  # grigio chiaro
+    img = Image.new("RGB", (100, 100), color=(220, 220, 220))
     draw = ImageDraw.Draw(img)
     draw.text((10, 40), "No Img", fill=(100, 100, 100))
     img.save(NO_IMAGE_PATH)
@@ -39,11 +60,45 @@ app = Flask(
     static_folder=STATIC_DIR
 )
 
-# Forza loader Jinja sulla cartella corretta
-app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
+# ----------------------------------------------------------------------
+# CONFIG DATABASE (Render + Local)
+# ----------------------------------------------------------------------
+
+# Compatibilità: Render usa DATABASE_URL ma SQLAlchemy vuole postgres:// → postgresql://
+db_url = os.environ.get("DATABASE_URL", "")
+
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///local.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+# CREA LE TABELLE SE NON ESISTONO (Render + locale)
+with app.app_context():
+    db.create_all()
+
+
+# Config upload
+app.config["UPLOAD_FOLDER_VOLANTINI"] = UPLOAD_FOLDER_VOLANTINI
+app.config["UPLOAD_FOLDER_VOLANTINI_PRODOTTI"] = UPLOAD_FOLDER_VOLANTINI_PRODOTTI
+app.config["UPLOAD_FOLDER_PROMO"] = UPLOAD_FOLDER_PROMO
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # limite upload 16MB
+
 
 # Secret key per session
 app.secret_key = 'la_tua_chiave_segreta_sicura'
+
+# -------------------------------
+# MODELLO
+# -------------------------------
+class VolantinoBeta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(255), nullable=False)
+    layout_json = db.Column(db.Text, nullable=False)
+    thumbnail = db.Column(db.Text)
+    creato_il = db.Column(db.DateTime, default=datetime.utcnow)
+    aggiornato_il = db.Column(db.DateTime)
 
 # ============================
 # UPLOAD CATEGORIE
@@ -54,6 +109,9 @@ os.makedirs(CATEGORIE_UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+UPLOAD_FOLDER_PROMO = os.path.join(STATIC_DIR, "promo_lampo")
+os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
 
 # ============================
 # DEBUG
@@ -304,229 +362,370 @@ def aggiorna_fatturato_totale(id):
         ''', (id, id))
         db.commit()
 
-# ============================
-# ROUTE PRINCIPALE
-# ============================
 @app.route('/')
 @login_required
 def index():
+
     with get_db() as db:
         cur = db.cursor()
-        now = datetime.now()
-        mese_corrente = now.month
-        anno_corrente = now.year
 
-        primo_giorno_mese_corrente = datetime(anno_corrente, mese_corrente, 1)
-        primo_giorno_prossimo_mese = primo_giorno_mese_corrente + relativedelta(months=1)
+        oggi = datetime.now()
+        oggi_data = oggi.date()
+        trenta_giorni_fa = oggi - timedelta(days=30)
 
-        # Fatturato totale corrente
-        cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-                    (mese_corrente, anno_corrente))
+        # === Calcolo mesi fatturato ===
+        ultimo_mese_completo = oggi.replace(day=1) - relativedelta(days=1)
+        mese_corrente = ultimo_mese_completo.month
+        anno_corrente = ultimo_mese_completo.year
+
+        mese_prec_dt = ultimo_mese_completo - relativedelta(months=1)
+        mese_prec = mese_prec_dt.month
+        anno_prec = mese_prec_dt.year
+
+        # === Fatturato mese corrente ===
+        cur.execute(
+            "SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE mese=%s AND anno=%s",
+            (mese_corrente, anno_corrente)
+        )
         fatturato_corrente = cur.fetchone()['totale']
 
-        # Fatturato precedente
-        mese_prec = 12 if mese_corrente == 1 else mese_corrente - 1
-        anno_prec = anno_corrente - 1 if mese_corrente == 1 else anno_corrente
-        cur.execute('SELECT COALESCE(SUM(totale),0) as totale FROM fatturato WHERE mese=%s AND anno=%s',
-                    (mese_prec, anno_prec))
+        # === Fatturato mese precedente ===
+        cur.execute(
+            "SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE mese=%s AND anno=%s",
+            (mese_prec, anno_prec)
+        )
         fatturato_precedente = cur.fetchone()['totale']
 
         variazione_fatturato = None
         if fatturato_precedente != 0:
             variazione_fatturato = ((fatturato_corrente - fatturato_precedente) / fatturato_precedente) * 100
 
-        # Clienti nuovi
-        cur.execute('''
+        # ======================================================================================
+        # === CLIENTI NUOVI (ULTIMI 30 GIORNI)
+        # ======================================================================================
+        cur.execute("""
             SELECT id, nome, zona, data_registrazione
             FROM clienti
-            WHERE data_registrazione >= %s AND data_registrazione < %s
-        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
+            WHERE data_registrazione >= %s
+        """, (trenta_giorni_fa,))
         clienti_nuovi_rows = cur.fetchall()
 
         clienti_nuovi_dettaglio = [
-            {'nome': c['nome'], 'data_registrazione': c['data_registrazione']}
+            {
+                "id": c["id"],
+                "nome": c["nome"],
+                "data_registrazione": c["data_registrazione"]
+            }
             for c in clienti_nuovi_rows
         ]
         clienti_nuovi = len(clienti_nuovi_rows)
 
-        # Clienti bloccati / inattivi
-        cur.execute('SELECT id, nome FROM clienti')
+        # ======================================================================================
+        # === CLIENTI ATTIVI / BLOCCATI / INATTIVI
+        # ======================================================================================
+        cur.execute("SELECT id, nome FROM clienti ORDER BY nome")
         clienti_rows = cur.fetchall()
+
+        clienti_attivi_dettaglio = []
         clienti_bloccati_dettaglio = []
-        clienti_bloccati_inattivi_dettaglio = []
+        clienti_inattivi_dettaglio = []
 
         for cliente in clienti_rows:
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_corrente, anno_corrente))
-            totale_corrente = cur.fetchone()['coalesce']
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_prec, anno_prec))
-            totale_prec = cur.fetchone()['coalesce']
+            cur.execute("""
+                SELECT MAX(make_date(anno, mese, 1)) AS ultimo_fatturato
+                FROM fatturato
+                WHERE cliente_id = %s
+            """, (cliente["id"],))
 
-            mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
-            anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_due_fa, anno_due_fa))
-            totale_due_mesi_fa = cur.fetchone()['coalesce']
+            ultimo = cur.fetchone()["ultimo_fatturato"]
 
-            if totale_corrente > 0:
-                stato = 'attivo'
-            elif totale_prec == 0 and totale_due_mesi_fa == 0:
-                stato = 'inattivo'
+            if ultimo:
+                giorni = (oggi_data - ultimo).days
             else:
-                stato = 'bloccato'
+                giorni = 9999   # se non ha fatturato: inattivo vecchissimo
+                ultimo = None
 
-            if stato == 'bloccato':
-                clienti_bloccati_dettaglio.append({'nome': cliente['nome']})
-            if stato in ('bloccato', 'inattivo'):
-                clienti_bloccati_inattivi_dettaglio.append({'nome': cliente['nome'], 'stato': stato})
+            # Logica stato
+            if giorni <= 60:
+                stato = "attivo"
+            elif 61 <= giorni <= 91:
+                stato = "bloccato"
+            else:
+                stato = "inattivo"
 
-        clienti_bloccati = len(clienti_bloccati_dettaglio)
-        clienti_bloccati_inattivi = len(clienti_bloccati_inattivi_dettaglio)
+            info = {
+                "id": cliente["id"],
+                "nome": cliente["nome"],
+                "ultimo_fatturato": ultimo,
+                "giorni": giorni
+            }
 
-        # Prodotti inseriti
-        cur.execute('''
-            SELECT c.nome AS cliente, p.nome AS prodotto, cp.data_operazione
+            if stato == "attivo":
+                clienti_attivi_dettaglio.append(info)
+            elif stato == "bloccato":
+                clienti_bloccati_dettaglio.append(info)
+            else:
+                clienti_inattivi_dettaglio.append(info)
+
+        # ======================================================================================
+        # === PRODOTTI INSERITI (30 giorni)
+        # ======================================================================================
+        cur.execute("""
+            SELECT 
+                c.nome AS cliente, 
+                p.nome AS prodotto,
+                cp.data_operazione
             FROM clienti_prodotti cp
             JOIN clienti c ON cp.cliente_id = c.id
             JOIN prodotti p ON cp.prodotto_id = p.id
-            WHERE cp.lavorato = 1
-              AND cp.data_operazione >= %s AND cp.data_operazione < %s
-        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
+            WHERE cp.lavorato = TRUE
+              AND cp.data_operazione >= %s
+        """, (trenta_giorni_fa,))
         prodotti_inseriti_rows = cur.fetchall()
+
         prodotti_inseriti = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_operazione']}
+            {
+                "cliente": r["cliente"],
+                "prodotto": r["prodotto"],
+                "data_operazione": r["data_operazione"]
+            }
             for r in prodotti_inseriti_rows
         ]
 
-        # Prodotti rimossi
-        cur.execute('''
-            SELECT c.nome AS cliente, p.nome AS prodotto, pr.data_rimozione
+        # ======================================================================================
+        # === PRODOTTI RIMOSSI (30 giorni)
+        # ======================================================================================
+        cur.execute("""
+            SELECT 
+                c.nome AS cliente,
+                p.nome AS prodotto,
+                pr.data_rimozione
             FROM prodotti_rimossi pr
             JOIN prodotti p ON pr.prodotto_id = p.id
-            JOIN clienti_prodotti cp ON cp.prodotto_id = p.id
-            JOIN clienti c ON cp.cliente_id = c.id
-            WHERE pr.data_rimozione >= %s AND pr.data_rimozione < %s
-        ''', (primo_giorno_mese_corrente, primo_giorno_prossimo_mese))
+            JOIN clienti c ON pr.cliente_id = c.id
+            WHERE pr.data_rimozione >= %s
+        """, (trenta_giorni_fa,))
         prodotti_rimossi_rows = cur.fetchall()
+
         prodotti_rimossi = [
-            {'cliente': r['cliente'], 'prodotto': r['prodotto'], 'data_operazione': r['data_rimozione']}
+            {
+                "cliente": r["cliente"],
+                "prodotto": r["prodotto"],
+                "data_operazione": r["data_rimozione"]
+            }
             for r in prodotti_rimossi_rows
         ]
 
-        prodotti_totali_mese = len(prodotti_inseriti)
-        prodotti_rimossi_mese = len(prodotti_rimossi)
-
-        # Fatturato ultimi 12 mesi
-        cur.execute('''
+        # ======================================================================================
+        # === FATTURATO 12 MESI
+        # ======================================================================================
+        cur.execute("""
             SELECT anno, mese, COALESCE(SUM(totale),0) as totale
             FROM fatturato
             GROUP BY anno, mese
             ORDER BY anno DESC, mese DESC
             LIMIT 12
-        ''')
+        """)
         fatturato_mensile_rows = cur.fetchall()
-        fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": r['totale'] for r in reversed(fatturato_mensile_rows)}
 
+        fatturato_mensile = {
+            f"{r['anno']}-{r['mese']:02}": r["totale"]
+            for r in reversed(fatturato_mensile_rows)
+        }
+
+        # ======================================================================================
+        # === FATTURATO PER ZONA
+        # ======================================================================================
+        cur.execute("""
+            SELECT 
+                COALESCE(c.zona, 'Sconosciuta') AS zona,
+                COALESCE(SUM(f.totale),0) AS totale
+            FROM fatturato f
+            JOIN clienti c ON f.cliente_id = c.id
+            GROUP BY c.zona
+            ORDER BY zona
+        """)
+        fatturato_per_zona_rows = cur.fetchall()
+
+        fatturato_per_zona = {r["zona"]: r["totale"] for r in fatturato_per_zona_rows}
+
+        # ======================================================================================
+        # === NOTIFICHE
+        # ======================================================================================
+        notifiche = []
+
+        if clienti_attivi_dettaglio:
+            notifiche.append({
+                "titolo": "Aggiorna Fatturato",
+                "descrizione": "Ricorda di aggiornare il fatturato dei clienti attivi.",
+                "data": datetime.now(),
+                "tipo": "warning",
+                "clienti_attivi": clienti_attivi_dettaglio
+            })
+
+        if clienti_inattivi_dettaglio:
+            notifiche.append({
+                "titolo": "Clienti Inattivi",
+                "descrizione": "Verifica eventuali aggiornamenti.",
+                "data": datetime.now(),
+                "tipo": "secondary",
+                "clienti": clienti_inattivi_dettaglio
+            })
+
+    # ----------------------------------------------
+    # RENDER TEMPLATE
+    # ----------------------------------------------
     return render_template(
-        '02_index.html',
+        "02_index.html",
         variazione_fatturato=variazione_fatturato,
+
         clienti_nuovi=clienti_nuovi,
         clienti_nuovi_dettaglio=clienti_nuovi_dettaglio,
-        clienti_bloccati=clienti_bloccati,
+
+        clienti_bloccati=clienti_bloccati_dettaglio,
         clienti_bloccati_dettaglio=clienti_bloccati_dettaglio,
-        clienti_bloccati_inattivi=clienti_bloccati_inattivi,
-        clienti_bloccati_inattivi_dettaglio=clienti_bloccati_inattivi_dettaglio,
-        prodotti_totali_mese=prodotti_totali_mese,
-        prodotti_rimossi_mese=prodotti_rimossi_mese,
+
+        clienti_attivi_dettaglio=clienti_attivi_dettaglio,
+        clienti_inattivi=clienti_inattivi_dettaglio,
+
         prodotti_inseriti=prodotti_inseriti,
         prodotti_rimossi=prodotti_rimossi,
-        fatturato_mensile=fatturato_mensile
+
+        fatturato_mensile=fatturato_mensile,
+        fatturato_per_zona=fatturato_per_zona,
+
+        notifiche=notifiche
     )
 
+from collections import defaultdict
+from datetime import datetime
 
 # ============================
 # ROUTE CLIENTI
 # ============================
-
 @app.route('/clienti')
 @login_required
 def clienti():
     zona_filtro = request.args.get('zona')
+    stato_filtro = request.args.get('stato')   # filtro stato
     order = request.args.get('order', 'zona')
     search = request.args.get('search', '').strip().lower()
 
     oggi = datetime.today()
-    mese_corrente = oggi.month
-    anno_corrente = oggi.year
-    mese_prec = 12 if mese_corrente == 1 else mese_corrente - 1
-    anno_prec = anno_corrente - 1 if mese_corrente == 1 else anno_corrente
-    mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
-    anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
+    current_month = oggi.month
+    current_year = oggi.year
+
+    # Mese appena concluso
+    mese_ref = current_month - 1 if current_month > 1 else 12
+    anno_ref = current_year if current_month > 1 else current_year - 1
+
+    # Mese precedente a quello concluso
+    mese_ref_prev = mese_ref - 1 if mese_ref > 1 else 12
+    anno_ref_prev = anno_ref if mese_ref > 1 else anno_ref - 1
 
     with get_db() as db:
-        cur = db.cursor()
-        query = 'SELECT id, nome, zona FROM clienti'
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # ----------------------------------------------------
+        # Query unica: clienti + aggregati fatturato
+        # ----------------------------------------------------
+        query = '''
+            SELECT
+                c.id,
+                c.nome,
+                c.zona,
+
+                COALESCE(SUM(f.totale), 0) AS fatturato_totale,
+                MAX(make_date(f.anno, f.mese, 1)) AS ultimo_fatturato,
+
+                COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS fatt_ref,
+                COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS fatt_prev
+
+            FROM clienti c
+            LEFT JOIN fatturato f ON f.cliente_id = c.id
+        '''
+
         condizioni = []
-        params = []
+        params = [mese_ref, anno_ref, mese_ref_prev, anno_ref_prev]
 
         if zona_filtro:
-            condizioni.append('zona = %s')
+            condizioni.append('c.zona = %s')
             params.append(zona_filtro)
+
         if search:
-            condizioni.append('LOWER(nome) LIKE %s')
+            condizioni.append('LOWER(c.nome) LIKE %s')
             params.append(f'%{search}%')
+
         if condizioni:
             query += ' WHERE ' + ' AND '.join(condizioni)
-        query += ' ORDER BY nome'
+
+        query += '''
+            GROUP BY c.id, c.nome, c.zona
+        '''
+
+        # ordinamento base (poi rifiniamo in Python come prima)
+        query += ' ORDER BY c.nome'
 
         cur.execute(query, params)
-        clienti_rows = cur.fetchall()
+        rows = cur.fetchall()
 
         clienti_list = []
         stati_clienti = {}
+        andamento_clienti = {}
 
-        for cliente in clienti_rows:
-            cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (cliente['id'],))
-            fatturato_totale = cur.fetchone()['totale']
+        for r in rows:
+            ultimo = r['ultimo_fatturato']
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_corrente, anno_corrente))
-            totale_mese_corrente = cur.fetchone()['coalesce']
+            # Stato cliente in base all'ultimo fatturato
+            if ultimo:
+                giorni_trascorsi = (oggi.date() - ultimo).days
+                if giorni_trascorsi <= 60:
+                    stato = 'attivo'
+                elif 61 <= giorni_trascorsi <= 91:
+                    stato = 'bloccato'
+                else:
+                    stato = 'inattivo'
+            else:
+                stato = 'inattivo'
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_prec, anno_prec))
-            totale_mese_prec = cur.fetchone()['coalesce']
+            stati_clienti[r['id']] = stato
 
-            cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                        (cliente['id'], mese_due_fa, anno_due_fa))
-            totale_due_mesi_fa = cur.fetchone()['coalesce']
+            # filtro stato cliente
+            if stato_filtro and stato != stato_filtro:
+                continue
 
-            stato = ('attivo' if totale_mese_corrente > 0
-                     else 'inattivo' if totale_mese_prec == 0 and totale_due_mesi_fa == 0
-                     else 'bloccato')
-            stati_clienti[cliente['id']] = stato
+            # andamento
+            fatt_ref = float(r['fatt_ref'] or 0)
+            fatt_prev = float(r['fatt_prev'] or 0)
+
+            if fatt_prev > 0:
+                andamento = round(((fatt_ref - fatt_prev) / fatt_prev) * 100)
+            else:
+                andamento = None
+
+            andamento_clienti[r['id']] = andamento
 
             clienti_list.append({
-                'id': cliente['id'],
-                'nome': cliente['nome'],
-                'zona': cliente['zona'],
-                'fatturato_totale': fatturato_totale,
-                'fatturato_corrente': totale_mese_corrente,
-                'fatturato_precedente': totale_mese_prec,
-                'fatturato_due_mesi_fa': totale_due_mesi_fa
+                'id': r['id'],
+                'nome': r['nome'],
+                'zona': r['zona'],
+                'fatturato_totale': float(r['fatturato_totale'] or 0),
+                'ultimo_fatturato': ultimo
             })
 
+        # Ordinamento come prima
         if order == 'fatturato':
             clienti_list.sort(key=lambda c: c['fatturato_totale'], reverse=True)
         else:
             clienti_list.sort(key=lambda c: (c['zona'] or '', c['nome']))
 
+        # Raggruppamento per zona
         clienti_per_zona = defaultdict(list)
         for c in clienti_list:
             clienti_per_zona[c['zona']].append(c)
 
+        # Recupero zone per select filtro
         cur.execute('SELECT DISTINCT zona FROM clienti')
         zone = cur.fetchall()
         zone_lista = sorted([z['zona'] for z in zone if z['zona']])
@@ -538,8 +737,11 @@ def clienti():
         zona_filtro=zona_filtro,
         order=order,
         search=search,
-        stati_clienti=stati_clienti
+        stati_clienti=stati_clienti,
+        andamento_clienti=andamento_clienti,
+        stato_filtro=stato_filtro
     )
+
 
 
 @app.route('/clienti/aggiungi', methods=['GET', 'POST'])
@@ -607,228 +809,595 @@ def nuovo_cliente():
         current_year=current_year
     )
 
+from decimal import Decimal, InvalidOperation
+import json
+from datetime import datetime
 
+def parse_int(value):
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+def parse_decimal(value):
+    """
+    Converte input tipo '9,90', '€ 9.90', '' in Decimal o None.
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    s = s.replace("€", "").replace(" ", "").replace(",", ".")
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+# --- FUNZIONE PRINCIPALE MODIFICA CLIENTE ---
 @app.route('/clienti/modifica/<int:id>', methods=['GET', 'POST'])
 @login_required
 def modifica_cliente(id):
     current_datetime = datetime.now()
-    with get_db() as db:
-        cur = db.cursor()
 
-        # Recupera cliente
+    def normalize_phone(s: str | None) -> str | None:
+        """
+        Normalizza numero telefono:
+        - toglie spazi, +, -, parentesi
+        - lascia solo cifre
+        """
+        if not s:
+            return None
+        s = str(s).strip()
+        if not s:
+            return None
+        s = s.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        s = "".join(ch for ch in s if ch.isdigit())
+        return s or None
+
+    with get_db() as db:
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # ============================
+        # CLIENTE
+        # ============================
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
         cliente = cur.fetchone()
         if not cliente:
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
-        # Zone e categorie
+        # ============================
+        # ZONE
+        # ============================
         cur.execute('SELECT * FROM zone ORDER BY nome')
         zone = cur.fetchall()
+
+        # ============================
+        # CATEGORIE
+        # ============================
         cur.execute('SELECT * FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
-        # Prodotti
+        # ============================
+        # PRODOTTI (✅ SOLO NON ELIMINATI + include CODICE)
+        # ============================
         cur.execute('''
-            SELECT p.id, p.nome, p.categoria_id, c.nome AS categoria_nome
+            SELECT
+                p.id,
+                p.codice,
+                p.nome,
+                p.categoria_id,
+                c.nome AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id = c.id
-            ORDER BY c.nome, p.nome
+            WHERE COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY c.nome NULLS LAST, p.nome
         ''')
         prodotti = cur.fetchall()
 
-        # Prodotti associati al cliente
+        # ============================
+        # PRODOTTI ASSOCIATI (✅ ESCLUDI ELIMINATI)
+        # ============================
         cur.execute('''
-            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta
-            FROM clienti_prodotti
-            WHERE cliente_id=%s
+            SELECT
+                cp.prodotto_id,
+                cp.lavorato,
+                cp.prezzo_attuale,
+                cp.prezzo_offerta,
+                fornitori.nome AS fornitore
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON cp.prodotto_id = p.id
+            LEFT JOIN fornitori ON cp.fornitore_id = fornitori.id
+            WHERE cp.cliente_id=%s
+              AND COALESCE(p.eliminato, FALSE) = FALSE
         ''', (id,))
         prodotti_assoc = cur.fetchall()
 
-        prodotti_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato'] == 1]
-        prodotti_non_lavorati = [str(p['prodotto_id']) for p in prodotti_assoc if p['lavorato'] == 0]
-        prezzi_attuali = {str(p['prodotto_id']): p['prezzo_attuale'] for p in prodotti_assoc}
-        prezzi_offerta = {str(p['prodotto_id']): p['prezzo_offerta'] for p in prodotti_assoc}
+        prodotti_lavorati = []
+        prezzi_attuali = {}
+        prezzi_offerta = {}
+        fornitori = {}
 
-        # Fatturati cliente
+        for p in prodotti_assoc:
+            pid = str(p["prodotto_id"])
+            if p["lavorato"]:
+                prodotti_lavorati.append(pid)
+            prezzi_attuali[pid] = p["prezzo_attuale"]
+            prezzi_offerta[pid] = p["prezzo_offerta"]
+            fornitori[pid] = p["fornitore"] or ""
+
+        # ============================
+        # FATTURATI (per tabella storico)
+        # ============================
         cur.execute('''
-            SELECT id, mese, anno, totale
+            SELECT id, mese, anno, totale AS importo
             FROM fatturato
             WHERE cliente_id=%s
             ORDER BY anno DESC, mese DESC
         ''', (id,))
         fatturati_cliente = cur.fetchall()
 
+        # ============================
+        # POST
+        # ============================
         if request.method == 'POST':
-            # Aggiorna cliente
-            nome = request.form.get('nome', '').strip()
-            zona = request.form.get('zona', '').strip()
-            nuova_zona = request.form.get('nuova_zona', '').strip()
+
+            nome = (request.form.get('nome') or '').strip()
+            zona = request.form.get('zona')
+            nuova_zona = (request.form.get('nuova_zona') or '').strip()
+
+            # ✅ telefono cliente
+            telefono_raw = request.form.get("telefono")
+            telefono = normalize_phone(telefono_raw)
+
+            # Validazione leggera
+            if telefono and (len(telefono) < 8 or len(telefono) > 15):
+                flash("⚠️ Telefono non valido (controlla lunghezza).", "warning")
+                telefono = None
+
+            # nuova zona
             if zona == 'nuova_zona' and nuova_zona:
                 zona = nuova_zona
                 try:
                     cur.execute('INSERT INTO zone (nome) VALUES (%s)', (zona,))
-                except:
+                except Exception:
                     pass
-            if not nome:
-                flash('Il nome del cliente è obbligatorio.', 'warning')
-                return redirect(request.url)
-            cur.execute('UPDATE clienti SET nome=%s, zona=%s WHERE id=%s', (nome, zona, id))
 
-            # Aggiorna prodotti
-            prodotti_selezionati = request.form.getlist('prodotti_lavorati[]')
+            # ✅ LOGICA WHATSAPP COLLEGATO:
+            old_tel = normalize_phone(cliente.get("telefono"))
+            old_linked = bool(cliente.get("whatsapp_collegato") or False)
+
+            new_linked = True if telefono else False
+
+            set_linked_at = None
+            clear_linked_at = False
+
+            if new_linked:
+                if (not old_linked) or (old_tel != telefono):
+                    set_linked_at = current_datetime
+            else:
+                clear_linked_at = True
+
+            # ✅ UPDATE CLIENTE con telefono + flag whatsapp
+            if new_linked:
+                if set_linked_at is not None:
+                    cur.execute(
+                        """
+                        UPDATE clienti
+                        SET nome=%s, zona=%s, telefono=%s,
+                            whatsapp_collegato=TRUE,
+                            whatsapp_collegato_il=%s
+                        WHERE id=%s
+                        """,
+                        (nome, zona, telefono, set_linked_at, id)
+                    )
+                else:
+                    cur.execute(
+                        """
+                        UPDATE clienti
+                        SET nome=%s, zona=%s, telefono=%s,
+                            whatsapp_collegato=TRUE
+                        WHERE id=%s
+                        """,
+                        (nome, zona, telefono, id)
+                    )
+            else:
+                cur.execute(
+                    """
+                    UPDATE clienti
+                    SET nome=%s, zona=%s, telefono=%s,
+                        whatsapp_collegato=FALSE,
+                        whatsapp_collegato_il=NULL
+                    WHERE id=%s
+                    """,
+                    (nome, zona, None, id)
+                )
+
+            # ---------------------------
+            # PRODOTTI LAVORATI
+            # ✅ Aggiorna SOLO i prodotti NON ELIMINATI (perché prodotti[] è già filtrata)
+            # ---------------------------
+            selezionati = set(request.form.getlist("prodotti_lavorati[]"))
+
             for prodotto in prodotti:
-                pid = str(prodotto['id'])
-                lavorato = 1 if pid in prodotti_selezionati else 0
-                prezzo_attuale = request.form.get(f'prezzo_attuale[{pid}]') or None
-                prezzo_offerta = request.form.get(f'prezzo_offerta[{pid}]') or None
+                pid = str(prodotto["id"])
+                lavorato = pid in selezionati
 
-                cur.execute('SELECT prodotto_id FROM clienti_prodotti WHERE cliente_id=%s AND prodotto_id=%s', (id, pid))
+                prezzo_attuale_raw = request.form.get(f"prezzo_attuale[{pid}]")
+                prezzo_offerta_raw = request.form.get(f"prezzo_offerta[{pid}]")
+                fornitore_nome = (request.form.get(f"fornitore[{pid}]") or "").strip() or None
+
+                prezzo_attuale = parse_decimal(prezzo_attuale_raw)
+                prezzo_offerta = parse_decimal(prezzo_offerta_raw)
+
+                # --- gestisci fornitore ---
+                fornitore_id = None
+                if fornitore_nome:
+                    cur.execute("SELECT id FROM fornitori WHERE nome=%s", (fornitore_nome,))
+                    f = cur.fetchone()
+                    if f:
+                        fornitore_id = f["id"]
+                    else:
+                        cur.execute("INSERT INTO fornitori (nome) VALUES (%s) RETURNING id", (fornitore_nome,))
+                        fornitore_id = cur.fetchone()["id"]
+
+                # --- esiste già? ---
+                cur.execute('''
+                    SELECT id FROM clienti_prodotti
+                    WHERE cliente_id=%s AND prodotto_id=%s
+                ''', (id, pid))
                 esiste = cur.fetchone()
+
                 if esiste:
                     cur.execute('''
                         UPDATE clienti_prodotti
-                        SET lavorato=%s, prezzo_attuale=%s, prezzo_offerta=%s, data_operazione=%s
+                        SET lavorato=%s,
+                            prezzo_attuale=%s,
+                            prezzo_offerta=%s,
+                            fornitore_id=%s,
+                            data_operazione=%s
                         WHERE cliente_id=%s AND prodotto_id=%s
-                    ''', (lavorato, prezzo_attuale, prezzo_offerta, datetime.now(), id, pid))
+                    ''', (lavorato, prezzo_attuale, prezzo_offerta, fornitore_id,
+                          current_datetime, id, pid))
                 else:
                     cur.execute('''
                         INSERT INTO clienti_prodotti
-                        (cliente_id, prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                    ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, datetime.now()))
+                        (cliente_id, prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, data_operazione)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    ''', (id, pid, lavorato, prezzo_attuale, prezzo_offerta, fornitore_id, current_datetime))
 
-            # Aggiorna fatturato
-            mese = request.form.get('mese')
-            anno = request.form.get('anno')
-            importo = request.form.get('fatturato_mensile')
-            if mese and anno and importo:
+            # ---------------------------
+            # FATTURATO (il tuo blocco invariato)
+            # ---------------------------
+            salvato_storico = False
+            use_storico = (request.form.get("fatturato_use_storico") == "1")
+
+            mesi_list = request.form.getlist("fatt_mese[]")
+            anni_list = request.form.getlist("fatt_anno[]")
+            importi_list = request.form.getlist("fatt_importo[]")
+
+            if mesi_list or anni_list or importi_list:
                 try:
-                    importo_float = float(importo)
-                    mese_int = int(mese)
-                    anno_int = int(anno)
-                    cur.execute('SELECT id FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                                (id, mese_int, anno_int))
-                    esiste = cur.fetchone()
-                    if esiste:
-                        cur.execute('UPDATE fatturato SET totale=%s WHERE id=%s', (importo_float, esiste['id']))
+                    righe = []
+                    n = max(len(mesi_list), len(anni_list), len(importi_list))
+                    for i in range(n):
+                        m = mesi_list[i] if i < len(mesi_list) else None
+                        a = anni_list[i] if i < len(anni_list) else None
+                        imp = importi_list[i] if i < len(importi_list) else None
+
+                        mese_i = parse_int(m)
+                        anno_i = parse_int(a)
+                        imp_d = parse_decimal(imp)
+
+                        if mese_i and anno_i:
+                            righe.append((mese_i, anno_i, imp_d))
+
+                    cur.execute('''
+                        SELECT DISTINCT mese, anno
+                        FROM fatturato
+                        WHERE cliente_id=%s
+                    ''', (id,))
+                    existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
+                    incoming = {(m, a) for (m, a, _) in righe}
+
+                    if use_storico and not righe:
+                        cur.execute('DELETE FROM fatturato WHERE cliente_id=%s', (id,))
+                        salvato_storico = True
                     else:
-                        cur.execute('INSERT INTO fatturato (cliente_id,mese,anno,totale) VALUES (%s,%s,%s,%s)',
-                                    (id, mese_int, anno_int, importo_float))
-                except ValueError:
-                    flash('Importo fatturato non valido.', 'warning')
+                        to_delete = existing - incoming
+                        for (m, a) in to_delete:
+                            cur.execute(
+                                'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                (id, m, a)
+                            )
+
+                        for (m, a, imp) in righe:
+                            cur.execute(
+                                'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                (id, m, a)
+                            )
+                            cur.execute('''
+                                INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                                VALUES (%s,%s,%s,%s)
+                            ''', (id, m, a, imp))
+
+                        salvato_storico = True
+
+                except Exception as e:
+                    flash(f"Errore storico fatturato (campi): {e}", "warning")
+                    salvato_storico = False
+
+            if not salvato_storico:
+                fatt_json = (request.form.get("fatturato_storico_json") or "").strip()
+                if fatt_json:
+                    try:
+                        righe = json.loads(fatt_json)
+                        cleaned = []
+                        if isinstance(righe, list):
+                            for r in righe:
+                                mese = parse_int(r.get("mese"))
+                                anno = parse_int(r.get("anno"))
+                                importo = parse_decimal(r.get("importo"))
+                                if mese and anno:
+                                    cleaned.append((mese, anno, importo))
+
+                        cur.execute('''
+                            SELECT DISTINCT mese, anno
+                            FROM fatturato
+                            WHERE cliente_id=%s
+                        ''', (id,))
+                        existing = {(row["mese"], row["anno"]) for row in cur.fetchall()}
+                        incoming = {(m, a) for (m, a, _) in cleaned}
+
+                        if use_storico and not cleaned:
+                            cur.execute('DELETE FROM fatturato WHERE cliente_id=%s', (id,))
+                            salvato_storico = True
+                        elif cleaned:
+                            to_delete = existing - incoming
+                            for (m, a) in to_delete:
+                                cur.execute(
+                                    'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                    (id, m, a)
+                                )
+
+                            for (m, a, imp) in cleaned:
+                                cur.execute(
+                                    'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                                    (id, m, a)
+                                )
+                                cur.execute('''
+                                    INSERT INTO fatturato (cliente_id, mese, anno, totale)
+                                    VALUES (%s,%s,%s,%s)
+                                ''', (id, m, a, imp))
+                            salvato_storico = True
+
+                    except Exception as e:
+                        flash(f"Errore storico fatturato (JSON): {e}", "warning")
+
+            if not salvato_storico and not use_storico:
+                mese = request.form.get('mese')
+                anno = request.form.get('anno')
+                importo = request.form.get('fatturato_mensile')
+
+                if mese and anno and importo:
+                    try:
+                        mese_i = int(mese)
+                        anno_i = int(anno)
+                        imp_d = parse_decimal(importo)
+                        if imp_d is None:
+                            raise ValueError("Importo non valido")
+
+                        cur.execute(
+                            'DELETE FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
+                            (id, mese_i, anno_i)
+                        )
+                        cur.execute('''
+                            INSERT INTO fatturato (cliente_id,mese,anno,totale)
+                            VALUES (%s,%s,%s,%s)
+                        ''', (id, mese_i, anno_i, imp_d))
+
+                    except Exception as e:
+                        flash(f"Errore importo fatturato: {e}", "warning")
 
             db.commit()
-            aggiorna_fatturato_totale(id)
-            flash('Cliente modificato con successo.', 'success')
+            flash("Cliente aggiornato con successo!", "success")
             return redirect(url_for('clienti'))
 
-        # Precompila ultimo fatturato
+        # ============================
+        # PRECOMPILAZIONE ULTIMO FATTURATO
+        # ============================
         cur.execute('''
             SELECT mese, anno, totale FROM fatturato
             WHERE cliente_id=%s
             ORDER BY anno DESC, mese DESC
             LIMIT 1
         ''', (id,))
-        ultimo_fatturato = cur.fetchone()
-        mese = ultimo_fatturato['mese'] if ultimo_fatturato else None
-        anno = ultimo_fatturato['anno'] if ultimo_fatturato else None
-        importo = ultimo_fatturato['totale'] if ultimo_fatturato else None
+        ultimo = cur.fetchone()
+
+        mese = ultimo['mese'] if ultimo else None
+        anno = ultimo['anno'] if ultimo else None
+        importo = ultimo['totale'] if ultimo else None
 
         zone_nomi = [z['nome'] for z in zone]
         nuova_zona_selected = cliente['zona'] not in zone_nomi
         nuova_zona_value = cliente['zona'] if nuova_zona_selected else ''
 
+        cur.execute('''
+            SELECT mese, anno, totale AS importo
+            FROM fatturato
+            WHERE cliente_id=%s
+            ORDER BY anno DESC, mese DESC
+        ''', (id,))
+        fatturati_storico = cur.fetchall()
+
+        telefono_cliente = (cliente.get("telefono") or "")
+
     return render_template(
         '01_clienti/03_modifica_cliente.html',
         cliente=cliente,
+        telefono_cliente=telefono_cliente,
         zone=zone,
         categorie=categorie,
-        prodotti=prodotti,
+        prodotti=prodotti,  # ✅ ora include anche "codice"
         prodotti_lavorati=prodotti_lavorati,
-        prodotti_non_lavorati=prodotti_non_lavorati,
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
+        fornitori=fornitori,
         nuova_zona_selected=nuova_zona_selected,
         nuova_zona_value=nuova_zona_value,
         fatturato_mese=mese,
         fatturato_anno=anno,
         fatturato_importo=importo,
         fatturati_cliente=fatturati_cliente,
+        fatturati_storico=fatturati_storico,
         current_month=current_datetime.month,
         current_year=current_datetime.year
     )
 
 
+
+import calendar
+
 @app.route('/clienti/<int:id>')
 @login_required
 def cliente_scheda(id):
     oggi = datetime.today()
-    current_month = oggi.month
-    current_year = oggi.year
-    prev_month = 12 if current_month == 1 else current_month - 1
-    prev_year = current_year - 1 if current_month == 1 else current_year
+
+    # ===============================
+    # CALCOLO MESI PER LA CRESCITA
+    # ===============================
+    mese_corrente = oggi.month
+    anno_corrente = oggi.year
+
+    mese_ref = mese_corrente - 1 if mese_corrente > 1 else 12
+    anno_ref = anno_corrente if mese_corrente > 1 else anno_corrente - 1
+
+    mese_ref_prec = mese_ref - 1 if mese_ref > 1 else 12
+    anno_ref_prec = anno_ref if mese_ref > 1 else anno_ref - 1
 
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # ====================================
+        # DATI CLIENTE
+        # ====================================
         cur.execute('SELECT * FROM clienti WHERE id=%s', (id,))
         cliente = cur.fetchone()
+
         if not cliente:
             flash('Cliente non trovato.', 'danger')
             return redirect(url_for('clienti'))
 
+        # ====================================
+        # PRODOTTI (✅ SOLO NON ELIMINATI + include CODICE)
+        # ====================================
         cur.execute('''
-            SELECT p.id, p.nome, p.categoria_id, COALESCE(c.nome,'–') AS categoria_nome
+            SELECT
+                p.id,
+                p.codice,
+                p.nome,
+                p.categoria_id,
+                COALESCE(c.nome,'–') AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id=c.id
-            ORDER BY c.nome, p.nome
+            WHERE COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY c.nome NULLS LAST, p.nome
         ''')
         prodotti = cur.fetchall()
 
+        # Prodotti già assegnati al cliente (✅ ESCLUDI ELIMINATI)
         cur.execute('''
-            SELECT prodotto_id, lavorato, prezzo_attuale, prezzo_offerta, data_operazione
-            FROM clienti_prodotti
-            WHERE cliente_id=%s
+            SELECT
+                cp.prodotto_id,
+                cp.lavorato,
+                cp.prezzo_attuale,
+                cp.prezzo_offerta,
+                cp.data_operazione
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON cp.prodotto_id = p.id
+            WHERE cp.cliente_id=%s
+              AND COALESCE(p.eliminato, FALSE) = FALSE
         ''', (id,))
         prodotti_assoc = cur.fetchall()
+
         assoc_dict = {p['prodotto_id']: p for p in prodotti_assoc}
 
-        prodotti_lavorati, prezzi_attuali, prezzi_offerta, prodotti_data = [], {}, {}, {}
+        prodotti_lavorati = []
+        prezzi_attuali = {}
+        prezzi_offerta = {}
+        prodotti_data = {}
+
         for p in prodotti:
             pid = p['id']
+
             if pid in assoc_dict:
                 lavorato = assoc_dict[pid]['lavorato']
-                prezzo_attuale = assoc_dict[pid]['prezzo_attuale']
-                prezzo_offerta = assoc_dict[pid]['prezzo_offerta']
-                data_op = assoc_dict[pid]['data_operazione']
+                prezzi_attuali[str(pid)] = assoc_dict[pid]['prezzo_attuale']
+                prezzi_offerta[str(pid)] = assoc_dict[pid]['prezzo_offerta']
+                prodotti_data[str(pid)] = assoc_dict[pid]['data_operazione']
             else:
-                lavorato = 0
-                prezzo_attuale = None
-                prezzo_offerta = None
-                data_op = None
+                lavorato = False
+                prezzi_attuali[str(pid)] = None
+                prezzi_offerta[str(pid)] = None
+                prodotti_data[str(pid)] = None
 
-            prodotti_lavorati.append(str(pid)) if lavorato == 1 else None
-            prezzi_attuali[str(pid)] = prezzo_attuale
-            prezzi_offerta[str(pid)] = prezzo_offerta
-            prodotti_data[str(pid)] = data_op
+            if lavorato:
+                prodotti_lavorati.append(str(pid))
 
+        # ====================================
+        # CATEGORIE
+        # ====================================
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = [dict(c) for c in cur.fetchall()]
 
-        cur.execute('SELECT COALESCE(SUM(totale),0) AS totale FROM fatturato WHERE cliente_id=%s', (id,))
-        fatturato_totale = cur.fetchone()['totale']
+        # ====================================
+        # FATTURATO: query unica (totale, ultimo mese, ref/ref_prec)
+        # ====================================
+        cur.execute('''
+            SELECT
+                COALESCE(SUM(totale),0) AS fatturato_totale,
+                MAX(make_date(anno, mese, 1)) AS ultimo_fatturato,
 
-        cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                    (id, current_month, current_year))
-        totale_corrente = cur.fetchone()['coalesce']
+                COALESCE(SUM(CASE WHEN mese=%s AND anno=%s THEN totale ELSE 0 END),0) AS fatt_ref,
+                COALESCE(SUM(CASE WHEN mese=%s AND anno=%s THEN totale ELSE 0 END),0) AS fatt_prec
+            FROM fatturato
+            WHERE cliente_id=%s
+        ''', (mese_ref, anno_ref, mese_ref_prec, anno_ref_prec, id))
+        fatt_row = cur.fetchone() or {}
 
-        cur.execute('SELECT COALESCE(SUM(totale),0) FROM fatturato WHERE cliente_id=%s AND mese=%s AND anno=%s',
-                    (id, prev_month, prev_year))
-        totale_prec = cur.fetchone()['coalesce']
+        fatturato_totale = fatt_row.get("fatturato_totale", 0) or 0
+        ultimo_fatturato_date = fatt_row.get("ultimo_fatturato")  # date o None
+        fatt_ref = fatt_row.get("fatt_ref", 0) or 0
+        fatt_prec = fatt_row.get("fatt_prec", 0) or 0
 
-        variazione_fatturato_cliente = ((totale_corrente - totale_prec) / totale_prec * 100) if totale_prec else None
-        stato_cliente = ('attivo' if totale_corrente > 0 else 'inattivo' if totale_corrente == 0 and totale_prec == 0 else 'bloccato')
+        # Crescita mensile
+        if fatt_prec and fatt_prec > 0:
+            crescita_mensile = round(((fatt_ref - fatt_prec) / fatt_prec) * 100, 2)
+        else:
+            crescita_mensile = None
 
+        # Stato cliente (coerente con /clienti)
+        if ultimo_fatturato_date:
+            giorni_ult_fatt = (oggi.date() - ultimo_fatturato_date).days
+            if giorni_ult_fatt <= 60:
+                stato_cliente = "attivo"
+            elif 61 <= giorni_ult_fatt <= 91:
+                stato_cliente = "bloccato"
+            else:
+                stato_cliente = "inattivo"
+        else:
+            stato_cliente = "inattivo"
+
+        # ====================================
+        # FATTURATO MENSILE STORICO
+        # ====================================
         cur.execute('''
             SELECT anno, mese, SUM(totale) AS totale
             FROM fatturato
@@ -836,59 +1405,82 @@ def cliente_scheda(id):
             GROUP BY anno, mese
             ORDER BY anno ASC, mese ASC
         ''', (id,))
-        fatturato_mensile = {f"{r['anno']}-{r['mese']:02d}": r['totale'] for r in cur.fetchall()}
+        fatturato_mensile = {
+            f"{r['anno']}-{r['mese']:02d}": r['totale']
+            for r in cur.fetchall()
+        }
 
+        # ====================================
+        # LOG (✅ ESCLUDI ELIMINATI DAI JOIN)
+        # ====================================
         cur.execute('''
             SELECT descrizione, data
             FROM (
-                SELECT 'Aggiunto prodotto: ' || p.nome AS descrizione, cp.data_operazione AS data
-                FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
-                WHERE cp.cliente_id=%s AND cp.lavorato=1
+                SELECT 
+                    'Aggiunto prodotto: ' || p.nome AS descrizione,
+                    cp.data_operazione AS data
+                FROM clienti_prodotti cp 
+                JOIN prodotti p ON cp.prodotto_id=p.id
+                WHERE cp.cliente_id=%s
+                  AND cp.lavorato=TRUE
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
+
                 UNION ALL
-                SELECT 'Rimosso prodotto: ' || p.nome, pr.data_rimozione
-                FROM prodotti_rimossi pr JOIN prodotti p ON pr.prodotto_id=p.id
+
+                SELECT 
+                    'Rimosso prodotto: ' || p.nome AS descrizione,
+                    pr.data_rimozione AS data
+                FROM prodotti_rimossi pr 
+                JOIN prodotti p ON pr.prodotto_id=p.id
                 WHERE pr.cliente_id=%s
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
+
                 UNION ALL
-                SELECT 'Fatturato aggiornato: ' || totale || ' €', datetime(anno || '-' || mese || '-01')
+
+                SELECT 
+                    'Fatturato aggiornato: ' || totale || ' €' AS descrizione,
+                    make_date(anno, mese, 1) AS data
                 FROM fatturato
                 WHERE cliente_id=%s
+
                 UNION ALL
-                SELECT 'Prezzo prodotto modificato: ' || p.nome, cp.data_operazione
-                FROM clienti_prodotti cp JOIN prodotti p ON cp.prodotto_id=p.id
-                WHERE cp.cliente_id=%s AND (cp.prezzo_attuale IS NOT NULL OR cp.prezzo_offerta IS NOT NULL)
+
+                SELECT 
+                    'Prezzo prodotto modificato: ' || p.nome AS descrizione,
+                    cp.data_operazione AS data
+                FROM clienti_prodotti cp 
+                JOIN prodotti p ON cp.prodotto_id=p.id
+                WHERE cp.cliente_id=%s 
+                  AND (cp.prezzo_attuale IS NOT NULL OR cp.prezzo_offerta IS NOT NULL)
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
             ) AS logs
             ORDER BY data DESC
         ''', (id, id, id, id))
+
         log_cliente = []
         for l in cur.fetchall():
             log_dict = dict(l)
             if not log_dict['data']:
                 log_dict['data'] = datetime.min
-            elif isinstance(log_dict['data'], str):
-                try:
-                    log_dict['data'] = datetime.fromisoformat(log_dict['data'])
-                except ValueError:
-                    try:
-                        log_dict['data'] = datetime.strptime(log_dict['data'], '%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        log_dict['data'] = datetime.min
             log_cliente.append(log_dict)
 
     return render_template(
         "01_clienti/04_cliente_scheda.html",
         cliente=cliente,
         categorie=categorie,
-        prodotti=prodotti,
+        prodotti=prodotti,  # ✅ ora include "codice"
         prodotti_lavorati=prodotti_lavorati,
         log_cliente=log_cliente,
         fatturato_totale=fatturato_totale,
-        variazione_fatturato_cliente=variazione_fatturato_cliente,
+        crescita_mensile=crescita_mensile,
         fatturato_mensile=fatturato_mensile,
         prezzi_attuali=prezzi_attuali,
         prezzi_offerta=prezzi_offerta,
         prodotti_data=prodotti_data,
         stato_cliente=stato_cliente
     )
+
+
 
 
 @app.route('/clienti/rimuovi/<int:id>', methods=['POST'])
@@ -924,7 +1516,6 @@ def fatturato_totale_clienti():
         ''')
         clienti = cur.fetchall()
     return render_template('01_clienti/05_fatturato_totale.html', clienti=clienti)
-
 # ============================
 # ROUTE PRODOTTI
 # ============================
@@ -935,30 +1526,69 @@ def prodotti():
     q = request.args.get('q', '').strip()
 
     with get_db() as db:
-        cur = db.cursor()
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
         # Recupera tutte le categorie
         cur.execute('SELECT id, nome, immagine FROM categorie ORDER BY nome')
         categorie_rows = cur.fetchall()
         categorie = [{'nome': c['nome'], 'immagine': c['immagine'] or None} for c in categorie_rows]
 
-        # Prodotti per categoria
-        prodotti_per_categoria = {}
-        for c in categorie:
-            query = '''
-                SELECT p.id, p.nome
-                FROM prodotti p
-                LEFT JOIN categorie c ON p.categoria_id = c.id
-                WHERE c.nome = %s
-            '''
-            params = [c['nome']]
-            if q:
-                query += ' AND p.nome ILIKE %s'
-                params.append(f'%{q}%')
-            cur.execute(query, params)
-            prodotti_rows = cur.fetchall()
-            prodotti_per_categoria[c['nome']] = [dict(p) for p in prodotti_rows]
+        # Recupera tutti i prodotti (con codice) + nome categoria
+        query = '''
+            SELECT
+                p.id,
+                p.nome,
+                p.codice,
+                c.nome AS categoria_nome
+            FROM prodotti p
+            LEFT JOIN categorie c ON p.categoria_id = c.id
+            WHERE p.eliminato = FALSE
+        '''
+        params = []
 
-    return render_template('02_prodotti/01_prodotti.html', prodotti_per_categoria=prodotti_per_categoria, categorie=categorie)
+        if q:
+            query += ' AND (p.nome ILIKE %s OR p.codice ILIKE %s)'
+            like = f'%{q}%'
+            params.extend([like, like])
+
+        query += ' ORDER BY c.nome NULLS LAST, p.nome'
+
+        cur.execute(query, params)
+        prodotti_rows = cur.fetchall() or []
+
+        # Dizionario prodotti_per_categoria (solo categorie esistenti)
+        prodotti_per_categoria = {c['nome']: [] for c in categorie}
+
+        # ✅ Lista separata per bottone "Prodotti senza categoria"
+        prodotti_senza_categoria = []
+
+        for p in prodotti_rows:
+            item = {
+                'id': p['id'],
+                'nome': p['nome'],
+                'codice': p.get('codice')
+            }
+
+            cat_nome = p.get('categoria_nome')
+
+            # ✅ Senza categoria
+            if not cat_nome:
+                prodotti_senza_categoria.append(item)
+                continue
+
+            # ✅ Categoria normale
+            if cat_nome not in prodotti_per_categoria:
+                prodotti_per_categoria[cat_nome] = []
+
+            prodotti_per_categoria[cat_nome].append(item)
+
+    return render_template(
+        '02_prodotti/01_prodotti.html',
+        prodotti_per_categoria=prodotti_per_categoria,
+        categorie=categorie,
+        prodotti_senza_categoria=prodotti_senza_categoria
+    )
+
 
 
 @app.route('/prodotti/aggiungi', methods=['GET', 'POST'])
@@ -971,30 +1601,62 @@ def aggiungi_prodotto():
 
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
+        codice = request.form.get('codice', '').strip()
         categoria_id = request.form.get('categoria_id')
         nuova_categoria = request.form.get('nuova_categoria', '').strip()
 
+        errore_codice = None
+
+        # Validazioni base
+        if not codice:
+            errore_codice = "Il codice prodotto è obbligatorio."
+        elif " " in codice:
+            errore_codice = "Il codice prodotto non può contenere spazi."
+
         if not nome:
             flash('Il nome del prodotto è obbligatorio.', 'danger')
-            return render_template('02_prodotti/02_aggiungi_prodotto.html', categorie=categorie)
+            return render_template(
+                '02_prodotti/02_aggiungi_prodotto.html',
+                categorie=categorie,
+                errore_codice=errore_codice
+            )
 
         with get_db() as db:
             cur = db.cursor()
+
+            # Controllo codice univoco
+            cur.execute('SELECT id FROM prodotti WHERE codice = %s', (codice,))
+            if cur.fetchone():
+                errore_codice = f'Il codice "{codice}" è già usato da un altro prodotto.'
+                return render_template(
+                    '02_prodotti/02_aggiungi_prodotto.html',
+                    categorie=categorie,
+                    errore_codice=errore_codice
+                )
+
+            # Gestione categoria
             if nuova_categoria:
                 cur.execute('SELECT id FROM categorie WHERE nome=%s', (nuova_categoria,))
                 categoria_row = cur.fetchone()
                 if categoria_row:
                     categoria_id = categoria_row['id']
                 else:
-                    cur.execute('INSERT INTO categorie (nome) VALUES (%s) RETURNING id', (nuova_categoria,))
+                    cur.execute(
+                        'INSERT INTO categorie (nome) VALUES (%s) RETURNING id',
+                        (nuova_categoria,)
+                    )
                     categoria_id = cur.fetchone()['id']
             else:
                 categoria_id = int(categoria_id) if categoria_id else None
 
-            cur.execute('INSERT INTO prodotti (nome, categoria_id) VALUES (%s, %s)', (nome, categoria_id))
+            # Inserimento prodotto
+            cur.execute(
+                'INSERT INTO prodotti (codice, nome, categoria_id) VALUES (%s, %s, %s)',
+                (codice, nome, categoria_id)
+            )
             db.commit()
 
-        flash(f'Prodotto "{nome}" aggiunto con successo.', 'success')
+        flash(f'Prodotto "{nome}" ({codice}) aggiunto con successo.', 'success')
         return redirect(url_for('prodotti'))
 
     return render_template('02_prodotti/02_aggiungi_prodotto.html', categorie=categorie)
@@ -1009,21 +1671,65 @@ def modifica_prodotto(id):
         prodotto = cur.fetchone()
         if not prodotto:
             abort(404)
+
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
 
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
+        codice = request.form.get('codice', '').strip()
         categoria_id = request.form.get('categoria_id')
         nuova_categoria = request.form.get('nuova_categoria', '').strip()
+
         error = None
+        errore_codice = None
+
+        # Validazioni
+        if not codice:
+            errore_codice = "Il codice prodotto è obbligatorio."
+        elif " " in codice:
+            errore_codice = "Il codice prodotto non può contenere spazi."
 
         if not nome:
             error = 'Il nome del prodotto è obbligatorio.'
-            return render_template('02_prodotti/03_modifica_prodotto.html', prodotto=prodotto, categorie=categorie, error=error)
+
+        # Se ci sono errori, torna al template (con valori aggiornati per non perdere input)
+        if error or errore_codice:
+            prodotto = dict(prodotto)
+            prodotto['nome'] = nome
+            prodotto['codice'] = codice
+            prodotto['categoria_id'] = int(categoria_id) if categoria_id else prodotto.get('categoria_id')
+
+            return render_template(
+                '02_prodotti/03_modifica_prodotto.html',
+                prodotto=prodotto,
+                categorie=categorie,
+                error=error,
+                errore_codice=errore_codice
+            )
 
         with get_db() as db:
             cur = db.cursor()
+
+            # Controllo codice univoco (escludendo questo prodotto)
+            cur.execute('SELECT id FROM prodotti WHERE codice=%s AND id<>%s', (codice, id))
+            if cur.fetchone():
+                errore_codice = f'Il codice "{codice}" è già usato da un altro prodotto.'
+
+                prodotto = dict(prodotto)
+                prodotto['nome'] = nome
+                prodotto['codice'] = codice
+                prodotto['categoria_id'] = int(categoria_id) if categoria_id else prodotto.get('categoria_id')
+
+                return render_template(
+                    '02_prodotti/03_modifica_prodotto.html',
+                    prodotto=prodotto,
+                    categorie=categorie,
+                    error=None,
+                    errore_codice=errore_codice
+                )
+
+            # Gestione categoria
             if nuova_categoria:
                 cur.execute('SELECT id FROM categorie WHERE nome=%s', (nuova_categoria,))
                 categoria_row = cur.fetchone()
@@ -1035,50 +1741,72 @@ def modifica_prodotto(id):
             else:
                 categoria_id = int(categoria_id) if categoria_id else None
 
-            cur.execute('UPDATE prodotti SET nome=%s, categoria_id=%s WHERE id=%s', (nome, categoria_id, id))
+            # Update prodotto
+            cur.execute(
+                'UPDATE prodotti SET codice=%s, nome=%s, categoria_id=%s WHERE id=%s',
+                (codice, nome, categoria_id, id)
+            )
             db.commit()
 
-        flash(f'Prodotto "{nome}" modificato con successo.', 'success')
+        flash(f'Prodotto "{nome}" ({codice}) modificato con successo.', 'success')
         return redirect(url_for('prodotti'))
 
-    return render_template('02_prodotti/03_modifica_prodotto.html', prodotto=prodotto, categorie=categorie, error=None)
-
+    return render_template(
+        '02_prodotti/03_modifica_prodotto.html',
+        prodotto=prodotto,
+        categorie=categorie,
+        error=None,
+        errore_codice=None
+    )
 
 @app.route('/prodotti/elimina/<int:id>', methods=['POST'])
 @login_required
 def elimina_prodotto(id):
-    with get_db() as db:
-        cur = db.cursor()
-        cur.execute('SELECT nome FROM prodotti WHERE id=%s', (id,))
-        prodotto = cur.fetchone()
-        if not prodotto:
-            flash('Prodotto non trovato.', 'danger')
-            return redirect(url_for('prodotti'))
+    conn = get_db_connection()
+    cur = conn.cursor()
 
-        cur.execute('DELETE FROM prodotti WHERE id=%s', (id,))
-        db.commit()
-        flash(f'Prodotto "{prodotto["nome"]}" eliminato con successo.', 'success')
-        return redirect(url_for('prodotti'))
+    cur.execute(
+        "UPDATE prodotti SET eliminato = TRUE WHERE id = %s",
+        (id,)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Prodotto eliminato", "success")
+    return redirect(url_for("prodotti"))
+
 
 
 @app.route('/prodotti/clienti/<int:id>')
+@login_required
 def clienti_prodotto(id):
     with get_db() as db:
-        cur = db.cursor()
-        cur.execute('SELECT * FROM prodotti WHERE id=%s', (id,))
+        cur = db.cursor(cursor_factory=RealDictCursor)
+
+        # Recupera il prodotto (include codice)
+        cur.execute('SELECT id, codice, nome, categoria_id FROM prodotti WHERE id=%s', (id,))
         prodotto = cur.fetchone()
         if not prodotto:
-            return "Prodotto non trovato", 404
+            flash("❌ Prodotto non trovato", "danger")
+            return redirect(url_for("prodotti"))
 
+        # Recupera i clienti associati con lavorato=True
         cur.execute('''
             SELECT c.*
             FROM clienti c
-            JOIN clienti_prodotti cp ON c.id=cp.cliente_id
-            WHERE cp.prodotto_id=%s AND cp.lavorato=1
+            JOIN clienti_prodotti cp ON c.id = cp.cliente_id
+            WHERE cp.prodotto_id=%s AND cp.lavorato IS TRUE
+            ORDER BY c.nome
         ''', (id,))
         clienti = cur.fetchall()
 
-    return render_template('/02_prodotti/04_prodotto_clienti.html', prodotto=prodotto, clienti=clienti)
+    return render_template(
+        '02_prodotti/04_prodotto_clienti.html',
+        prodotto=prodotto,
+        clienti=clienti
+    )
 
 
 @app.route('/categorie')
@@ -1211,12 +1939,26 @@ def fatturato():
             key = f"{anno}-{str(mese).zfill(2)}"
             fatturato_mensile[key] = float(totale_row['totale_mese'] or 0)
 
+        # === Fatturato per zona (come in index) ===
+        cur.execute('''
+            SELECT 
+                COALESCE(c.zona, 'Sconosciuta') AS zona, 
+                COALESCE(SUM(f.totale),0) AS totale
+            FROM fatturato f
+            JOIN clienti c ON f.cliente_id = c.id
+            GROUP BY c.zona
+            ORDER BY zona
+        ''')
+        fatturato_per_zona_rows = cur.fetchall()
+        fatturato_per_zona = {r['zona']: r['totale'] for r in fatturato_per_zona_rows}
+
     return render_template(
         '03_fatturato/01_fatturato.html',
         clienti=clienti_list,
         zone=zone,
         zona_filtro=zona_filtro,
-        fatturato_mensile=fatturato_mensile
+        fatturato_mensile=fatturato_mensile,
+        fatturato_per_zona=fatturato_per_zona  # <-- aggiunto per grafico
     )
 
 
@@ -1283,8 +2025,10 @@ def aggiorna_fatturati():
 @app.route('/volantini')
 @login_required
 def lista_volantini():
-    with get_db() as db:
-        cur = db.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+
         # Volantini
         cur.execute('SELECT id, titolo, sfondo, data_creazione FROM volantini ORDER BY data_creazione DESC')
         volantini = cur.fetchall()
@@ -1292,6 +2036,10 @@ def lista_volantini():
         # Promo lampo
         cur.execute('SELECT id, nome, prezzo, immagine, sfondo, data_creazione FROM promo_lampo ORDER BY data_creazione DESC')
         promo_lampo = cur.fetchall()
+
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "04_volantino/01_lista_volantini.html",
@@ -1315,16 +2063,19 @@ def nuovo_volantino():
 
         # 🔹 Salva sfondo
         filename = secure_filename(sfondo_file.filename)
-        os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
-        sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, filename))
+        os.makedirs(app.config["UPLOAD_FOLDER_VOLANTINI"], exist_ok=True)
+        sfondo_path = os.path.join(app.config["UPLOAD_FOLDER_VOLANTINI"], filename)
+        sfondo_file.save(sfondo_path)
 
         # 🔹 Inserisci volantino in DB
-        with get_db() as db:
-            cur = db.execute(
-                "INSERT INTO volantini (titolo, sfondo, data_creazione) VALUES (?, ?, datetime('now'))",
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO volantini (titolo, sfondo, data_creazione) VALUES (%s, %s, NOW()) RETURNING id",
                 (titolo, filename)
             )
-            volantino_id = cur.lastrowid
+            volantino_id = cur.fetchone()["id"]
 
             # 🔹 Inizializza griglia 3x3 con slot vuoti
             layout_json = {"objects": []}
@@ -1340,21 +2091,24 @@ def nuovo_volantino():
                         {"type": "text", "text":"", "left":100, "top":190, "fontSize":14, "originX":"center", "textAlign":"center"},
                         {"type": "text", "text":"", "left":100, "top":215, "fontSize":18, "fill":"red", "originX":"center", "textAlign":"center"}
                     ],
-                    "left": x, "top": y, "width":200, "height":240, "metadata": {}
+                    "left": x, "top": y, "width":200, "height":240,
+                    "metadata": {}
                 })
 
             # 🔹 Salva layout nel DB
-            db.execute(
-                "UPDATE volantini SET layout_json=? WHERE id=?",
+            cur.execute(
+                "UPDATE volantini SET layout_json=%s WHERE id=%s",
                 (json.dumps(layout_json, ensure_ascii=False), volantino_id)
             )
-            db.commit()
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
 
         flash("✅ Volantino creato con successo!", "success")
         return redirect(url_for("lista_volantini"))
 
     return render_template("04_volantino/02_nuovo_volantino.html")
-
 
 # ============================
 # ELIMINA VOLANTINO
@@ -1362,40 +2116,43 @@ def nuovo_volantino():
 @app.route("/volantini/elimina/<int:volantino_id>", methods=["POST"])
 @login_required
 def elimina_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute(
-            "SELECT sfondo FROM volantini WHERE id = ?", (volantino_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT sfondo FROM volantini WHERE id = %s", (volantino_id,))
+        volantino = cur.fetchone()
 
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        # 🔹 Elimina sfondo
-        if volantino["sfondo"]:
-            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
-            if os.path.exists(sfondo_path):
-                os.remove(sfondo_path)
-
-        # 🔹 Elimina immagini prodotti collegati
-        prodotti = db.execute(
-            "SELECT immagine FROM volantino_prodotti WHERE volantino_id = ?", (volantino_id,)
-        ).fetchall()
+        # 🔹 Elimina immagini prodotti collegati dal filesystem
+        cur.execute("SELECT immagine FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
+        prodotti = cur.fetchall()
         for prod in prodotti:
             if prod["immagine"]:
                 img_path = os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, prod["immagine"])
                 if os.path.exists(img_path):
                     os.remove(img_path)
 
-        # 🔹 Elimina volantino e prodotti dal DB
-        db.execute("DELETE FROM volantini WHERE id = ?", (volantino_id,))
-        db.execute("DELETE FROM volantino_prodotti WHERE volantino_id = ?", (volantino_id,))
-        db.commit()
+        # 🔹 Elimina prodotti dal DB prima del volantino
+        cur.execute("DELETE FROM volantino_prodotti WHERE volantino_id = %s", (volantino_id,))
 
+        # 🔹 Elimina sfondo del volantino dal filesystem
+        if volantino["sfondo"]:
+            sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
+            if os.path.exists(sfondo_path):
+                os.remove(sfondo_path)
+
+        # 🔹 Elimina volantino dal DB
+        cur.execute("DELETE FROM volantini WHERE id = %s", (volantino_id,))
+        conn.commit()
         flash("✅ Volantino eliminato con successo!", "success")
+    finally:
+        cur.close()
+        conn.close()
 
     return redirect(url_for("lista_volantini"))
-
 
 # ============================
 # MODIFICA VOLANTINO
@@ -1403,52 +2160,76 @@ def elimina_volantino(volantino_id):
 @app.route("/volantini/modifica/<int:volantino_id>", methods=["GET", "POST"])
 @login_required
 def modifica_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute(
-            "SELECT * FROM volantini WHERE id = ?", (volantino_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id = %s", (volantino_id,))
+        volantino = cur.fetchone()
 
         if not volantino:
             flash("❌ Volantino non trovato", "danger")
             return redirect(url_for("lista_volantini"))
 
+        # ============================
+        # POST → aggiorna volantino
+        # ============================
         if request.method == "POST":
             titolo = request.form.get("titolo", "").strip()
             sfondo_file = request.files.get("sfondo")
-            sfondo_nome = volantino["sfondo"]
+            sfondo_nome = volantino["sfondo"] or "no-image.png"
 
             if sfondo_file and sfondo_file.filename:
                 filename = secure_filename(sfondo_file.filename)
                 sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI, exist_ok=True)
-                sfondo_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome))
+                sfondo_path = os.path.join(UPLOAD_FOLDER_VOLANTINI, sfondo_nome)
+                sfondo_file.save(sfondo_path)
 
-            db.execute(
-                "UPDATE volantini SET titolo=?, sfondo=? WHERE id=?",
+            cur.execute(
+                "UPDATE volantini SET titolo=%s, sfondo=%s WHERE id=%s",
                 (titolo, sfondo_nome, volantino_id)
             )
-            db.commit()
+            conn.commit()
+
             flash("✅ Volantino aggiornato con successo", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
 
-        # 🔹 Prodotti attivi del volantino
-        prodotti_raw = db.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=? AND eliminato=0 ORDER BY id ASC",
-            (volantino_id,)
-        ).fetchall()
+        # ============================
+        # GET → prodotti nel volantino
+        # ============================
+        cur.execute("""
+            SELECT id, nome, prezzo, immagine
+            FROM volantino_prodotti
+            WHERE volantino_id=%s AND eliminato=FALSE
+            ORDER BY id ASC
+        """, (volantino_id,))
+        prodotti_raw = cur.fetchall()
         prodotti = [dict(p) for p in prodotti_raw]
 
-        # 🔹 Prodotti consigliati
-        prodotti_precedenti_raw = db.execute(
-            """
+        # ============================
+        # Ultimi 15 prodotti inseriti
+        # ============================
+        cur.execute("""
             SELECT id, nome, prezzo AS prezzo_default,
                    COALESCE(immagine, 'no-image.png') AS immagine
             FROM volantino_prodotti
-            WHERE eliminato=0 AND immagine IS NOT NULL
-            ORDER BY id DESC LIMIT 15
-            """
-        ).fetchall()
+            WHERE eliminato=FALSE
+            ORDER BY id DESC
+            LIMIT 15
+        """)
+        prodotti_precedenti_raw = cur.fetchall()
         prodotti_precedenti = [dict(p) for p in prodotti_precedenti_raw]
+
+        # ============================
+        # Controllo sfondo
+        # ============================
+        sfondo_path_full = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino["sfondo"])
+        if not os.path.exists(sfondo_path_full):
+            volantino["sfondo"] = os.path.basename(NO_IMAGE_PATH)
+
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "04_volantino/03_modifica_volantino.html",
@@ -1458,14 +2239,20 @@ def modifica_volantino(volantino_id):
     )
 
 
+
+
+
 # ============================
 # AGGIUNGI PRODOTTO AL VOLANTINO
 # ============================
 @app.route('/volantini/<int:volantino_id>/aggiungi_prodotto', methods=['GET', 'POST'])
 @login_required
 def aggiungi_prodotto_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute("SELECT * FROM volantini WHERE id = ?", (volantino_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id = %s", (volantino_id,))
+        volantino = cur.fetchone()
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
@@ -1494,13 +2281,17 @@ def aggiungi_prodotto_volantino(volantino_id):
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
                 immagine_file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, immagine_filename))
 
-            db.execute(
-                "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (?, ?, ?, ?, 0)",
+            cur.execute(
+                "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (%s, %s, %s, %s, FALSE) RETURNING id",
                 (volantino_id, nome, prezzo, immagine_filename)
             )
-            db.commit()
+            new_id = cur.fetchone()["id"]
+            conn.commit()
             flash("✅ Prodotto aggiunto al volantino con successo!", "success")
             return redirect(url_for("modifica_volantino", volantino_id=volantino_id))
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template("04_volantino/05_aggiungi_prodotto_volantino.html", volantino=dict(volantino))
 
@@ -1511,19 +2302,22 @@ def aggiungi_prodotto_volantino(volantino_id):
 @app.route('/volantini/prodotto/modifica/<int:prodotto_id>', methods=['GET', 'POST'])
 @login_required
 def modifica_prodotto_volantino(prodotto_id):
-    with get_db() as db:
-        prodotto = db.execute("SELECT * FROM volantino_prodotti WHERE id = ?", (prodotto_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantino_prodotti WHERE id = %s", (prodotto_id,))
+        prodotto = cur.fetchone()
         if not prodotto:
             flash("❌ Prodotto non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
         if request.method == "POST":
             if "lascia_vuota" in request.form:
-                db.execute(
-                    "UPDATE volantino_prodotti SET nome='', prezzo=0, immagine=NULL, lascia_vuota=1, eliminato=0 WHERE id=?",
+                cur.execute(
+                    "UPDATE volantino_prodotti SET nome='', prezzo=0, immagine=NULL, lascia_vuota=TRUE, eliminato=FALSE WHERE id=%s",
                     (prodotto_id,)
                 )
-                db.commit()
+                conn.commit()
                 flash("✅ Box lasciata vuota.", "success")
                 return redirect(url_for("modifica_volantino", volantino_id=prodotto["volantino_id"]))
 
@@ -1551,15 +2345,19 @@ def modifica_prodotto_volantino(prodotto_id):
                 os.makedirs(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, exist_ok=True)
                 file.save(os.path.join(UPLOAD_FOLDER_VOLANTINI_PRODOTTI, filename))
 
-            db.execute(
-                "UPDATE volantino_prodotti SET nome=?, prezzo=?, immagine=?, lascia_vuota=0, eliminato=0 WHERE id=?",
+            cur.execute(
+                "UPDATE volantino_prodotti SET nome=%s, prezzo=%s, immagine=%s, lascia_vuota=FALSE, eliminato=FALSE WHERE id=%s",
                 (nome, prezzo, filename, prodotto_id)
             )
-            db.commit()
+            conn.commit()
             flash("✅ Prodotto aggiornato con successo!", "success")
             return redirect(url_for("modifica_volantino", volantino_id=prodotto["volantino_id"]))
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template("04_volantino/06_modifica_prodotto_volantino.html", prodotto=dict(prodotto))
+
 
 # ============================
 # AGGIUNGI PRODOTTO CONSIGLIATO
@@ -1579,35 +2377,39 @@ def aggiungi_consigliato(volantino_id):
     except (ValueError, TypeError):
         return jsonify({"status": "error", "msg": "Prezzo non valido"}), 400
 
-    with get_db() as db:
-        prodotto = db.execute(
-            "SELECT nome, immagine FROM volantino_prodotti WHERE id=?",
-            (prodotto_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT nome, immagine FROM volantino_prodotti WHERE id=%s", (prodotto_id,))
+        prodotto = cur.fetchone()
         if not prodotto:
             return jsonify({"status": "error", "msg": "Prodotto non trovato"}), 404
 
         # Riattiva prodotto già eliminato
-        esistente = db.execute(
-            "SELECT id FROM volantino_prodotti WHERE volantino_id=? AND nome=? AND eliminato=1",
+        cur.execute(
+            "SELECT id FROM volantino_prodotti WHERE volantino_id=%s AND nome=%s AND eliminato=TRUE",
             (volantino_id, prodotto["nome"])
-        ).fetchone()
-
+        )
+        esistente = cur.fetchone()
         if esistente:
-            db.execute(
-                "UPDATE volantino_prodotti SET prezzo=?, eliminato=0 WHERE id=?",
+            cur.execute(
+                "UPDATE volantino_prodotti SET prezzo=%s, eliminato=FALSE WHERE id=%s",
                 (prezzo, esistente["id"])
             )
-            db.commit()
+            conn.commit()
             return jsonify({"status": "ok", "id": esistente["id"], "riattivato": True})
 
         # Inserimento nuovo prodotto
-        cursor = db.execute(
-            "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (?, ?, ?, ?, 0)",
+        cur.execute(
+            "INSERT INTO volantino_prodotti (volantino_id, nome, prezzo, immagine, eliminato) VALUES (%s, %s, %s, %s, FALSE) RETURNING id",
             (volantino_id, prodotto["nome"], prezzo, prodotto["immagine"])
         )
-        db.commit()
-        return jsonify({"status": "ok", "id": cursor.lastrowid, "riattivato": False})
+        new_id = cur.fetchone()["id"]
+        conn.commit()
+        return jsonify({"status": "ok", "id": new_id, "riattivato": False})
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1616,51 +2418,77 @@ def aggiungi_consigliato(volantino_id):
 @app.route("/volantini/prodotto/elimina/<int:prodotto_id>", methods=["POST"])
 @login_required
 def elimina_prodotto_volantino(prodotto_id):
-    with get_db() as db:
-        row = db.execute(
-            "SELECT volantino_id FROM volantino_prodotti WHERE id=?", (prodotto_id,)
-        ).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT volantino_id FROM volantino_prodotti WHERE id=%s", (prodotto_id,))
+        row = cur.fetchone()
         if not row:
             return jsonify({"status": "error", "msg": "Prodotto non trovato"}), 404
 
-        db.execute(
-            "UPDATE volantino_prodotti SET eliminato=1 WHERE id=?", (prodotto_id,)
-        )
-        db.commit()
+        cur.execute("UPDATE volantino_prodotti SET eliminato=TRUE WHERE id=%s", (prodotto_id,))
+        conn.commit()
         return jsonify({"status": "ok"})
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
 # VISUALIZZA VOLANTINO
 # ============================
 @app.route("/volantino/<int:volantino_id>")
+@login_required
 def visualizza_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute("SELECT * FROM volantini WHERE id=?", (volantino_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id=%s", (volantino_id,))
+        volantino = cur.fetchone()
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        prodotti = db.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=? ORDER BY id ASC", (volantino_id,)
-        ).fetchall()
+        cur.execute(
+            "SELECT * FROM volantino_prodotti WHERE volantino_id=%s ORDER BY id ASC",
+            (volantino_id,)
+        )
+        prodotti_raw = cur.fetchall()
 
-    volantino_dict = dict(volantino)
-    try:
-        layout = json.loads(volantino_dict.get("layout_json") or "{}")
-        if isinstance(layout, list):
-            layout = {"objects": layout}
-        elif not isinstance(layout, dict):
+        volantino_dict = dict(volantino)
+
+        # 🔹 Usa placeholder se sfondo non esiste
+        sfondo_path_full = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino_dict.get("sfondo") or "")
+        if not os.path.exists(sfondo_path_full):
+            volantino_dict["sfondo"] = os.path.basename(NO_IMAGE_PATH)
+
+        # 🔹 Layout JSON
+        try:
+            layout = json.loads(volantino_dict.get("layout_json") or "{}")
+            if isinstance(layout, list):
+                layout = {"objects": layout}
+            elif not isinstance(layout, dict):
+                layout = {"objects": []}
+        except Exception:
             layout = {"objects": []}
-    except Exception:
-        layout = {"objects": []}
-    volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
+        volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
 
-    return render_template(
-        "04_volantino/04_visualizza_volantino.html",
-        volantino=volantino_dict,
-        prodotti=[dict(p) for p in prodotti]
-    )
+        # 🔹 Prodotti con placeholder immagini
+        prodotti = []
+        for p in prodotti_raw:
+            prod = dict(p)
+            if not prod.get("immagine") or not os.path.exists(os.path.join(STATIC_DIR, "uploads", "volantino_prodotti", prod["immagine"])):
+                prod["immagine"] = os.path.basename(NO_IMAGE_PATH)
+            prodotti.append(prod)
+
+        return render_template(
+            "04_volantino/04_visualizza_volantino.html",
+            volantino=volantino_dict,
+            prodotti=prodotti
+        )
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1669,59 +2497,77 @@ def visualizza_volantino(volantino_id):
 @app.route('/volantini/<int:volantino_id>/editor')
 @login_required
 def editor_volantino(volantino_id):
-    with get_db() as db:
-        volantino = db.execute("SELECT * FROM volantini WHERE id=?", (volantino_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM volantini WHERE id=%s", (volantino_id,))
+        volantino = cur.fetchone()
         if not volantino:
             flash("❌ Volantino non trovato.", "danger")
             return redirect(url_for("lista_volantini"))
 
-        prodotti_raw = db.execute(
-            "SELECT * FROM volantino_prodotti WHERE volantino_id=? AND eliminato=0 ORDER BY id ASC",
+        cur.execute(
+            "SELECT * FROM volantino_prodotti WHERE volantino_id=%s AND eliminato=FALSE ORDER BY id ASC",
             (volantino_id,)
-        ).fetchall()
+        )
+        prodotti_raw = cur.fetchall()
 
-    volantino_dict = dict(volantino)
-    cols, rows = 3, 3
-    max_slots = cols * rows
+        volantino_dict = dict(volantino)
+        cols, rows = 3, 3
+        max_slots = cols * rows
 
-    if not volantino_dict.get("layout_json"):
-        grid = []
-        for i in range(max_slots):
-            col = i % cols
-            row = i // cols
-            x = 50 + col * 250
-            y = 50 + row * 280
-            prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
-            grid.append({
-                "type": "group",
-                "objects": [
-                    {"type": "rect", "left":0, "top":0, "width":200, "height":240, "fill":"#ffffff", "stroke":"#cccccc", "strokeWidth":1},
-                    {"type": "text", "text": prodotto.get("nome",""), "left":100, "top":190, "fontSize":14, "originX":"center", "textAlign":"center"},
-                    {"type": "text", "text": f"€ {prodotto.get('prezzo','')}" if prodotto.get('prezzo') else "", "left":100, "top":215, "fontSize":18, "fill":"red", "originX":"center", "textAlign":"center"}
-                ],
-                "left": x, "top": y, "width":200, "height":240,
-                "metadata": {
-                    "id": prodotto.get("id"), "nome": prodotto.get("nome"), "prezzo": prodotto.get("prezzo"),
-                    "url": url_for("static", filename=f"uploads/volantino_prodotti/{prodotto.get('immagine')}") if prodotto.get("immagine") else "",
-                    "lascia_vuota": prodotto.get("lascia_vuota", 0)
-                }
-            })
-        volantino_dict["layout_json"] = json.dumps({"objects": grid}, ensure_ascii=False)
-    else:
-        try:
-            layout = json.loads(volantino_dict["layout_json"])
-            if isinstance(layout, list):
-                layout = {"objects": layout}
-            volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
-        except Exception:
-            volantino_dict["layout_json"] = json.dumps({"objects": []}, ensure_ascii=False)
+        # 🔹 Sfondo placeholder
+        sfondo_path_full = os.path.join(UPLOAD_FOLDER_VOLANTINI, volantino_dict.get("sfondo") or "")
+        if not os.path.exists(sfondo_path_full):
+            volantino_dict["sfondo"] = os.path.basename(NO_IMAGE_PATH)
 
-    return render_template(
-        "04_volantino/07_editor_volantino.html",
-        volantino=volantino_dict,
-        volantino_prodotti=[dict(p) for p in prodotti_raw],
-        num_prodotti=max_slots
-    )
+        # 🔹 Layout
+        if not volantino_dict.get("layout_json"):
+            grid = []
+            for i in range(max_slots):
+                col = i % cols
+                row = i // cols
+                x = 50 + col * 250
+                y = 50 + row * 280
+                prodotto = dict(prodotti_raw[i]) if i < len(prodotti_raw) else {}
+                immagine_path = os.path.join(STATIC_DIR, "uploads", "volantino_prodotti", prodotto.get("immagine", ""))
+                if not prodotto.get("immagine") or not os.path.exists(immagine_path):
+                    immagine_file = os.path.basename(NO_IMAGE_PATH)
+                else:
+                    immagine_file = prodotto.get("immagine")
+                grid.append({
+                    "type": "group",
+                    "objects": [
+                        {"type": "rect", "left":0, "top":0, "width":200, "height":240, "fill":"#ffffff", "stroke":"#cccccc", "strokeWidth":1},
+                        {"type": "text", "text": prodotto.get("nome",""), "left":100, "top":190, "fontSize":14, "originX":"center", "textAlign":"center"},
+                        {"type": "text", "text": f"€ {prodotto.get('prezzo','')}" if prodotto.get('prezzo') else "", "left":100, "top":215, "fontSize":18, "fill":"red", "originX":"center", "textAlign":"center"}
+                    ],
+                    "left": x, "top": y, "width":200, "height":240,
+                    "metadata": {
+                        "id": prodotto.get("id"), "nome": prodotto.get("nome"), "prezzo": prodotto.get("prezzo"),
+                        "url": url_for("static", filename=f"uploads/volantino_prodotti/{immagine_file}"),
+                        "lascia_vuota": prodotto.get("lascia_vuota", False)
+                    }
+                })
+            volantino_dict["layout_json"] = json.dumps({"objects": grid}, ensure_ascii=False)
+        else:
+            try:
+                layout = json.loads(volantino_dict["layout_json"])
+                if isinstance(layout, list):
+                    layout = {"objects": layout}
+                volantino_dict["layout_json"] = json.dumps(layout, ensure_ascii=False)
+            except Exception:
+                volantino_dict["layout_json"] = json.dumps({"objects": []}, ensure_ascii=False)
+
+        return render_template(
+            "04_volantino/07_editor_volantino.html",
+            volantino=volantino_dict,
+            volantino_prodotti=[dict(p) for p in prodotti_raw],
+            num_prodotti=max_slots
+        )
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
@@ -1745,20 +2591,25 @@ def salva_layout_volantino(volantino_id):
     except Exception as e:
         return jsonify({"success": False, "message": f"❌ Errore JSON: {e}"}), 500
 
-    with get_db() as db:
-        cursor = db.execute("UPDATE volantini SET layout_json=? WHERE id=?", (layout_json, volantino_id))
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE volantini SET layout_json=%s WHERE id=%s RETURNING id", (layout_json, volantino_id))
+        updated_row = cur.fetchone()
+        if not updated_row:
+            return jsonify({"success": False, "message": "❌ Volantino non trovato"}), 404
+
         for obj in layout["objects"]:
             metadata = obj.get("metadata", {})
             prod_id = metadata.get("id")
             if prod_id:
-                db.execute("UPDATE volantino_prodotti SET eliminato=0 WHERE id=? AND eliminato=1", (prod_id,))
-        db.commit()
-        updated = cursor.rowcount
+                cur.execute("UPDATE volantino_prodotti SET eliminato=FALSE WHERE id=%s AND eliminato=TRUE", (prod_id,))
 
-    if updated == 0:
-        return jsonify({"success": False, "message": "❌ Volantino non trovato"}), 404
-
-    return jsonify({"success": True, "message": "✅ Layout salvato correttamente"})
+        conn.commit()
+        return jsonify({"success": True, "message": "✅ Layout salvato correttamente"})
+    finally:
+        cur.close()
+        conn.close()
 
 # ============================
 # LISTA VOLANTINI + PROMO LAMPO
@@ -1770,14 +2621,27 @@ def lista_volantini_completa():
         volantini = db.execute(
             "SELECT id, titolo, sfondo, data_creazione FROM volantini ORDER BY data_creazione DESC"
         ).fetchall()
+
         promo_lampo = db.execute(
             "SELECT id, nome, prezzo, immagine, sfondo, data_creazione FROM promo_lampo ORDER BY data_creazione DESC"
         ).fetchall()
 
+    # 🔹 Prepara i percorsi completi per le immagini promo lampo
+    promo_lampo_lista = []
+    for p in promo_lampo:
+        promo_lampo_lista.append({
+            "id": p["id"],
+            "nome": p["nome"],
+            "prezzo": p["prezzo"],
+            "immagine": url_for("static", filename=f"uploads/promolampo/{p['immagine']}") if p["immagine"] else url_for("static", filename="no-image.png"),
+            "sfondo": url_for("static", filename=f"uploads/promolampo/{p['sfondo']}") if p["sfondo"] else url_for("static", filename="no-image.png"),
+            "data_creazione": p["data_creazione"]
+        })
+
     return render_template(
         "04_volantino/01_lista_volantini.html",
         volantini=volantini,
-        promo_lampo=promo_lampo,
+        promo_lampo=promo_lampo_lista,
     )
 
 
@@ -1803,19 +2667,32 @@ def nuova_promo_lampo():
             flash("❌ Prezzo non valido", "danger")
             return redirect(url_for("nuova_promo_lampo"))
 
-        os.makedirs(UPLOAD_FOLDER_PROMO, exist_ok=True)
+        # 🔹 Assicurati che la cartella corretta esista
+        os.makedirs(UPLOAD_FOLDER_PROMOLAMPO, exist_ok=True)
 
+        # 🔹 Salva immagine prodotto
         immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
-        immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
+        immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMOLAMPO, immagine_nome))
 
+        # 🔹 Salva sfondo promo
         sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
-        sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
+        sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMOLAMPO, sfondo_nome))
 
-        with get_db() as db:
-            db.execute(
-                "INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione) VALUES (?, ?, ?, ?, ?)",
-                (nome, prezzo, immagine_nome, sfondo_nome, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # 🔹 Salva nel DB con psycopg2
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT INTO promo_lampo (nome, prezzo, immagine, sfondo, data_creazione)
+                VALUES (%s, %s, %s, %s, NOW())
+                """,
+                (nome, prezzo, immagine_nome, sfondo_nome)
             )
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
 
         flash("✅ Promo Lampo creata con successo!", "success")
         return redirect(url_for("lista_volantini_completa"))
@@ -1829,40 +2706,57 @@ def nuova_promo_lampo():
 @app.route("/promo-lampo/modifica/<int:promo_id>", methods=["GET", "POST"])
 @login_required
 def modifica_promo_lampo(promo_id):
-    with get_db() as db:
-        promo = db.execute("SELECT * FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM promo_lampo WHERE id=%s", (promo_id,))
+        promo = cur.fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-    if request.method == "POST":
-        nome = request.form.get("nome", "").strip()
-        prezzo_raw = request.form.get("prezzo", "").strip()
-        immagine_file = request.files.get("immagine")
+        if request.method == "POST":
+            nome = request.form.get("nome", "").strip()
+            prezzo_raw = request.form.get("prezzo", "").strip()
+            immagine_file = request.files.get("immagine")
+            sfondo_file = request.files.get("sfondo")
 
-        try:
-            prezzo = float(prezzo_raw)
-        except ValueError:
-            flash("❌ Prezzo non valido", "danger")
-            return redirect(url_for("modifica_promo_lampo", promo_id=promo_id))
+            try:
+                prezzo = float(prezzo_raw)
+            except ValueError:
+                flash("❌ Prezzo non valido", "danger")
+                return redirect(url_for("modifica_promo_lampo", promo_id=promo_id))
 
-        immagine_nome = promo["immagine"]
-        if immagine_file and immagine_file.filename.strip():
-            old_path = os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome)
-            if os.path.exists(old_path):
-                os.remove(old_path)
+            # Aggiorna immagine se caricata
+            immagine_nome = promo["immagine"]
+            if immagine_file and immagine_file.filename.strip():
+                old_path = os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+                immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
+                immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
 
-            immagine_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(immagine_file.filename)}"
-            immagine_file.save(os.path.join(UPLOAD_FOLDER_PROMO, immagine_nome))
+            # Aggiorna sfondo se caricato
+            sfondo_nome = promo.get("sfondo")
+            if sfondo_file and sfondo_file.filename.strip():
+                old_sfondo_path = os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome) if sfondo_nome else None
+                if old_sfondo_path and os.path.exists(old_sfondo_path):
+                    os.remove(old_sfondo_path)
+                sfondo_nome = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(sfondo_file.filename)}"
+                sfondo_file.save(os.path.join(UPLOAD_FOLDER_PROMO, sfondo_nome))
 
-        with get_db() as db:
-            db.execute(
-                "UPDATE promo_lampo SET nome=?, prezzo=?, immagine=? WHERE id=?",
-                (nome, prezzo, immagine_nome, promo_id)
+            # Aggiorna DB
+            cur.execute(
+                "UPDATE promo_lampo SET nome=%s, prezzo=%s, immagine=%s, sfondo=%s WHERE id=%s",
+                (nome, prezzo, immagine_nome, sfondo_nome, promo_id)
             )
+            conn.commit()
+            flash("✅ Promo Lampo aggiornata con successo!", "success")
+            return redirect(url_for("lista_volantini_completa"))
 
-        flash("✅ Promo Lampo aggiornata con successo!", "success")
-        return redirect(url_for("lista_volantini_completa"))
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template("04_volantino/09_modifica_promo_lampo.html", promo=promo)
 
@@ -1873,76 +2767,672 @@ def modifica_promo_lampo(promo_id):
 @app.route("/promo-lampo/elimina/<int:promo_id>", methods=["POST"])
 @login_required
 def elimina_promo_lampo(promo_id):
-    with get_db() as db:
-        promo = db.execute("SELECT immagine, sfondo FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT immagine, sfondo FROM promo_lampo WHERE id=%s", (promo_id,))
+        promo = cur.fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-        # elimina immagini
+        # elimina immagini dalla cartella
         for file_attr in ["immagine", "sfondo"]:
             if promo[file_attr]:
                 path = os.path.join(UPLOAD_FOLDER_PROMO, promo[file_attr])
                 if os.path.exists(path):
                     os.remove(path)
 
-        db.execute("DELETE FROM promo_lampo WHERE id=?", (promo_id,))
-
-    flash("✅ Promo Lampo eliminata con successo!", "success")
-    return redirect(url_for("lista_volantini_completa"))
+        # elimina dal DB
+        cur.execute("DELETE FROM promo_lampo WHERE id=%s", (promo_id,))
+        conn.commit()
+        flash("✅ Promo Lampo eliminata con successo!", "success")
+        return redirect(url_for("lista_volantini_completa"))
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
 # EDITOR PROMO LAMPO
 # ============================
-@app.route("/promo-lampo/<int:promo_id>/editor", methods=["GET", "POST"])
+@app.route("/promo-lampo/<int:promo_id>/editor", methods=["GET"])
 @login_required
 def editor_promo_lampo(promo_id):
-    with get_db() as db:
-        promo = db.execute("SELECT * FROM promo_lampo WHERE id=?", (promo_id,)).fetchone()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM promo_lampo WHERE id=%s", (promo_id,))
+        promo = cur.fetchone()
         if not promo:
             flash("❌ Promo Lampo non trovata", "danger")
             return redirect(url_for("lista_volantini_completa"))
 
-    promo_prodotti = [{
-        "url": promo["immagine"],
-        "nome": promo["nome"],
-        "prezzo": promo["prezzo"]
-    }]
+        # 🔹 Prepara i percorsi completi per immagine e sfondo
+        promo_prodotti = [{
+            "url": url_for("static", filename=f"uploads/promolampo/{promo['immagine']}") if promo.get("immagine") else url_for("static", filename="no-image.png"),
+            "sfondo": url_for("static", filename=f"uploads/promolampo/{promo['sfondo']}") if promo.get("sfondo") else url_for("static", filename="no-image.png"),
+            "nome": promo["nome"],
+            "prezzo": promo["prezzo"]
+        }]
 
-    return render_template(
-        "04_volantino/10_editor_promo_lampo.html",
-        promo=promo,
-        promo_prodotti=promo_prodotti
-    )
+        return render_template(
+            "04_volantino/10_editor_promo_lampo.html",
+            promo=promo,
+            promo_prodotti=promo_prodotti
+        )
+    finally:
+        cur.close()
+        conn.close()
 
 
 # ============================
 # SALVA LAYOUT PROMO LAMPO
 # ============================
-@app.route("/promo-lampo/<int:promo_id>/salva_layout", methods=["POST"])
+@app.route("/promo-lampo/<int:promo_id>/salva_layout", methods=["POST"], endpoint="salva_layout")
 @login_required
 def salva_layout_promo_lampo(promo_id):
     data = request.get_json(silent=True)
     layout = data.get("layout") if data else None
 
     if not layout:
-        return jsonify({"status": "error", "message": "Layout mancante"}), 400
+        return jsonify({"status": "error", "message": "⚠️ Layout mancante"}), 400
 
     try:
         layout_json = json.dumps(layout, ensure_ascii=False)
-        with get_db() as db:
-            db.execute("UPDATE promo_lampo SET layout=? WHERE id=?", (layout_json, promo_id))
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
 
-# ============================
-# ROUTE DI TEST TEMPLATE
-# ============================
-@app.route('/test-template')
-def test_template():
-    return render_template('00_login.html')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        try:
+            cur = conn.cursor()
+
+            # Verifica che la promo esista
+            cur.execute("SELECT id FROM promo_lampo WHERE id=%s", (promo_id,))
+            promo = cur.fetchone()
+            if not promo:
+                return jsonify({"status": "error", "message": "❌ Promo Lampo non trovata"}), 404
+
+            # Aggiorna layout
+            cur.execute("UPDATE promo_lampo SET layout=%s WHERE id=%s", (layout_json, promo_id))
+            conn.commit()
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"status": "error", "message": f"Errore DB: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
+
+        return jsonify({"status": "ok", "message": "✅ Layout salvato con successo"})
+    
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Errore interno: {str(e)}"}), 500
+
+
+
+# ----------------------------------------------------------------------
+#  CREA NUOVO VOLANTINO (pagina editor vuota)
+# ----------------------------------------------------------------------
+@app.route('/beta-volantino')
+def beta_volantino():
+    return render_template(
+        '05_beta_volantino/05_beta_volantino.html',
+        volantino_id=None,
+        nome_volantino="",
+        layout_json="[]",
+        thumbnail=""
+    )
+
+
+# ----------------------------------------------------------------------
+#  SALVA / AGGIORNA VOLANTINO  (con miniatura)
+# ----------------------------------------------------------------------
+@app.route('/salva-volantino-beta', methods=['POST'])
+def salva_volantino_beta():
+    data = request.get_json()
+
+    vol_id = data.get("id")
+    nome = data.get("nome", "Volantino BETA")
+    layout_json = json.dumps(data["layout"])
+    thumbnail = data.get("thumbnail")   # base64 da html2canvas
+
+    if vol_id:
+        # Aggiorna esistente
+        vol = VolantinoBeta.query.get_or_404(vol_id)
+        vol.nome = nome
+        vol.layout_json = layout_json
+        if thumbnail:
+            vol.thumbnail = thumbnail
+        vol.aggiornato_il = datetime.utcnow()
+    else:
+        # Nuovo volantino
+        vol = VolantinoBeta(
+            nome=nome,
+            layout_json=layout_json,
+            thumbnail=thumbnail
+        )
+        db.session.add(vol)
+
+    db.session.commit()
+    return jsonify({"ok": True, "id": vol.id})
+
+
+# ----------------------------------------------------------------------
+#  APRI / MODIFICA VOLANTINO
+# ----------------------------------------------------------------------
+@app.route('/beta-volantino/<int:id>')
+def beta_volantino_modifica(id):
+    vol = VolantinoBeta.query.get_or_404(id)
+
+    return render_template(
+        '05_beta_volantino/05_beta_volantino.html',
+        volantino_id=id,
+        nome_volantino=vol.nome,
+        layout_json=vol.layout_json,
+        thumbnail=vol.thumbnail
+    )
+
+
+# ----------------------------------------------------------------------
+#  LISTA VOLANTINI
+# ----------------------------------------------------------------------
+@app.route('/beta-volantini')
+def lista_volantini_beta():
+    lista = VolantinoBeta.query.order_by(VolantinoBeta.creato_il.desc()).all()
+    return render_template(
+        '05_beta_volantino/05_beta_volantino_lista.html',
+        lista=lista
+    )
+
+
+# ----------------------------------------------------------------------
+#  DUPLICA VOLANTINO
+# ----------------------------------------------------------------------
+@app.route('/beta-volantino/duplica/<int:id>')
+def beta_volantino_duplica(id):
+    vol = VolantinoBeta.query.get_or_404(id)
+
+    nuovo = VolantinoBeta(
+        nome=vol.nome + " (Copia)",
+        layout_json=vol.layout_json,
+        thumbnail=vol.thumbnail
+    )
+
+    db.session.add(nuovo)
+    db.session.commit()
+
+    return redirect(url_for('beta_volantino_modifica', id=nuovo.id))
+
+
+# ----------------------------------------------------------------------
+#  ELIMINA VOLANTINO
+# ----------------------------------------------------------------------
+@app.route('/beta-volantino/elimina/<int:id>')
+def beta_volantino_elimina(id):
+    vol = VolantinoBeta.query.get_or_404(id)
+    db.session.delete(vol)
+    db.session.commit()
+    return redirect(url_for('lista_volantini_beta'))
+
+# =========================
+# WhatsApp via TWILIO - BLOCCO COMPLETO (per il tuo app.py)
+# - Riceve testo su /twilio/webhook (Twilio form-encoded)
+# - Gestisce MENU preferenze e salva su DB
+# - Admin da WhatsApp: STATS, SEND PESCE..., SEND CARNE..., SEND SCADENZA..., SEND TUTTI...
+# - Invio mirato dal tuo pannello /bot (che già hai)
+#
+# ENV su Render:
+#   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
+#   ADMIN_WHATSAPP  (es: "3342380230,393342380230")
+#
+# NOTE:
+# - Questo blocco usa *get_db()* (psycopg2) del tuo progetto.
+# =========================
+
+import os
+import re
+import time
+import traceback
+from pathlib import Path
+from collections import defaultdict
+
+import pdfplumber
+from flask import request
+from psycopg2.extras import RealDictCursor
+
+from twilio.rest import Client
+
+# ------------------------------------------------------------
+# 0) TWILIO CLIENT
+# ------------------------------------------------------------
+_twilio_client = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+
+def _normalize_phone(s: str | None) -> str | None:
+    if not s:
+        return None
+    s = str(s).strip()
+    s = s.replace("whatsapp:", "").replace("+", "")
+    s = s.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    s = "".join(ch for ch in s if ch.isdigit())
+    if s.startswith("00"):
+        s = s[2:]
+    return s or None
+
+
+# ------------------------------------------------------------
+# 1) SEND TEXT (WhatsApp via Twilio) - drop-in
+# ------------------------------------------------------------
+def send_text(to: str, text: str):
+    """
+    to: numero in formato '39334xxxxxxx' (senza +)
+    """
+    to_norm = _normalize_phone(to)
+    if not to_norm:
+        print("⚠️ send_text: numero non valido:", to)
+        return None
+
+    from_ = os.getenv("TWILIO_WHATSAPP_FROM")  # es: 'whatsapp:+14155238886' (sandbox) o il tuo WA in prod
+    if not from_:
+        raise RuntimeError("TWILIO_WHATSAPP_FROM non impostata")
+
+    msg = _twilio_client.messages.create(
+        body=text,
+        from_=from_,
+        to=f"whatsapp:+{to_norm}",
+    )
+    print("TWILIO SEND:", msg.sid)
+    return msg
+
+
+# ------------------------------------------------------------
+# 2) PARSING PDF (codice, nome, prezzo) - rimane utile
+# ------------------------------------------------------------
+RE_CODE = r"(?P<code>\d{4,10})"
+RE_PRICE = r"(?P<price>\d{1,3}(?:[.,]\d{2}))"
+RE_NAME = r"(?P<name>[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ\s\-\+\/\.,]{2,80})"
+
+LINE_RE = re.compile(
+    rf"{RE_CODE}\s+(?:-|–)?\s*{RE_NAME}\s+.*?\s{RE_PRICE}\b",
+    re.IGNORECASE,
+)
+
+def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
+    offers = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            for raw in text.splitlines():
+                line = " ".join(raw.strip().split())
+                m = LINE_RE.search(line)
+                if not m:
+                    continue
+                offers.append(
+                    {
+                        "code": m.group("code"),
+                        "name": m.group("name").strip(),
+                        "price": m.group("price").replace(".", ","),
+                        "raw": line,
+                    }
+                )
+
+    seen = set()
+    uniq = []
+    for o in offers:
+        if o["code"] in seen:
+            continue
+        seen.add(o["code"])
+        uniq.append(o)
+    return uniq
+
+
+# ------------------------------------------------------------
+# 3) DB HELPERS (psycopg2)
+# ------------------------------------------------------------
+PHONE_COL_CACHE = {"value": None}
+
+def _detect_phone_column(cur) -> str | None:
+    if PHONE_COL_CACHE["value"] is not None:
+        return PHONE_COL_CACHE["value"]
+
+    cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema='public'
+          AND table_name='clienti'
+    """)
+    cols = [r["column_name"] if isinstance(r, dict) else r[0] for r in cur.fetchall()]
+    cols_l = [c.lower() for c in cols]
+
+    candidates = [
+        "telefono", "cellulare", "whatsapp", "numero", "tel",
+        "phone", "mobile", "phone_number", "telefono_whatsapp"
+    ]
+    for cand in candidates:
+        if cand in cols_l:
+            PHONE_COL_CACHE["value"] = cols[cols_l.index(cand)]
+            print("DEBUG - PHONE COLUMN DETECTED:", PHONE_COL_CACHE["value"])
+            return PHONE_COL_CACHE["value"]
+
+    PHONE_COL_CACHE["value"] = None
+    print("⚠️ DEBUG - Nessuna colonna telefono trovata in 'clienti'. Colonne:", cols)
+    return None
+
+
+def product_id_by_code_pg(cur, code: str) -> int | None:
+    cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
+    row = cur.fetchone()
+    if row:
+        return row["id"] if isinstance(row, dict) else row[0]
+
+    cur.execute("SELECT id FROM prodotti WHERE codice ILIKE %s LIMIT 1", (f"%{code}%",))
+    row = cur.fetchone()
+    if row:
+        return row["id"] if isinstance(row, dict) else row[0]
+    return None
+
+
+def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str]]:
+    phone_col = _detect_phone_column(cur)
+    if not phone_col:
+        return []
+
+    q = f"""
+        SELECT c.id AS cliente_id, c.{phone_col} AS phone
+        FROM clienti c
+        JOIN clienti_prodotti cp ON cp.cliente_id = c.id
+        WHERE cp.prodotto_id = %s
+          AND (cp.lavorato IS TRUE OR cp.lavorato IS NULL)
+        ORDER BY c.id
+    """
+    cur.execute(q, (prodotto_id,))
+    rows = cur.fetchall() or []
+
+    out = []
+    for r in rows:
+        cid = r["cliente_id"] if isinstance(r, dict) else r[0]
+        phone = r["phone"] if isinstance(r, dict) else r[1]
+        phone = _normalize_phone(phone) or ""
+        if phone:
+            out.append((cid, phone))
+    return out
+
+
+def build_customer_offer_map_pg(cur, offers: list[dict]) -> dict[int, dict]:
+    items_by_customer = defaultdict(dict)
+    phone_by_customer = {}
+
+    for o in offers:
+        pid = product_id_by_code_pg(cur, o["code"])
+        if not pid:
+            continue
+
+        for cid, phone in customer_phones_for_product_pg(cur, pid):
+            phone_by_customer[cid] = phone
+            items_by_customer[cid][o["code"]] = o
+
+    out = {}
+    for cid, by_code in items_by_customer.items():
+        items = list(by_code.values())
+        items.sort(key=lambda x: x["code"])
+        out[cid] = {"phone": phone_by_customer[cid], "items": items}
+    return out
+
+
+def format_customer_message(items: list[dict]) -> str:
+    lines = ["📌 *Offerte per te oggi:*"]
+    for o in items[:25]:
+        lines.append(f"- *{o['code']}* {o['name']} → *€ {o['price']}*")
+    if len(items) > 25:
+        lines.append(f"\n(+{len(items)-25} altre)")
+    lines.append("\nRispondi con il codice per ordinare 👍")
+    return "\n".join(lines)
+
+
+def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int]:
+    customer_map = build_customer_offer_map_pg(cur, offers)
+
+    sent = 0
+    for _, payload in customer_map.items():
+        phone = payload["phone"]
+        text = format_customer_message(payload["items"])
+        send_text(phone, text)
+        sent += 1
+
+    return sent, len(customer_map)
+
+
+# ------------------------------------------------------------
+# 4) ADMIN HELPERS
+# ------------------------------------------------------------
+def _normalize_phone_admin(s: str | None) -> str:
+    s = (s or "").strip()
+    s = s.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    s = "".join(ch for ch in s if ch.isdigit())
+    if s.startswith("00"):
+        s = s[2:]
+    return s
+
+def _admin_list() -> set[str]:
+    raw = os.getenv("ADMIN_WHATSAPP", "")
+    admins = set()
+    for a in raw.split(","):
+        a = _normalize_phone_admin(a)
+        if a:
+            admins.add(a)
+            if len(a) == 10 and not a.startswith("39"):
+                admins.add("39" + a)
+    return admins
+
+def is_admin(from_number: str | None) -> bool:
+    n = _normalize_phone_admin(from_number)
+    return n in _admin_list()
+
+
+# ------------------------------------------------------------
+# 5) PREFERENZE DB HELPERS (usati da Twilio webhook + /bot)
+# ------------------------------------------------------------
+def find_cliente_id_by_phone(cur, phone_norm: str) -> int | None:
+    cur.execute("SELECT id FROM clienti WHERE telefono=%s LIMIT 1", (phone_norm,))
+    row = cur.fetchone()
+    return (row["id"] if isinstance(row, dict) else row[0]) if row else None
+
+
+def upsert_preferenza(cur, cliente_id: int, scelta: str):
+    """
+    - PREF_SCADENZA / PREF_PESCE / PREF_CARNE: abilita flag e opt_out=FALSE
+    - PREF_STOP: opt_out=TRUE e spegne tutto
+    """
+    if scelta == "PREF_STOP":
+        cur.execute("""
+            INSERT INTO whatsapp_preferenze (cliente_id, opt_out, updated_at)
+            VALUES (%s, TRUE, NOW())
+            ON CONFLICT (cliente_id) DO UPDATE
+            SET opt_out=TRUE,
+                ricevi_scadenza=FALSE,
+                ricevi_pesce=FALSE,
+                ricevi_carne=FALSE,
+                updated_at=NOW()
+        """, (cliente_id,))
+        return
+
+    col_map = {
+        "PREF_SCADENZA": "ricevi_scadenza",
+        "PREF_PESCE": "ricevi_pesce",
+        "PREF_CARNE": "ricevi_carne",
+    }
+    col = col_map.get(scelta)
+    if not col:
+        return
+
+    cur.execute(f"""
+        INSERT INTO whatsapp_preferenze (cliente_id, {col}, opt_out, updated_at)
+        VALUES (%s, TRUE, FALSE, NOW())
+        ON CONFLICT (cliente_id) DO UPDATE
+        SET {col}=TRUE,
+            opt_out=FALSE,
+            updated_at=NOW()
+    """, (cliente_id,))
+
+
+def mark_whatsapp_linked_by_phone(cur, phone_norm: str):
+    try:
+        cur.execute("""
+            UPDATE clienti
+            SET whatsapp_linked = TRUE,
+                whatsapp_linked_at = COALESCE(whatsapp_linked_at, NOW())
+            WHERE telefono = %s
+        """, (phone_norm,))
+    except Exception:
+        pass
+
+
+# ------------------------------------------------------------
+# 6) SEGMENT WHERE (coerente con /bot)
+# ------------------------------------------------------------
+def _segment_where(pref: str) -> str:
+    pref = (pref or "").lower()
+    if pref == "scadenza":
+        return "wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE"
+    if pref == "pesce":
+        return "wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE"
+    if pref == "carne":
+        return "wp.opt_out = FALSE AND wp.ricevi_carne = TRUE"
+    if pref == "stop":
+        return "wp.opt_out = TRUE"
+    if pref == "nessuna":
+        return "wp.cliente_id IS NULL"
+    return "c.whatsapp_linked = TRUE"
+
+
+# ------------------------------------------------------------
+# 7) WEBHOOK TWILIO (testo + preferenze + admin)
+# ------------------------------------------------------------
+@app.route("/twilio/webhook", methods=["POST"])
+def twilio_webhook():
+    from_raw = request.values.get("From", "")
+    body = (request.values.get("Body", "") or "").strip()
+
+    from_number = _normalize_phone(from_raw)
+    if not from_number:
+        return "OK", 200
+
+    # ✅ anti-loop: ignora se Twilio ti manda eventi dal tuo stesso numero WhatsApp From
+    from_env = os.getenv("TWILIO_WHATSAPP_FROM", "")
+    from_norm = _normalize_phone(from_env)
+    if from_norm and from_number == from_norm:
+        print("TWILIO LOOP IGNORATO (From = numero Twilio)")
+        return "OK", 200
+
+    print("TWILIO IN:", from_number, body)
+
+    text = body.strip()
+    low = text.lower()
+
+    def safe_send(to, msg):
+        try:
+            send_text(to, msg)
+        except Exception as e:
+            print("TWILIO SEND ERROR:", repr(e))
+
+    # MENU
+    if low in ("menu", "start", "offerte", "preferenze"):
+        safe_send(from_number,
+            "📌 *Preferenze offerte*\n"
+            "Rispondi con:\n"
+            "1 = Scadenze\n"
+            "2 = Pesce\n"
+            "3 = Carne\n"
+            "0 = STOP (non ricevere)\n"
+        )
+        return "OK", 200
+
+    scelta_map = {"1":"PREF_SCADENZA","2":"PREF_PESCE","3":"PREF_CARNE","0":"PREF_STOP"}
+    if low in scelta_map:
+        scelta_id = scelta_map[low]
+        try:
+            with get_db() as conn:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cid = find_cliente_id_by_phone(cur, from_number)
+                if not cid:
+                    safe_send(from_number, "⚠️ Non ti trovo in anagrafica. Usa il numero salvato nel gestionale.")
+                    return "OK", 200
+
+                upsert_preferenza(cur, cid, scelta_id)
+                mark_whatsapp_linked_by_phone(cur, from_number)
+                conn.commit()
+
+            if scelta_id == "PREF_STOP":
+                safe_send(from_number, "✅ Ok, non riceverai più offerte. Se cambi idea scrivi *MENU*.")
+            else:
+                safe_send(from_number, "✅ Preferenza salvata! Se vuoi cambiare, scrivi *MENU*.")
+        except Exception as e:
+            print("TWILIO PREF ERROR:", repr(e))
+            safe_send(from_number, "⚠️ Errore nel salvataggio preferenze. Riprova tra poco.")
+        return "OK", 200
+
+    safe_send(from_number, "Scrivi *MENU* per scegliere preferenze.")
+    return "OK", 200
+
+
+
+# ------------------------------------------------------------
+# 8) BROADCAST PREFERENZE (usa Twilio send_text)
+# ------------------------------------------------------------
+@app.route("/admin/whatsapp/broadcast-preferenze")
+@login_required
+def broadcast_preferenze():
+    try:
+        with get_db() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            cur.execute("""
+                SELECT telefono
+                FROM clienti
+                WHERE telefono IS NOT NULL
+                  AND whatsapp_linked = TRUE
+            """)
+            rows = cur.fetchall()
+
+            count = 0
+            for r in rows:
+                phone = _normalize_phone(r.get("telefono"))
+                if not phone:
+                    continue
+                send_text(
+                    phone,
+                    "👋 Ciao!\n"
+                    "Da oggi puoi ricevere offerte mirate su WhatsApp.\n\n"
+                    "Scegli cosa vuoi ricevere:\n"
+                    "• Scadenze\n"
+                    "• Pesce\n"
+                    "• Carne\n\n"
+                    "Scrivi *MENU* per scegliere."
+                )
+                count += 1
+                time.sleep(0.15)
+
+        flash(f"Inviato messaggio preferenze a {count} clienti.", "success")
+    except Exception as e:
+        flash(f"Errore invio broadcast: {e}", "danger")
+
+    return redirect(url_for("clienti"))
+
+
+# ------------------------------------------------------------
+# 9) BOT DASHBOARD (già aggiornato da te) -> NON TOCCO QUI
+#    (tu hai già /bot e /bot/invia che usano send_text)
+# ------------------------------------------------------------
+
+@app.route("/bot", methods=["GET"])
+@login_required
+def bot_dashboard():
+    pref = request.args.get("pref", "").strip().lower()
+    return render_template("06_bot/01_bot_dashboard.html", pref=pref)
+
+
+@app.route("/ping", methods=["GET"])
+def ping():
+    return "pong", 200
+
 
 
 @app.route('/debug-template')
@@ -1952,10 +3442,14 @@ def debug_template():
     Template path: {app.jinja_loader.searchpath}
     """
 
+@app.route('/init-db')
+def init_db():
+    db.create_all()
+    return "Tabelle create!"
+
 
 # ============================
 # AVVIO APP
 # ============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050, debug=True)
-

@@ -7,400 +7,118 @@
 <h1 class="mb-4">🧪 Volantini BETA salvati</h1>
 
 <div class="row mb-3">
-    <div class="col-md-4 d-flex align-items-center">
-        <h4 class="m-0">Elenco volantini</h4>
-    </div>
-    <div class="col-md-4 mt-2 mt-md-0 d-flex justify-content-end pe-4">
-        <input type="text" class="form-control form-control-sm w-75" id="search-volantini"
-            placeholder="Cerca per nome o ID...">
-    </div>
-    <div class="col-md-4 mt-2 mt-md-0 d-flex gap-2 justify-content-end">
-        <div class="dropdown flex-grow-1">
-            <button class="btn btn-outline-success w-100 dropdown-toggle" type="button" id="dropdownGeneraPdf" data-bs-toggle="dropdown" aria-expanded="false" title="Crea un volantino automaticamente da un PDF offerte">
-                <i class="bi bi-file-earmark-pdf"></i> Genera da PDF
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownGeneraPdf">
-                <li><a class="dropdown-item fw-bold btn-gen-pdf-tema" href="#" data-tema="standard">📄 Genera PDF Standard</a></li>
-                <li><a class="dropdown-item text-danger fw-bold btn-gen-pdf-tema" href="#" data-tema="carne">🥩 Genera PDF Carne</a></li>
-                <li><a class="dropdown-item text-primary fw-bold btn-gen-pdf-tema" href="#" data-tema="pesce">🐟 Genera PDF Pesce</a></li>
-            </ul>
-        </div>
-        <input type="file" id="file-generate-pdf" class="d-none" accept=".pdf">
-        <div class="dropdown flex-grow-1">
-            <button class="btn btn-primary w-100 dropdown-toggle" type="button" id="dropdownNuovo" data-bs-toggle="dropdown" aria-expanded="false">
-                ➕ Nuovi Temi
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownNuovo">
-                <li><a class="dropdown-item fw-bold" href="{{ url_for('beta_volantino') }}?tema=standard">📄 Volantino Standard</a></li>
-                <li><a class="dropdown-item text-danger fw-bold" href="{{ url_for('beta_volantino') }}?tema=carne">🥩 Tema Carne (Bordi Rossi)</a></li>
-                <li><a class="dropdown-item text-primary fw-bold" href="{{ url_for('beta_volantino') }}?tema=pesce">🐟 Tema Pesce (Bordi Blu)</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-header">Promozioni</h6></li>
-                <li><a class="dropdown-item fw-bold text-primary" href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_mensile">🏷️ Promo Mensile (Nuovo)</a></li>
-                <li><a class="dropdown-item fw-bold text-danger" href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_scadenza">⏳ Promo Scadenze (Nuovo)</a></li>
-                <li><a class="dropdown-item fw-bold text-success" href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_prodotto">📦 Promo Prodotto (Nuovo)</a></li>
-                <li><a class="dropdown-item fw-bold text-secondary" href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_standard">⭐ Promo Standard (Nuovo)</a></li>
-                <li><a class="dropdown-item fw-bold text-info" href="{{ url_for('beta_volantino') }}?tema=pesce&tipo=promo_pesce">🐟 Promo Pesce (Nuovo)</a></li>
-                <li><a class="dropdown-item fw-bold text-warning" href="{{ url_for('beta_volantino') }}?tema=carne&tipo=promo_carne">🥩 Promo Carne (Nuovo)</a></li>
-            </ul>
-        </div>
-</div>
-
-<ul class="nav nav-pills mb-4 gap-2" id="volantiniTabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active rounded-pill px-4 fw-bold shadow-sm" id="standard-tab" data-bs-toggle="tab" data-bs-target="#standard-pane" type="button" role="tab" aria-controls="standard-pane" aria-selected="true"><i class="bi bi-file-earmark-richtext me-1"></i> Volantini Standard</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link rounded-pill px-4 fw-bold shadow-sm bg-light text-primary border" id="promo-tab" data-bs-toggle="tab" data-bs-target="#promo-pane" type="button" role="tab" aria-controls="promo-pane" aria-selected="false"><i class="bi bi-tags me-1"></i> Promo Mensili / Scadenze</button>
-  </li>
-</ul>
-
-<style>
-  .transition-hover {
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .transition-hover:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
-  }
-</style>
-
-<!-- ================== STRUMENTI PROMOZIONI ================== -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-  <div class="card-body p-4">
-    <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom">
-      <div>
-        <h4 class="fw-bold text-dark mb-1"><i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Dashboard Creazione Promozioni</h4>
-        <p class="text-muted small mb-0">Seleziona una categoria per creare un volantino da zero o popolarlo caricando le offerte da PDF. I template (logo, sfondi e griglie) salvati come predefiniti verranno applicati automaticamente.</p>
-      </div>
-    </div>
-    
-    <div class="row g-3">
-      <!-- CARD 1: Promo Mensile -->
-      <div class="col-md-4 col-sm-6">
-        <div class="card h-100 border-2 rounded-4 p-3 position-relative transition-hover" style="border-color: rgba(13, 110, 253, 0.15); background: linear-gradient(145deg, #ffffff, rgba(13, 110, 253, 0.02));">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="badge bg-primary text-white rounded-pill px-2 py-1 small">Bollino Blu</span>
-            <i class="bi bi-calendar-range-fill fs-4 text-primary"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1">Promo Mensile</h5>
-          <div class="mb-3">
-            {% if templates_status and templates_status.get('mensile') %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Template Attivo</span>
-            {% else %}
-              <span class="badge bg-light text-muted border rounded-pill small py-1 px-2"><i class="bi bi-circle me-1"></i>Nessun Template</span>
-            {% endif %}
-          </div>
-          
-          <div class="mt-auto d-flex flex-column gap-2">
-            <a href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_mensile" class="btn btn-primary btn-sm fw-bold rounded-pill"><i class="bi bi-plus-lg"></i> Crea da Zero</a>
-            <form action="{{ url_for('promozione_upload') }}" method="POST" enctype="multipart/form-data" class="w-100 m-0">
-              <input type="hidden" name="tipo" value="promo_mensile">
-              <div class="position-relative">
-                <input type="file" name="promo_file" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" style="cursor: pointer;" accept=".pdf" onchange="this.form.submit()">
-                <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-bold border-2 rounded-pill"><i class="bi bi-file-earmark-pdf"></i> Carica PDF</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      
-      <!-- CARD 2: Scadenze -->
-      <div class="col-md-4 col-sm-6">
-        <div class="card h-100 border-2 rounded-4 p-3 position-relative transition-hover" style="border-color: rgba(220, 53, 69, 0.15); background: linear-gradient(145deg, #ffffff, rgba(220, 53, 69, 0.02));">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="badge bg-danger text-white rounded-pill px-2 py-1 small">Bollino Rosso</span>
-            <i class="bi bi-calendar-x-fill fs-4 text-danger"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1">Promo Scadenze</h5>
-          <div class="mb-3">
-            {% if templates_status and templates_status.get('scadenza') %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Template Attivo</span>
-            {% else %}
-              <span class="badge bg-light text-muted border rounded-pill small py-1 px-2"><i class="bi bi-circle me-1"></i>Nessun Template</span>
-            {% endif %}
-          </div>
-          
-          <div class="mt-auto d-flex flex-column gap-2">
-            <a href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_scadenza" class="btn btn-danger btn-sm fw-bold rounded-pill"><i class="bi bi-plus-lg"></i> Crea da Zero</a>
-            <form action="{{ url_for('promozione_upload') }}" method="POST" enctype="multipart/form-data" class="w-100 m-0">
-              <input type="hidden" name="tipo" value="promo_scadenza">
-              <div class="position-relative">
-                <input type="file" name="promo_file" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" style="cursor: pointer;" accept=".pdf" onchange="this.form.submit()">
-                <button type="button" class="btn btn-outline-danger btn-sm w-100 fw-bold border-2 rounded-pill"><i class="bi bi-file-earmark-pdf"></i> Carica PDF</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      
-      <!-- CARD 3: Promo Prodotto -->
-      <div class="col-md-4 col-sm-6">
-        <div class="card h-100 border-2 rounded-4 p-3 position-relative transition-hover" style="border-color: rgba(25, 135, 84, 0.15); background: linear-gradient(145deg, #ffffff, rgba(25, 135, 84, 0.02));">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="badge bg-success text-white rounded-pill px-2 py-1 small">Prodotto Specifico</span>
-            <i class="bi bi-box-seam-fill fs-4 text-success"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1">Promo Prodotto</h5>
-          <div class="mb-3">
-            {% if templates_status and templates_status.get('prodotto') %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Template Attivo</span>
-            {% else %}
-              <span class="badge bg-light text-muted border rounded-pill small py-1 px-2"><i class="bi bi-circle me-1"></i>Nessun Template</span>
-            {% endif %}
-          </div>
-          
-          <div class="mt-auto d-flex flex-column gap-2">
-            <a href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_prodotto" class="btn btn-success btn-sm fw-bold rounded-pill"><i class="bi bi-plus-lg"></i> Crea da Zero</a>
-            <form action="{{ url_for('promozione_upload') }}" method="POST" enctype="multipart/form-data" class="w-100 m-0">
-              <input type="hidden" name="tipo" value="promo_prodotto">
-              <div class="position-relative">
-                <input type="file" name="promo_file" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" style="cursor: pointer;" accept=".pdf" onchange="this.form.submit()">
-                <button type="button" class="btn btn-outline-success btn-sm w-100 fw-bold border-2 rounded-pill"><i class="bi bi-file-earmark-pdf"></i> Carica PDF</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      
-      <!-- CARD 4: Promo Standard -->
-      <div class="col-md-4 col-sm-6">
-        <div class="card h-100 border-2 rounded-4 p-3 position-relative transition-hover" style="border-color: rgba(108, 117, 125, 0.15); background: linear-gradient(145deg, #ffffff, rgba(108, 117, 125, 0.02));">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="badge bg-secondary text-white rounded-pill px-2 py-1 small">Standard</span>
-            <i class="bi bi-bookmark-star-fill fs-4 text-secondary"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1">Promo Standard</h5>
-          <div class="mb-3">
-            {% if templates_status and templates_status.get('standard') %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Template Attivo</span>
-            {% else %}
-              <span class="badge bg-light text-muted border rounded-pill small py-1 px-2"><i class="bi bi-circle me-1"></i>Nessun Template</span>
-            {% endif %}
-          </div>
-          
-          <div class="mt-auto d-flex flex-column gap-2">
-            <a href="{{ url_for('beta_volantino') }}?tema=standard&tipo=promo_standard" class="btn btn-secondary btn-sm fw-bold rounded-pill"><i class="bi bi-plus-lg"></i> Crea da Zero</a>
-            <form action="{{ url_for('promozione_upload') }}" method="POST" enctype="multipart/form-data" class="w-100 m-0">
-              <input type="hidden" name="tipo" value="promo_standard">
-              <div class="position-relative">
-                <input type="file" name="promo_file" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" style="cursor: pointer;" accept=".pdf" onchange="this.form.submit()">
-                <button type="button" class="btn btn-outline-secondary btn-sm w-100 fw-bold border-2 rounded-pill"><i class="bi bi-file-earmark-pdf"></i> Carica PDF</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      
-      <!-- CARD 5: Promo Pesce -->
-      <div class="col-md-4 col-sm-6">
-        <div class="card h-100 border-2 rounded-4 p-3 position-relative transition-hover" style="border-color: rgba(13, 202, 240, 0.15); background: linear-gradient(145deg, #ffffff, rgba(13, 202, 240, 0.02));">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="badge bg-info text-white rounded-pill px-2 py-1 small">Reparto Pesce</span>
-            <i class="bi bi-water fs-4 text-info"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1">Promo Pesce</h5>
-          <div class="mb-3">
-            {% if templates_status and templates_status.get('pesce') %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Template Attivo</span>
-            {% else %}
-              <span class="badge bg-light text-muted border rounded-pill small py-1 px-2"><i class="bi bi-circle me-1"></i>Nessun Template</span>
-            {% endif %}
-          </div>
-          
-          <div class="mt-auto d-flex flex-column gap-2">
-            <a href="{{ url_for('beta_volantino') }}?tema=pesce&tipo=promo_pesce" class="btn btn-info text-white btn-sm fw-bold rounded-pill"><i class="bi bi-plus-lg"></i> Crea da Zero</a>
-            <form action="{{ url_for('promozione_upload') }}" method="POST" enctype="multipart/form-data" class="w-100 m-0">
-              <input type="hidden" name="tipo" value="promo_pesce">
-              <div class="position-relative">
-                <input type="file" name="promo_file" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" style="cursor: pointer;" accept=".pdf" onchange="this.form.submit()">
-                <button type="button" class="btn btn-outline-info btn-sm w-100 fw-bold border-2 rounded-pill"><i class="bi bi-file-earmark-pdf"></i> Carica PDF</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      
-      <!-- CARD 6: Promo Carne -->
-      <div class="col-md-4 col-sm-6">
-        <div class="card h-100 border-2 rounded-4 p-3 position-relative transition-hover" style="border-color: rgba(253, 126, 20, 0.15); background: linear-gradient(145deg, #ffffff, rgba(253, 126, 20, 0.02));">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="badge bg-warning text-white rounded-pill px-2 py-1 small">Reparto Carne</span>
-            <i class="bi bi-tag-fill fs-4 text-warning"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1">Promo Carne</h5>
-          <div class="mb-3">
-            {% if templates_status and templates_status.get('carne') %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Template Attivo</span>
-            {% else %}
-              <span class="badge bg-light text-muted border rounded-pill small py-1 px-2"><i class="bi bi-circle me-1"></i>Nessun Template</span>
-            {% endif %}
-          </div>
-          
-          <div class="mt-auto d-flex flex-column gap-2">
-            <a href="{{ url_for('beta_volantino') }}?tema=carne&tipo=promo_carne" class="btn btn-warning text-dark btn-sm fw-bold rounded-pill"><i class="bi bi-plus-lg"></i> Crea da Zero</a>
-            <form action="{{ url_for('promozione_upload') }}" method="POST" enctype="multipart/form-data" class="w-100 m-0">
-              <input type="hidden" name="tipo" value="promo_carne">
-              <div class="position-relative">
-                <input type="file" name="promo_file" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" style="cursor: pointer;" accept=".pdf" onchange="this.form.submit()">
-                <button type="button" class="btn btn-outline-warning btn-sm w-100 fw-bold border-2 rounded-pill"><i class="bi bi-file-earmark-pdf"></i> Carica PDF</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="col-md-6 d-flex align-items-center">
+    <h4 class="m-0">Elenco volantini</h4>
+  </div>
+  <div class="col-md-4 mt-2 mt-md-0">
+    <input type="text" class="form-control form-control-sm" id="search-volantini"
+           placeholder="Cerca per nome o ID...">
+  </div>
+  <div class="col-md-2 text-md-end mt-2 mt-md-0">
+    <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary w-100">
+      ➕ Crea nuovo
+    </a>
   </div>
 </div>
 
-<div class="tab-content" id="volantiniTabsContent">
-  <div class="tab-pane fade show active" id="standard-pane" role="tabpanel" aria-labelledby="standard-tab" tabindex="0">
-    <div class="card shadow-sm border-0 rounded-4">
-        <div class="card-body p-0">
+<div class="card shadow-sm">
+  <div class="card-body p-0">
 
-        <table class="table table-hover table-bordered m-0" id="tabella-volantini-beta">
-            <thead class="table-dark">
-                <tr>
-                    <th style="width:60px;">ID</th>
-                    <th style="width:150px;">Anteprima</th>
-                    <th>Nome</th>
-                    <th style="width:200px;">Creato il</th>
-                    <th style="width:260px;">Azioni</th>
-                </tr>
-            </thead>
+    <table class="table table-hover table-bordered m-0" id="tabella-volantini-beta">
+      <thead class="table-dark">
+        <tr>
+          <th style="width:60px;">ID</th>
+          <th style="width:150px;">Anteprima</th>
+          <th>Nome</th>
+          <th style="width:200px;">Creato il</th>
+          <th style="width:260px;">Azioni</th>
+        </tr>
+      </thead>
 
-            <tbody>
-                {% for v in lista %}
-                <tr class="data-row">
-                    <td class="text-center align-middle">{{ v.id }}</td>
+      <tbody>
+        {% for v in lista %}
+        <tr class="data-row">
+          <td class="text-center align-middle">{{ v.id }}</td>
 
-                    <!-- MINIATURA -->
-                    <td class="text-center align-middle">
-                        {% if v.thumbnail %}
-                        <img src="{{ v.thumbnail }}" alt="Anteprima volantino {{ v.id }}" class="img-thumbnail"
-                            style="max-width: 130px; max-height: 90px; object-fit: cover;">
-                        {% else %}
-                        <span class="text-muted small">Nessuna<br>anteprima</span>
-                        {% endif %}
-                    </td>
+          <!-- MINIATURA -->
+          <td class="text-center align-middle">
+            {% if v.thumbnail %}
+              <img src="{{ v.thumbnail }}" alt="Anteprima volantino {{ v.id }}"
+                   class="img-thumbnail"
+                   style="max-width: 130px; max-height: 90px; object-fit: cover;">
+            {% else %}
+              <span class="text-muted small">Nessuna<br>anteprima</span>
+            {% endif %}
+          </td>
 
-                    <!-- NOME + BADGE ULTIMA MODIFICA -->
-                    <td class="align-middle">
-                        <strong>{{ v.nome }}</strong>
-                        {% if v.aggiornato_il and v.creato_il and v.aggiornato_il > v.creato_il %}
-                        <br>
-                        <span class="badge bg-info text-dark mt-1">
-                            Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') if v.aggiornato_il else '' }}
-                        </span>
-                        {% endif %}
-                    </td>
+          <!-- NOME + BADGE ULTIMA MODIFICA -->
+          <td class="align-middle">
+            <strong>{{ v.nome }}</strong>
+            {% if v.aggiornato_il and v.aggiornato_il > v.creato_il %}
+              <br>
+              <span class="badge bg-info text-dark mt-1">
+                Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') }}
+              </span>
+            {% endif %}
+          </td>
 
-                    <td class="align-middle">
-                        {{ v.creato_il.strftime('%d/%m/%Y %H:%M') if v.creato_il else 'N/D' }}
-                    </td>
+          <td class="align-middle">
+            {{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}
+          </td>
 
-                    <td class="text-center align-middle">
+          <td class="text-center align-middle">
 
-                        <!-- APRI -->
-                        <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}"
-                            class="btn btn-sm btn-primary me-1 mb-1">
-                            ✏️ Apri / Modifica
-                        </a>
+            <!-- APRI -->
+            <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}" 
+               class="btn btn-sm btn-primary me-1 mb-1">
+              ✏️ Apri / Modifica
+            </a>
 
-                        <!-- DUPLICA -->
-                        <a href="{{ url_for('beta_volantino_duplica', id=v.id) }}"
-                            class="btn btn-sm btn-outline-secondary me-1 mb-1">
-                            📄 Duplica
-                        </a>
+            <!-- DUPLICA -->
+            <a href="{{ url_for('beta_volantino_duplica', id=v.id) }}" 
+               class="btn btn-sm btn-outline-secondary me-1 mb-1">
+              📄 Duplica
+            </a>
 
-                        <!-- ELIMINA -->
-                        <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" class="btn btn-sm btn-danger mb-1"
-                            onclick="return confirm('Sei sicuro di voler eliminare questo volantino?')">
-                            🗑️ Elimina
-                        </a>
+            <!-- ELIMINA -->
+            <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" 
+               class="btn btn-sm btn-danger mb-1"
+               onclick="return confirm('Sei sicuro di voler eliminare questo volantino?')">
+              🗑️ Elimina
+            </a>
 
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
-                        Nessun volantino salvato.<br>
-                        <div class="d-flex justify-content-center gap-2 mt-3">
-                            <a href="{{ url_for('beta_volantino') }}?tema=standard" class="btn btn-outline-secondary">📄 Crea Standard</a>
-                            <a href="{{ url_for('beta_volantino') }}?tema=carne" class="btn btn-outline-danger">🥩 Crea Carne</a>
-                            <a href="{{ url_for('beta_volantino') }}?tema=pesce" class="btn btn-outline-primary">🐟 Crea Pesce</a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-        <!-- PAGINAZIONE (se implementata nel JS) -->
-        <div class="d-flex justify-content-between align-items-center px-3 py-2" id="pagination-wrapper-standard">
-            <small id="pagination-info" class="text-muted"></small>
-            <nav>
-                <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item"><button class="page-link" id="prev-page" type="button">&laquo; Prec</button></li>
-                    <li class="page-item"><button class="page-link" id="next-page" type="button">Succ &raquo;</button></li>
-                </ul>
-            </nav>
-        </div>
-    </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            Nessun volantino salvato.<br>
+            <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary mt-2">
+              ➕ Crea il primo volantino
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
   </div>
 
-  <div class="tab-pane fade" id="promo-pane" role="tabpanel" aria-labelledby="promo-tab" tabindex="0">
-    <div class="card shadow-sm border-0 rounded-4 mb-4">
-        <div class="card-body p-0">
-            <table class="table table-hover table-bordered m-0" id="tabella-volantini-promo">
-                <thead class="table-primary">
-                    <tr>
-                        <th style="width:60px;">ID</th>
-                        <th style="width:150px;">Anteprima</th>
-                        <th>Nome</th>
-                        <th style="width:200px;">Creato il</th>
-                        <th style="width:260px;">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for v in lista_promo %}
-                    <tr class="data-row">
-                        <td class="text-center align-middle">{{ v.id }}</td>
-                        <td class="text-center align-middle">
-                            {% if v.thumbnail %}
-                            <img src="{{ v.thumbnail }}" alt="Anteprima volantino {{ v.id }}" class="img-thumbnail" style="max-width: 130px; max-height: 90px; object-fit: cover;">
-                            {% else %}
-                            <span class="text-muted small">Nessuna<br>anteprima</span>
-                            {% endif %}
-                        </td>
-                        <td class="align-middle">
-                            <strong>{{ v.nome }}</strong>
-                            {% if v.aggiornato_il and v.creato_il and v.aggiornato_il > v.creato_il %}
-                            <br>
-                            <span class="badge bg-info text-dark mt-1">
-                                Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') if v.aggiornato_il else '' }}
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="align-middle">
-                            {{ v.creato_il.strftime('%d/%m/%Y %H:%M') if v.creato_il else 'N/D' }}
-                        </td>
-                        <td class="text-center align-middle">
-                            <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}" class="btn btn-sm btn-primary me-1 mb-1">✏️ Apri / Modifica</a>
-                            <a href="{{ url_for('beta_volantino_duplica', id=v.id) }}" class="btn btn-sm btn-outline-secondary me-1 mb-1">📄 Duplica</a>
-                            <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" class="btn btn-sm btn-danger mb-1" onclick="return confirm('Sei sicuro di voler eliminare?')">🗑️ Elimina</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Nessun volantino promo salvato.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  <!-- PAGINAZIONE -->
+  <div class="d-flex justify-content-between align-items-center px-3 py-2" id="pagination-wrapper">
+    <small id="pagination-info" class="text-muted"></small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item">
+          <button class="page-link" id="prev-page" type="button">&laquo; Prec</button>
+        </li>
+        <li class="page-item">
+          <button class="page-link" id="next-page" type="button">Succ &raquo;</button>
+        </li>
+      </ul>
+    </nav>
   </div>
+
 </div>
 
 {% endblock %}
@@ -409,396 +127,81 @@
 {% block scripts %}
 {{ super() }}
 
-<!-- Preview Modal -->
-<div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-    <div class="modal-content rounded-4 overflow-hidden">
-      <div class="modal-header bg-success text-white">
-        <div>
-          <h5 class="modal-title mb-0"><i class="bi bi-file-earmark-check me-2"></i>Anteprima Volantino da PDF</h5>
-          <div class="small text-white-50" id="previewSubtitle">Rivedi il posizionamento dei prodotti nelle pagine. Trascina per riordinare.</div>
-        </div>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body p-0">
-        <!-- Tab Navigation -->
-        <ul class="nav nav-tabs px-3 pt-2" role="tablist">
-          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabGridPreview" role="tab"><i class="bi bi-grid-3x3-gap me-1"></i>Anteprima Griglia</a></li>
-          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabListPreview" role="tab"><i class="bi bi-list-ul me-1"></i>Lista Prodotti</a></li>
-        </ul>
-        <div class="tab-content">
-          <!-- Grid Preview Tab -->
-          <div class="tab-pane fade show active p-3" id="tabGridPreview" role="tabpanel">
-            <div id="gridPreviewContainer"></div>
-          </div>
-          <!-- List Preview Tab -->
-          <div class="tab-pane fade p-3" id="tabListPreview" role="tabpanel">
-            <div id="previewList"></div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer d-flex justify-content-between">
-        <span class="text-muted small" id="previewCount"></span>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-secondary rounded-4" data-bs-dismiss="modal">Annulla</button>
-          <button type="button" class="btn btn-success rounded-4" id="btnConfirmImport">
-            <i class="bi bi-check-circle me-1"></i> Importa nel Volantino
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
 
-        const searchInput = document.getElementById("search-volantini");
-        const table = document.getElementById("tabella-volantini-beta");
-        const rows = Array.from(table.querySelectorAll("tbody tr.data-row"));
+  const searchInput = document.getElementById("search-volantini");
+  const table = document.getElementById("tabella-volantini-beta");
+  const rows = Array.from(table.querySelectorAll("tbody tr.data-row"));
 
-        const perPage = 10;
-        let currentPage = 1;
+  const perPage = 10;
+  let currentPage = 1;
 
-        const paginationInfo = document.getElementById("pagination-info");
-        const prevBtn = document.getElementById("prev-page");
-        const nextBtn = document.getElementById("next-page");
-        const paginationWrapper = document.getElementById("pagination-wrapper");
+  const paginationInfo = document.getElementById("pagination-info");
+  const prevBtn = document.getElementById("prev-page");
+  const nextBtn = document.getElementById("next-page");
+  const paginationWrapper = document.getElementById("pagination-wrapper");
 
-        function getFilteredRows() {
-            const term = (searchInput.value || "").toLowerCase().trim();
-            if (!term) return rows;
+  function getFilteredRows() {
+    const term = (searchInput.value || "").toLowerCase().trim();
+    if (!term) return rows;
 
-            return rows.filter(row => {
-                const idText = row.children[0].innerText.toLowerCase();
-                const nameText = row.children[2].innerText.toLowerCase();
-                return idText.includes(term) || nameText.includes(term);
-            });
-        }
-
-        function render() {
-            const filtered = getFilteredRows();
-
-            if (searchInput.value.trim() !== "") {
-                rows.forEach(r => r.style.display = "none");
-                filtered.forEach(r => r.style.display = "");
-                paginationWrapper.style.display = "none";
-                paginationInfo.textContent = `${filtered.length} risultato/i`;
-                return;
-            }
-
-            paginationWrapper.style.display = "";
-            const total = filtered.length;
-            const totalPages = Math.max(1, Math.ceil(total / perPage));
-            if (currentPage > totalPages) currentPage = totalPages;
-
-            rows.forEach(r => r.style.display = "none");
-
-            const start = (currentPage - 1) * perPage;
-            const end = start + perPage;
-            filtered.slice(start, end).forEach(r => r.style.display = "");
-
-            paginationInfo.textContent = `Pagina ${currentPage} di ${totalPages} — ${total} volantino/i`;
-
-            prevBtn.disabled = (currentPage <= 1);
-            nextBtn.disabled = (currentPage >= totalPages);
-        }
-
-        prevBtn.addEventListener("click", () => {
-            if (currentPage > 1) { currentPage--; render(); }
-        });
-
-        nextBtn.addEventListener("click", () => {
-            currentPage++; render();
-        });
-
-        render();
-
-        // Update JS to handle both tabs if search is used
-        searchInput.addEventListener("input", () => {
-            const term = searchInput.value.toLowerCase().trim();
-            document.querySelectorAll("#tabella-volantini-promo tbody tr.data-row").forEach(row => {
-                const text = row.innerText.toLowerCase();
-                row.style.display = text.includes(term) ? "" : "none";
-            });
-        });
-
-        // Toggle active design for tabs
-        document.querySelectorAll('#volantiniTabs button').forEach(btn => {
-            btn.addEventListener('show.bs.tab', (e) => {
-                document.querySelectorAll('#volantiniTabs button').forEach(b => {
-                    b.classList.remove('bg-primary', 'text-white');
-                    b.classList.add('bg-light', 'text-primary');
-                });
-                e.target.classList.remove('bg-light', 'text-primary');
-                e.target.classList.add('bg-primary', 'text-white');
-            });
-        });
-
-        // --- PDF IMPORT WITH PREVIEW ---
-        const btnGenPdfTemaLinks = document.querySelectorAll(".btn-gen-pdf-tema");
-        const fileGen = document.getElementById("file-generate-pdf");
-        const btnGenGroup = document.getElementById("dropdownGeneraPdf");
-        let activePdfTema = "standard";
-        let extractedProdotti = [];
-
-        const previewModal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
-        const previewList = document.getElementById('previewList');
-        const previewCount = document.getElementById('previewCount');
-        const btnConfirmImport = document.getElementById('btnConfirmImport');
-
-        btnGenPdfTemaLinks.forEach(link => {
-            link.addEventListener("click", (e) => {
-                e.preventDefault();
-                activePdfTema = link.getAttribute("data-tema");
-                fileGen.click();
-            });
-        });
-
-        function escapeHtml(str) {
-            return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-        }
-
-        function renderPreview() {
-            previewList.innerHTML = '';
-
-            if (!extractedProdotti.length) {
-                previewList.innerHTML = '<div class="text-center text-muted py-4">Nessun prodotto estratto.</div>';
-                previewCount.textContent = '0 prodotti';
-                return;
-            }
-
-            extractedProdotti.forEach((p, idx) => {
-                const card = document.createElement('div');
-                card.className = 'card shadow-sm rounded-3 mb-2 preview-item';
-                card.dataset.idx = idx;
-                card.innerHTML = `
-                    <div class="card-body py-2 px-3">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-2 col-md-1 text-center">
-                                <img src="${escapeHtml(p.immagine)}" alt=""
-                                     class="rounded" style="width:48px; height:48px; object-fit:cover;"
-                                     onerror="this.src='https://via.placeholder.com/48?text=?'">
-                            </div>
-                            <div class="col-5 col-md-5">
-                                <input type="text" class="form-control form-control-sm preview-nome"
-                                       value="${escapeHtml(p.nome)}" data-idx="${idx}">
-                            </div>
-                            <div class="col-3 col-md-3">
-                                <input type="text" class="form-control form-control-sm preview-prezzo"
-                                       value="${escapeHtml(p.prezzo)}" data-idx="${idx}">
-                            </div>
-                            <div class="col-2 col-md-3 text-end">
-                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill btn-remove-preview"
-                                        data-idx="${idx}" title="Rimuovi">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                previewList.appendChild(card);
-            });
-
-            // Wire remove buttons
-            previewList.querySelectorAll('.btn-remove-preview').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = parseInt(btn.dataset.idx);
-                    const card = btn.closest('.preview-item');
-                    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    card.style.opacity = '0';
-                    card.style.transform = 'translateX(30px)';
-                    setTimeout(() => {
-                        extractedProdotti.splice(idx, 1);
-                        renderPreview();
-                    }, 300);
-                });
-            });
-
-            // Wire inline edits
-            previewList.querySelectorAll('.preview-nome').forEach(input => {
-                input.addEventListener('change', () => {
-                    extractedProdotti[parseInt(input.dataset.idx)].nome = input.value.trim();
-                });
-            });
-
-            previewList.querySelectorAll('.preview-prezzo').forEach(input => {
-                input.addEventListener('change', () => {
-                    extractedProdotti[parseInt(input.dataset.idx)].prezzo = input.value.trim();
-                });
-            });
-
-            previewCount.textContent = `${extractedProdotti.length} prodotti`;
-            renderGridPreview();
-        }
-
-        // Render visual grid preview (4x4 per page)
-        function renderGridPreview() {
-            const container = document.getElementById('gridPreviewContainer');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (!extractedProdotti.length) {
-                container.innerHTML = '<div class="text-center text-muted py-4">Nessun prodotto estratto.</div>';
-                return;
-            }
-
-            const perPage = 16; // 4x4
-            const totalPages = Math.ceil(extractedProdotti.length / perPage);
-
-            for (let pg = 0; pg < totalPages; pg++) {
-                const start = pg * perPage;
-                const end = Math.min(start + perPage, extractedProdotti.length);
-                const pageProducts = extractedProdotti.slice(start, end);
-
-                // Page header
-                const pageHeader = document.createElement('div');
-                pageHeader.className = 'd-flex justify-content-between align-items-center mb-2 mt-3';
-                pageHeader.innerHTML = `
-                    <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-file-earmark me-1"></i>Foglio ${pg + 1} di ${totalPages}</h6>
-                    <span class="badge bg-secondary">${pageProducts.length} prodotti</span>
-                `;
-                container.appendChild(pageHeader);
-
-                // Grid container 4x4
-                const grid = document.createElement('div');
-                grid.style.cssText = 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; border: 2px solid #dee2e6; border-radius: 12px; padding: 10px; background: #f8f9fa;';
-
-                for (let ci = 0; ci < perPage; ci++) {
-                    const globalIdx = start + ci;
-                    const cell = document.createElement('div');
-                    cell.style.cssText = 'border: 1px solid #ccc; border-radius: 8px; background: white; min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; text-align: center; position: relative; transition: box-shadow 0.2s;';
-                    cell.draggable = true;
-                    cell.dataset.globalIdx = globalIdx;
-                    
-                    cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.style.boxShadow = '0 0 0 3px #198754'; });
-                    cell.addEventListener('dragleave', () => { cell.style.boxShadow = 'none'; });
-                    cell.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', globalIdx); cell.style.opacity = '0.5'; });
-                    cell.addEventListener('dragend', () => { cell.style.opacity = '1'; });
-                    cell.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        cell.style.boxShadow = 'none';
-                        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                        const toIdx = globalIdx;
-                        if (fromIdx !== toIdx && fromIdx < extractedProdotti.length && toIdx < extractedProdotti.length) {
-                            const [moved] = extractedProdotti.splice(fromIdx, 1);
-                            extractedProdotti.splice(toIdx, 0, moved);
-                            renderPreview();
-                        }
-                    });
-
-                    if (ci < pageProducts.length) {
-                        const p = pageProducts[ci];
-                        cell.innerHTML = `
-                            <img src="${escapeHtml(p.immagine)}" alt="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; margin-bottom:4px;"
-                                 onerror="this.src='https://via.placeholder.com/48?text=?'">
-                            <div style="font-size:0.7rem; font-weight:600; line-height:1.2; max-height:2.4em; overflow:hidden; word-break:break-word;">${escapeHtml(p.nome).substring(0, 35)}</div>
-                            <div style="font-size:0.75rem; font-weight:900; color:#e60000; margin-top:2px;">${escapeHtml(p.prezzo) || '-'}</div>
-                            <button type="button" class="btn btn-sm text-danger position-absolute" style="top:2px;right:2px;padding:0 4px;font-size:0.7rem;opacity:0.5;" title="Rimuovi"
-                                    onclick="event.stopPropagation(); extractedProdotti.splice(${globalIdx}, 1); renderPreview();">✕</button>
-                        `;
-                        cell.style.cursor = 'grab';
-                    } else {
-                        cell.innerHTML = '<span class="text-muted" style="font-size:0.65rem;">Vuota</span>';
-                        cell.style.background = '#f0f0f0';
-                        cell.style.border = '1px dashed #ccc';
-                    }
-
-                    grid.appendChild(cell);
-                }
-
-                container.appendChild(grid);
-            }
-        }
-
-        // Step 1: Extract products from PDF
-        fileGen.addEventListener("change", async (e) => {
-            if (!e.target.files.length) return;
-            const file = e.target.files[0];
-
-            const oldHtml = btnGenGroup.innerHTML;
-            btnGenGroup.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Estrazione...';
-            btnGenGroup.disabled = true;
-
-            const fd = new FormData();
-            fd.append("file", file);
-
-            try {
-                const resp = await fetch("{{ url_for('api_estrai_prodotti_da_pdf') }}", {
-                    method: 'POST',
-                    body: fd
-                });
-                const data = await resp.json();
-
-                if (data.success && data.prodotti && data.prodotti.length > 0) {
-                    extractedProdotti = data.prodotti;
-                    renderPreview();
-                    previewModal.show();
-                } else {
-                    alert("Errore estrazione PDF: " + (data.message || "Nessun prodotto trovato"));
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Errore di rete durante l'estrazione");
-            } finally {
-                btnGenGroup.innerHTML = oldHtml;
-                btnGenGroup.disabled = false;
-                fileGen.value = '';
-            }
-        });
-
-        // Step 2: Confirm import (create volantino from reviewed products)
-        btnConfirmImport.addEventListener("click", async () => {
-            if (!extractedProdotti.length) {
-                alert("Nessun prodotto da importare.");
-                return;
-            }
-
-            btnConfirmImport.disabled = true;
-            btnConfirmImport.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creazione...';
-
-            try {
-                const resp = await fetch("{{ url_for('api_genera_volantino_da_prodotti') }}", {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        prodotti: extractedProdotti,
-                        tema: activePdfTema
-                    })
-                });
-                const data = await resp.json();
-
-                if (data.success) {
-                    previewModal.hide();
-                    window.location.href = "{{ url_for('beta_volantino_modifica', id=0) }}".replace("0", data.id);
-                } else {
-                    alert("Errore creazione volantino: " + data.message);
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Errore di rete durante la creazione");
-            } finally {
-                btnConfirmImport.disabled = false;
-                btnConfirmImport.innerHTML = '<i class="bi bi-check-circle me-1"></i> Importa nel Volantino';
-            }
-        });
+    return rows.filter(row => {
+      const idText = row.children[0].innerText.toLowerCase();
+      const nameText = row.children[2].innerText.toLowerCase();
+      return idText.includes(term) || nameText.includes(term);
     });
-</script>
+  }
 
-<style>
-  .preview-item {
-    transition: opacity 0.3s ease, transform 0.3s ease;
+  function render() {
+    const filtered = getFilteredRows();
+
+    // se sto cercando → niente paginazione
+    if (searchInput.value.trim() !== "") {
+      rows.forEach(r => r.style.display = "none");
+      filtered.forEach(r => r.style.display = "");
+      paginationWrapper.style.display = "none";
+      paginationInfo.textContent = `${filtered.length} risultato/i`;
+      return;
+    }
+
+    // con paginazione
+    paginationWrapper.style.display = "";
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    rows.forEach(r => r.style.display = "none");
+
+    const start = (currentPage - 1) * perPage;
+    const end = start + perPage;
+    filtered.slice(start, end).forEach(r => r.style.display = "");
+
+    paginationInfo.textContent = `Pagina ${currentPage} di ${totalPages} — ${total} volantino/i`;
+
+    prevBtn.disabled = (currentPage <= 1);
+    nextBtn.disabled = (currentPage >= totalPages);
   }
-  .preview-item:hover {
-    background: #f8f9fa;
-  }
-  #gridPreviewContainer [draggable="true"]:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-    transform: scale(1.02);
-  }
-  #pdfPreviewModal .modal-body {
-    max-height: 70vh;
-  }
-</style>
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      render();
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    currentPage++;
+    render();
+  });
+
+  searchInput.addEventListener("input", () => {
+    currentPage = 1;
+    render();
+  });
+
+  render();
+});
+</script>
 
 {% endblock %}
