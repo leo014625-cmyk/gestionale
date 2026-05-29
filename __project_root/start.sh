@@ -5,13 +5,20 @@ echo "Avvio Gestionale Horeca..."
 # Ottieni la cartella dello script (__project_root)
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-# Percorso ai template (fuori da __project_root)
-TEMPLATE_FOLDER="$(dirname "$PROJECT_ROOT")/_templates"
+# Percorso ai template (dentro __project_root)
+TEMPLATE_FOLDER="$PROJECT_ROOT/_templates"
 
 # Controllo che la cartella _templates esista
 if [ ! -d "$TEMPLATE_FOLDER" ]; then
     echo "❌ Cartella _templates non trovata in $TEMPLATE_FOLDER"
     exit 1
+fi
+
+# Attiva il virtual environment se esiste
+VENV_PATH="$(dirname "$PROJECT_ROOT")/venv"
+if [ -f "$VENV_PATH/bin/activate" ]; then
+    echo "Attivazione virtual environment in $VENV_PATH..."
+    source "$VENV_PATH/bin/activate"
 fi
 
 # Esporta le variabili ambiente Flask

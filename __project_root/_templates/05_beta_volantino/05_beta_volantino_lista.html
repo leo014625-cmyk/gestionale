@@ -54,16 +54,16 @@
           <!-- NOME + BADGE ULTIMA MODIFICA -->
           <td class="align-middle">
             <strong>{{ v.nome }}</strong>
-            {% if v.aggiornato_il and v.aggiornato_il > v.creato_il %}
+            {% if v.aggiornato_il and v.creato_il and v.aggiornato_il > v.creato_il %}
               <br>
               <span class="badge bg-info text-dark mt-1">
-                Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') }}
+                Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') if v.aggiornato_il else '' }}
               </span>
             {% endif %}
           </td>
 
           <td class="align-middle">
-            {{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}
+            {{ v.creato_il.strftime('%d/%m/%Y %H:%M') if v.creato_il else 'N/D' }}
           </td>
 
           <td class="text-center align-middle">
