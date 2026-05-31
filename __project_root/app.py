@@ -898,7 +898,10 @@ def cliente_scheda(id):
         ''', (id,))
         fatturato_mensile = {f"{r['anno']}-{r['mese']:02d}": r['totale'] for r in cur.fetchall()}
 
-        cur.execute('''
+        is_sqlite = isinstance(db, SQLiteConnWrapper)
+        datetime_expr = "datetime(anno || '-' || mese || '-01')" if is_sqlite else "CAST(anno || '-' || mese || '-01' AS timestamp)"
+        
+        cur.execute(f'''
             SELECT descrizione, data
             FROM (
                 SELECT 'Aggiunto prodotto: ' || p.nome AS descrizione, cp.data_operazione AS data
@@ -909,7 +912,7 @@ def cliente_scheda(id):
                 FROM prodotti_rimossi pr JOIN prodotti p ON pr.prodotto_id=p.id
                 WHERE pr.cliente_id=%s
                 UNION ALL
-                SELECT 'Fatturato aggiornato: ' || totale || ' €', datetime(anno || '-' || mese || '-01')
+                SELECT 'Fatturato aggiornato: ' || totale || ' €', {datetime_expr}
                 FROM fatturato
                 WHERE cliente_id=%s
                 UNION ALL
