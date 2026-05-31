@@ -1,143 +1,264 @@
 {% extends "01_base.html" %}
-{% block title %}Bot WhatsApp{% endblock %}
+
+{% block title %}Bot WhatsApp - Horeca Suite{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* Premium Bot Dashboard Styling */
+  .bot-tab-btn {
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 0.55rem 1.15rem;
+    border-radius: 20px;
+    transition: all 0.2s;
+  }
+  .bot-tab-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .bot-compose-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    height: 100%;
+  }
+
+  .segment-table-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .custom-table th {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1.15rem 1rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .custom-table td {
+    padding: 1.15rem 1rem;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.92rem;
+    transition: background-color 0.2s;
+  }
+  .custom-table tbody tr:hover td {
+    background-color: var(--primary-light);
+  }
+
+  /* Form components overrides */
+  .styled-textarea {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    font-size: 0.92rem;
+    transition: all 0.2s;
+  }
+  .styled-textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+  }
+
+  /* WhatsApp segment badges */
+  .badge-stop {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  .badge-scad {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+  .badge-pesce {
+    background-color: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid rgba(14, 165, 233, 0.2);
+  }
+  .badge-carne {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid rgba(79, 70, 229, 0.2);
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container-fluid px-0">
 
-  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <!-- Header Section -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-      <h1 class="mb-1">🤖 Bot WhatsApp</h1>
-      <div class="text-muted">Preferenze clienti + invio messaggi mirati</div>
+      <h1 class="h2 mb-1">Bot WhatsApp Manager</h1>
+      <p class="text-muted mb-0">Gestisci le preferenze di ricezione commerciale ed effettua invii promozionali automatizzati.</p>
     </div>
+
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+      <i class="bi bi-house-door"></i> Dashboard
+    </a>
   </div>
 
-  <!-- TABS PREFERENZE -->
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <a class="btn btn-outline-primary rounded-4 {% if pref=='scadenza' %}active{% endif %}"
+  <!-- Segment Filters Row -->
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a class="btn bot-tab-btn {% if pref=='scadenza' %}btn-primary{% else %}btn-outline-primary{% endif %}"
        href="{{ url_for('bot_dashboard', pref='scadenza') }}">
-      ⏳ Scadenze <span class="badge text-bg-primary ms-1">{{ counts.n_scadenza or 0 }}</span>
+      ⏳ Scadenze <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_scadenza or 0 }}</span>
     </a>
 
-    <a class="btn btn-outline-primary rounded-4 {% if pref=='pesce' %}active{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='pesce' %}btn-primary{% else %}btn-outline-primary{% endif %}"
        href="{{ url_for('bot_dashboard', pref='pesce') }}">
-      🐟 Pesce <span class="badge text-bg-primary ms-1">{{ counts.n_pesce or 0 }}</span>
+      🐟 Pesce <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_pesce or 0 }}</span>
     </a>
 
-    <a class="btn btn-outline-primary rounded-4 {% if pref=='carne' %}active{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='carne' %}btn-primary{% else %}btn-outline-primary{% endif %}"
        href="{{ url_for('bot_dashboard', pref='carne') }}">
-      🥩 Carne <span class="badge text-bg-primary ms-1">{{ counts.n_carne or 0 }}</span>
+      🥩 Carne <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_carne or 0 }}</span>
     </a>
 
-    <a class="btn btn-outline-secondary rounded-4 {% if pref=='stop' %}active{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='stop' %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
        href="{{ url_for('bot_dashboard', pref='stop') }}">
-      ⛔ Stop <span class="badge text-bg-secondary ms-1">{{ counts.n_stop or 0 }}</span>
+      ⛔ Stop / Opt-out <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_stop or 0 }}</span>
     </a>
 
-    <a class="btn btn-outline-dark rounded-4 {% if pref=='nessuna' %}active{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='nessuna' %}btn-dark{% else %}btn-outline-dark{% endif %}"
        href="{{ url_for('bot_dashboard', pref='nessuna') }}">
-      ❓ Nessuna risposta <span class="badge text-bg-dark ms-1">{{ counts.n_nessuna or 0 }}</span>
+      ❓ Nessun Canale <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_nessuna or 0 }}</span>
     </a>
   </div>
 
-  <div class="row g-3">
-
-    <!-- BOX INVIO -->
+  <!-- Main Board Grid -->
+  <div class="row g-4 mb-5">
+    
+    <!-- Compose Panel -->
     <div class="col-12 col-lg-4">
-      <div class="card shadow-sm rounded-4">
-        <div class="card-header fw-bold">
-          ✉️ Invia messaggio
+      <div class="bot-compose-card d-flex flex-column">
+        <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
+          <i class="bi bi-send text-primary me-2"></i>Invia Messaggio Massivo
+        </h5>
+
+        <div class="mb-3 p-3 rounded-4 border" style="background-color: var(--primary-light); border-color: rgba(99, 102, 241, 0.1) !important;">
+          <span class="text-muted small d-block mb-0.5 text-uppercase fw-bold">Segmento Destinatario</span>
+          <span class="fw-bold text-primary text-uppercase fs-5"><i class="bi bi-tag-fill me-1"></i>{{ pref }}</span>
         </div>
 
-        <div class="card-body">
-          <div class="mb-2 text-muted">
-            Target selezionato:
-            <span class="fw-bold text-uppercase">{{ pref }}</span>
+        <form method="POST" action="{{ url_for('bot_invia') }}" class="flex-grow-1 d-flex flex-column gap-3">
+          <input type="hidden" name="pref" value="{{ pref }}">
+
+          <div class="flex-grow-1">
+            <label class="form-label small fw-semibold text-muted">Corpo Messaggio WhatsApp</label>
+            <textarea class="styled-textarea w-100" name="testo" rows="8" required
+                      placeholder="Scrivi qui il messaggio per la campagna promozionale..."></textarea>
+            <small class="text-muted d-block mt-2">
+              💡 Suggerimento: mantieni il testo coinciso, inserisci emoji ed indica una chiara call to action.
+            </small>
           </div>
 
-          <form method="POST" action="{{ url_for('bot_invia') }}">
-            <input type="hidden" name="pref" value="{{ pref }}">
+          <button type="submit" class="btn btn-success w-100 rounded-4 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm">
+            <i class="bi bi-whatsapp"></i> Spedisci al Segmento
+          </button>
+        </form>
 
-            <div class="mb-3">
-              <label class="form-label">Messaggio WhatsApp</label>
-              <textarea class="form-control rounded-4" name="testo" rows="6"
-                        placeholder="Scrivi qui il messaggio da inviare..."></textarea>
-              <small class="text-muted">
-                Suggerimento: usa un testo breve, con emoji e call-to-action.
-              </small>
-            </div>
+        <hr class="my-4">
 
-            <button class="btn btn-success rounded-4 w-100">
-              📤 Invia al segmento
-            </button>
-          </form>
-
-          <hr class="my-3">
-
-          <div class="small text-muted">
-            <div class="fw-semibold mb-1">💡 Da WhatsApp (admin):</div>
-            <div>- scrivi <code>STATS</code> per contatori</div>
-            <div>- scrivi <code>SEND PESCE testo...</code></div>
-            <div>- scrivi <code>SEND CARNE testo...</code></div>
-            <div>- scrivi <code>SEND SCADENZA testo...</code></div>
-          </div>
+        <div>
+          <span class="fw-bold text-uppercase tracking-wider text-muted small d-block mb-2">Comandi WhatsApp (Admin)</span>
+          <p class="small text-muted mb-2">Puoi gestire il bot inviando messaggi WhatsApp ai recapiti abilitati:</p>
+          <ul class="list-unstyled mb-0 d-flex flex-column gap-1.5">
+            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>STATS</strong> → Report contatori</li>
+            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>SEND PESCE</strong> testo...</li>
+            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>SEND CARNE</strong> testo...</li>
+            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>SEND SCADENZA</strong> testo...</li>
+          </ul>
         </div>
       </div>
     </div>
 
-    <!-- LISTA CLIENTI -->
+    <!-- Segment Customers List -->
     <div class="col-12 col-lg-8">
-      <div class="card shadow-sm rounded-4">
-        <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-          <span>👥 Clienti nel segmento</span>
-          <span class="badge text-bg-light border">{{ clienti|length }}</span>
+      <div class="segment-table-card">
+        <div class="d-flex justify-content-between align-items-center border-bottom p-3">
+          <span class="fw-bold text-uppercase tracking-wider text-muted small"><i class="bi bi-people-fill text-primary me-2"></i>Anagrafiche nel Segmento</span>
+          <span class="badge bg-light text-secondary border fs-6 fw-normal px-2.5 rounded-pill">{{ clienti|length }} clienti</span>
         </div>
 
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+          <table class="table custom-table align-middle mb-0">
+            <thead>
               <tr>
-                <th>Cliente</th>
+                <th>Ragione Sociale / Cliente</th>
                 <th class="d-none d-md-table-cell">Zona</th>
-                <th>Telefono</th>
-                <th>Preferenze</th>
-                <th class="d-none d-lg-table-cell">Aggiornato</th>
+                <th>Recapito</th>
+                <th>Preferenze Ricezione</th>
+                <th class="d-none d-lg-table-cell text-center" style="width: 140px;">Aggiornato il</th>
               </tr>
             </thead>
             <tbody>
               {% for c in clienti %}
-              <tr>
-                <td class="fw-semibold">{{ c.nome }}</td>
-                <td class="d-none d-md-table-cell">{{ c.zona or "-" }}</td>
-                <td><span class="font-monospace">{{ c.telefono }}</span></td>
+                <tr>
+                  <td>
+                    <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-color">
+                      {{ c.nome }}
+                    </a>
+                  </td>
+                  <td class="d-none d-md-table-cell">
+                    <span class="text-muted small fw-semibold"><i class="bi bi-geo-alt me-1"></i>{{ c.zona or "-" }}</span>
+                  </td>
+                  <td>
+                    <span class="font-monospace text-color" style="font-size: 0.85rem;"><i class="bi bi-telephone text-muted me-1"></i>{{ c.telefono or 'N/D' }}</span>
+                  </td>
 
-                <td>
-                  {% if c.opt_out %}
-                    <span class="badge bg-secondary">STOP</span>
-                  {% else %}
-                    {% if c.ricevi_scadenza %}<span class="badge bg-warning text-dark">SCAD</span>{% endif %}
-                    {% if c.ricevi_pesce %}<span class="badge bg-info text-dark">PESCE</span>{% endif %}
-                    {% if c.ricevi_carne %}<span class="badge bg-danger">CARNE</span>{% endif %}
-                    {% if (not c.ricevi_scadenza) and (not c.ricevi_pesce) and (not c.ricevi_carne) %}
-                      <span class="badge bg-dark">NESSUNA</span>
-                    {% endif %}
-                  {% endif %}
-                </td>
+                  <td>
+                    <div class="d-flex flex-wrap gap-1">
+                      {% if c.opt_out %}
+                        <span class="badge badge-stop rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">STOP</span>
+                      {% else %}
+                        {% if c.ricevi_scadenza %}<span class="badge badge-scad rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">SCADENZE</span>{% endif %}
+                        {% if c.ricevi_pesce %}<span class="badge badge-pesce rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">PESCE</span>{% endif %}
+                        {% if c.ricevi_carne %}<span class="badge badge-carne rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">CARNE</span>{% endif %}
+                        {% if (not c.ricevi_scadenza) and (not c.ricevi_pesce) and (not c.ricevi_carne) %}
+                          <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">NESSUNA</span>
+                        {% endif %}
+                      {% endif %}
+                    </div>
+                  </td>
 
-                <td class="d-none d-lg-table-cell">
-                  <small class="text-muted">{{ c.updated_at or "-" }}</small>
-                </td>
-              </tr>
+                  <td class="d-none d-lg-table-cell text-center">
+                    <span class="text-muted small">
+                      {% if c.updated_at %}
+                        {{ c.updated_at }}
+                      {% else %}
+                        –
+                      {% endif %}
+                    </span>
+                  </td>
+                </tr>
               {% else %}
-              <tr>
-                <td colspan="5" class="text-center text-muted py-4">
-                  Nessun cliente in questo segmento.
-                </td>
-              </tr>
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-5">
+                    <i class="bi bi-chat-left-dots fs-1 text-primary opacity-25 d-block mb-3"></i>
+                    <h6 class="fw-semibold">Nessun cliente in questo segmento</h6>
+                    <p class="small text-muted mb-0">Non ci sono anagrafiche associate a questo specifico canale di comunicazione.</p>
+                  </td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
 

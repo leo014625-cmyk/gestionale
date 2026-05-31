@@ -23,6 +23,23 @@
       </div>
     </div>
 
+    <!-- Tipo volantino -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-tag-fill me-1"></i> Tipo volantino / Promo
+      </div>
+      <div class="card-body">
+        <select id="volantino-tipo" class="form-select form-select-sm">
+          <option value="volantino" {% if tipo_volantino == 'volantino' or not tipo_volantino %}selected{% endif %}>Standard (Volantino)</option>
+          <option value="promo_mensile" {% if tipo_volantino == 'promo_mensile' %}selected{% endif %}>Promo Mensile</option>
+          <option value="promo_scadenza" {% if tipo_volantino == 'promo_scadenza' %}selected{% endif %}>Promo Scadenze</option>
+          <option value="promo_pesce" {% if tipo_volantino == 'promo_pesce' %}selected{% endif %}>Promo Pesce</option>
+          <option value="promo_carne" {% if tipo_volantino == 'promo_carne' %}selected{% endif %}>Promo Carne</option>
+          <option value="promo_singolo" {% if tipo_volantino == 'promo_singolo' %}selected{% endif %}>Promo Singolo Prodotto</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Pagine -->
     <div class="card mb-3 shadow-sm">
       <div class="card-header fw-bold d-flex justify-content-between align-items-center">
@@ -1313,13 +1330,16 @@ document.addEventListener("DOMContentLoaded", () => {
       return { cols, headerImg, headerZoom, footerImg, cells };
     });
 
+    const selectTipo = document.getElementById("volantino-tipo");
+    
     fetch("/salva-volantino-beta", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: volantinoID || null,
         nome: inputNome.value || "Volantino BETA",
-        layout: data
+        layout: data,
+        tipo: selectTipo ? selectTipo.value : "volantino"
       })
     })
     .then(r => r.json())

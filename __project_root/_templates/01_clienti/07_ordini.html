@@ -1,53 +1,172 @@
 {% extends "01_base.html" %}
 
-{% block title %}Ordini Settimanali - Gestionale Horeca{% endblock %}
+{% block title %}Ordini Settimanali - Horeca Suite{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* Premium Orders Board Styling */
+  .week-board-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+  }
+  
+  .day-column-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 480px;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .day-column-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .day-header {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.85rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .day-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-color);
+    margin-bottom: 0;
+  }
+
+  .client-order-item {
+    padding: 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-bottom: 0.5rem;
+  }
+  .client-order-item:hover {
+    border-color: var(--primary);
+    background-color: var(--primary-light);
+    transform: translateX(3px);
+  }
+  
+  .client-order-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-color);
+    transition: color 0.2s;
+  }
+  .client-order-item:hover .client-order-name {
+    color: var(--primary);
+  }
+
+  .client-order-zone {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Info banner bottom */
+  .instructions-banner {
+    background-color: var(--primary-light);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .instructions-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <h1 class="fw-bold mb-1">Pianificazione Ordini Settimanali</h1>
-    <p class="text-muted mb-0">Visualizza quali clienti hanno lo scarico previsto nei vari giorni della settimana.</p>
-</div>
+<div class="container-fluid px-0">
 
-<div class="row g-4">
+  <!-- Header Section -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h1 class="h2 mb-1">Ordini e Scarichi Settimanali</h1>
+      <p class="text-muted mb-0">Quadro riassuntivo dei giorni di consegna standard pianificati per ciascun cliente.</p>
+    </div>
+
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+      <i class="bi bi-house-door"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- Weekly Board Grid Grid -->
+  <div class="week-board-container mb-5">
     {% set giorni = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'] %}
     {% for i in range(1, 8) %}
-    {% set giorno_index = i if i < 7 else 0 %}
-    <div class="col-12 col-md-6 col-xl">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header border-0 bg-transparent pt-4 px-4 pb-0">
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h5 class="fw-bold mb-0 text-dark">{{ giorni[i-1] }}</h5>
-                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">{{ ordini_per_giorno.get(giorno_index|string, [])|length }} Clienti</span>
-                </div>
-            </div>
-            <div class="card-body p-4 pt-2">
-                <div class="list-group list-group-flush">
-                    {% for c in ordini_per_giorno.get(giorno_index|string, []) %}
-                    <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="list-group-item list-group-item-action px-0 py-2 border-0 d-flex flex-column">
-                        <span class="fw-semibold small text-primary">{{ c.nome }}</span>
-                        <small class="text-muted" style="font-size: 0.7rem;">{{ c.zona }}</small>
-                    </a>
-                    {% else %}
-                    <p class="text-muted small fst-italic py-3">Nessuno scarico previsto.</p>
-                    {% endfor %}
-                </div>
-            </div>
+      {% set giorno_index = i if i < 7 else 0 %}
+      {% set clienti_giorno = ordini_per_giorno.get(giorno_index|string, []) %}
+      
+      <div class="day-column-card">
+        <div class="day-header">
+          <h5 class="day-title">{{ giorni[i-1] }}</h5>
+          <span class="badge bg-primary-light text-primary border border-primary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">
+            {{ clienti_giorno|length }} Clienti
+          </span>
         </div>
-    </div>
+        
+        <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 420px;">
+          {% for c in clienti_giorno %}
+            <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="client-order-item">
+              <span class="client-order-name">{{ c.nome }}</span>
+              <span class="client-order-zone">
+                <i class="bi bi-geo-alt"></i>{{ c.zona or 'Zona N/D' }}
+              </span>
+            </a>
+          {% else %}
+            <div class="text-center py-4 text-muted fst-italic" style="font-size: 0.8rem;">
+              <i class="bi bi-calendar-x d-block opacity-25 mb-1.5 fs-4"></i>
+              <span>Nessuno scarico previsto</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
     {% endfor %}
-</div>
+  </div>
 
-<div class="card border-0 shadow-sm rounded-4 mt-5 bg-primary bg-opacity-10">
-    <div class="card-body p-4 d-flex align-items-center gap-3">
-        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-            <i class="bi bi-info-circle"></i>
-        </div>
-        <div>
-            <p class="mb-0 small fw-medium text-primary">
-                Puoi gestire i giorni di scarico di ogni cliente direttamente dalla pagina <strong>Modifica Cliente</strong>. 
-                I clienti appariranno automaticamente in questa lista in base alle preferenze salvate.
-            </p>
-        </div>
+  <!-- Operations Information Banner -->
+  <div class="instructions-banner shadow-sm">
+    <div class="instructions-icon">
+      <i class="bi bi-info-circle"></i>
     </div>
+    <div>
+      <p class="mb-0 small fw-semibold text-primary">
+        I giorni di scarico standard per ciascun cliente possono essere configurati direttamente all'interno delle loro schede anagrafiche (cliccando su "Modifica Cliente"). 
+        Il tabellone settimanale si aggiorna automaticamente ad ogni salvataggio.
+      </p>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

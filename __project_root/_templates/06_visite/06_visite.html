@@ -1,266 +1,430 @@
 {% extends "01_base.html" %}
 
-{% block title %}Visite Clienti - Gestionale Horeca{% endblock %}
+{% block title %}Visite Clienti - Horeca Suite{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
-    #calendar {
-        min-height: 600px;
-    }
-    .fc-event {
-        cursor: pointer;
-        padding: 4px 6px;
-        border-radius: 8px !important;
-        font-weight: 600;
-        font-size: 0.8rem !important;
-        border: none !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .fc-day-today {
-        background-color: rgba(59, 130, 246, 0.04) !important;
-    }
-    .transition-hover {
-        transition: all 0.25s ease;
-    }
-    .transition-hover:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.08) !important;
-    }
-    .agenda-row {
-        border-left: 4px solid transparent;
-        transition: all 0.2s ease;
-    }
-    .agenda-row.pending {
-        border-left-color: #3b82f6;
-    }
-    .agenda-row.completed {
-        border-left-color: #10b981;
-        background-color: rgba(16, 185, 129, 0.02);
-    }
-    .extra-small {
-        font-size: 0.72rem;
-    }
+  /* Premium Visits Dashboard Styling */
+  .visit-kpi-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .visit-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .kpi-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  .kpi-val {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .kpi-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+  }
+
+  .bg-soft-primary { background-color: var(--primary-light); color: var(--primary); }
+  .bg-soft-success { background-color: rgba(16, 185, 129, 0.1); color: var(--success); }
+  .bg-soft-warning { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
+  .bg-soft-info { background-color: var(--accent-light); color: var(--accent); }
+
+  /* Calendar Card Override */
+  .calendar-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* FullCalendar Dark/Light Integration */
+  .fc {
+    --fc-border-color: var(--border-color);
+    --fc-page-bg-color: var(--card-bg);
+    --fc-today-bg-color: var(--primary-light);
+    color: var(--text-color);
+    font-family: 'Inter', sans-serif;
+  }
+  .fc-theme-standard th, .fc-theme-standard td {
+    border-color: var(--border-color) !important;
+  }
+  .fc-col-header-cell {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 0 !important;
+  }
+  .fc-day-today {
+    background-color: var(--primary-light) !important;
+  }
+  .fc-button-primary {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+    font-weight: 600 !important;
+    border-radius: 20px !important;
+    padding: 0.4rem 0.85rem !important;
+    font-size: 0.82rem !important;
+    transition: all 0.2s !important;
+  }
+  .fc-button-primary:hover {
+    background-color: var(--primary-light) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+  }
+  .fc-button-primary:disabled {
+    background-color: var(--bg-color) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
+    opacity: 0.5;
+  }
+  .fc-button-active {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+  .fc-toolbar-title {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 1.25rem !important;
+    color: var(--text-color) !important;
+  }
+  .fc-event {
+    cursor: pointer;
+    padding: 0.25rem 0.45rem !important;
+    border-radius: 8px !important;
+    font-weight: 600;
+    font-size: 0.75rem !important;
+    border: none !important;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Agenda list panel */
+  .agenda-timeline-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    height: 100%;
+  }
+
+  .agenda-day-navigator {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 0.3rem;
+  }
+
+  .agenda-row {
+    border-left: 4px solid transparent;
+    transition: all 0.2s;
+  }
+  .agenda-row.pending {
+    border-left-color: var(--primary);
+  }
+  .agenda-row.completed {
+    border-left-color: var(--success);
+    background-color: rgba(16, 185, 129, 0.03);
+  }
+  body.dark-mode .agenda-row.completed {
+    background-color: rgba(16, 185, 129, 0.05);
+  }
+
+  .quick-client-btn {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+  }
+  .quick-client-btn:hover {
+    background-color: var(--primary-light);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  /* Modals overrides */
+  .modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+  }
+  .modal-header {
+    border-bottom: 1px solid var(--border-color);
+  }
+  .modal-footer {
+    border-top: 1px solid var(--border-color);
+  }
+  .modal-body select, .modal-body input, .modal-body textarea {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+  }
+  .modal-body select:focus, .modal-body input:focus, .modal-body textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
+<div class="container-fluid px-0">
+
+  <!-- Header Section -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
-        <h1 class="fw-bold mb-1">📋 Gestione Visite Clienti</h1>
-        <p class="text-muted mb-0">Gestisci i passaggi commerciali, pianifica gli appuntamenti e monitora le visite in programma.</p>
+      <h1 class="h2 mb-1">Gestione Visite Clienti</h1>
+      <p class="text-muted mb-0">Pianifica passaggi commerciali, tieni traccia degli esiti e sincronizza l'agenda sul tuo calendario iOS/macOS.</p>
     </div>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm d-flex align-items-center" onclick="copyIcalLink()">
-            <i class="bi bi-calendar-event me-2"></i> <span style="font-size:0.9rem;">Sincronizza iPhone</span>
-        </button>
-        <button class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovaVisita">
-            <i class="bi bi-plus-lg me-2"></i> Nuova Visita
-        </button>
+    
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2" onclick="copyIcalLink()">
+        <i class="bi bi-calendar-event-fill"></i>
+        <span>Sincronizza iPhone</span>
+      </button>
+      <button class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovaVisita">
+        <i class="bi bi-calendar-plus-fill"></i>
+        <span>Nuova Visita</span>
+      </button>
     </div>
-</div>
+  </div>
 
-<!-- ================== CRUSCOTTO STATISTICHE ================== -->
-<div class="row g-3 mb-4">
+  <!-- KPI summary cards -->
+  <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3 h-100 transition-hover">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h6 class="text-uppercase small fw-bold opacity-75 mb-1" style="font-size:0.7rem;">In Agenda Oggi</h6>
-                    <h2 class="fw-bold mb-0" id="stat-today-count">0</h2>
-                </div>
-                <i class="bi bi-calendar-check fs-1 opacity-50"></i>
-            </div>
+      <div class="visit-kpi-card">
+        <div>
+          <div class="kpi-title">In Agenda Oggi</div>
+          <div class="kpi-val text-primary" id="stat-today-count">0</div>
         </div>
+        <div class="kpi-icon-wrapper bg-soft-primary">
+          <i class="bi bi-calendar-check"></i>
+        </div>
+      </div>
     </div>
+    
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 bg-success text-white p-3 h-100 transition-hover">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h6 class="text-uppercase small fw-bold opacity-75 mb-1" style="font-size:0.7rem;">Effettuate Oggi</h6>
-                    <h2 class="fw-bold mb-0" id="stat-completed-count">0</h2>
-                </div>
-                <i class="bi bi-check-circle fs-1 opacity-50"></i>
-            </div>
+      <div class="visit-kpi-card">
+        <div>
+          <div class="kpi-title">Effettuate Oggi</div>
+          <div class="kpi-val text-success" id="stat-completed-count">0</div>
         </div>
+        <div class="kpi-icon-wrapper bg-soft-success">
+          <i class="bi bi-check-circle"></i>
+        </div>
+      </div>
     </div>
+    
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 bg-info text-white p-3 h-100 transition-hover">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h6 class="text-uppercase small fw-bold opacity-75 mb-1" style="font-size:0.7rem;">In Programma Oggi</h6>
-                    <h2 class="fw-bold mb-0" id="stat-pending-count">0</h2>
-                </div>
-                <i class="bi bi-clock-history fs-1 opacity-50"></i>
-            </div>
+      <div class="visit-kpi-card">
+        <div>
+          <div class="kpi-title">In Programma Oggi</div>
+          <div class="kpi-val text-warning" id="stat-pending-count">0</div>
         </div>
+        <div class="kpi-icon-wrapper bg-soft-warning">
+          <i class="bi bi-clock-history"></i>
+        </div>
+      </div>
     </div>
+    
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 bg-dark text-white p-3 h-100 transition-hover">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h6 class="text-uppercase small fw-bold opacity-75 mb-1" style="font-size:0.7rem;">Clienti Assegnati</h6>
-                    <h2 class="fw-bold mb-0" id="stat-total-count">{{ tutti_clienti|length }}</h2>
-                </div>
-                <i class="bi bi-people fs-1 opacity-50"></i>
-            </div>
+      <div class="visit-kpi-card">
+        <div>
+          <div class="kpi-title">Clienti Totali</div>
+          <div class="kpi-val text-color" id="stat-total-count">{{ tutti_clienti|length }}</div>
         </div>
+        <div class="kpi-icon-wrapper bg-soft-info">
+          <i class="bi bi-people"></i>
+        </div>
+      </div>
     </div>
-</div>
+  </div>
 
-<div class="row g-4">
-    <!-- ================== AGENDA GIORNALIERA ================== -->
+  <!-- Main Board Grid -->
+  <div class="row g-4 mb-4">
+    <!-- Agenda Timeline column -->
     <div class="col-12 col-xl-5">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-transparent border-0 p-4 pb-0">
-                <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fw-bold text-dark m-0"><i class="bi bi-clipboard-data text-primary me-2"></i>Agenda Passaggi</h5>
-                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="prefillVisitWithCurrentDate()">
-                        <i class="bi bi-plus-lg"></i> Aggiungi
-                    </button>
-                </div>
-                <!-- Selettore Giorno -->
-                <div class="d-flex align-items-center justify-content-between bg-light rounded-pill p-1 mt-3">
-                    <button class="btn btn-sm btn-white rounded-circle shadow-sm border-0 py-1 px-2" onclick="navigateDay(-1)"><i class="bi bi-chevron-left"></i></button>
-                    <span class="fw-bold text-dark small px-2" id="agenda-date-label">Oggi</span>
-                    <button class="btn btn-sm btn-white rounded-circle shadow-sm border-0 py-1 px-2" onclick="navigateDay(1)"><i class="bi bi-chevron-right"></i></button>
-                </div>
-            </div>
-            
-            <div class="card-body p-4 pt-3">
-                <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
-                    <table class="table align-middle border-0 m-0 d-none" id="daily-visits-table">
-                        <tbody id="daily-visits-tbody">
-                            <!-- Popolato via JS -->
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Stato vuoto -->
-                <div id="agenda-empty-state" class="text-center py-5">
-                    <div class="display-3 text-muted opacity-50 mb-3"><i class="bi bi-calendar-x"></i></div>
-                    <h6 class="fw-bold text-secondary mb-1">Nessuna visita pianificata</h6>
-                    <p class="text-muted small px-4">Non ci sono appuntamenti in programma per questo giorno. Seleziona una data sul calendario o clicca Aggiungi per pianificare.</p>
-                </div>
-            </div>
+      <div class="agenda-timeline-card d-flex flex-column" style="min-height: 580px;">
+        <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
+          <span class="fw-bold text-uppercase tracking-wider text-muted small"><i class="bi bi-clipboard-data-fill text-primary me-2"></i>Agenda Passaggi</span>
+          <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="prefillVisitWithCurrentDate()">
+            <i class="bi bi-plus-lg"></i> Aggiungi
+          </button>
         </div>
+
+        <!-- Day navigator -->
+        <div class="d-flex align-items-center justify-content-between agenda-day-navigator mb-3">
+          <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(-1)"><i class="bi bg-transparent bi-chevron-left"></i></button>
+          <span class="fw-bold text-color small px-2" id="agenda-date-label">Oggi</span>
+          <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(1)"><i class="bi bg-transparent bi-chevron-right"></i></button>
+        </div>
+
+        <!-- Daily Agenda List -->
+        <div class="flex-grow-1 overflow-y-auto" style="max-height: 430px;">
+          <div class="table-responsive border-0">
+            <table class="table align-middle border-0 m-0 d-none" id="daily-visits-table">
+              <tbody id="daily-visits-tbody">
+                <!-- Javascript populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty state -->
+          <div id="agenda-empty-state" class="text-center py-5">
+            <i class="bi bi-calendar-x fs-1 text-primary opacity-25 d-block mb-3"></i>
+            <h6 class="fw-bold text-color mb-1">Nessuna visita pianificata</h6>
+            <p class="text-muted small px-4 mb-0">Non ci sono appuntamenti in programma per questo giorno. Seleziona una data sul calendario o clicca Aggiungi per pianificare.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- ================== PIANIFICATORE MENSILE ================== -->
+    <!-- Monthly Planner Calendar Column -->
     <div class="col-12 col-xl-7">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-transparent border-0 p-4 pb-0">
-                <h5 class="fw-bold text-dark m-0"><i class="bi bi-calendar3 text-primary me-2"></i>Pianificatore Mensile</h5>
-            </div>
-            <div class="card-body p-4 pt-3">
-                <div id="calendar"></div>
-            </div>
-        </div>
+      <div class="calendar-card" style="min-height: 580px;">
+        <div id="calendar"></div>
+      </div>
     </div>
+  </div>
+
+  <!-- Bottom Legend & Quick Client Grid -->
+  <div class="row g-4">
+    <!-- Legend -->
+    <div class="col-12 col-md-4">
+      <div class="agenda-timeline-card">
+        <h6 class="fw-bold mb-3 text-uppercase small text-muted">Legenda Agende</h6>
+        <div class="d-flex flex-column gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <span class="rounded-pill" style="width: 24px; height: 12px; background-color: var(--primary); display:inline-block"></span>
+            <div>
+              <div class="small fw-bold text-color">🔵 In programma</div>
+              <div class="text-muted small" style="font-size: 0.75rem;">Visita programmata da effettuare</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <span class="rounded-pill" style="width: 24px; height: 12px; background-color: var(--success); display:inline-block"></span>
+            <div>
+              <div class="small fw-bold text-color"> 🟢 Completata</div>
+              <div class="text-muted small" style="font-size: 0.75rem;">Visita effettuata con successo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick schedule list -->
+    <div class="col-12 col-md-8">
+      <div class="agenda-timeline-card">
+        <h6 class="fw-bold mb-3 text-uppercase small text-muted">Scelta Rapida Cliente per Visita</h6>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-2" style="max-height: 180px; overflow-y: auto;">
+          {% for c in tutti_clienti[:15] %}
+            <div class="col">
+              <div class="quick-client-btn">
+                <div class="overflow-hidden">
+                  <p class="mb-0 fw-bold small text-color text-truncate" title="{{ c.nome }}">{{ c.nome }}</p>
+                  <small class="text-muted d-block text-truncate" style="font-size: 0.7rem;">{{ c.zona }}</small>
+                </div>
+                <button class="btn btn-sm btn-light border shadow-sm rounded-circle px-1.5 py-0.5 ms-2 text-primary" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')" title="Pianifica visita">
+                  <i class="bi bi-calendar-plus-fill"></i>
+                </button>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<!-- ================== LEGENDA E STRUMENTI IN BASSO ================== -->
-<div class="row g-4 mt-2">
-    <!-- LEGENDA -->
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-body p-4">
-                <h6 class="fw-bold mb-3 text-uppercase small text-muted">Legenda Agende</h6>
-                <div class="d-flex flex-column gap-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="rounded-pill" style="width: 24px; height: 12px; background-color: #3b82f6; display:inline-block"></span>
-                        <div>
-                            <div class="small fw-bold">🔵 In programma</div>
-                            <div class="text-muted extra-small">Visita programmata da effettuare</div>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="rounded-pill" style="width: 24px; height: 12px; background-color: #10b981; display:inline-block"></span>
-                        <div>
-                            <div class="small fw-bold">🟢 Completata</div>
-                            <div class="text-muted extra-small">Visita effettuata con successo</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- LISTA RAPIDA CLIENTI FREQUENTI -->
-    <div class="col-12 col-md-6 col-lg-8">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-body p-4">
-                <h6 class="fw-bold mb-3 text-uppercase small text-muted">Scelta Rapida Cliente per Visita</h6>
-                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-2" style="max-height: 180px; overflow-y: auto;">
-                    {% for c in tutti_clienti[:15] %}
-                    <div class="col">
-                        <div class="p-2 border rounded-3 bg-light d-flex align-items-center justify-content-between">
-                            <div class="overflow-hidden">
-                                <p class="mb-0 fw-bold small text-truncate" title="{{ c.nome }}">{{ c.nome }}</p>
-                                <small class="text-muted extra-small text-truncate d-block">{{ c.zona }}</small>
-                            </div>
-                            <button class="btn btn-sm btn-white text-primary border shadow-sm rounded-circle px-1 py-0 ms-2" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')" title="Pianifica visita">
-                                <i class="bi bi-calendar-plus" style="font-size:0.85rem;"></i>
-                            </button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- MODALE NUOVA VISITA -->
+<!-- ================== MODALE NUOVA VISITA ================== -->
 <div class="modal fade" id="modalNuovaVisita" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow rounded-4">
-            <div class="modal-header border-0 p-4 pb-0">
-                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-calendar-plus text-primary me-2"></i>Pianifica Visita</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold text-primary"><i class="bi bi-calendar-plus-fill me-2"></i>Pianifica Visita</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--theme-close-btn-filter, none);"></button>
+      </div>
+      <form action="{{ url_for('api_visite_save') }}" method="POST">
+        <div class="modal-body p-4 d-flex flex-column gap-3">
+          <div>
+            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Seleziona Cliente</label>
+            <select class="form-select w-100 fw-semibold" name="cliente_id" id="select_cliente_id" required>
+              <option value="">Seleziona un cliente...</option>
+              {% for c in tutti_clienti %}
+                <option value="{{ c.id }}">{{ c.nome }} ({{ c.zona }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Data Passaggio</label>
+              <input type="date" class="form-control w-100 fw-semibold" name="data_visita" id="input_data_visita" required>
             </div>
-            <form action="{{ url_for('api_visite_save') }}" method="POST">
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Cliente</label>
-                        <select class="form-select border-0 bg-light rounded-3 py-2 fw-semibold" name="cliente_id" id="select_cliente_id" required>
-                            <option value="">Seleziona un cliente...</option>
-                            {% for c in tutti_clienti %}
-                            <option value="{{ c.id }}">{{ c.nome }} ({{ c.zona }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Data</label>
-                            <input type="date" class="form-control border-0 bg-light rounded-3 py-2 fw-semibold" name="data_visita" id="input_data_visita" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Ora (Opzionale)</label>
-                            <input type="time" class="form-control border-0 bg-light rounded-3 py-2 fw-semibold" name="ora_visita" id="input_ora_visita">
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Note / Obiettivo</label>
-                        <textarea class="form-control border-0 bg-light rounded-3" name="note" id="input_note" rows="2" placeholder="Es: Consegna campioni, rinnovo listino..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer border-0 p-4 pt-0">
-                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">Salva Appuntamento</button>
-                </div>
-            </form>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Ora (Opzionale)</label>
+              <input type="time" class="form-control w-100 fw-semibold" name="ora_visita" id="input_ora_visita">
+            </div>
+          </div>
+          <div>
+            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Note / Obiettivo Commerciale</label>
+            <textarea class="form-control w-100" name="note" id="input_note" rows="3" placeholder="Es: Consegna campioni campionario, rinnovo condizioni listino..."></textarea>
+          </div>
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary rounded-4 px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary rounded-4 px-4 fw-bold shadow-sm">Salva Appuntamento</button>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
 
-<!-- MODALE DETTAGLIO/MODIFICA VISITA -->
+<!-- ================== MODALE DETTAGLIO/MODIFICA VISITA ================== -->
 <div class="modal fade" id="modalModificaVisita" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow rounded-4" id="contentModificaVisita">
-            <!-- Caricato via JS -->
-        </div>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4" id="contentModificaVisita" style="background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color) !important;">
+      <!-- Loaded dynamically via JS -->
     </div>
+  </div>
 </div>
 
 {% endblock %}
@@ -272,298 +436,327 @@ let currentAgendaDate = "";
 let calendar = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Imposta la data di oggi come agenda di partenza
-    const oggi = new Date();
-    currentAgendaDate = oggi.toISOString().split('T')[0];
+  // Today start date
+  const oggi = new Date();
+  currentAgendaDate = oggi.toISOString().split('T')[0];
+  
+  // Initialize FullCalendar
+  var calendarEl = document.getElementById('calendar');
+  calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    locale: 'it',
+    height: 'auto',
+    aspectRatio: 1.35,
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek'
+    },
+    buttonText: {
+      today: 'Oggi',
+      month: 'Mese',
+      week: 'Settimana'
+    },
+    editable: true,
+    selectable: true,
+    events: '/api/visite/get_events',
     
-    // Inizializza il Calendario FullCalendar
-    var calendarEl = document.getElementById('calendar');
-    calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'it',
-        height: 'auto',
-        aspectRatio: 1.35,
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek'
-        },
-        buttonText: {
-            today: 'Oggi',
-            month: 'Mese',
-            week: 'Settimana'
-        },
-        editable: true,
-        selectable: true,
-        events: '/api/visite/get_events',
-        
-        // Al click sull'evento del calendario
-        eventClick: function(info) {
-            const id = info.event.id;
-            if (id.startsWith('real_')) {
-                loadVisitDetail(id.replace('real_', ''));
-            }
-        },
-        
-        // Al trascinamento dell'evento (spostamento data)
-        eventDrop: function(info) {
-            if (info.event.id.startsWith('real_')) {
-                updateVisitDate(info.event);
-            } else {
-                info.revert();
-            }
-        },
+    // Calendar Event click
+    eventClick: function(info) {
+      const id = info.event.id;
+      if (id.startsWith('real_')) {
+        loadVisitDetail(id.replace('real_', ''));
+      }
+    },
+    
+    // Drag & drop event date
+    eventDrop: function(info) {
+      if (info.event.id.startsWith('real_')) {
+        updateVisitDate(info.event);
+      } else {
+        info.revert();
+      }
+    },
 
-        // Selezione di un range/slot vuoto sul calendario
-        select: function(info) {
-            const selDate = info.startStr.split('T')[0];
-            currentAgendaDate = selDate;
-            updateDailyAgenda(selDate);
-            
-            document.getElementById('input_data_visita').value = selDate;
-            if (info.startStr.includes('T')) {
-                document.getElementById('input_ora_visita').value = info.startStr.split('T')[1].substring(0,5);
-            } else {
-                document.getElementById('input_ora_visita').value = "";
-            }
-        }
-    });
-    calendar.render();
-    
-    // Carica l'agenda di oggi all'avvio
-    updateDailyAgenda(currentAgendaDate);
+    // Empty slot select
+    select: function(info) {
+      const selDate = info.startStr.split('T')[0];
+      currentAgendaDate = selDate;
+      updateDailyAgenda(selDate);
+      
+      document.getElementById('input_data_visita').value = selDate;
+      if (info.startStr.includes('T')) {
+        document.getElementById('input_ora_visita').value = info.startStr.split('T')[1].substring(0,5);
+      } else {
+        document.getElementById('input_ora_visita').value = "";
+      }
+    }
+  });
+  
+  calendar.render();
+  
+  // Load today's list on page start
+  updateDailyAgenda(currentAgendaDate);
+
+  // Redraw calendar on theme changes to keep colors and lines cohesive
+  document.addEventListener("themeChanged", () => {
+    setTimeout(() => {
+      if (calendar) calendar.render();
+    }, 100);
+  });
 });
 
-// Funzione principale per aggiornare la Tabella dell'Agenda Giornaliera
+// Update daily timeline agenda (AJAX call)
 async function updateDailyAgenda(dateStr) {
-    try {
-        const resp = await fetch(`/api/visite/giorno?date=${dateStr}`);
-        const data = await resp.json();
+  try {
+    const resp = await fetch(`/api/visite/giorno?date=${dateStr}`);
+    const data = await resp.json();
+    
+    if (data.success) {
+      // Update label
+      document.getElementById('agenda-date-label').innerHTML = formatItalianDate(dateStr);
+      
+      const tbody = document.getElementById('daily-visits-tbody');
+      const table = document.getElementById('daily-visits-table');
+      const emptyState = document.getElementById('agenda-empty-state');
+      
+      tbody.innerHTML = "";
+      
+      let statToday = data.visite.length;
+      let statCompleted = 0;
+      let statPending = 0;
+      
+      if (data.visite.length > 0) {
+        table.classList.remove('d-none');
+        emptyState.classList.add('d-none');
         
-        if (data.success) {
-            // Aggiorna etichetta data
-            document.getElementById('agenda-date-label').innerHTML = formatItalianDate(dateStr);
-            
-            const tbody = document.getElementById('daily-visits-tbody');
-            const table = document.getElementById('daily-visits-table');
-            const emptyState = document.getElementById('agenda-empty-state');
-            
-            tbody.innerHTML = "";
-            
-            let statToday = data.visite.length;
-            let statCompleted = 0;
-            let statPending = 0;
-            
-            if (data.visite.length > 0) {
-                table.classList.remove('d-none');
-                emptyState.classList.add('d-none');
-                
-                data.visite.forEach(v => {
-                    if (v.completata) {
-                        statCompleted++;
-                    } else {
-                        statPending++;
-                    }
-                    
-                    const rowClass = v.completata ? 'completed' : 'pending';
-                    const badgeClass = v.completata ? 'bg-success-subtle text-success border border-success' : 'bg-primary-subtle text-primary border border-primary';
-                    const badgeText = v.completata ? 'Completata' : 'In programma';
-                    const iconCheck = v.completata ? 'bi-arrow-counterclockwise' : 'bi-check-lg';
-                    const btnCheckTitle = v.completata ? 'Segna da completare' : 'Segna come completata';
-                    const btnCheckClass = v.completata ? 'btn-outline-primary' : 'btn-success';
-                    
-                    let whatsappBtn = "";
-                    if (v.phone_normalized) {
-                        whatsappBtn = `
-                            <a href="https://wa.me/${v.phone_normalized}" target="_blank" class="btn btn-sm btn-outline-success rounded-circle shadow-sm px-2 py-1" title="Contatta su WhatsApp">
-                                <i class="bi bi-whatsapp" style="font-size:0.85rem;"></i>
-                            </a>
-                        `;
-                    }
-                    
-                    const tr = document.createElement('tr');
-                    tr.className = `agenda-row ${rowClass} border-bottom`;
-                    tr.innerHTML = `
-                        <td class="ps-3 py-3" style="width: 70px;">
-                            <span class="fw-bold text-dark fs-6">${v.ora_visita || 'N/D'}</span>
-                        </td>
-                        <td class="py-3">
-                            <h6 class="fw-bold text-dark mb-0">${v.cliente_nome}</h6>
-                            <span class="text-muted extra-small d-block"><i class="bi bi-geo-alt me-1"></i>${v.zona}</span>
-                            ${v.note ? `<p class="mb-0 text-muted extra-small mt-1 bg-white p-2 rounded border border-light" style="font-style: italic;">"${v.note}"</p>` : ''}
-                        </td>
-                        <td class="py-3" style="width: 100px;">
-                            <span class="badge rounded-pill extra-small px-2 py-1 ${badgeClass}">${badgeText}</span>
-                        </td>
-                        <td class="pe-3 py-3 text-end" style="width: 130px;">
-                            <div class="d-flex align-items-center justify-content-end gap-1">
-                                <button type="button" class="btn btn-sm ${btnCheckClass} rounded-circle shadow-sm px-2 py-1" onclick="toggleVisitStatus(${v.id})" title="${btnCheckTitle}">
-                                    <i class="bi ${iconCheck}"></i>
-                                </button>
-                                ${whatsappBtn}
-                                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle shadow-sm px-2 py-1" onclick="deleteVisit(${v.id})" title="Elimina visita">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } else {
-                table.classList.add('d-none');
-                emptyState.classList.remove('d-none');
-            }
-            
-            // Aggiorna le statistiche del cruscotto
-            document.getElementById('stat-today-count').innerHTML = statToday;
-            document.getElementById('stat-completed-count').innerHTML = statCompleted;
-            document.getElementById('stat-pending-count').innerHTML = statPending;
-        }
-    } catch(e) {
-        console.error("Errore aggiornamento agenda:", e);
+        data.visite.forEach(v => {
+          if (v.completata) {
+            statCompleted++;
+          } else {
+            statPending++;
+          }
+          
+          const rowClass = v.completata ? 'completed' : 'pending';
+          const badgeClass = v.completata ? 'bg-success-subtle text-success border border-success' : 'bg-primary-subtle text-primary border border-primary';
+          const badgeText = v.completata ? 'Completata' : 'In programma';
+          const iconCheck = v.completata ? 'bi-arrow-counterclockwise' : 'bi-check-lg';
+          const btnCheckTitle = v.completata ? 'Segna da completare' : 'Segna come completata';
+          const btnCheckClass = v.completata ? 'btn-outline-primary' : 'btn-success';
+          
+          let whatsappBtn = "";
+          if (v.phone_normalized) {
+            whatsappBtn = `
+              <a href="https://wa.me/${v.phone_normalized}" target="_blank" class="btn btn-sm btn-outline-success rounded-circle shadow-sm px-2 py-1" title="Contatta su WhatsApp">
+                <i class="bi bi-whatsapp" style="font-size:0.85rem;"></i>
+              </a>
+            `;
+          }
+          
+          const tr = document.createElement('tr');
+          tr.className = `agenda-row ${rowClass} border-bottom`;
+          tr.innerHTML = `
+            <td class="ps-3 py-3" style="width: 70px;">
+              <span class="fw-bold text-color fs-6">${v.ora_visita || 'N/D'}</span>
+            </td>
+            <td class="py-3">
+              <h6 class="fw-bold text-color mb-0">${v.cliente_nome}</h6>
+              <span class="text-muted small d-block"><i class="bi bi-geo-alt me-1"></i>${v.zona}</span>
+              ${v.note ? `<p class="mb-0 text-muted small mt-1 p-2 rounded border" style="font-style: italic; background-color: var(--bg-color); border-color: var(--border-color) !important;">"${v.note}"</p>` : ''}
+            </td>
+            <td class="py-3" style="width: 100px;">
+              <span class="badge rounded-pill px-2 py-1" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">${badgeText}</span>
+            </td>
+            <td class="pe-3 py-3 text-end" style="width: 130px;">
+              <div class="d-flex align-items-center justify-content-end gap-1">
+                <button type="button" class="btn btn-sm ${btnCheckClass} rounded-circle shadow-sm px-2 py-1" onclick="toggleVisitStatus(${v.id})" title="${btnCheckTitle}">
+                  <i class="bi ${iconCheck}"></i>
+                </button>
+                ${whatsappBtn}
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle shadow-sm px-2 py-1" onclick="deleteVisit(${v.id})" title="Elimina visita">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          
+          // Apply individual styled badges colors directly to avoid default bootstrap colors overriding
+          const badgeEl = tr.querySelector('.badge');
+          if (v.completata) {
+            badgeEl.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+            badgeEl.style.color = 'var(--success)';
+            badgeEl.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+          } else {
+            badgeEl.style.backgroundColor = 'var(--primary-light)';
+            badgeEl.style.color = 'var(--primary)';
+            badgeEl.style.border = '1px solid var(--primary-light)';
+          }
+
+          tbody.appendChild(tr);
+        });
+      } else {
+        table.classList.add('d-none');
+        emptyState.classList.remove('d-none');
+      }
+      
+      // Update statistics
+      document.getElementById('stat-today-count').innerHTML = statToday;
+      document.getElementById('stat-completed-count').innerHTML = statCompleted;
+      document.getElementById('stat-pending-count').innerHTML = statPending;
     }
+  } catch(e) {
+    console.error("Errore aggiornamento agenda:", e);
+  }
 }
 
-// Navigazione Giorno dell'Agenda
+// Navigation offset
 function navigateDay(offset) {
-    const d = new Date(currentAgendaDate + "T00:00:00");
-    d.setDate(d.getDate() + offset);
-    currentAgendaDate = d.toISOString().split('T')[0];
-    
-    // Seleziona la data anche su FullCalendar per sincronicita
-    calendar.gotoDate(currentAgendaDate);
-    calendar.select(currentAgendaDate);
-    
-    updateDailyAgenda(currentAgendaDate);
+  const d = new Date(currentAgendaDate + "T00:00:00");
+  d.setDate(d.getDate() + offset);
+  currentAgendaDate = d.toISOString().split('T')[0];
+  
+  calendar.gotoDate(currentAgendaDate);
+  calendar.select(currentAgendaDate);
+  
+  updateDailyAgenda(currentAgendaDate);
 }
 
-// Formatta la data in Italiano esteso
+// Format date into standard italian string
 function formatItalianDate(dateStr) {
-    const d = new Date(dateStr + "T00:00:00");
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-    let formatted = d.toLocaleDateString('it-IT', options);
-    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  const d = new Date(dateStr + "T00:00:00");
+  const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+  let formatted = d.toLocaleDateString('it-IT', options);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-// Prefill form modale con una data specifica
+// Prefill form modale
 function prefillVisitWithCurrentDate() {
-    document.getElementById('input_data_visita').value = currentAgendaDate;
-    document.getElementById('input_ora_visita').value = "";
-    document.getElementById('select_cliente_id').value = "";
-    document.getElementById('input_note').value = "";
-    
-    var modal = new bootstrap.Modal(document.getElementById('modalNuovaVisita'));
-    modal.show();
+  document.getElementById('input_data_visita').value = currentAgendaDate;
+  document.getElementById('input_ora_visita').value = "";
+  document.getElementById('select_cliente_id').value = "";
+  document.getElementById('input_note').value = "";
+  
+  var modal = new bootstrap.Modal(document.getElementById('modalNuovaVisita'));
+  modal.show();
 }
 
 function prefillVisit(cid, cname, date = '', time = '') {
-    document.getElementById('select_cliente_id').value = cid;
-    document.getElementById('input_data_visita').value = date || currentAgendaDate;
-    document.getElementById('input_ora_visita').value = time;
-    
-    var modal = new bootstrap.Modal(document.getElementById('modalNuovaVisita'));
-    modal.show();
+  document.getElementById('select_cliente_id').value = cid;
+  document.getElementById('input_data_visita').value = date || currentAgendaDate;
+  document.getElementById('input_ora_visita').value = time;
+  
+  var modal = new bootstrap.Modal(document.getElementById('modalNuovaVisita'));
+  modal.show();
 }
 
-// Caricamento Dettagli Modale
+// Load visit dynamic details (AJAX)
 function loadVisitDetail(vid) {
-    fetch('/api/visite/detail/' + vid)
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('contentModificaVisita').innerHTML = html;
-            var modal = new bootstrap.Modal(document.getElementById('modalModificaVisita'));
-            modal.show();
-        });
+  fetch('/api/visite/detail/' + vid)
+    .then(response => response.text())
+    .then(html => {
+      const container = document.getElementById('contentModificaVisita');
+      container.innerHTML = html;
+      
+      // Inject close button styles or filters if inside dark-mode
+      const closeBtn = container.querySelector('.btn-close');
+      if (closeBtn) {
+        closeBtn.style.filter = 'var(--theme-close-btn-filter, none)';
+      }
+      
+      var modal = new bootstrap.Modal(document.getElementById('modalModificaVisita'));
+      modal.show();
+    });
 }
 
-// Toggle completato/da completare dall'agenda giornaliera (AJAX)
+// Toggle complete status (AJAX)
 async function toggleVisitStatus(vid) {
-    try {
-        const resp = await fetch(`/api/visite/toggle_completata/${vid}`, { method: 'POST' });
-        const res = await resp.json();
-        if (res.success) {
-            // Aggiorna calendario ed agenda
-            calendar.refetchEvents();
-            updateDailyAgenda(currentAgendaDate);
-        }
-    } catch(e) {
-        alert("Impossibile aggiornare lo stato della visita.");
+  try {
+    const resp = await fetch(`/api/visite/toggle_completata/${vid}`, { method: 'POST' });
+    const res = await resp.json();
+    if (res.success) {
+      calendar.refetchEvents();
+      updateDailyAgenda(currentAgendaDate);
     }
+  } catch(e) {
+    alert("Impossibile aggiornare lo stato della visita.");
+  }
 }
 
-// Toggle completato/da completare dal modale dettaglio
+// Toggle complete from modal details
 async function toggleVisitStatusDetail(vid) {
-    try {
-        const resp = await fetch(`/api/visite/toggle_completata/${vid}`, { method: 'POST' });
-        const res = await resp.json();
-        if (res.success) {
-            bootstrap.Modal.getInstance(document.getElementById('modalModificaVisita')).hide();
-            calendar.refetchEvents();
-            updateDailyAgenda(currentAgendaDate);
-        }
-    } catch(e) {
-        alert("Impossibile aggiornare lo stato della visita.");
+  try {
+    const resp = await fetch(`/api/visite/toggle_completata/${vid}`, { method: 'POST' });
+    const res = await resp.json();
+    if (res.success) {
+      bootstrap.Modal.getInstance(document.getElementById('modalModificaVisita')).hide();
+      calendar.refetchEvents();
+      updateDailyAgenda(currentAgendaDate);
     }
+  } catch(e) {
+    alert("Impossibile aggiornare lo stato della visita.");
+  }
 }
 
-// Elimina visita dall'agenda (AJAX)
+// Delete visit (AJAX)
 async function deleteVisit(vid) {
-    if (!confirm("Sei sicuro di voler eliminare questo appuntamento?")) return;
-    try {
-        const resp = await fetch(`/api/visite/elimina/${vid}`, { method: 'POST' });
-        const res = await resp.json();
-        if (res.success) {
-            calendar.refetchEvents();
-            updateDailyAgenda(currentAgendaDate);
-        }
-    } catch(e) {
-        alert("Impossibile eliminare la visita.");
+  if (!confirm("Sei sicuro di voler eliminare questo appuntamento?")) return;
+  try {
+    const resp = await fetch(`/api/visite/elimina/${vid}`, { method: 'POST' });
+    const res = await resp.json();
+    if (res.success) {
+      calendar.refetchEvents();
+      updateDailyAgenda(currentAgendaDate);
     }
+  } catch(e) {
+    alert("Impossibile eliminare la visita.");
+  }
 }
 
-// Elimina visita dal modale dettaglio
+// Delete visit from modal details
 async function deleteVisitDetail(vid) {
-    if (!confirm("Sei sicuro di voler eliminare questo appuntamento?")) return;
-    try {
-        const resp = await fetch(`/api/visite/elimina/${vid}`, { method: 'POST' });
-        const res = await resp.json();
-        if (res.success) {
-            bootstrap.Modal.getInstance(document.getElementById('modalModificaVisita')).hide();
-            calendar.refetchEvents();
-            updateDailyAgenda(currentAgendaDate);
-        }
-    } catch(e) {
-        alert("Impossibile eliminare la visita.");
+  if (!confirm("Sei sicuro di voler eliminare questo appuntamento?")) return;
+  try {
+    const resp = await fetch(`/api/visite/elimina/${vid}`, { method: 'POST' });
+    const res = await resp.json();
+    if (res.success) {
+      bootstrap.Modal.getInstance(document.getElementById('modalModificaVisita')).hide();
+      calendar.refetchEvents();
+      updateDailyAgenda(currentAgendaDate);
     }
+  } catch(e) {
+    alert("Impossibile eliminare la visita.");
+  }
 }
 
+// Move drag event (AJAX)
 function updateVisitDate(event) {
-    const data = {
-        id: event.id.replace('real_', ''),
-        new_date: event.startStr.split('T')[0],
-        new_time: event.startStr.includes('T') ? event.startStr.split('T')[1].substring(0,5) : null
-    };
-    
-    fetch('/api/visite/move', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    }).then(res => {
-        if (res.ok) {
-            updateDailyAgenda(currentAgendaDate);
-        } else {
-            alert("Errore durante lo spostamento della visita.");
-        }
-    });
+  const data = {
+    id: event.id.replace('real_', ''),
+    new_date: event.startStr.split('T')[0],
+    new_time: event.startStr.includes('T') ? event.startStr.split('T')[1].substring(0,5) : null
+  };
+  
+  fetch('/api/visite/move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(res => {
+    if (res.ok) {
+      updateDailyAgenda(currentAgendaDate);
+    } else {
+      alert("Errore durante lo spostamento della visita.");
+    }
+  });
 }
 
+// iCal synchronization copy
 function copyIcalLink() {
-    const url = window.location.origin + "/ical/visite.ics?token=HorecaCalendar";
-    navigator.clipboard.writeText(url).then(() => {
-        alert("Link Calendario copiato! \n\nAggiungilo su iPhone in: \nImpostazioni -> Calendario -> Account -> Aggiungi Account -> Altro -> Calendario Iscritto.");
-    }).catch(err => {
-        alert("Impossibile copiare. Copia manualmente: " + url);
-    });
+  const url = window.location.origin + "/ical/visite.ics?token=HorecaCalendar";
+  navigator.clipboard.writeText(url).then(() => {
+    alert("Link Calendario copiato negli appunti! \n\nAggiungilo su iPhone/macOS in: \nImpostazioni -> Calendario -> Account -> Aggiungi Account -> Altro -> Calendario Iscritto.");
+  }).catch(err => {
+    alert("Impossibile copiare il link automaticamente. Copia manualmente: " + url);
+  });
 }
 </script>
 {% endblock %}

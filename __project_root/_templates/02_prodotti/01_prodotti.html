@@ -1,71 +1,227 @@
 {% extends "01_base.html" %}
 
-{% block title %}Prodotti - Gestionale Horeca{% endblock %}
+{% block title %}Prodotti - Horeca Suite{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* Premium Products Styling */
+  .catalog-actions-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 2rem;
+  }
+  
+  .catalog-actions-card .form-control {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.65rem 1rem 0.65rem 2.5rem;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+  }
+  .catalog-actions-card .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+  }
+
+  /* Category Grid Cards */
+  .category-grid-card {
+    border-radius: var(--radius);
+    height: 280px;
+    position: relative;
+    overflow: hidden;
+    color: #ffffff;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+    cursor: pointer;
+  }
+  .category-grid-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .category-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.75rem;
+    z-index: 2;
+    transition: background 0.3s;
+  }
+  .category-grid-card:hover .category-overlay {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.15) 0%, rgba(15, 23, 42, 0.75) 100%);
+  }
+
+  .category-badge-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    font-size: 0.75rem;
+    font-weight: 600;
+    width: fit-content;
+    margin-bottom: 0.75rem;
+    color: #ffffff;
+  }
+
+  .category-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Modals overrides */
+  .modal-header-bg {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: #ffffff;
+  }
+  .modal-filter-sticky {
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 1rem 1.5rem;
+  }
+  .modal-filter-sticky .form-control {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .modal-filter-sticky .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+  }
+
+  /* Product Modal Row items */
+  .prodotto-modal-row {
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+    color: var(--text-color);
+  }
+  .prodotto-modal-row:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    background-color: var(--primary-light);
+  }
+
+  .prodotto-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    font-size: 1.1rem;
+  }
+  
+  .prodotto-upc-badge {
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .max-height-520 {
+    max-height: 520px;
+    overflow-y: auto;
+    padding: 1rem 1.5rem;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container-fluid px-0">
 
+  <!-- Header Section -->
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
-      <h1 class="mb-1">Gestione Prodotti</h1>
-      <div class="text-muted">Categorie, ricerca rapida e azioni sui prodotti.</div>
+      <h1 class="h2 mb-1">Catalogo Prodotti</h1>
+      <p class="text-muted mb-0">Gestisci le categorie, visualizza i codici UPC e configura le anagrafiche dei prodotti.</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-success rounded-4 d-flex align-items-center gap-2">
-        <i class="bi bi-plus-circle"></i> Aggiungi Prodotto
+      <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-plus-circle-fill"></i> Nuovo Prodotto
       </a>
 
-      <!-- ✅ NUOVO: prodotti senza categoria (🟠 ARANCIONE) -->
+      <!-- Prodotti Senza Categoria Button -->
       <button type="button"
-              class="btn btn-outline-warning rounded-4 d-flex align-items-center gap-2"
+              class="btn btn-outline-warning rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2"
               data-bs-toggle="modal"
               data-bs-target="#categoriaModal"
               data-categoria="__SENZA__">
-        <i class="bi bi-exclamation-triangle"></i> Prodotti senza categoria
-        <span class="badge text-bg-warning ms-1">{{ (prodotti_senza_categoria|length) if prodotti_senza_categoria else 0 }}</span>
+        <i class="bi bi-exclamation-triangle-fill"></i> Senza Categoria
+        <span class="badge bg-warning text-dark ms-1 px-2 rounded-pill">{{ (prodotti_senza_categoria|length) if prodotti_senza_categoria else 0 }}</span>
       </button>
 
-      <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-secondary rounded-4 d-flex align-items-center gap-2">
-        <i class="bi bi-folder2-open"></i> Gestisci Categorie
+      <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-folder-fill"></i> Gestisci Categorie
       </a>
     </div>
   </div>
 
-  <!-- Ricerca globale + quick filters -->
-  <div class="card shadow-sm rounded-4 mb-4">
-    <div class="card-body">
-      <div class="row g-2 align-items-center">
-        <div class="col-12 col-lg-7">
-          <div class="input-group input-group-lg">
-            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-            <input type="text" id="searchGlobale" class="form-control"
-                   placeholder="Cerca per nome, codice o categoria...">
-            <button type="button" class="btn btn-outline-secondary" id="btnClearSearch" title="Pulisci">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-          <div class="form-text">Suggerimento: cerca anche per <b>codice prodotto</b>.</div>
+  <!-- Global Filters Panel -->
+  <div class="catalog-actions-card">
+    <div class="row g-3 align-items-center">
+      <!-- Search Input -->
+      <div class="col-12 col-lg-7">
+        <div class="position-relative">
+          <input type="text" id="searchGlobale" class="form-control"
+                 placeholder="Cerca prodotti per nome, codice o categoria...">
+          <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+          <button type="button" class="btn btn-link text-muted position-absolute top-50 end-0 translate-middle-y me-2 p-0 text-decoration-none" id="btnClearSearch" title="Pulisci">
+            <i class="bi bi-x-circle-fill"></i>
+          </button>
         </div>
+      </div>
 
-        <div class="col-12 col-lg-5">
-          <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
-            <button type="button" class="btn btn-outline-primary rounded-4" id="btnMostraTutte">
-              <i class="bi bi-grid-3x3-gap"></i> Tutte
-            </button>
-            <button type="button" class="btn btn-outline-primary rounded-4" id="btnSoloPiene" title="Categorie con prodotti">
-              <i class="bi bi-check2-circle"></i> Con prodotti
-            </button>
-            <button type="button" class="btn btn-outline-primary rounded-4" id="btnSoloVuote" title="Categorie senza prodotti">
-              <i class="bi bi-slash-circle"></i> Vuote
-            </button>
-          </div>
+      <!-- Quick Clicks Categories -->
+      <div class="col-12 col-lg-5">
+        <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+          <button type="button" class="btn btn-outline-primary rounded-4 fw-semibold px-3" id="btnMostraTutte">
+            <i class="bi bi-grid-3x3-gap-fill me-1"></i> Tutte
+          </button>
+          <button type="button" class="btn btn-outline-success rounded-4 fw-semibold px-3" id="btnSoloPiene" title="Categorie con prodotti">
+            <i class="bi bi-check-circle-fill me-1"></i> Con Prodotti
+          </button>
+          <button type="button" class="btn btn-outline-secondary rounded-4 fw-semibold px-3" id="btnSoloVuote" title="Categorie senza prodotti">
+            <i class="bi bi-dash-circle-dotted me-1"></i> Vuote
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Cards categorie -->
+  <!-- Categories Grid Row -->
   <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5" id="categorieCardContainer">
     {% if categorie %}
       {% for categoria in categorie %}
@@ -73,37 +229,37 @@
         <div class="col categoria-col"
              data-categoria="{{ categoria.nome }}"
              data-count="{{ n_prod }}">
-          <div class="card shadow-sm hover-scale cursor-pointer border-0 text-center position-relative categoria-card"
+          <div class="category-grid-card"
                {% if categoria.immagine %}
                  style="background-image: url('{{ categoria.immagine }}');"
                {% else %}
-                 style="background: linear-gradient(135deg, #6c757d, #343a40);"
+                 style="background: linear-gradient(135deg, #4f46e5, #0ea5e9);"
                {% endif %}
                data-bs-toggle="modal"
                data-bs-target="#categoriaModal"
                data-categoria="{{ categoria.nome }}">
 
-            <div class="overlay d-flex flex-column justify-content-center align-items-center p-3">
-              <div class="chip mb-2">
-                <i class="bi bi-tags me-1"></i> Categoria
+            <div class="category-overlay">
+              <div class="category-badge-chip">
+                <i class="bi bi-tags-fill"></i> Categoria
               </div>
 
-              <h5 class="card-title fw-bold mb-1">{{ categoria.nome }}</h5>
+              <h5 class="category-title text-white">{{ categoria.nome }}</h5>
 
               <div class="d-flex align-items-center gap-2 mt-1">
                 {% if n_prod > 0 %}
-                  <span class="badge text-bg-light">
-                    <i class="bi bi-box-seam me-1"></i> {{ n_prod }} prodotti
+                  <span class="badge bg-white text-dark rounded-pill px-2.5 py-1">
+                    <i class="bi bi-box-seam-fill me-1"></i> {{ n_prod }} prodotti
                   </span>
                 {% else %}
-                  <span class="badge text-bg-warning">
-                    <i class="bi bi-exclamation-triangle me-1"></i> Nessun prodotto
+                  <span class="badge bg-warning text-dark rounded-pill px-2.5 py-1">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Nessun prodotto
                   </span>
                 {% endif %}
               </div>
 
-              <div class="small text-white-50 mt-3">
-                Clicca per vedere i prodotti
+              <div class="small text-white-50 mt-3 d-flex align-items-center gap-1">
+                <i class="bi bi-hand-index-thumb"></i> Clicca per visualizzare
               </div>
             </div>
 
@@ -111,66 +267,70 @@
         </div>
       {% endfor %}
     {% else %}
-      <div class="col-12">
-        <div class="alert alert-warning text-center rounded-4">
-          Nessuna categoria disponibile.
+      <div class="col-12 w-100">
+        <div class="alert alert-warning text-center rounded-4 p-5">
+          <i class="bi bi-exclamation-circle fs-1 d-block mb-3"></i>
+          <h5 class="fw-bold">Nessuna Categoria Disponibile</h5>
+          <p class="text-muted">Inizia creando una categoria dal pannello "Gestisci Categorie".</p>
         </div>
       </div>
     {% endif %}
   </div>
 
-  <!-- Modal prodotti -->
+  <!-- Interactive Modal Prodotti -->
   <div class="modal fade" id="categoriaModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content modal-animate rounded-4 overflow-hidden">
-        <div class="modal-header bg-primary text-white">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+      <div class="modal-content overflow-hidden">
+        <div class="modal-header modal-header-bg border-0">
           <div>
-            <h5 class="modal-title mb-0" id="categoriaModalLabel">Prodotti</h5>
+            <h5 class="modal-title fw-bold" id="categoriaModalLabel">Prodotti</h5>
             <div class="small text-white-50" id="categoriaModalSub">—</div>
           </div>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
 
         <div class="modal-body p-0">
-          <div class="p-3 bg-light border-bottom sticky-top">
+          <!-- Modal filter sticky bar -->
+          <div class="modal-filter-sticky">
             <div class="row g-2 align-items-center">
               <div class="col-12 col-lg-7">
-                <div class="input-group">
-                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <div class="position-relative">
                   <input type="text" id="searchProdotti" class="form-control"
-                         placeholder="Cerca per nome o codice...">
-                  <button type="button" class="btn btn-outline-secondary" id="btnClearSearchModal" title="Pulisci">
-                    <i class="bi bi-x-lg"></i>
+                         placeholder="Cerca prodotti per nome o codice...">
+                  <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                  <button type="button" class="btn btn-link text-muted position-absolute top-50 end-0 translate-middle-y me-2 p-0 text-decoration-none" id="btnClearSearchModal" title="Pulisci">
+                    <i class="bi bi-x-circle-fill"></i>
                   </button>
                 </div>
               </div>
 
               <div class="col-12 col-lg-5">
                 <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
-                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-4" id="btnSortAZ">
-                    <i class="bi bi-sort-alpha-down"></i> A-Z
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-semibold" id="btnSortAZ">
+                    <i class="bi bi-sort-alpha-down me-1"></i> Ordine A-Z
                   </button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-4" id="btnSortZA">
-                    <i class="bi bi-sort-alpha-up"></i> Z-A
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-semibold" id="btnSortZA">
+                    <i class="bi bi-sort-alpha-up me-1"></i> Ordine Z-A
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="p-2">
-            <div id="listaProdotti" class="list-group list-group-flush max-height-520 overflow-auto"></div>
+          <!-- Product items container -->
+          <div class="max-height-520">
+            <div id="listaProdotti" class="d-flex flex-column"></div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary rounded-4" data-bs-dismiss="modal">Chiudi</button>
+          <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
         </div>
       </div>
     </div>
   </div>
 
-  <a href="{{ url_for('index') }}" class="btn btn-secondary mt-5 rounded-4 d-flex align-items-center gap-2">
+  <a href="{{ url_for('index') }}" class="btn btn-outline-secondary mt-5 rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2" style="width: fit-content;">
     <i class="bi bi-house-door"></i> Torna alla home
   </a>
 
@@ -221,7 +381,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderProdotti(prodotti) {
     listaProdotti.innerHTML = '';
     if (!prodotti || prodotti.length === 0) {
-      listaProdotti.innerHTML = `<div class="text-center text-muted py-4">Nessun prodotto.</div>`;
+      listaProdotti.innerHTML = `
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-box-fill fs-2 d-block opacity-25 mb-2"></i>
+          <span>Nessun prodotto trovato in questa categoria.</span>
+        </div>`;
       return;
     }
 
@@ -230,15 +394,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const codice = escapeHtml(p.codice || "—");
 
       const item = document.createElement('div');
-      item.className = 'list-group-item prodotto-row rounded-4 mx-2 my-2';
+      item.className = 'prodotto-modal-row';
       item.innerHTML = `
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="icon-pill"><i class="bi bi-box-seam"></i></span>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <span class="prodotto-icon-box"><i class="bi bi-box-seam-fill"></i></span>
             <div>
-              <div class="fw-semibold">${nome}</div>
+              <div class="fw-bold text-color">${nome}</div>
               <div class="small text-muted mt-1">
-                <span class="badge text-bg-light border">
+                <span class="badge bg-light text-secondary border prodotto-upc-badge">
                   <i class="bi bi-upc-scan me-1"></i> COD: ${codice}
                 </span>
               </div>
@@ -246,16 +410,16 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
 
           <div class="btn-group btn-group-sm" role="group">
-            <a href="/prodotti/clienti/${p.id}" class="btn btn-outline-info" title="Clienti">
-              <i class="bi bi-people"></i>
+            <a href="/prodotti/clienti/${p.id}" class="btn btn-outline-primary" title="Clienti Associati">
+              <i class="bi bi-people-fill"></i> Clienti
             </a>
-            <a href="/prodotti/modifica/${p.id}" class="btn btn-outline-warning" title="Modifica">
-              <i class="bi bi-pencil-square"></i>
+            <a href="/prodotti/modifica/${p.id}" class="btn btn-outline-warning" title="Modifica Prodotto">
+              <i class="bi bi-pencil-fill"></i> Modifica
             </a>
             <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline"
-                  onsubmit="return confirm('Sei sicuro di voler eliminare questo prodotto?');">
-              <button type="submit" class="btn btn-outline-danger" title="Elimina">
-                <i class="bi bi-trash"></i>
+                  onsubmit="return confirm('Sei sicuro di voler eliminare definitivamente questo prodotto?');">
+              <button type="submit" class="btn btn-outline-danger" title="Elimina Prodotto">
+                <i class="bi bi-trash-fill"></i> Elimina
               </button>
             </form>
           </div>
@@ -279,7 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function filterCategorieCards() {
     const q = norm(searchGlobale.value);
 
-    // filtro card categorie (come prima)
     document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
       const nomeCat = norm(col.dataset.categoria);
       const prodotti = prodottiPerCategoria[col.dataset.categoria] || [];
@@ -293,9 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       col.style.display = (matchCategoria || matchProdotto) ? '' : 'none';
     });
-
-    // ✅ se cerchi qualcosa che matcha prodotti senza categoria, non abbiamo una "card",
-    // ma almeno l’utente può cliccare il bottone sopra e trovarli.
   }
 
   function filterByCount(mode) {
@@ -355,76 +515,4 @@ document.addEventListener('DOMContentLoaded', () => {
   btnSoloVuote.addEventListener('click', () => filterByCount("vuote"));
 });
 </script>
-
-<style>
-.hover-scale { transition: transform 0.25s ease, box-shadow 0.25s ease; }
-.hover-scale:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(0,0,0,0.18); }
-
-.categoria-card{
-  border-radius: 1rem;
-  height: 300px;
-  position: relative;
-  overflow: hidden;
-  color: white;
-  background-size: cover;
-  background-position: center;
-}
-
-.overlay{
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.40);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  z-index: 2;
-  transition: background 0.25s ease;
-}
-.categoria-card:hover .overlay{ background: rgba(0,0,0,0.20); }
-
-.chip{
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  padding: .25rem .6rem;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.18);
-  border: 1px solid rgba(255,255,255,0.22);
-  backdrop-filter: blur(6px);
-  font-size: .8rem;
-}
-
-.card-title { font-size: 1.6rem; text-shadow: 0 6px 22px rgba(0,0,0,0.30); }
-
-.modal-animate { transform: scale(0.98); opacity: 0; transition: transform 0.2s ease, opacity 0.2s ease; }
-.modal.show .modal-animate { transform: scale(1); opacity: 1; }
-
-.max-height-520 { max-height: 520px; }
-
-.prodotto-row{
-  border: 1px solid rgba(0,0,0,0.06);
-  background: #fff;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-}
-.prodotto-row:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
-  background: #f8f9fa;
-}
-
-.icon-pill{
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(13,110,253,0.10);
-  color: #0d6efd;
-}
-
-.cursor-pointer { cursor: pointer; }
-</style>
 {% endblock %}

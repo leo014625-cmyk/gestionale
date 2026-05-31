@@ -5,51 +5,201 @@
 {% block styles %}
 {{ super() }}
 <style>
-body { background: #f6f8fa; font-family: "Inter", system-ui, sans-serif; }
-h1,h5 { font-weight:600; }
+  /* Client Sheet Premium Styling */
+  .detail-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .detail-card:hover {
+    box-shadow: var(--shadow-md);
+  }
 
-.card, .categoria-card { border-radius:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.05); background:#fff; transition:0.3s ease; }
-.card:hover, .categoria-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.1); }
+  /* WhatsApp bot banner */
+  .whatsapp-banner {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 5px solid #25D366;
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .whatsapp-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background-color: rgba(37, 211, 102, 0.1);
+    color: #25D366;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+  }
+  .whatsapp-num {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 600;
+  }
 
-.categoria-card { cursor:pointer; padding:1.5rem; text-align:center; margin-bottom:1rem; }
-.categoria-card i { font-size:2.5rem; color:#0d6efd; margin-bottom:0.5rem; }
-.categoria-card .prod-count { font-size:0.8rem; background:#0d6efd;color:#fff;padding:0.25rem 0.5rem;border-radius:1rem; display:block; margin-top:0.25rem; }
+  /* Micro KPI cards */
+  .kpi-mini-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 1.15rem;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    height: 100%;
+    transition: transform 0.2s;
+  }
+  .kpi-mini-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .kpi-mini-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+  }
+  .kpi-mini-val {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+  }
 
-.badge-soft { padding:0.35em 0.6em; font-size:0.8rem; border-radius:0.5rem; font-weight:500; }
-.badge-soft-success { background-color: rgba(40,167,69,0.15); color:#28a745; }
-.badge-soft-danger { background-color: rgba(220,53,69,0.15); color:#dc3545; }
-.badge-soft-warning { background-color: rgba(253,126,20,0.15); color:#fd7e14; }
+  /* Logs Panel */
+  .log-container {
+    max-height: 240px;
+    overflow-y: auto;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    padding: 0.5rem 1rem;
+  }
+  .log-item {
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 0;
+  }
+  .log-item:last-child {
+    border-bottom: none;
+  }
 
-.search-bar { padding:0.5rem 1rem; border:1px solid #ddd; border-radius:1rem; width:100%; margin-bottom:0.5rem; font-size:0.9rem; }
-.search-bar:focus { border-color:#0d6efd; box-shadow:0 0 0 0.15rem rgba(13,110,253,0.25); outline:none; }
+  /* Category selectors */
+  .cat-selector-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 1.15rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 0.75rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .cat-selector-card::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: transparent;
+    transition: background-color 0.2s;
+  }
+  .cat-selector-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+  .cat-selector-card.active {
+    border-color: var(--primary);
+    background-color: var(--primary-light);
+  }
+  .cat-selector-card.active::before {
+    background-color: var(--primary);
+  }
+  .cat-selector-card i {
+    font-size: 1.75rem;
+    color: var(--primary);
+    margin-bottom: 0.35rem;
+    display: inline-block;
+  }
+  .cat-selector-card.active i {
+    color: var(--primary-hover);
+  }
 
-.log-container { max-height:220px; overflow-y:auto; border-radius:1rem; padding:0.5rem 0.75rem; background:#fff; border:1px solid #eaeaea; }
-table tbody tr { transition:0.2s; }
-table tbody tr:hover { background:#f1f3f5 !important; }
+  /* Search and Tables */
+  .search-input-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+  .search-input-wrapper input {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.65rem 1rem 0.65rem 2.25rem;
+    width: 100%;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .search-input-wrapper input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+  }
+  .search-input-wrapper i {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+  }
 
-.price-offer { color:#28a745; font-weight:600; }
-.note-data { display:block; font-size:0.75rem; color:#6c757d; margin-top:0.25rem; }
-
-.kpi-title { font-size:0.85rem; color:#6c757d; margin-bottom:0.25rem; }
-.kpi-value { font-size:1.35rem; font-weight:700; }
-
-.wh-card { border:1px solid #e9ecef; border-radius: 1rem; background:#fff; }
-.wh-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background: rgba(37,211,102,0.12); }
-.wh-icon i { color:#25D366; font-size:1.5rem; }
-.wh-number { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  .table-responsive {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .sheet-table th {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .sheet-table td {
+    padding: 1rem 0.75rem;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .sheet-table tbody tr:hover td {
+    background-color: var(--primary-light);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 
-{# === STATO CLIENTE: coerente con lista, ma con fallback === #}
+{# === STATO CLIENTE === #}
 {% if stati_clienti is defined and stati_clienti %}
   {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
 {% else %}
   {% set stato = stato_cliente if stato_cliente is defined and stato_cliente else 'inattivo' %}
 {% endif %}
 
-{# === WHATSAPP: normalizza numero === #}
+{# === WHATSAPP NORMALIZATION === #}
 {% set tel_raw = (cliente.telefono or '') %}
 {% set whatsapp_number = tel_raw|replace(' ', '')|replace('+','')|replace('-','')|replace('(','')|replace(')','') %}
 {% set has_whatsapp = whatsapp_number|length >= 8 %}
@@ -60,238 +210,243 @@ table tbody tr:hover { background:#f1f3f5 !important; }
   {% set wa_linked = has_whatsapp %}
 {% endif %}
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-  <div class="d-flex align-items-center gap-3">
-    <h1 class="mb-0">{{ cliente.nome }}</h1>
-    {% if stato == 'attivo' %}
-      <span class="badge bg-success"><i class="bi bi-circle-fill me-1"></i> Attivo</span>
-    {% elif stato == 'bloccato' %}
-      <span class="badge bg-danger"><i class="bi bi-circle-fill me-1"></i> Bloccato</span>
-    {% else %}
-      <span class="badge bg-secondary"><i class="bi bi-circle-fill me-1"></i> Inattivo</span>
-    {% endif %}
+<div class="container-fluid px-0">
+
+  <!-- Header Card -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <h1 class="h2 mb-0">{{ cliente.nome }}</h1>
+      {% if stato == 'attivo' %}
+        <span class="badge bg-success-subtle text-success border border-success px-3 py-1.5 rounded-pill fw-semibold">
+          <i class="bi bi-circle-fill me-1.5 small"></i>Attivo
+        </span>
+      {% elif stato == 'bloccato' %}
+        <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-1.5 rounded-pill fw-semibold">
+          <i class="bi bi-exclamation-octagon me-1.5 small"></i>Bloccato
+        </span>
+      {% else %}
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary px-3 py-1.5 rounded-pill fw-semibold">
+          <i class="bi bi-clock-history me-1.5 small"></i>Inattivo
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-pencil-square"></i> Modifica Anagrafica
+      </a>
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-arrow-left"></i> Torna alla Lista
+      </a>
+    </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-2">
-    <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4">
-      <i class="bi bi-pencil-square me-1"></i> Modifica
-    </a>
-    <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4">
-      <i class="bi bi-arrow-left me-1"></i> Lista clienti
-    </a>
-  </div>
-</div>
-
-<!-- ================== WHATSAPP / BOT ================== -->
-<div class="card wh-card mb-4 p-3">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-    <div class="d-flex align-items-center gap-3">
-      <div class="wh-icon">
-        <i class="bi bi-whatsapp"></i>
+  <!-- WhatsApp Bot Integration Card -->
+  <div class="whatsapp-banner mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="whatsapp-icon-wrapper">
+          <i class="bi bi-whatsapp"></i>
+        </div>
+        <div>
+          <div class="fw-bold d-flex align-items-center gap-2 flex-wrap text-color">
+            <span>Stato WhatsApp Bot</span>
+            {% if wa_linked %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.75rem;"><i class="bi bi-check-circle me-1"></i>Connesso</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.75rem;"><i class="bi bi-slash-circle me-1"></i>Scollegato</span>
+            {% endif %}
+          </div>
+          <div class="text-muted small mt-1">
+            {% if has_whatsapp %}
+              Recapito WhatsApp: <span class="fw-semibold whatsapp-num text-color">{{ whatsapp_number }}</span>
+            {% else %}
+              Recapito WhatsApp: <span class="fst-italic">Nessun recapito salvato</span>
+            {% endif %}
+          </div>
+        </div>
       </div>
 
-      <div>
-        <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
-          <span>WhatsApp collegato al bot</span>
-          {% if wa_linked %}
-            <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i> Collegato</span>
+      <div class="d-flex gap-2">
+        {% if has_whatsapp %}
+          <a class="btn btn-success rounded-4 fw-semibold px-3 py-2 d-flex align-items-center gap-2"
+             href="https://wa.me/{{ whatsapp_number }}"
+             target="_blank" rel="noopener">
+            <i class="bi bi-chat-dots-fill"></i> Apri Chat WA
+          </a>
+        {% endif %}
+        <a class="btn btn-outline-primary rounded-4 fw-semibold px-3 py-2 d-flex align-items-center gap-2"
+           href="{{ url_for('modifica_cliente', id=cliente.id) }}">
+          <i class="bi bi-gear-fill"></i> Imposta Numero
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Mini Metrics Grid -->
+  <div class="row g-3 mb-4">
+    {% set mesi_totali = fatturato_mensile|length %}
+    {% set media = (fatturato_totale / mesi_totali if mesi_totali > 0 else 0) %}
+    {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
+    {% set cm = crescita_mensile if cm_defined else 0 %}
+
+    <div class="col-6 col-md-3">
+      <div class="kpi-mini-card">
+        <div class="kpi-mini-title">Fatturato Cumulativo</div>
+        <div class="kpi-mini-val text-success">{{ "%.2f"|format(fatturato_totale or 0) }} €</div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="kpi-mini-card">
+        <div class="kpi-mini-title">Media Mensile</div>
+        <div class="kpi-mini-val text-info">{{ "%.2f"|format(media) }} €</div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="kpi-mini-card">
+        <div class="kpi-mini-title">Crescita Mensile</div>
+        <div class="kpi-mini-val {% if cm_defined and cm < 0 %}text-danger{% else %}text-success{% endif %}">
+          {% if cm_defined %}
+            {{ cm }}%
+            {% if cm > 0 %}<i class="bi bi-arrow-up-short"></i>{% elif cm < 0 %}<i class="bi bi-arrow-down-short"></i>{% endif %}
           {% else %}
-            <span class="badge bg-secondary"><i class="bi bi-slash-circle me-1"></i> Non collegato</span>
+            –
           {% endif %}
         </div>
+      </div>
+    </div>
 
-        <div class="text-muted small">
-          {% if has_whatsapp %}
-            Numero: <span class="fw-semibold wh-number">{{ whatsapp_number }}</span>
-          {% else %}
-            Numero: <span class="fst-italic">non presente</span>
-          {% endif %}
+    <div class="col-6 col-md-3">
+      <div class="kpi-mini-card">
+        <div class="kpi-mini-title">Ultimo Consolidato</div>
+        {% set keys = fatturato_mensile.keys()|list|sort %}
+        {% if keys|length > 0 %}
+          {% set last_key = keys[-1] %}
+          <div class="kpi-mini-val text-primary" style="font-size: 1.15rem;">{{ last_key }}</div>
+          <div class="small text-muted fw-bold">{{ "%.2f"|format(fatturato_mensile[last_key] or 0) }} €</div>
+        {% else %}
+          <div class="kpi-mini-val text-muted">–</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts & Logs Panel -->
+  <div class="row g-4 mb-5">
+    <!-- Chart Panel -->
+    <div class="col-12 col-lg-7">
+      <div class="detail-card h-100 d-flex flex-column" style="min-height: 320px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="fw-bold text-uppercase tracking-wider text-muted small"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Fatturato Mensile</span>
+          <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark rounded-pill px-3">
+            <option value="ultimi3" selected>Ultimi 3 mesi</option>
+            <option value="ultimi6">Ultimi 6 mesi</option>
+            <option value="tutti">Storico Completo</option>
+          </select>
         </div>
+        <div class="flex-grow-1 position-relative" style="height: 240px;">
+          <canvas id="fatturatoMensileChart"></canvas>
+        </div>
+      </div>
+    </div>
 
-        {% if has_whatsapp and not wa_linked %}
-          <div class="small text-muted mt-1">
-            Dopo aver salvato il numero, lo stato diventa “Collegato” quando il bot riceve il primo messaggio da quel numero.
+    <!-- Logs Panel -->
+    <div class="col-12 col-lg-5">
+      <div class="detail-card h-100 d-flex flex-column">
+        <span class="fw-bold text-uppercase tracking-wider text-muted small mb-3"><i class="bi bi-clock-history me-2 text-warning"></i>Ultimi Log Operativi</span>
+        {% if log_cliente %}
+          {% set ultimi_log = log_cliente|sort(attribute='data', reverse=true) %}
+          <div class="log-container flex-grow-1">
+            {% for log in ultimi_log[:8] %}
+              <div class="log-item d-flex justify-content-between gap-3 align-items-start">
+                <div class="small">
+                  {% if 'Fatturato aggiornato' in log.descrizione %}
+                    <i class="bi bi-currency-euro text-primary me-1.5"></i>
+                  {% elif 'Aggiunto prodotto' in log.descrizione or 'Rimosso prodotto' in log.descrizione %}
+                    <i class="bi bi-box-seam text-success me-1.5"></i>
+                  {% elif 'Prezzo prodotto modificato' in log.descrizione %}
+                    <i class="bi bi-tag-fill text-warning me-1.5"></i>
+                  {% else %}
+                    <i class="bi bi-info-circle-fill text-secondary me-1.5"></i>
+                  {% endif %}
+                  <span class="text-color">{{ log.descrizione }}</span>
+                </div>
+                <span class="text-muted small text-nowrap" style="font-size: 0.72rem;">
+                  {{ log.data.strftime("%d/%m/%Y") if log.data else '–' }}
+                </span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted flex-grow-1 d-flex flex-column justify-content-center align-items-center">
+            <i class="bi bi-journals fs-1 d-block opacity-25 mb-2"></i>
+            <span class="small">Nessun log disponibile per questo cliente.</span>
           </div>
         {% endif %}
       </div>
     </div>
-
-    <div class="d-flex gap-2">
-      {% if has_whatsapp %}
-        <a class="btn btn-success rounded-4"
-           href="https://wa.me/{{ whatsapp_number }}"
-           target="_blank" rel="noopener">
-          <i class="bi bi-chat-dots me-1"></i> Apri chat
-        </a>
-      {% endif %}
-      <a class="btn btn-outline-primary rounded-4"
-         href="{{ url_for('modifica_cliente', id=cliente.id) }}">
-        <i class="bi bi-link-45deg me-1"></i> Gestisci WhatsApp
-      </a>
-    </div>
-  </div>
-</div>
-
-<!-- ================== METRICHE ================== -->
-<div class="row g-3 mb-4">
-  {% set mesi_totali = fatturato_mensile|length %}
-  {% set media = (fatturato_totale / mesi_totali if mesi_totali>0 else 0) %}
-
-  {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
-  {% set cm = crescita_mensile if cm_defined else 0 %}
-
-  <div class="col-12 col-md-3">
-    <div class="card h-100 p-3 text-center">
-      <div class="kpi-title">Fatturato Totale</div>
-      <div class="kpi-value text-success">{{ "%.2f"|format(fatturato_totale or 0) }} €</div>
-    </div>
   </div>
 
-  <div class="col-12 col-md-3">
-    <div class="card h-100 p-3 text-center">
-      <div class="kpi-title">Media Mensile</div>
-      <div class="kpi-value text-info">{{ "%.2f"|format(media) }} €</div>
-    </div>
-  </div>
+  <!-- Category & Products Selector Container -->
+  <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">Listino Prodotti per Categoria</h5>
+  <div class="row">
+    <!-- Category Sidebar (col-md-3) -->
+    <div class="col-12 col-md-4 col-lg-3 mb-4">
+      {% for cat in categorie %}
+        {% set ns = namespace(tot=0, lav=0) %}
+        {% for p in prodotti if p.categoria_id == cat.id %}
+          {% set ns.tot = ns.tot + 1 %}
+          {% if (p.id|string) in prodotti_lavorati %}
+            {% set ns.lav = ns.lav + 1 %}
+          {% endif %}
+        {% endfor %}
 
-  <div class="col-12 col-md-3">
-    <div class="card h-100 p-3 text-center">
-      <div class="kpi-title">Crescita Mensile</div>
-      <div class="kpi-value text-{% if cm_defined and cm < 0 %}danger{% else %}success{% endif %}">
-        {% if cm_defined %}
-          {{ cm }} %
-          {% if cm > 0 %}<i class="bi bi-arrow-up-short text-success"></i>{% endif %}
-          {% if cm < 0 %}<i class="bi bi-arrow-down-short text-danger"></i>{% endif %}
-        {% else %}
-          –
-        {% endif %}
-      </div>
-      <div class="text-muted small">Confronto ultimi 2 mesi chiusi</div>
-    </div>
-  </div>
-
-  <div class="col-12 col-md-3">
-    <div class="card h-100 p-3 text-center">
-      <div class="kpi-title">Ultimo Fatturato</div>
-      {% set keys = fatturato_mensile.keys()|list|sort %}
-      {% if keys|length > 0 %}
-        {% set last_key = keys[-1] %}
-        <div class="kpi-value text-primary">{{ last_key }}</div>
-        <div class="text-muted small">
-          {{ "%.2f"|format(fatturato_mensile[last_key] or 0) }} €
+        <div class="cat-selector-card" id="cat-card-{{ cat.id }}" data-cat-id="{{ cat.id }}" onclick="selectCategory('{{ cat.id }}')">
+          <i class="bi bi-box-seam"></i>
+          <h6 class="fw-bold mb-1 text-color">{{ cat.nome }}</h6>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-0.5 mt-1" style="font-size: 0.72rem;">
+            {{ ns.lav }} / {{ ns.tot }} Lavorati
+          </span>
         </div>
-      {% else %}
-        <div class="kpi-value text-muted">–</div>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- ================== GRAFICO + LOG ================== -->
-<div class="row g-3 mb-4">
-  <div class="col-12 col-lg-6">
-    <div class="card h-100 p-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="fw-semibold"><i class="bi bi-graph-up-arrow me-2"></i> Andamento Fatturato</span>
-        <select id="filtro-mesi" class="form-select form-select-sm w-auto bg-light text-dark">
-          <option value="ultimi3" selected>Ultimi 3 mesi</option>
-          <option value="ultimi6">Ultimi 6 mesi</option>
-          <option value="tutti">Tutti</option>
-        </select>
-      </div>
-      <canvas id="fatturatoMensileChart"></canvas>
-      <div class="text-muted small mt-2">
-        Nota: mostra lo storico aggregato per mese.
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-lg-6">
-    <div class="card h-100 p-3">
-      <div class="d-flex align-items-center justify-content-between mb-2">
-        <h6 class="mb-0 fw-semibold">Ultimi Log</h6>
-      </div>
-
-      {% if log_cliente %}
-        {% set ultimi_log = log_cliente|sort(attribute='data', reverse=true) %}
-        <div class="log-container">
-          <ul class="list-unstyled mb-0">
-            {% for log in ultimi_log[:8] %}
-              <li class="d-flex justify-content-between gap-2 border-bottom py-1">
-                <div class="pe-2">
-                  {% if 'Fatturato aggiornato' in log.descrizione %}
-                    <i class="bi bi-currency-euro text-primary me-1"></i>
-                  {% elif 'Aggiunto prodotto' in log.descrizione or 'Rimosso prodotto' in log.descrizione %}
-                    <i class="bi bi-box-seam text-success me-1"></i>
-                  {% elif 'Prezzo prodotto modificato' in log.descrizione %}
-                    <i class="bi bi-tag-fill text-warning me-1"></i>
-                  {% else %}
-                    <i class="bi bi-info-circle-fill text-secondary me-1"></i>
-                  {% endif %}
-                  {{ log.descrizione }}
-                </div>
-                <small class="text-muted text-nowrap">
-                  {{ log.data.strftime("%d/%m/%Y") if log.data else '–' }}
-                </small>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% else %}
-        <p class="text-muted fst-italic mb-0">Nessun log disponibile.</p>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- ================== CATEGORIE + PRODOTTI ================== -->
-<div class="row">
-  <div class="col-md-3">
-    {% for cat in categorie %}
-      {% set ns = namespace(tot=0, lav=0) %}
-      {% for p in prodotti if p.categoria_id == cat.id %}
-        {% set ns.tot = ns.tot + 1 %}
-        {% if (p.id|string) in prodotti_lavorati %}
-          {% set ns.lav = ns.lav + 1 %}
-        {% endif %}
       {% endfor %}
+    </div>
 
-      <div class="card categoria-card" data-cat-id="{{ cat.id }}">
-        <div class="d-flex flex-column align-items-center justify-content-center p-3">
-          <i class="bi bi-box-seam mb-2"></i>
-          <h5 class="mb-1">{{ cat.nome }}</h5>
-          <small class="text-muted">{{ ns.lav }} / {{ ns.tot }} prodotti lavorati</small>
-        </div>
-      </div>
-    {% endfor %}
+    <!-- Interactive Table Content (col-md-9) -->
+    <div class="col-12 col-md-8 col-lg-9">
+      <div id="contenitore-tabella"></div>
+    </div>
   </div>
 
-  <div class="col-md-9">
-    <div id="contenitore-tabella"></div>
-  </div>
 </div>
 
-<!-- ================== TEMPLATE PER TABELLE ================== -->
+<!-- ================== DYNAMIC HTML TABLE TEMPLATES ================== -->
 {% for cat in categorie %}
 <template id="tabella-template-{{ cat.id }}">
-  <div class="card p-3 mb-3">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-2 mb-3">
-      <h5 class="mb-0">{{ cat.nome }}</h5>
-      <span class="text-muted small">Clicca una categoria a sinistra per cambiare</span>
+  <div class="detail-card p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom pb-2 mb-3">
+      <h5 class="fw-bold mb-0 text-color"><i class="bi bi-folder-check text-primary me-2"></i>{{ cat.nome }}</h5>
+      <span class="text-muted small">Cerca codice o prodotto nella categoria</span>
     </div>
 
-    <input type="text" class="search-bar mb-2" placeholder="Cerca prodotto o codice..."
-           onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+    <!-- Filter input -->
+    <div class="search-input-wrapper">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Filtra prodotti per nome o codice..."
+             onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+    </div>
 
+    <!-- Table Responsive -->
     <div class="table-responsive">
-      <table class="table table-sm align-middle" id="tabella-prodotti-{{ cat.id }}">
-        <thead class="table-light">
+      <table class="table sheet-table align-middle" id="tabella-prodotti-{{ cat.id }}">
+        <thead>
           <tr>
             <th>Prodotto</th>
-            <th>Data operazione</th>
-            <th>Prezzo Attuale (€)</th>
-            <th>Prezzo Offerta (€)</th>
-            <th>Stato</th>
+            <th style="width: 140px;">Data Modifica</th>
+            <th class="text-end" style="width: 120px;">Prezzo Listino</th>
+            <th class="text-end" style="width: 120px;">Prezzo Offerta</th>
+            <th class="text-center" style="width: 130px;">Stato Bot</th>
           </tr>
         </thead>
         <tbody>
@@ -300,14 +455,14 @@ table tbody tr:hover { background:#f1f3f5 !important; }
             {% set pa = prezzi_attuali.get(pid) %}
             {% set po = prezzi_offerta.get(pid) %}
             <tr>
-              <td class="fw-semibold">
-                <span class="prod-nome">{{ p.nome }}</span>
-                <span class="badge text-bg-light border ms-2 prod-code-badge">
+              <td>
+                <span class="fw-bold text-color prod-nome">{{ p.nome }}</span>
+                <span class="badge bg-light text-secondary border ms-2 prod-code-badge" style="font-size: 0.72rem;">
                   COD: {{ p.codice if p.codice else '—' }}
                 </span>
               </td>
 
-              <td>
+              <td class="small text-muted">
                 {% if prodotti_data.get(pid) %}
                   {{ prodotti_data[pid].strftime("%d/%m/%Y") }}
                 {% else %}
@@ -315,33 +470,33 @@ table tbody tr:hover { background:#f1f3f5 !important; }
                 {% endif %}
               </td>
 
-              <td>
+              <td class="text-end fw-semibold">
                 {% if pa is not none %}
-                  {{ "%.2f"|format(pa) }}
+                  {{ "%.2f"|format(pa) }} €
                 {% else %}
                   <span class="text-muted">–</span>
                 {% endif %}
               </td>
 
-              <td>
+              <td class="text-end fw-bold text-success">
                 {% if po is not none %}
-                  <span class="price-offer">{{ "%.2f"|format(po) }}</span>
+                  <span>{{ "%.2f"|format(po) }} €</span>
                 {% else %}
-                  <span class="text-muted">–</span>
+                  <span class="text-muted fw-normal">–</span>
                 {% endif %}
               </td>
 
-              <td>
+              <td class="text-center">
                 {% if pid in prodotti_lavorati %}
-                  <span class="badge bg-success">Lavorato</span>
+                  <span class="badge bg-success-subtle text-success border border-success px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">Lavorato</span>
                 {% else %}
-                  <span class="badge bg-secondary">Non lavorato</span>
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">Non lavorato</span>
                 {% endif %}
               </td>
             </tr>
           {% else %}
             <tr>
-              <td colspan="5" class="text-center text-muted fst-italic">Nessun prodotto</td>
+              <td colspan="5" class="text-center text-muted fst-italic py-4">Nessun prodotto disponibile in questa categoria.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -356,14 +511,28 @@ table tbody tr:hover { background:#f1f3f5 !important; }
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 (() => {
+  let chart;
+
+  // Resolve CSS themed color tokens
+  function getThemeColors() {
+    const style = getComputedStyle(document.body);
+    return {
+      primary: style.getPropertyValue('--primary').trim() || '#4f46e5',
+      primaryHover: style.getPropertyValue('--primary-hover').trim() || '#4338ca',
+      bgCard: style.getPropertyValue('--card-bg').trim() || '#ffffff',
+      textColor: style.getPropertyValue('--text-color').trim() || '#0f172a',
+      textMuted: style.getPropertyValue('--text-muted').trim() || '#64748b',
+      borderColor: style.getPropertyValue('--border-color').trim() || '#e2e8f0',
+    };
+  }
+
+  // Draw or Redraw client specific revenues bar chart
   const fatturato = {{ fatturato_mensile|default({})|tojson }};
   const mesi = Object.keys(fatturato).sort();
   const canvas = document.getElementById('fatturatoMensileChart');
   const ctx = canvas.getContext('2d');
-  let chart;
 
   const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
   const formatta = m => {
@@ -382,54 +551,102 @@ table tbody tr:hover { background:#f1f3f5 !important; }
     return { labels: s.map(formatta), dati: s.map(m => fatturato[m] || 0) };
   };
 
-  const gradient = ctx.createLinearGradient(0,0,0,150);
-  gradient.addColorStop(0,'rgba(13,110,253,0.8)');
-  gradient.addColorStop(1,'rgba(13,110,253,0.2)');
-
   const aggiornaGrafico = tipo => {
     const d = getData(tipo);
+    const colors = getThemeColors();
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+    gradient.addColorStop(0, colors.primary);
+    gradient.addColorStop(1, 'rgba(79, 70, 229, 0.1)');
+
     if (chart) chart.destroy();
-    chart = new Chart(ctx,{
-      type:'bar',
-      data:{
-        labels:d.labels,
-        datasets:[{
-          data:d.dati,
-          backgroundColor:gradient,
-          borderRadius:6,
-          borderSkipped:false
+
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: d.labels,
+        datasets: [{
+          data: d.dati,
+          backgroundColor: gradient,
+          borderRadius: 8,
+          borderSkipped: false
         }]
       },
-      options:{
-        responsive:true,
-        plugins:{legend:{display:false}},
-        scales:{y:{beginAtZero:true}}
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: colors.bgCard,
+            titleColor: colors.primary,
+            bodyColor: colors.textColor,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 10
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: colors.textMuted, font: { family: 'Inter', weight: '600' } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: colors.borderColor },
+            ticks: { color: colors.textMuted }
+          }
+        }
       }
     });
   };
 
-  document.getElementById('filtro-mesi').addEventListener('change', e => aggiornaGrafico(e.target.value));
+  const filtroSelect = document.getElementById('filtro-mesi');
+  filtroSelect.addEventListener('change', e => aggiornaGrafico(e.target.value));
+
+  // Initialize Chart
   aggiornaGrafico('ultimi3');
 
-  const first = document.querySelector(".categoria-card");
-  if (first) {
-    const t = document.getElementById(`tabella-template-${first.dataset.catId}`);
-    const container = document.getElementById("contenitore-tabella");
-    if (t && container) container.innerHTML = t.innerHTML;
-  }
-
-  document.querySelectorAll(".categoria-card").forEach(card=>{
-    card.addEventListener("click",()=> {
-      const t = document.getElementById(`tabella-template-${card.dataset.catId}`);
-      const container = document.getElementById("contenitore-tabella");
-      if (t && container) container.innerHTML = t.innerHTML;
-    });
+  // React to theme changes and update the graph colors dynamically
+  document.addEventListener("themeChanged", () => {
+    setTimeout(() => {
+      aggiornaGrafico(filtroSelect.value);
+    }, 50);
   });
 })();
 
-function filtraProdotti(input,catId){
+// Category Selector Controls
+function selectCategory(catId) {
+  // Toggle Active Classes on selectors
+  document.querySelectorAll('.cat-selector-card').forEach(card => {
+    card.classList.remove('active');
+  });
+  const activeCard = document.getElementById(`cat-card-${catId}`);
+  if (activeCard) {
+    activeCard.classList.add('active');
+  }
+
+  // Load target template into container
+  const template = document.getElementById(`tabella-template-${catId}`);
+  const container = document.getElementById("contenitore-tabella");
+  if (template && container) {
+    container.innerHTML = template.innerHTML;
+  }
+}
+
+// Automatically load the first category on page startup
+document.addEventListener("DOMContentLoaded", () => {
+  const first = document.querySelector(".cat-selector-card");
+  if (first) {
+    selectCategory(first.dataset.catId);
+  }
+});
+
+// Search Filter Controls in templates
+function filtraProdotti(input, catId) {
   const filtro = (input.value || "").toLowerCase().trim();
-  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r=>{
+  document.querySelectorAll(`#tabella-prodotti-${catId} tbody tr`).forEach(r => {
     const nome = (r.querySelector(".prod-nome")?.innerText || "").toLowerCase();
     const codiceTxt = (r.querySelector(".prod-code-badge")?.innerText || "").toLowerCase(); // "COD: XXXXX"
     const codice = codiceTxt.replace("cod:", "").trim();
@@ -439,5 +656,4 @@ function filtraProdotti(input,catId){
   });
 }
 </script>
-
 {% endblock %}

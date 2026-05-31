@@ -1,172 +1,423 @@
 {% extends "01_base.html" %}
 
-{% block title %}Volantini BETA - Gestionale Horeca{% endblock %}
+{% block title %}Volantini BETA - Horeca Suite{% endblock %}
 
-{% block content %}
+{% block styles %}
+{{ super() }}
+<style>
+  /* Premium Beta Flyer List styling */
+  .beta-kpi-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .beta-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .beta-kpi-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  .beta-kpi-val {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .beta-kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+  }
 
-<h1 class="mb-4">🧪 Volantini BETA salvati</h1>
+  .bg-soft-primary { background-color: var(--primary-light); color: var(--primary); }
+  .bg-soft-info { background-color: var(--accent-light); color: var(--accent); }
 
-<div class="row mb-3">
-  <div class="col-md-6 d-flex align-items-center">
-    <h4 class="m-0">Elenco volantini</h4>
-  </div>
-  <div class="col-md-4 mt-2 mt-md-0">
-    <input type="text" class="form-control form-control-sm" id="search-volantini"
-           placeholder="Cerca per nome o ID...">
-  </div>
-  <div class="col-md-2 text-md-end mt-2 mt-md-0">
-    <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary w-100">
-      ➕ Crea nuovo
-    </a>
-  </div>
-</div>
+  /* Table Cards */
+  .table-card-panel {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  
+  .custom-table th {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1.15rem 1rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  
+  .custom-table td {
+    padding: 1.15rem 1rem;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.92rem;
+    transition: background-color 0.2s;
+  }
+  .custom-table tbody tr:hover td {
+    background-color: var(--primary-light);
+  }
 
-<div class="card shadow-sm">
-  <div class="card-body p-0">
+  .preview-thumb-container {
+    width: 100px;
+    height: 65px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    background-color: var(--bg-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .preview-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s;
+  }
+  .preview-thumb-container:hover .preview-thumb-img {
+    transform: scale(1.08);
+  }
 
-    <table class="table table-hover table-bordered m-0" id="tabella-volantini-beta">
-      <thead class="table-dark">
-        <tr>
-          <th style="width:60px;">ID</th>
-          <th style="width:150px;">Anteprima</th>
-          <th>Nome</th>
-          <th style="width:200px;">Creato il</th>
-          <th style="width:260px;">Azioni</th>
-        </tr>
-      </thead>
+  /* Custom input components */
+  .styled-form-control {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .styled-form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+  }
 
-      <tbody>
-        {% for v in lista %}
-        <tr class="data-row">
-          <td class="text-center align-middle">{{ v.id }}</td>
+  /* Premium Filter Tabs */
+  .nav-pills .nav-link {
+    color: var(--text-color);
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .nav-pills .nav-link.active {
+    background-color: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+  }
+  .nav-pills .nav-link:hover:not(.active) {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
 
-          <!-- MINIATURA -->
-          <td class="text-center align-middle">
-            {% if v.thumbnail %}
-              <img src="{{ v.thumbnail }}" alt="Anteprima volantino {{ v.id }}"
-                   class="img-thumbnail"
-                   style="max-width: 130px; max-height: 90px; object-fit: cover;">
-            {% else %}
-              <span class="text-muted small">Nessuna<br>anteprima</span>
-            {% endif %}
-          </td>
 
-          <!-- NOME + BADGE ULTIMA MODIFICA -->
-          <td class="align-middle">
-            <strong>{{ v.nome }}</strong>
-            {% if v.aggiornato_il and v.creato_il and v.aggiornato_il > v.creato_il %}
-              <br>
-              <span class="badge bg-info text-dark mt-1">
-                Ultima modifica {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') if v.aggiornato_il else '' }}
-              </span>
-            {% endif %}
-          </td>
-
-          <td class="align-middle">
-            {{ v.creato_il.strftime('%d/%m/%Y %H:%M') if v.creato_il else 'N/D' }}
-          </td>
-
-          <td class="text-center align-middle">
-
-            <!-- APRI -->
-            <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}" 
-               class="btn btn-sm btn-primary me-1 mb-1">
-              ✏️ Apri / Modifica
-            </a>
-
-            <!-- DUPLICA -->
-            <a href="{{ url_for('beta_volantino_duplica', id=v.id) }}" 
-               class="btn btn-sm btn-outline-secondary me-1 mb-1">
-              📄 Duplica
-            </a>
-
-            <!-- ELIMINA -->
-            <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" 
-               class="btn btn-sm btn-danger mb-1"
-               onclick="return confirm('Sei sicuro di voler eliminare questo volantino?')">
-              🗑️ Elimina
-            </a>
-
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="5" class="text-center text-muted py-4">
-            Nessun volantino salvato.<br>
-            <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary mt-2">
-              ➕ Crea il primo volantino
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-  </div>
-
-  <!-- PAGINAZIONE -->
-  <div class="d-flex justify-content-between align-items-center px-3 py-2" id="pagination-wrapper">
-    <small id="pagination-info" class="text-muted"></small>
-    <nav>
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item">
-          <button class="page-link" id="prev-page" type="button">&laquo; Prec</button>
-        </li>
-        <li class="page-item">
-          <button class="page-link" id="next-page" type="button">Succ &raquo;</button>
-        </li>
-      </ul>
-    </nav>
-  </div>
-
-</div>
-
+  /* Badge colors */
+  .bg-secondary-light { background-color: rgba(108, 117, 125, 0.12); color: #6c757d; border: 1px solid rgba(108, 117, 125, 0.2); }
+  .bg-primary-light { background-color: rgba(13, 110, 253, 0.12); color: #0d6efd; border: 1px solid rgba(13, 110, 253, 0.2); }
+  .bg-danger-light { background-color: rgba(220, 53, 69, 0.12); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+  .bg-info-light { background-color: rgba(13, 202, 240, 0.12); color: #0dcaf0; border: 1px solid rgba(13, 202, 240, 0.2); }
+  .bg-warning-light { background-color: rgba(255, 193, 7, 0.12); color: #b28900; border: 1px solid rgba(255, 193, 7, 0.2); }
+  .bg-success-light { background-color: rgba(25, 135, 84, 0.12); color: #198754; border: 1px solid rgba(25, 135, 84, 0.2); }
+</style>
 {% endblock %}
 
+{% block content %}
+<div class="container-fluid px-0">
+
+  <!-- Header Section -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h1 class="h2 mb-1">Volantini & Offerte BETA</h1>
+      <p class="text-muted mb-0">Gestisci i volantini avanzati e le promozioni create con l'editor Drag & Drop in tempo reale.</p>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center mt-2 mt-md-0">
+      <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-plus-circle-fill"></i> Nuovo Volantino
+      </a>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-house-door"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI summary section -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="beta-kpi-card">
+        <div>
+          <div class="beta-kpi-title">Volantini Standard</div>
+          <div class="beta-kpi-val text-color">{{ count_std }}</div>
+        </div>
+        <div class="beta-kpi-icon bg-soft-primary">
+          <i class="bi bi-palette-fill"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+      <div class="beta-kpi-card">
+        <div>
+          <div class="beta-kpi-title">Promozioni dynamic target</div>
+          <div class="beta-kpi-val text-color">{{ count_promo }}</div>
+        </div>
+        <div class="beta-kpi-icon bg-soft-info">
+          <i class="bi bi-lightning-charge-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium Filter Tabs -->
+  <div class="mb-4">
+    <ul class="nav nav-pills gap-2 flex-wrap" id="filter-tabs">
+      <li class="nav-item">
+        <button class="nav-link active rounded-pill px-3.5 py-2" data-filter="all">📂 Tutti</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-pill px-3.5 py-2" data-filter="volantino">📄 Standard (Volantino)</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-pill px-3.5 py-2" data-filter="promo_mensile">📅 Promo Mensile</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-pill px-3.5 py-2" data-filter="promo_scadenza">⏰ Promo Scadenze</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-pill px-3.5 py-2" data-filter="promo_pesce">🐟 Promo Pesce</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-pill px-3.5 py-2" data-filter="promo_carne">🥩 Promo Carne</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-pill px-3.5 py-2" data-filter="promo_singolo">🏷️ Promo Singolo</button>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Search Panel -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+    <h5 class="fw-bold mb-0 text-color">
+      <i class="bi bi-folder2-open me-2 text-primary"></i>Elenco Volantini Salvati
+    </h5>
+    <div class="position-relative">
+      <input id="search-volantini" type="text" class="styled-form-control ps-4" placeholder="Cerca volantino per nome...">
+      <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2.5 text-muted small"></i>
+    </div>
+  </div>
+
+  <!-- Table list panel -->
+  <div class="table-card-panel mb-4">
+    <div class="table-responsive">
+      <table class="table custom-table align-middle mb-0" id="tabella-volantini-beta">
+        <thead>
+          <tr>
+            <th style="width: 80px;" class="text-center">ID</th>
+            <th style="width: 140px;" class="text-center">Anteprima</th>
+            <th>Nome Volantino</th>
+            <th style="width: 180px;">Tipo</th>
+            <th style="width: 200px;">Data Creazione</th>
+            <th style="width: 320px;" class="text-center">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in lista %}
+            <tr class="data-row" data-tipo="{{ v.tipo or 'volantino' }}">
+              <!-- ID -->
+              <td class="text-center fw-bold text-muted">{{ v.id }}</td>
+
+              <!-- Preview thumbnail -->
+              <td class="text-center">
+                <div class="preview-thumb-container mx-auto">
+                  {% if v.thumbnail %}
+                    <img src="{{ v.thumbnail }}" alt="Miniatura {{ v.nome }}" class="preview-thumb-img">
+                  {% else %}
+                    <i class="bi bi-image text-muted opacity-50 fs-4"></i>
+                  {% endif %}
+                </div>
+              </td>
+
+              <!-- Name & modifications -->
+              <td>
+                <div class="fw-bold text-color">{{ v.nome }}</div>
+                {% if v.aggiornato_il and v.aggiornato_il > v.creato_il %}
+                  <span class="badge bg-primary-light text-primary border border-primary-subtle rounded-pill px-2 py-0.5 mt-1" style="font-size: 0.7rem;">
+                    <i class="bi bi-clock-history me-1"></i>Modificato: {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') }}
+                  </span>
+                {% endif %}
+              </td>
+
+              <!-- Tipo Badge -->
+              <td>
+                {% if not v.tipo or v.tipo == 'volantino' %}
+                  <span class="badge bg-secondary-light text-secondary rounded-pill px-2.5 py-1">Standard</span>
+                {% elif v.tipo == 'promo_mensile' %}
+                  <span class="badge bg-primary-light text-primary rounded-pill px-2.5 py-1"><i class="bi bi-calendar-check-fill me-1"></i>Promo Mensile</span>
+                {% elif v.tipo == 'promo_scadenza' %}
+                  <span class="badge bg-danger-light text-danger rounded-pill px-2.5 py-1"><i class="bi bi-clock-fill me-1"></i>Promo Scadenza</span>
+                {% elif v.tipo == 'promo_pesce' %}
+                  <span class="badge bg-info-light text-info rounded-pill px-2.5 py-1"><i class="bi bi-water me-1"></i>Promo Pesce</span>
+                {% elif v.tipo == 'promo_carne' %}
+                  <span class="badge bg-warning-light rounded-pill px-2.5 py-1"><i class="bi bi-egg-fried me-1"></i>Promo Carne</span>
+                {% elif v.tipo == 'promo_singolo' %}
+                  <span class="badge bg-success-light text-success rounded-pill px-2.5 py-1"><i class="bi bi-bookmark-fill me-1"></i>Promo Singolo</span>
+                {% else %}
+                  <span class="badge bg-secondary-light text-secondary rounded-pill px-2.5 py-1">{{ v.tipo }}</span>
+                {% endif %}
+              </td>
+
+              <!-- Creation Date -->
+              <td>
+                <span class="text-muted small fw-semibold">
+                  <i class="bi bi-calendar-event me-1"></i>
+                  {% if v.creato_il %}
+                    {{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}
+                  {% else %}
+                    N/D
+                  {% endif %}
+                </span>
+              </td>
+
+              <!-- Action buttons -->
+              <td class="text-center">
+                <div class="btn-group" role="group" aria-label="Azioni Volantino">
+                  <a href="{{ url_for('beta_volantino_modifica', id=v.id) }}" class="btn btn-sm btn-outline-primary fw-semibold px-3 rounded-start-pill d-flex align-items-center gap-1">
+                    <i class="bi bi-pencil-fill"></i> Modifica
+                  </a>
+                  <a href="{{ url_for('beta_volantino_duplica', id=v.id) }}" class="btn btn-sm btn-outline-secondary fw-semibold px-2 d-flex align-items-center gap-1" title="Duplica Volantino">
+                    <i class="bi bi-files"></i> Duplica
+                  </a>
+                  <a href="{{ url_for('beta_volantino_elimina', id=v.id) }}" class="btn btn-sm btn-outline-danger fw-semibold px-3 rounded-end-pill d-flex align-items-center gap-1"
+                     onclick="return confirm('Sei sicuro di voler eliminare permanentemente questo volantino beta? Questa operazione non è reversibile.');">
+                    <i class="bi bi-trash-fill"></i> Elimina
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-5">
+                <i class="bi bi-palette fs-1 text-primary opacity-25 d-block mb-3"></i>
+                <h6 class="fw-semibold">Nessun volantino beta presente</h6>
+                <p class="small text-muted mb-3">Inizia creando una campagna personalizzata con il nostro editor Drag & Drop.</p>
+                <a href="{{ url_for('beta_volantino') }}" class="btn btn-sm btn-primary rounded-4 px-4 py-2 fw-semibold">Crea il primo volantino</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PAGINATION PANEL -->
+    <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top" id="pagination-wrapper" style="background-color: var(--bg-color);">
+      <small id="pagination-info" class="text-muted fw-semibold"></small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item">
+            <button class="page-link rounded-start-pill px-3" id="prev-page" type="button"><i class="bi bi-chevron-left"></i> Prec</button>
+          </li>
+          <li class="page-item">
+            <button class="page-link rounded-end-pill px-3" id="next-page" type="button">Succ <i class="bi bi-chevron-right"></i></button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
 
 {% block scripts %}
 {{ super() }}
-
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-
   const searchInput = document.getElementById("search-volantini");
   const table = document.getElementById("tabella-volantini-beta");
   const rows = Array.from(table.querySelectorAll("tbody tr.data-row"));
 
   const perPage = 10;
   let currentPage = 1;
+  let activeFilter = "all";
 
   const paginationInfo = document.getElementById("pagination-info");
   const prevBtn = document.getElementById("prev-page");
   const nextBtn = document.getElementById("next-page");
   const paginationWrapper = document.getElementById("pagination-wrapper");
 
+  // Tab dynamic filtering
+  const tabs = document.querySelectorAll("#filter-tabs button");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      activeFilter = tab.getAttribute("data-filter");
+      currentPage = 1;
+      render();
+    });
+  });
+
   function getFilteredRows() {
     const term = (searchInput.value || "").toLowerCase().trim();
-    if (!term) return rows;
+    let filtered = rows;
 
-    return rows.filter(row => {
-      const idText = row.children[0].innerText.toLowerCase();
-      const nameText = row.children[2].innerText.toLowerCase();
-      return idText.includes(term) || nameText.includes(term);
-    });
+    if (activeFilter !== "all") {
+      filtered = filtered.filter(row => row.getAttribute("data-tipo") === activeFilter);
+    }
+
+    if (term) {
+      filtered = filtered.filter(row => {
+        const idText = row.children[0].innerText.toLowerCase();
+        const nameText = row.children[2].innerText.toLowerCase();
+        return idText.includes(term) || nameText.includes(term);
+      });
+    }
+
+    return filtered;
   }
 
   function render() {
     const filtered = getFilteredRows();
 
-    // se sto cercando → niente paginazione
+    // Se stiamo cercando, disabilitiamo temporaneamente la paginazione per mostrare tutti i risultati
     if (searchInput.value.trim() !== "") {
       rows.forEach(r => r.style.display = "none");
       filtered.forEach(r => r.style.display = "");
       paginationWrapper.style.display = "none";
-      paginationInfo.textContent = `${filtered.length} risultato/i`;
+      paginationInfo.textContent = `${filtered.length} risultati trovati`;
       return;
     }
 
-    // con paginazione
-    paginationWrapper.style.display = "";
+    // Paginazione standard
+    paginationWrapper.style.display = "flex";
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / perPage));
     if (currentPage > totalPages) currentPage = totalPages;
@@ -175,9 +426,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const start = (currentPage - 1) * perPage;
     const end = start + perPage;
+    
+    if (total === 0) {
+      paginationWrapper.style.display = "none";
+      paginationInfo.textContent = `Nessun volantino registrato in questa categoria`;
+      return;
+    }
+
     filtered.slice(start, end).forEach(r => r.style.display = "");
 
-    paginationInfo.textContent = `Pagina ${currentPage} di ${totalPages} — ${total} volantino/i`;
+    paginationInfo.textContent = `Pagina ${currentPage} di ${totalPages} — ${total} volantini registrati`;
 
     prevBtn.disabled = (currentPage <= 1);
     nextBtn.disabled = (currentPage >= totalPages);
@@ -203,5 +461,4 @@ document.addEventListener("DOMContentLoaded", () => {
   render();
 });
 </script>
-
 {% endblock %}
