@@ -239,28 +239,40 @@
   <!-- Quick Nav Grid -->
   <h5 class="mb-3 fw-bold text-uppercase tracking-wider text-muted small">Accesso Rapido</h5>
   <div class="row g-3 mb-5">
-    <div class="col-6 col-md-3">
-      <a href="{{ url_for('clienti') }}" class="quick-action-btn">
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{{ url_for('clienti') }}" class="quick-action-btn h-100">
         <i class="bi bi-people text-primary"></i>
         <span>Anagrafica Clienti</span>
       </a>
     </div>
-    <div class="col-6 col-md-3">
-      <a href="{{ url_for('prodotti') }}" class="quick-action-btn">
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{{ url_for('prodotti') }}" class="quick-action-btn h-100">
         <i class="bi bi-box-seam text-success"></i>
         <span>Catalogo Prodotti</span>
       </a>
     </div>
-    <div class="col-6 col-md-3">
-      <a href="{{ url_for('lista_volantini_beta') }}" class="quick-action-btn">
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{{ url_for('lista_volantini_beta') }}" class="quick-action-btn h-100">
         <i class="bi bi-file-earmark-image text-info"></i>
         <span>Volantini & Promo</span>
       </a>
     </div>
-    <div class="col-6 col-md-3">
-      <a href="{{ url_for('fatturato') }}" class="quick-action-btn">
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{{ url_for('fatturato') }}" class="quick-action-btn h-100">
         <i class="bi bi-currency-euro text-warning"></i>
         <span>Analisi Fatturato</span>
+      </a>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{{ url_for('pagina_statistiche') }}" class="quick-action-btn h-100">
+        <i class="bi bi-bar-chart-line-fill text-danger"></i>
+        <span>Statistiche Lavoro</span>
+      </a>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{{ url_for('visite_clienti') }}" class="quick-action-btn h-100">
+        <i class="bi bi-calendar-check text-primary"></i>
+        <span>Visite Clienti</span>
       </a>
     </div>
   </div>

@@ -186,6 +186,14 @@
       <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
         <i class="bi bi-folder-fill"></i> Gestisci Categorie
       </a>
+
+      <!-- Tool Gestione Prodotti Button -->
+      <button type="button"
+              class="btn btn-outline-danger rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2"
+              data-bs-toggle="modal"
+              data-bs-target="#gestioneProdottiModal">
+        <i class="bi bi-sliders"></i> Gestione Massiva Prodotti
+      </button>
     </div>
   </div>
 
@@ -330,6 +338,103 @@
     </div>
   </div>
 
+  <!-- Interactive Modal Gestione Massiva Prodotti -->
+  <div class="modal fade" id="gestioneProdottiModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+      <div class="modal-content overflow-hidden">
+        
+        <!-- Modal Header -->
+        <div class="modal-header bg-danger text-white border-0">
+          <div>
+            <h5 class="modal-title fw-bold">Strumento Gestione Massiva Prodotti</h5>
+            <div class="small text-white-50">Visualizza tutti i prodotti del sito, selezionali ed eliminali in blocco o singolarmente.</div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+
+        <div class="modal-body p-0">
+          
+          <!-- Sticky Header with Filters and Actions -->
+          <div class="modal-filter-sticky border-bottom">
+            <div class="row g-3 align-items-center">
+              
+              <!-- Search bar -->
+              <div class="col-12 col-md-5">
+                <div class="position-relative">
+                  <input type="text" id="searchGestione" class="form-control" placeholder="Filtra per nome o codice...">
+                  <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                  <button type="button" class="btn btn-link text-muted position-absolute top-50 end-0 translate-middle-y me-2 p-0 text-decoration-none" id="btnClearSearchGestione" title="Pulisci">
+                    <i class="bi bi-x-circle-fill"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Selection controls and buttons -->
+              <div class="col-12 col-md-7">
+                <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
+                  
+                  <!-- Counter and checkboxes controls -->
+                  <div class="me-2 text-muted small fw-semibold">
+                    Selezionati: <span id="selectedCount" class="badge bg-danger text-white">0</span>
+                  </div>
+
+                  <!-- Elimina Selezionati Form -->
+                  <form id="formEliminaSelezionati" action="{{ url_for('elimina_prodotti_selezionati') }}" method="POST" class="d-inline" onsubmit="return confirmEliminaSelezionati();">
+                    <div id="hiddenInputsContainer"></div>
+                    <button type="submit" id="btnEliminaSelezionati" class="btn btn-outline-danger rounded-pill fw-semibold btn-sm px-3" disabled>
+                      <i class="bi bi-trash-fill me-1"></i> Elimina Selezionati
+                    </button>
+                  </form>
+
+                  <!-- Elimina Tutti Form -->
+                  <form action="{{ url_for('elimina_tutti_prodotti') }}" method="POST" class="d-inline" onsubmit="return confirm('ATTENZIONE: Questa azione eliminerà TUTTI i prodotti presenti nel sito e scollegherà tutte le associazioni con i clienti. Il fatturato storico non verrà perso ma i prodotti non saranno più collegati.\n\nSei VERAMENTE sicuro di voler procedere?');">
+                    <button type="submit" class="btn btn-danger rounded-pill fw-semibold btn-sm px-3 text-white">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i> Elimina Tutti i Prodotti
+                    </button>
+                  </form>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Product Table Area -->
+          <div class="max-height-520 p-3">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle" id="tabellaGestioneProdotti">
+                <thead class="table-light sticky-top" style="top: -16px; z-index: 1;">
+                  <tr>
+                    <th style="width: 40px;" class="text-center">
+                      <input type="checkbox" class="form-check-input cursor-pointer" id="selectAllGestione">
+                    </th>
+                    <th>Codice</th>
+                    <th>Nome Prodotto</th>
+                    <th>Categoria</th>
+                    <th style="width: 180px;" class="text-center">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabellaGestione">
+                  <!-- JS will dynamically populate rows here -->
+                </tbody>
+              </table>
+              <div id="noProductsFoundGestione" class="text-center text-muted py-5 d-none">
+                <i class="bi bi-box-fill fs-2 d-block opacity-25 mb-2"></i>
+                <span>Nessun prodotto trovato.</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <a href="{{ url_for('index') }}" class="btn btn-outline-secondary mt-5 rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2" style="width: fit-content;">
     <i class="bi bi-house-door"></i> Torna alla home
   </a>
@@ -343,6 +448,12 @@
 document.addEventListener('DOMContentLoaded', () => {
   const prodottiPerCategoria = {{ prodotti_per_categoria|tojson }};
   const prodottiSenzaCategoria = {{ (prodotti_senza_categoria or [])|tojson }};
+  const tuttiIProdotti = {{ (tutti_i_prodotti or [])|tojson }};
+  const categorieLista = [
+    {% for c in categorie %}
+      { id: "{{ c.id }}", nome: "{{ c.nome|e }}" },
+    {% endfor %}
+  ];
 
   const modal = document.getElementById('categoriaModal');
   const modalTitle = document.getElementById('categoriaModalLabel');
@@ -362,9 +473,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSoloPiene = document.getElementById('btnSoloPiene');
   const btnSoloVuote = document.getElementById('btnSoloVuote');
 
+  // Gestione Massiva Prodotti Elements
+  const gestioneModal = document.getElementById('gestioneProdottiModal');
+  const searchGestione = document.getElementById('searchGestione');
+  const btnClearSearchGestione = document.getElementById('btnClearSearchGestione');
+  const selectAllGestione = document.getElementById('selectAllGestione');
+  const selectedCount = document.getElementById('selectedCount');
+  const btnEliminaSelezionati = document.getElementById('btnEliminaSelezionati');
+  const hiddenInputsContainer = document.getElementById('hiddenInputsContainer');
+  const corpoTabellaGestione = document.getElementById('corpoTabellaGestione');
+  const noProductsFoundGestione = document.getElementById('noProductsFoundGestione');
+
   let categoriaCorrente = null;
   let prodottiCorrenti = [];
 
+  // Gestione Massiva State
+  let selectedProductIds = new Set();
+  let visibleProductIds = [];
+
+  // Variabili per l'autocomplete e la ricerca delle categorie
   function escapeHtml(str) {
     return (str || "")
       .replaceAll("&","&amp;")
@@ -393,15 +520,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const nome = escapeHtml(p.nome);
       const codice = escapeHtml(p.codice || "—");
 
+      const selectOptions = categorieLista.map(c => `
+        <option value="${c.id}" ${p.categoria_id == c.id ? 'selected' : ''}>${escapeHtml(c.nome)}</option>
+      `).join('');
+
       const item = document.createElement('div');
       item.className = 'prodotto-modal-row';
       item.innerHTML = `
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div class="d-flex align-items-center gap-3">
+          
+          <!-- Sinistra: Icona + Input Nome + Codice -->
+          <div class="d-flex align-items-center gap-3 flex-grow-1" style="min-width: 280px;">
             <span class="prodotto-icon-box"><i class="bi bi-box-seam-fill"></i></span>
-            <div>
-              <div class="fw-bold text-color">${nome}</div>
-              <div class="small text-muted mt-1">
+            <div class="flex-grow-1">
+              <div class="input-group input-group-sm mb-1" style="max-width: 380px;">
+                <span class="input-group-text bg-light text-muted small"><i class="bi bi-fonts"></i></span>
+                <input type="text" class="form-control fw-bold quick-nome-input" value="${nome}" data-pid="${p.id}" placeholder="Nome prodotto">
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
                 <span class="badge bg-light text-secondary border prodotto-upc-badge">
                   <i class="bi bi-upc-scan me-1"></i> COD: ${codice}
                 </span>
@@ -409,23 +545,186 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
 
-          <div class="btn-group btn-group-sm" role="group">
-            <a href="/prodotti/clienti/${p.id}" class="btn btn-outline-primary" title="Clienti Associati">
-              <i class="bi bi-people-fill"></i> Clienti
-            </a>
-            <a href="/prodotti/modifica/${p.id}" class="btn btn-outline-warning" title="Modifica Prodotto">
-              <i class="bi bi-pencil-fill"></i> Modifica
-            </a>
-            <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline"
-                  onsubmit="return confirm('Sei sicuro di voler eliminare definitivamente questo prodotto?');">
-              <button type="submit" class="btn btn-outline-danger" title="Elimina Prodotto">
-                <i class="bi bi-trash-fill"></i> Elimina
-              </button>
-            </form>
+          <!-- Destra: Categoria Select + Save + Azioni Standard -->
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="input-group input-group-sm" style="width: 220px;">
+              <span class="input-group-text bg-light text-muted"><i class="bi bi-tag-fill"></i></span>
+              <select class="form-select quick-cat-select" data-pid="${p.id}">
+                <option value="">-- Senza Categoria --</option>
+                ${selectOptions}
+              </select>
+            </div>
+            
+            <button type="button" class="btn btn-success btn-sm btn-quick-save" data-pid="${p.id}" title="Salva Modifiche Rapide">
+              <i class="bi bi-check-lg"></i>
+            </button>
+
+            <div class="btn-group btn-group-sm" role="group">
+              <a href="/prodotti/clienti/${p.id}" class="btn btn-outline-primary" title="Clienti Associati">
+                <i class="bi bi-people-fill"></i>
+              </a>
+              <a href="/prodotti/modifica/${p.id}" class="btn btn-outline-warning" title="Modifica Completa">
+                <i class="bi bi-pencil-fill"></i>
+              </a>
+              <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline"
+                    onsubmit="return confirm('Sei sicuro di voler eliminare definitivamente questo prodotto?');">
+                <button type="submit" class="btn btn-outline-danger" title="Elimina Prodotto">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </form>
+            </div>
           </div>
+
         </div>
       `;
       listaProdotti.appendChild(item);
+    });
+
+    // Bind event listeners a ciascun pulsante di salvataggio rapido
+    listaProdotti.querySelectorAll('.btn-quick-save').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.dataset.pid;
+        salvaModificheRapide(pid, btn);
+      });
+    });
+  }
+
+  function salvaModificheRapide(pid, btn) {
+    const row = btn.closest('.prodotto-modal-row');
+    const nomeInput = row.querySelector('.quick-nome-input');
+    const catSelect = row.querySelector('.quick-cat-select');
+    
+    const nuovoNome = nomeInput.value.trim();
+    const nuovaCatId = catSelect.value;
+    
+    if (!nuovoNome) {
+      alert('Il nome del prodotto è obbligatorio.');
+      return;
+    }
+    
+    btn.setAttribute('disabled', 'true');
+    const icon = btn.querySelector('i');
+    const oldIconClass = icon.className;
+    icon.className = 'spinner-border spinner-border-sm';
+    icon.style.width = '1rem';
+    icon.style.height = '1rem';
+    
+    const formData = new FormData();
+    formData.append('nome', nuovoNome);
+    formData.append('categoria_id', nuovaCatId);
+    
+    fetch(`/api/prodotti/quick_edit/${pid}`, {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      icon.className = oldIconClass;
+      icon.style.width = '';
+      icon.style.height = '';
+      btn.removeAttribute('disabled');
+
+      if (data.success) {
+        // Evidenziatore verde
+        row.style.transition = 'background-color 0.3s';
+        row.style.backgroundColor = '#d1e7dd';
+        setTimeout(() => {
+          row.style.backgroundColor = '';
+        }, 1200);
+
+        // Aggiorna memoria dati JS locale
+        const prod = tuttiIProdotti.find(x => x.id == pid);
+        const oldCatName = prod ? prod.categoria_nome : null;
+        const nuovaCatOption = catSelect.options[catSelect.selectedIndex];
+        const newCatName = nuovaCatId ? nuovaCatOption.text : null;
+        
+        if (prod) {
+          prod.nome = nuovoNome;
+          prod.categoria_id = nuovaCatId ? parseInt(nuovaCatId, 10) : null;
+          prod.categoria_nome = newCatName;
+        }
+
+        // Rimuovi vecchio
+        if (oldCatName) {
+          if (prodottiPerCategoria[oldCatName]) {
+            prodottiPerCategoria[oldCatName] = prodottiPerCategoria[oldCatName].filter(x => x.id != pid);
+          }
+        } else {
+          const idx = prodottiSenzaCategoria.findIndex(x => x.id == pid);
+          if (idx !== -1) prodottiSenzaCategoria.splice(idx, 1);
+        }
+        
+        // Inserisci nuovo
+        const updatedProd = {
+          id: parseInt(pid, 10),
+          nome: nuovoNome,
+          codice: prod ? prod.codice : "",
+          categoria_id: nuovaCatId ? parseInt(nuovaCatId, 10) : null
+        };
+        
+        if (newCatName) {
+          if (!prodottiPerCategoria[newCatName]) prodottiPerCategoria[newCatName] = [];
+          prodottiPerCategoria[newCatName].push(updatedProd);
+        } else {
+          prodottiSenzaCategoria.push(updatedProd);
+        }
+
+        // Se il prodotto non appartiene più a questo gruppo visualizzato nel modal, rimuovilo
+        const modalCatVal = categoriaCorrente === "__SENZA__" ? "" : categoriaCorrente;
+        if (modalCatVal !== (newCatName || "")) {
+          row.style.transition = 'all 0.4s';
+          row.style.opacity = '0';
+          row.style.transform = 'translateX(50px)';
+          setTimeout(() => {
+            row.remove();
+            const listItems = listaProdotti.querySelectorAll('.prodotto-modal-row');
+            modalSub.textContent = `${listItems.length} prodotti`;
+            if (listItems.length === 0) {
+              listaProdotti.innerHTML = `
+                <div class="text-center text-muted py-5">
+                  <i class="bi bi-box-fill fs-2 d-block opacity-25 mb-2"></i>
+                  <span>Nessun prodotto trovato in questa categoria.</span>
+                </div>`;
+            }
+          }, 450);
+        }
+
+        aggiornaConteggiBadgePagina();
+      } else {
+        alert('Errore: ' + data.message);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      icon.className = oldIconClass;
+      icon.style.width = '';
+      icon.style.height = '';
+      btn.removeAttribute('disabled');
+      alert('Errore di connessione al server.');
+    });
+  }
+
+  function aggiornaConteggiBadgePagina() {
+    const badgeSenza = document.querySelector('[data-categoria="__SENZA__"] .badge');
+    if (badgeSenza) {
+      badgeSenza.textContent = prodottiSenzaCategoria.length;
+    }
+    
+    document.querySelectorAll('#categorieCardContainer .categoria-col').forEach(col => {
+      const nomeCat = col.dataset.categoria;
+      const prodotti = prodottiPerCategoria[nomeCat] || [];
+      col.dataset.count = prodotti.length;
+      
+      const badgeCount = col.querySelector('.badge');
+      if (badgeCount) {
+        if (prodotti.length > 0) {
+          badgeCount.className = 'badge bg-white text-dark rounded-pill px-2.5 py-1';
+          badgeCount.innerHTML = `<i class="bi bi-box-seam-fill me-1"></i> ${prodotti.length} prodotti`;
+        } else {
+          badgeCount.className = 'badge bg-warning text-dark rounded-pill px-2.5 py-1';
+          badgeCount.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> Nessun prodotto`;
+        }
+      }
     });
   }
 
@@ -513,6 +812,148 @@ document.addEventListener('DOMContentLoaded', () => {
   btnMostraTutte.addEventListener('click', () => filterByCount("tutte"));
   btnSoloPiene.addEventListener('click', () => filterByCount("piene"));
   btnSoloVuote.addEventListener('click', () => filterByCount("vuote"));
+
+  // Gestione Massiva Prodotti Functions
+  function renderTabellaGestione() {
+    corpoTabellaGestione.innerHTML = '';
+    const q = norm(searchGestione.value);
+
+    const filtered = tuttiIProdotti.filter(p => {
+      const nome = norm(p.nome);
+      const codice = norm(p.codice);
+      const categoria = norm(p.categoria_nome);
+      return nome.includes(q) || codice.includes(q) || categoria.includes(q);
+    });
+
+    visibleProductIds = filtered.map(p => p.id);
+
+    if (filtered.length === 0) {
+      noProductsFoundGestione.classList.remove('d-none');
+    } else {
+      noProductsFoundGestione.classList.add('d-none');
+    }
+
+    filtered.forEach(p => {
+      const tr = document.createElement('tr');
+      const isChecked = selectedProductIds.has(p.id) ? 'checked' : '';
+      const codice = escapeHtml(p.codice || "—");
+      const nome = escapeHtml(p.nome);
+      const categoria = escapeHtml(p.categoria_nome || "Senza Categoria");
+
+      tr.innerHTML = `
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input prodotto-checkbox cursor-pointer" data-id="${p.id}" ${isChecked}>
+        </td>
+        <td class="font-monospace fw-bold text-secondary" style="font-size: 0.85rem;">${codice}</td>
+        <td class="fw-semibold">${nome}</td>
+        <td>
+          <span class="badge ${p.categoria_nome ? 'bg-light text-dark border' : 'bg-warning text-dark'}">
+            ${categoria}
+          </span>
+        </td>
+        <td class="text-center">
+          <div class="btn-group btn-group-sm" role="group">
+            <a href="/prodotti/clienti/${p.id}" class="btn btn-outline-primary" title="Clienti Associati">
+              <i class="bi bi-people-fill"></i>
+            </a>
+            <a href="/prodotti/modifica/${p.id}" class="btn btn-outline-warning" title="Modifica Prodotto">
+              <i class="bi bi-pencil-fill"></i>
+            </a>
+            <form action="/prodotti/elimina/${p.id}" method="POST" class="d-inline"
+                  onsubmit="return confirm('Sei sicuro di voler eliminare definitivamente questo prodotto?');">
+              <button type="submit" class="btn btn-outline-danger" title="Elimina Prodotto">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </form>
+          </div>
+        </td>
+      `;
+      corpoTabellaGestione.appendChild(tr);
+    });
+
+    updateSelectionUI();
+  }
+
+  function updateSelectionUI() {
+    selectedCount.textContent = selectedProductIds.size;
+    
+    if (selectedProductIds.size > 0) {
+      btnEliminaSelezionati.removeAttribute('disabled');
+      btnEliminaSelezionati.classList.remove('btn-outline-danger');
+      btnEliminaSelezionati.classList.add('btn-danger', 'text-white');
+    } else {
+      btnEliminaSelezionati.setAttribute('disabled', 'true');
+      btnEliminaSelezionati.classList.add('btn-outline-danger');
+      btnEliminaSelezionati.classList.remove('btn-danger', 'text-white');
+    }
+
+    // Controlla se selectAll deve essere selezionato
+    if (visibleProductIds.length > 0 && visibleProductIds.every(id => selectedProductIds.has(id))) {
+      selectAllGestione.checked = true;
+    } else {
+      selectAllGestione.checked = false;
+    }
+  }
+
+  // Event Listeners for Gestione Massiva Modal
+  gestioneModal.addEventListener('show.bs.modal', () => {
+    selectedProductIds.clear();
+    searchGestione.value = '';
+    renderTabellaGestione();
+  });
+
+  searchGestione.addEventListener('input', renderTabellaGestione);
+
+  btnClearSearchGestione.addEventListener('click', () => {
+    searchGestione.value = '';
+    renderTabellaGestione();
+    searchGestione.focus();
+  });
+
+  corpoTabellaGestione.addEventListener('change', (e) => {
+    if (e.target.classList.contains('prodotto-checkbox')) {
+      const id = parseInt(e.target.dataset.id, 10);
+      if (e.target.checked) {
+        selectedProductIds.add(id);
+      } else {
+        selectedProductIds.delete(id);
+      }
+      updateSelectionUI();
+    }
+  });
+
+  selectAllGestione.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      visibleProductIds.forEach(id => selectedProductIds.add(id));
+    } else {
+      visibleProductIds.forEach(id => selectedProductIds.delete(id));
+    }
+    
+    // Update checkbox states in DOM without complete re-render
+    const checkboxes = corpoTabellaGestione.querySelectorAll('.prodotto-checkbox');
+    checkboxes.forEach(cb => {
+      const id = parseInt(cb.dataset.id, 10);
+      cb.checked = selectedProductIds.has(id);
+    });
+    
+    updateSelectionUI();
+  });
+
+  window.confirmEliminaSelezionati = function() {
+    if (selectedProductIds.size === 0) return false;
+    const confirmDelete = confirm(`Sei sicuro di voler eliminare i ${selectedProductIds.size} prodotti selezionati?`);
+    if (!confirmDelete) return false;
+    
+    hiddenInputsContainer.innerHTML = '';
+    selectedProductIds.forEach(id => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'prodotto_ids';
+      input.value = id;
+      hiddenInputsContainer.appendChild(input);
+    });
+    return true;
+  };
 });
 </script>
 {% endblock %}

@@ -10,6 +10,9 @@
     9:'Settembre',10:'Ottobre',11:'Novembre',12:'Dicembre'
 } %}
 
+{% set tel_raw = cliente.telefono or cliente.cellulare or '' %}
+{% set whatsapp_number = tel_raw|replace(' ', '')|replace('+','')|replace('-','')|replace('(','')|replace(')','') %}
+
 <div class="d-flex align-items-center justify-content-between mb-4">
   <h1 class="mb-0">Modifica Cliente</h1>
   <div class="d-flex gap-2">
@@ -78,101 +81,98 @@
 {% if import_result %}
 <div class="modal fade" id="importResultModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content rounded-4">
-      <div class="modal-header">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white border-0 py-3">
         <div>
-          <h5 class="modal-title mb-0"><i class="bi bi-filetype-pdf me-2"></i>Risultato import PDF</h5>
-          <div class="text-muted small">
-            Totale righe lette: <b>{{ import_result.totale }}</b> —
+          <h5 class="modal-title fw-bold mb-0 text-white"><i class="bi bi-filetype-pdf me-2 text-white"></i>Conferma Importazione Prodotti da PDF</h5>
+          <div class="small text-white-50 mt-1">
+            Totale letti: <b>{{ import_result.totale }}</b> —
             Assegnati/Aggiornati: <b>{{ import_result.assigned }}</b> —
-            Creati: <b>{{ import_result.created }}</b>
+            Nuovi: <b>{{ import_result.created }}</b>
           </div>
         </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
 
-      <div class="modal-body">
-
-        <h6 class="mt-1">Prodotti importati</h6>
-        <div class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th style="width:160px;">Codice</th>
-                <th>Nome</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in import_result.prodotti_importati %}
-              <tr>
-                <td><code>{{ p.codice }}</code></td>
-                <td>{{ p.nome }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        {% if import_result.da_categorizzare and import_result.da_categorizzare|length > 0 %}
-          <hr class="my-4">
-
-          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <h6 class="mb-0">Prodotti senza categoria</h6>
-            <span class="badge text-bg-warning">
-              Da categorizzare: {{ import_result.da_categorizzare|length }}
-            </span>
-          </div>
-          <div class="text-muted small mt-1">
-            Seleziona la categoria e salva. (Puoi anche lasciarne alcuni vuoti e salvarli dopo.)
-          </div>
-
-          <form method="POST"
-                action="{{ url_for('salva_categorie_import_pdf_modal', cliente_id=cliente.id) }}"
-                class="mt-3">
-
-            <div class="table-responsive">
-              <table class="table table-sm align-middle">
-                <thead class="table-light sticky-top">
+      <div class="modal-body p-4 bg-light">
+        <form method="POST" action="{{ url_for('salva_categorie_import_pdf_modal', cliente_id=cliente.id) }}">
+          
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+            <div class="table-responsive" style="max-height: 480px;">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark sticky-top">
                   <tr>
-                    <th style="width:160px;">Codice</th>
-                    <th>Nome</th>
-                    <th style="width:320px;">Categoria</th>
+                    <th style="width: 140px;">Codice</th>
+                    <th>Nome Prodotto (dal PDF)</th>
+                    <th style="width: 80px;" class="text-center">U.M.</th>
+                    <th style="width: 120px;">Prezzo (€)</th>
+                    <th>Stato Anagrafica / Avvisi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {% for p in import_result.da_categorizzare %}
+                  {% for p in import_result.prodotti_importati %}
                   <tr>
-                    <td><code>{{ p.codice }}</code></td>
-                    <td>{{ p.nome }}</td>
+                    <td class="font-monospace fw-bold text-secondary">
+                      <code>{{ p.codice }}</code>
+                      <input type="hidden" name="codice[]" value="{{ p.codice }}">
+                    </td>
                     <td>
-                      <select class="form-select form-select-sm" name="categoria[{{ p.id }}]">
-                        <option value="">— scegli —</option>
-                        {% for c in categorie %}
-                          <option value="{{ c.id }}">{{ c.nome }}</option>
-                        {% endfor %}
-                      </select>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-fonts"></i></span>
+                        <input type="text" class="form-control form-control-sm fw-semibold border-start-0" name="nome[{{ p.codice }}]" value="{{ p.nome_con_um }}">
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-primary-light text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill" style="font-weight: 700;">
+                        {{ p.um_pdf }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted">€</span>
+                        <input type="number" step="0.01" class="form-control form-control-sm border-start-0" name="prezzo[{{ p.codice }}]" value="{{ p.prezzo_pdf }}">
+                      </div>
+                    </td>
+                    <td>
+                      {% if p.nuovo %}
+                        <div class="p-2.5 border border-warning-subtle bg-warning-subtle bg-opacity-25 rounded-3">
+                          <span class="badge bg-warning text-dark mb-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Prodotto non presente nel sito</span>
+                          <div class="small text-muted mb-2">Seleziona una categoria merceologica per inserirlo automaticamente:</div>
+                          <select class="form-select form-select-sm border-warning-subtle" name="categoria[{{ p.codice }}]" required>
+                            <option value="">-- Scegli Categoria --</option>
+                            {% for c in categorie %}
+                              <option value="{{ c.id }}">{{ c.nome }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                      {% elif p.conflitto_nome %}
+                        <div class="p-2.5 border border-danger-subtle bg-danger-subtle bg-opacity-25 rounded-3">
+                          <span class="badge bg-danger text-white mb-2"><i class="bi bi-exclamation-circle-fill me-1"></i> Differenza Nome</span>
+                          <div class="small text-muted mb-2">Nel sito esiste già come: <strong class="text-dark">"{{ p.nome_sistema }}"</strong>. Come vuoi procedere?</div>
+                          <select class="form-select form-select-sm border-danger-subtle" name="scelta_nome[{{ p.codice }}]">
+                            <option value="mantieni" selected>Mantieni nome originale: "{{ p.nome_sistema }}"</option>
+                            <option value="sovrascrivi">Modifica con nome nuovo: "{{ p.nome_con_um }}"</option>
+                          </select>
+                        </div>
+                      {% else %}
+                        <div class="d-flex align-items-center gap-2 text-success small fw-semibold">
+                          <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+                          <span>Presente nel catalogo (OK)</span>
+                        </div>
+                      {% endif %}
                     </td>
                   </tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
-
-            <div class="d-flex justify-content-end gap-2 mt-2">
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                Chiudi
-              </button>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-save"></i> Salva categorie
-              </button>
-            </div>
-          </form>
-        {% else %}
-          <div class="alert alert-success mt-3 mb-0">
-            Tutti i prodotti importati hanno già una categoria ✅
           </div>
-        {% endif %}
 
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button type="button" class="btn btn-outline-secondary rounded-4 px-4 fw-semibold" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="btn btn-primary rounded-4 px-4 fw-semibold"><i class="bi bi-cloud-arrow-up-fill me-1"></i> Conferma ed Importa Prodotti</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -180,6 +180,7 @@
 {% endif %}
 
 <form id="form-modifica-cliente" method="POST" novalidate>
+  <input type="hidden" name="prodotti_modificati" id="prodotti_modificati" value="0">
 
   <!-- DATI BASE -->
   <div class="card shadow-sm rounded-4 mb-4">
@@ -242,328 +243,529 @@
     </div>
   </div>
 
-  <!-- FATTURATO -->
+  <!-- PIANIFICAZIONE CONSEGNE E VISITE -->
   <div class="card shadow-sm rounded-4 mb-4">
     <div class="card-header bg-white border-0 pt-4 px-4">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Fatturato mensile</h5>
-          <div class="text-muted small">Aggiungi/aggiorna un mese e gestisci lo storico in tabella.</div>
-        </div>
-      </div>
+      <h5 class="mb-0"><i class="bi bi-calendar-event me-2 text-primary"></i>Pianificazione Consegne e Visite</h5>
+      <div class="text-muted small">Configura i giorni di scarico merci e la programmazione delle visite ricorrenti.</div>
     </div>
-
     <div class="card-body px-4 pb-4">
-
-      <input type="hidden" name="fatturato_use_storico" value="1">
-
-      <div class="row g-2 align-items-end mb-3">
-        <div class="col-12 col-md-3">
-          <label class="form-label">Mese</label>
-          <select class="form-select" name="mese">
-            {% for m,v in mesi.items() %}
-              <option value="{{ m }}" {% if m == fatturato_mese %}selected{% endif %}>{{ v }}</option>
+      <div class="row g-4">
+        
+        <!-- Giorni di Consegna (Scarico) -->
+        <div class="col-12 col-lg-6">
+          <label class="form-label fw-bold mb-2">Giorni di Consegna (Scarico Settimanale)</label>
+          <div class="form-text mb-3">Seleziona i giorni in cui il cliente riceve solitamente le consegne.</div>
+          
+          {% set consegna_list = (cliente.giorni_consegna_standard or '').split(',') %}
+          {% set giorni_consegna = [] %}
+          {% for item in consegna_list %}
+            {% set _ = giorni_consegna.append(item|trim) %}
+          {% endfor %}
+          
+          <div class="d-flex flex-wrap gap-2">
+            {% set giorni_settimana = [
+              ('1', 'Lunedì'),
+              ('2', 'Martedì'),
+              ('3', 'Mercoledì'),
+              ('4', 'Giovedì'),
+              ('5', 'Venerdì'),
+              ('6', 'Sabato'),
+              ('0', 'Domenica')
+            ] %}
+            {% for val, nome_g in giorni_settimana %}
+              <div class="form-check-button">
+                <input type="checkbox" class="btn-check" id="chk-consegna-{{ val }}" name="consegna_giorni[]" value="{{ val }}"
+                       {% if val in giorni_consegna %}checked{% endif %} autocomplete="off">
+                <label class="btn btn-outline-primary rounded-pill px-3 fw-semibold" for="chk-consegna-{{ val }}">
+                  {{ nome_g }}
+                </label>
+              </div>
             {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-12 col-md-3">
-          <label class="form-label">Anno</label>
-          <input type="number" class="form-control" name="anno"
-                 value="{{ fatturato_anno or current_year }}" min="2000" max="2100">
-        </div>
-
-        <div class="col-12 col-md-4">
-          <label class="form-label">Importo (€)</label>
-          <input type="number" step="0.01" class="form-control" name="fatturato_mensile"
-                 value="{{ fatturato_importo or '' }}" placeholder="Es. 1250.00">
-        </div>
-
-        <div class="col-12 col-md-2 d-grid">
-          <button type="button" class="btn btn-outline-primary" id="btn-add-fatturato">
-            <i class="bi bi-plus-circle"></i> Aggiungi
-          </button>
-        </div>
-      </div>
-
-      <div class="border rounded-4 p-3 bg-light-subtle">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="fw-semibold">Storico fatturato</div>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="fatturato-sort">
-              <i class="bi bi-sort-down"></i> Ordina
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-danger" id="fatturato-clear">
-              <i class="bi bi-trash"></i> Svuota tabella
-            </button>
           </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0" id="tabella-fatturato">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th style="width:140px;">Mese</th>
-                <th style="width:120px;">Anno</th>
-                <th>Importo (€)</th>
-                <th style="width:90px;" class="text-end">Azioni</th>
-              </tr>
-            </thead>
-            <tbody id="fatturato-body">
-              {% if fatturati_storico is defined and fatturati_storico %}
-                {% for f in fatturati_storico %}
-                <tr>
-                  <td>
-                    <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
-                      {% for m,v in mesi.items() %}
-                        <option value="{{ m }}" {% if m == f.mese %}selected{% endif %}>{{ v }}</option>
-                      {% endfor %}
-                    </select>
-                  </td>
-                  <td>
-                    <input type="number" class="form-control form-control-sm fatt-anno"
-                           name="fatt_anno[]"
-                           value="{{ f.anno }}" min="2000" max="2100">
-                  </td>
-                  <td>
-                    <input type="number" class="form-control form-control-sm fatt-importo"
-                           name="fatt_importo[]"
-                           step="0.01" min="0" value="{{ f.importo }}">
-                  </td>
-                  <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-outline-danger fatt-del">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  </td>
-                </tr>
-                {% endfor %}
-              {% else %}
-                <tr class="text-muted">
-                  <td colspan="4" class="py-3">
-                    Nessuno storico disponibile.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
+        <!-- Visite Ricorrenti -->
+        <div class="col-12 col-lg-6">
+          <label class="form-label fw-bold mb-2">Pianificazione Visita Ricorrente</label>
+          <div class="form-text mb-3">Imposta il giorno standard della visita per inserirlo automaticamente nel calendario.</div>
+          
+          <div class="row g-2">
+            <!-- Giorno Visita -->
+            <div class="col-md-6">
+              <label class="form-label small">Giorno della Visita</label>
+              <select class="form-select rounded-4" name="giorno_visita_standard">
+                <option value="">Nessuno (Disattiva)</option>
+                <option value="1" {% if cliente.giorno_visita_standard|string == '1' %}selected{% endif %}>Lunedì</option>
+                <option value="2" {% if cliente.giorno_visita_standard|string == '2' %}selected{% endif %}>Martedì</option>
+                <option value="3" {% if cliente.giorno_visita_standard|string == '3' %}selected{% endif %}>Mercoledì</option>
+                <option value="4" {% if cliente.giorno_visita_standard|string == '4' %}selected{% endif %}>Giovedì</option>
+                <option value="5" {% if cliente.giorno_visita_standard|string == '5' %}selected{% endif %}>Venerdì</option>
+                <option value="6" {% if cliente.giorno_visita_standard|string == '6' %}selected{% endif %}>Sabato</option>
+                <option value="0" {% if cliente.giorno_visita_standard|string == '0' %}selected{% endif %}>Domenica</option>
+              </select>
+            </div>
+
+            <!-- Frequenza Visita -->
+            <div class="col-md-6">
+              <label class="form-label small">Frequenza</label>
+              <select class="form-select rounded-4" name="frequenza_visita">
+                <option value="settimanale" {% if cliente.frequenza_visita == 'settimanale' or not cliente.frequenza_visita %}selected{% endif %}>Ogni settimana (Settimanale)</option>
+                <option value="bisettimanale" {% if cliente.frequenza_visita == 'bisettimanale' %}selected{% endif %}>Ogni 2 settimane (Bisettimanale)</option>
+              </select>
+            </div>
+
+            <!-- Ora Visita (Standard) -->
+            <div class="col-md-12 mt-2">
+              <label class="form-label small">Ora standard della Visita (Opzionale)</label>
+              <input type="time" class="form-control rounded-4" name="ora_visita_standard"
+                     value="{{ cliente.ora_visita_standard_str or '' }}">
+            </div>
+          </div>
         </div>
 
-        <input type="hidden" name="fatturato_storico_json" id="fatturato_storico_json" value="">
-
-        <div class="small text-muted mt-2">
-          Puoi modificare direttamente le righe: al salvataggio invio sia i campi (fatt_*) sia un JSON di supporto.
-        </div>
       </div>
-
     </div>
   </div>
 
-  <!-- PRODOTTI -->
+  <!-- FATTURATO -->
   <div class="card shadow-sm rounded-4 mb-4">
     <div class="card-header bg-white border-0 pt-4 px-4">
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <div>
-          <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Prodotti</h5>
-          <div class="text-muted small">
-            Spunta “Lavorato”, inserisci fornitore e prezzi. Usa filtri e azioni massive.
-          </div>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2">
-          <input id="search-global" type="text" class="form-control form-control-sm" style="min-width:240px"
-                 placeholder="Cerca per nome, codice, fornitore...">
-          <button type="button" class="btn btn-sm btn-outline-success" id="btn-show-lavorati">
-            <i class="bi bi-check2-circle"></i> Solo lavorati
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-danger" id="btn-show-non-lavorati">
-            <i class="bi bi-x-circle"></i> Solo non lavorati
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-show-tutti">
-            <i class="bi bi-collection"></i> Tutti
-          </button>
-        </div>
+      <div>
+        <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Gestione Fatturato</h5>
+        <div class="text-muted small">Aggiungi nuovi record di fatturato a sinistra e gestisci lo storico a destra.</div>
       </div>
     </div>
 
     <div class="card-body px-4 pb-4">
+      <input type="hidden" name="fatturato_use_storico" value="1">
+      <input type="hidden" name="fatturato_storico_json" id="fatturato_storico_json" value="">
 
-      {% if categorie %}
-      <ul class="nav nav-pills mb-3 flex-wrap" id="tabs-categorie" role="tablist">
-        {% for cat in categorie %}
-        <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link {% if loop.first %}active{% endif %}"
-                  data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}" role="tab">
-            {{ cat.nome }}
-            <span class="badge text-bg-light ms-2" id="badge-cat-{{ cat.id }}">0</span>
-          </button>
-        </li>
-        {% endfor %}
-      </ul>
+      <div class="row g-4">
+        <!-- Aggiungi Fatturato (Left column) -->
+        <div class="col-12 col-md-4 border-end">
+          <div class="p-3 bg-light rounded-4 h-100">
+            <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Aggiungi Record</h6>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Mese</label>
+              <select class="form-select" id="add-mese" name="mese">
+                {% for m,v in mesi.items() %}
+                  <option value="{{ m }}" {% if m == fatturato_mese %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
 
-      <div class="tab-content">
-        {% for cat in categorie %}
-        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat.id }}" role="tabpanel">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Anno</label>
+              <input type="number" class="form-control" id="add-anno" name="anno"
+                     value="{{ fatturato_anno or current_year }}" min="2000" max="2100">
+            </div>
 
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-            <input type="text" class="form-control form-control-sm filtro-prodotto"
-                   data-cat="{{ cat.id }}" placeholder="Cerca per nome, codice o fornitore...">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Importo (€)</label>
+              <input type="number" step="0.01" class="form-control" id="add-importo" name="fatturato_mensile"
+                     value="{{ fatturato_importo or '' }}" placeholder="Es. 1250.00">
+            </div>
 
-            <div class="d-flex flex-wrap gap-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary bulk-all" data-cat="{{ cat.id }}">
-                Seleziona tutti
+            <button type="button" class="btn btn-primary w-100 rounded-3 fw-bold py-2 shadow-sm" id="btn-add-fatturato">
+              <i class="bi bi-plus-circle"></i> Aggiungi a Storico
+            </button>
+          </div>
+        </div>
+
+        <!-- Storico Fatturato (Right column) -->
+        <div class="col-12 col-md-8">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="fw-bold mb-0"><i class="bi bi-calendar-range text-secondary me-2"></i>Storico Mesi Precedenti</h6>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="fatturato-sort">
+                <i class="bi bi-sort-down"></i> Ordina
               </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary bulk-none" data-cat="{{ cat.id }}">
-                Nessuno
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary bulk-visible" data-cat="{{ cat.id }}">
-                Solo visibili
+              <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="fatturato-clear">
+                <i class="bi bi-trash"></i> Svuota tutto
               </button>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle tabella-prodotti-cat"
-                   id="tabella-cat-{{ cat.id }}">
-              <thead class="table-light sticky-top">
+          <div class="table-responsive border rounded-4" style="max-height: 280px; overflow-y: auto;">
+            <table class="table table-sm align-middle mb-0" id="tabella-fatturato">
+              <thead class="table-light sticky-top shadow-sm" style="z-index: 10;">
                 <tr>
-                  <th class="text-center" style="width:70px;">Stato</th>
-                  <th>Prodotto</th>
-                  <th style="width:220px;">Fornitore</th>
-                  <th style="width:160px;">Prezzo Attuale</th>
-                  <th style="width:160px;">Prezzo Offerta</th>
+                  <th class="ps-3 py-2" style="width:140px;">Mese</th>
+                  <th class="py-2" style="width:120px;">Anno</th>
+                  <th class="py-2">Importo (€)</th>
+                  <th style="width:90px;" class="text-end pe-3">Azioni</th>
                 </tr>
               </thead>
-              <tbody>
-
-                {% for p in prodotti if p.categoria_id == cat.id %}
-                {% set pid = p.id|string %}
-                <tr data-cat="{{ cat.id }}" data-pid="{{ p.id }}" class="riga-prodotto">
-
-                  <td class="text-center">
-                    <div class="d-flex flex-column align-items-center gap-1">
-                      <input type="checkbox" class="form-check-input chk-lavorato"
-                             name="prodotti_lavorati[]"
-                             value="{{ p.id }}"
-                             {% if pid in prodotti_lavorati %}checked{% endif %}>
-                      <span class="badge badge-stato {% if pid in prodotti_lavorati %}text-bg-success{% else %}text-bg-secondary{% endif %}">
-                        {% if pid in prodotti_lavorati %}Lavorato{% else %}No{% endif %}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td>
-                    <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
-                      <span class="prod-nome">{{ p.nome }}</span>
-                      <span class="badge text-bg-light border prod-code-badge">
-                        COD: {{ p.codice if p.codice else '—' }}
-                      </span>
-                    </div>
-                    <div class="text-muted small">{{ p.categoria_nome }}</div>
-                  </td>
-
-                  <td>
-                    <input type="text" class="form-control form-control-sm inp-fornitore"
-                           name="fornitore[{{ p.id }}]"
-                           value="{{ fornitori.get(pid) }}">
-                  </td>
-
-                  <td>
-                    <input type="number" class="form-control form-control-sm inp-prezzo"
-                           step="0.01" min="0"
-                           name="prezzo_attuale[{{ p.id }}]"
-                           value="{{ prezzi_attuali.get(pid,'') }}"
-                           placeholder="—">
-                  </td>
-
-                  <td>
-                    <input type="number" class="form-control form-control-sm inp-prezzo"
-                           step="0.01" min="0"
-                           name="prezzo_offerta[{{ p.id }}]"
-                           value="{{ prezzi_offerta.get(pid,'') }}"
-                           placeholder="—">
-                  </td>
-
-                </tr>
-                {% endfor %}
-
+              <tbody id="fatturato-body">
+                {% if fatturati_storico is defined and fatturati_storico %}
+                  {% for f in fatturati_storico %}
+                  <tr>
+                    <td class="ps-3">
+                      <select class="form-select form-select-sm fatt-mese" name="fatt_mese[]">
+                        {% for m,v in mesi.items() %}
+                          <option value="{{ m }}" {% if m == f.mese %}selected{% endif %}>{{ v }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td>
+                      <input type="number" class="form-control form-control-sm fatt-anno"
+                             name="fatt_anno[]"
+                             value="{{ f.anno }}" min="2000" max="2100">
+                    </td>
+                    <td>
+                      <input type="number" class="form-control form-control-sm fatt-importo"
+                             name="fatt_importo[]"
+                             step="0.01" min="0" value="{{ f.importo }}">
+                    </td>
+                    <td class="text-end pe-3">
+                      <button type="button" class="btn btn-sm btn-outline-danger fatt-del">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr class="text-muted text-center" id="no-history-row">
+                    <td colspan="4" class="py-5">
+                      <i class="bi bi-info-circle fs-3 mb-2 d-block opacity-50"></i>
+                      Nessuno storico disponibile per questo cliente.
+                    </td>
+                  </tr>
+                {% endif %}
               </tbody>
             </table>
           </div>
-
         </div>
-        {% endfor %}
       </div>
-      {% endif %}
-
     </div>
   </div>
 
-  <!-- RIEPILOGO -->
-  <div class="row g-3 mb-4">
+  <!-- PRODOTTI TOOL BUTTON -->
+  <div class="card shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4 text-center">
+      <div class="mb-3">
+        <h5 class="fw-bold mb-1"><i class="bi bi-box-seam text-primary me-2"></i>Listino Prodotti Personalizzato</h5>
+        <p class="text-muted small mb-0">Gestisci i prezzi, l'associazione "Lavorato" ed i fornitori dei prodotti per questo cliente.</p>
+      </div>
+      <button type="button" class="btn btn-primary rounded-4 py-2.5 px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#editProductsModal">
+        <i class="bi bi-pencil-square me-2"></i> Apri Strumento Gestione Prodotti
+      </button>
+    </div>
+  </div>
 
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm rounded-4 h-100">
-        <div class="card-header bg-white border-0 pt-4 px-4">
-          <div class="d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">
-              <i class="bi bi-check2-circle me-2 text-success"></i>Prodotti Lavorati
-            </h5>
-            <span class="badge text-bg-success" id="count-lavorati">0</span>
+  <!-- Edit Products Modal -->
+  <div class="modal fade" id="editProductsModal" tabindex="-1" aria-labelledby="editProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-0 pb-0" style="padding: 1.5rem 1.5rem 0.5rem 1.5rem;">
+          <div>
+            <h5 class="modal-title fw-bold" id="editProductsModalLabel"><i class="bi bi-box-seam text-primary me-2"></i>Gestione Listino Prodotti</h5>
+            <div class="text-muted small mt-1">Usa le schede per categoria, i filtri di ricerca e imposta i prezzi speciali del cliente.</div>
           </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="card-body px-4 pb-4">
-          <input id="search-lavorati" type="text" class="form-control form-control-sm mb-2"
-                 placeholder="Cerca per nome o codice...">
-          <div class="table-responsive riepilogo-table">
-            <table class="table table-sm table-bordered mb-0" id="tabella-lavorati">
-              <thead class="table-success sticky-top">
-                <tr>
-                  <th>Prodotto</th>
-                  <th>Categoria</th>
-                  <th>Fornitore</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+        <div class="modal-body" style="padding: 1rem 1.5rem 1.5rem 1.5rem; min-height: 450px;">
+          <!-- Filter Panel -->
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 400px;">
+              <div class="position-relative w-100">
+                <input id="search-global" type="text" class="form-control form-control-sm ps-4"
+                       placeholder="Cerca prodotto per nome, codice, fornitore...">
+                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-muted small"></i>
+              </div>
+            </div>
+            <div class="d-flex gap-1">
+              <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-1 small" id="btn-show-lavorati" style="font-size: 0.75rem;">
+                <i class="bi bi-check2-circle"></i> Solo lavorati
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-warning rounded-pill px-2.5 py-1 small" id="btn-show-potenziali" style="font-size: 0.75rem;">
+                <i class="bi bi-exclamation-circle"></i> Solo potenziali
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-danger rounded-pill px-2.5 py-1 small" id="btn-show-non-lavorati" style="font-size: 0.75rem;">
+                <i class="bi bi-x-circle"></i> Solo non lavorati
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 small" id="btn-show-tutti" style="font-size: 0.75rem;">
+                <i class="bi bi-collection"></i> Tutti
+              </button>
+            </div>
           </div>
+
+          {% if categorie %}
+          <ul class="nav nav-pills mb-3 flex-wrap" id="tabs-categorie" role="tablist">
+            {% for cat in categorie %}
+            <li class="nav-item" role="presentation">
+              <button type="button" class="nav-link {% if loop.first %}active{% endif %}"
+                      data-bs-toggle="tab" data-bs-target="#cat-{{ cat.id }}" role="tab" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                {{ cat.nome }}
+                <span class="badge text-bg-light border ms-1" id="badge-cat-{{ cat.id }}" style="font-size: 0.7rem;">0</span>
+              </button>
+            </li>
+            {% endfor %}
+          </ul>
+
+          <div class="tab-content">
+            {% for cat in categorie %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cat-{{ cat.id }}" role="tabpanel">
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div class="position-relative flex-grow-1" style="max-width: 320px;">
+                  <input type="text" class="form-control form-control-sm ps-4 filtro-prodotto"
+                         data-cat="{{ cat.id }}" placeholder="Filtra in questa categoria...">
+                  <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-muted small"></i>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-0.5 small bulk-all" data-cat="{{ cat.id }}" style="font-size: 0.72rem;">
+                    Seleziona tutti
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-0.5 small bulk-none" data-cat="{{ cat.id }}" style="font-size: 0.72rem;">
+                    Nessuno
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-0.5 small bulk-visible" data-cat="{{ cat.id }}" style="font-size: 0.72rem;">
+                    Solo visibili
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle tabella-prodotti-cat mb-0" id="tabella-cat-{{ cat.id }}">
+                  <thead class="table-light sticky-top shadow-sm" style="z-index: 10;">
+                    <tr>
+                      <th class="text-center" style="width:70px;">Stato</th>
+                      <th>Prodotto</th>
+                      <th style="width:200px;">Fornitore</th>
+                      <th style="width:140px;">Prezzo Attuale</th>
+                      <th style="width:140px;">Prezzo Offerta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for p in prodotti if p.categoria_id == cat.id %}
+                    {% set pid = p.id|string %}
+                    {% set is_lavorato = pid in prodotti_lavorati %}
+                    {% set is_potenziale = pid in prodotti_potenziali %}
+                    <tr data-cat="{{ cat.id }}" data-pid="{{ p.id }}" class="riga-prodotto"
+                        style="{% if is_lavorato %}background-color: rgba(25, 135, 84, 0.08);{% elif is_potenziale %}background-color: rgba(255, 193, 7, 0.12);{% endif %} transition: background-color 0.2s;">
+                      <td class="text-center">
+                        <select class="form-select form-select-sm sel-stato-associazione text-center fw-bold {% if is_lavorato %}text-success border-success{% elif is_potenziale %}text-warning border-warning{% else %}text-secondary{% endif %}" 
+                                name="stato_associazione[{{ p.id }}]" 
+                                style="width: 110px; font-size: 0.76rem; padding: 0.25rem 0.4rem; border-radius: 8px; font-weight: 700;">
+                          <option value="no" {% if not is_lavorato and not is_potenziale %}selected{% endif %} class="text-secondary">Non lav.</option>
+                          <option value="lavorato" {% if is_lavorato %}selected{% endif %} class="text-success">Lavorato</option>
+                          <option value="potenziale" {% if is_potenziale %}selected{% endif %} class="text-warning">Potenziale</option>
+                        </select>
+                      </td>
+
+                      <td>
+                        <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
+                          <span class="prod-nome text-color" style="font-size: 0.88rem;">{{ p.nome }}</span>
+                          <span class="badge text-bg-light border prod-code-badge" style="font-size: 0.7rem;">
+                            COD: {{ p.codice if p.codice else '—' }}
+                          </span>
+                        </div>
+                        <div class="text-muted small" style="font-size: 0.75rem;">{{ p.categoria_nome }}</div>
+                      </td>
+
+                      <td>
+                        <input type="text" class="form-control form-control-sm inp-fornitore"
+                               name="fornitore[{{ p.id }}]"
+                               value="{{ fornitori.get(pid) }}">
+                      </td>
+
+                      <td>
+                        <input type="number" class="form-control form-control-sm inp-prezzo text-end"
+                               step="0.01" min="0"
+                               name="prezzo_attuale[{{ p.id }}]"
+                               value="{{ prezzi_attuali.get(pid,'') }}"
+                               placeholder="—">
+                      </td>
+
+                      <td>
+                        <input type="number" class="form-control form-control-sm inp-prezzo text-end"
+                               step="0.01" min="0"
+                               name="prezzo_offerta[{{ p.id }}]"
+                               value="{{ prezzi_offerta.get(pid,'') }}"
+                               placeholder="—">
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi Strumento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- SECTION: AGGIORNAMENTO SETTIMANALE & ANALISI PRODOTTI MANCANTI -->
+  <div class="card shadow-sm rounded-4 mt-5 mb-4 p-4" style="background-color: var(--card-bg);" id="sezione-settimanale">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h4 class="fw-bold mb-1 d-flex align-items-center gap-2">
+          <i class="bi bi-calendar-range-fill text-primary"></i>
+          <span>Analisi Settimanale & Prodotti Non Acquistati</span>
+        </h4>
+        <p class="text-muted small mb-0">Controlla il fatturato settimanale e scopri in tempo reale quali prodotti abituali o potenziali il cliente non ha ordinato.</p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <select id="select-settimana-analisi" class="form-select rounded-4 fw-semibold border-primary-subtle text-primary" onchange="caricaAnalisiSettimanale(this.value)">
+          {% if fatturato_settimanale_list %}
+            {% for s in fatturato_settimanale_list %}
+              <option value="{{ s.id }}" {% if target_update_id and target_update_id == s.id %}selected{% endif %}>{{ s.periodo_str }} - € {{ "%.2f"|format(s.totale) }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="">Nessun aggiornamento presente</option>
+          {% endif %}
+        </select>
+        {% if fatturato_settimanale_list %}
+          <button type="button" class="btn btn-outline-info rounded-4 px-3 text-nowrap fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalStatistiche4W" title="Visualizza statistiche trend ultime 4 settimane" onclick="caricaStatistiche4w()">
+            <i class="bi bi-graph-up-arrow"></i> Statistiche 4W
+          </button>
+          <button type="button" class="btn btn-outline-warning rounded-4 px-3 text-nowrap fw-semibold" title="Modifica l'aggiornamento selezionato" onclick="modificaSettimanaCorrente()">
+            <i class="bi bi-pencil-fill me-1"></i>Modifica
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-4 px-3 text-nowrap" title="Elimina l'aggiornamento selezionato" onclick="eliminaSettimanaCorrente()">
+            <i class="bi bi-trash"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary rounded-4 text-nowrap fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalStoricoSettimanale" title="Visualizza storico completo">
+            <i class="bi bi-clock-history"></i> Storico
+          </button>
+        {% endif %}
+        <button type="button" class="btn btn-primary rounded-4 text-nowrap fw-semibold d-flex align-items-center gap-2" onclick="apriNuovoCaricamentoModal()">
+          <i class="bi bi-plus-lg"></i> Nuovo Caricamento
+        </button>
+      </div>
+    </div>
+
+    <!-- Micro KPI Bar per la Settimana Selezionata -->
+    <div class="row g-3 mb-4" id="kpi-settimana-container">
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Fatturato Settimana</div>
+          <div class="kpi-mini-val text-primary" id="kpi-val-totale">€ 0.00</div>
+          <span class="small" id="kpi-badge-delta">--</span>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prodotti da PDF</div>
+          <div class="kpi-mini-val text-success" id="kpi-val-acquistati">0</div>
+          <span class="small text-muted">Estratti dalla fattura/DDT</span>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prodotti Abituali Saltati</div>
+          <div class="kpi-mini-val text-danger" id="kpi-val-mancanti">0</div>
+          <span class="small text-danger fw-semibold">Attenzione solleciti</span>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Mancato Fatturato Stimato</div>
+          <div class="kpi-mini-val text-warning" id="kpi-val-fatturato-mancante">€ 0.00</div>
+          <span class="small text-muted">Valore stimato non ordinato</span>
         </div>
       </div>
     </div>
 
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm rounded-4 h-100">
-        <div class="card-header bg-white border-0 pt-4 px-4">
-          <div class="d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">
-              <i class="bi bi-x-circle me-2 text-danger"></i>Prodotti Non Lavorati
-            </h5>
-            <span class="badge text-bg-danger" id="count-non-lavorati">0</span>
-          </div>
+    <!-- TAB NAVIGAZIONE DETTAGLI SETTIMANALE -->
+    <ul class="nav nav-tabs nav-tabs-custom mb-3" id="tabAnalisiSettimanale" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-semibold small d-flex align-items-center gap-2" id="tab-mancanti-tab" data-bs-toggle="tab" data-bs-target="#tab-mancanti" type="button" role="tab">
+          <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+          <span>Prodotti Abituali Saltati</span>
+          <span class="badge bg-danger rounded-pill ms-1" id="cnt-mancanti">0</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold small d-flex align-items-center gap-2" id="tab-acquistati-tab" data-bs-toggle="tab" data-bs-target="#tab-acquistati" type="button" role="tab">
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span>Prodotti Ordinati nel Periodo</span>
+          <span class="badge bg-success rounded-pill ms-1" id="cnt-acquistati">0</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold small d-flex align-items-center gap-2" id="tab-potenziali-tab" data-bs-toggle="tab" data-bs-target="#tab-potenziali" type="button" role="tab">
+          <i class="bi bi-star-fill text-warning"></i>
+          <span>Prodotti Potenziali Non Presi</span>
+          <span class="badge bg-warning text-dark rounded-pill ms-1" id="cnt-potenziali-mancanti">0</span>
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="tabAnalisiSettimanaleContent">
+      <!-- TAB 1: Prodotti Abituali Saltati -->
+      <div class="tab-pane fade show active" id="tab-mancanti" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table sheet-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Codice</th>
+                <th>Prodotto</th>
+                <th>Categoria</th>
+                <th>Prezzo Abituale</th>
+                <th style="width: 140px;" class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mancanti">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
-        <div class="card-body px-4 pb-4">
-          <input id="search-non-lavorati" type="text" class="form-control form-control-sm mb-2"
-                 placeholder="Cerca per nome o codice...">
-          <div class="table-responsive riepilogo-table">
-            <table class="table table-sm table-bordered mb-0" id="tabella-non-lavorati">
-              <thead class="table-danger sticky-top">
-                <tr>
-                  <th>Prodotto</th>
-                  <th>Categoria</th>
-                  <th>Fornitore</th>
-                  <th>Prezzo Attuale</th>
-                  <th>Prezzo Offerta</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="small text-muted mt-2">
-            Tip: puoi compilare prezzi anche senza spuntare “Lavorato”. Il riepilogo li mostra comunque.
-          </div>
+      </div>
+
+      <!-- TAB 2: Prodotti Ordinati nel Periodo -->
+      <div class="tab-pane fade" id="tab-acquistati" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table sheet-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Codice</th>
+                <th>Prodotto</th>
+                <th>Quantità & UM</th>
+                <th>Prezzo Unitario</th>
+                <th>Totale Riga</th>
+                <th>Categoria</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-acquistati">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: Potenziali Non Presi -->
+      <div class="tab-pane fade" id="tab-potenziali" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table sheet-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Codice</th>
+                <th>Prodotto Potenziale</th>
+                <th>Categoria</th>
+                <th style="width: 140px;" class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-potenziali-mancanti">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-
   </div>
 
   <div class="d-flex flex-wrap gap-2">
@@ -576,6 +778,286 @@
   </div>
 
 </form>
+
+  <!-- MODAL STATISTICHE 4 SETTIMANE -->
+  <div class="modal fade" id="modalStatistiche4W" tabindex="-1" aria-labelledby="modalStatistiche4WLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalStatistiche4WLabel">
+            <i class="bi bi-graph-up-arrow text-primary"></i>
+            <span>Statistiche Trend Ultime 4 Settimane</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body py-3">
+          <!-- KPI Summary 4 Settimane -->
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Fatturato 4 Settimane</div>
+                <div class="kpi-mini-val text-primary" id="kpi-4w-totale">€ 0.00</div>
+                <span class="small text-muted">Totale registrato 4w</span>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Media Settimanale</div>
+                <div class="kpi-mini-val text-success" id="kpi-4w-media">€ 0.00 /sett</div>
+                <span class="small text-muted">Media 4 settimane</span>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Trend Fatturato</div>
+                <div class="kpi-mini-val" id="kpi-4w-trend-val">--</div>
+                <span class="small" id="kpi-4w-trend-badge">--</span>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Bilancio Prodotti</div>
+                <div class="kpi-mini-val text-dark" id="kpi-4w-bilancio-val">0 / 0</div>
+                <span class="small" id="kpi-4w-bilancio-sub"><span class="text-success">+0 Nuovi</span> | <span class="text-danger">-0 Persi</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabella Trend Consumo Prodotti Ultime 4 Settimane -->
+          <div class="card border-0 bg-light bg-opacity-50 rounded-4 p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-bold mb-0 text-color">
+                <i class="bi bi-box-seam me-1 text-primary"></i>Andamento Consumo Prodotti (Ultime 4 Settimane)
+              </h6>
+              <input type="text" class="form-control form-control-sm rounded-3" style="width: 220px;" placeholder="🔍 Filtra prodotti 4w..." oninput="filtraTabelleStatistiche4w(this.value)">
+            </div>
+
+            <div class="table-responsive">
+              <table class="table sheet-table align-middle mb-0" id="tbl-statistiche-4w">
+                <thead>
+                  <tr>
+                    <th style="width: 110px;">Codice</th>
+                    <th>Prodotto</th>
+                    <th>UM</th>
+                    <th class="text-center" id="th-w3">Sett W-3</th>
+                    <th class="text-center" id="th-w2">Sett W-2</th>
+                    <th class="text-center" id="th-w1">Sett W-1</th>
+                    <th class="text-center" id="th-w0">Sett Attuale</th>
+                    <th class="text-end">Totale 4W</th>
+                    <th class="text-end">Spesa 4W (€)</th>
+                    <th class="text-center" style="width: 120px;">Trend</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-statistiche-4w">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Grid Nuovi Inseriti vs Prodotti Persi -->
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="card border-0 bg-success bg-opacity-10 border-success border-opacity-20 rounded-4 p-3 h-100">
+                <h6 class="fw-bold text-success mb-2 d-flex align-items-center gap-2">
+                  <i class="bi bi-plus-circle-fill"></i>
+                  <span>Nuovi Prodotti Inseriti (Ultime 4W)</span>
+                </h6>
+                <div id="container-nuovi-4w">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="card border-0 bg-danger bg-opacity-10 border-danger border-opacity-20 rounded-4 p-3 h-100">
+                <h6 class="fw-bold text-danger mb-2 d-flex align-items-center gap-2">
+                  <i class="bi bi-dash-circle-fill"></i>
+                  <span>Prodotti Persi / Non Più Ordinati</span>
+                </h6>
+                <div id="container-persi-4w">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AGGIORNAMENTO SETTIMANALE -->
+  <div class="modal fade" id="modalAggiornamentoSettimanale" tabindex="-1" aria-labelledby="modalAggiornamentoSettimanaleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <form action="{{ url_for('salva_aggiornamento_settimanale', cliente_id=cliente.id) }}" method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="update_id" id="modal_edit_update_id" value="">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold" id="modalAggiornamentoSettimanaleLabel">
+              <i class="bi bi-calendar-week text-primary me-2"></i>Aggiornamento Settimanale Fatturato & Prodotti
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body py-3">
+            <p class="small text-muted mb-4">Inserisci il fatturato realizzato in questo periodo e spunta i prodotti ordinati dal cliente. Il fatturato mensile si aggiornerà in automatico.</p>
+            
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold small">Data Inizio Settimana</label>
+                <input type="date" class="form-control rounded-3" name="data_inizio" id="input_data_inizio" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold small">Data Fine Settimana</label>
+                <input type="date" class="form-control rounded-3" name="data_fine" id="input_data_fine" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Fatturato Settimana (€)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0">€</span>
+                <input type="number" step="0.01" class="form-control border-start-0 rounded-end-3" name="totale_fatturato" id="input_totale_fatturato" placeholder="es. 450.00" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <!-- Dual Tab Headers for Modal -->
+              <ul class="nav nav-pills nav-justified mb-2 gap-1" id="pills-modal-scheda-tab" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active py-1.5 fs-7 fw-semibold" id="tab-modal-lavorati-tab" data-bs-toggle="pill" data-bs-target="#tab-modal-lavorati" type="button" role="tab">
+                    <i class="bi bi-box-seam me-1"></i>Prodotti in Aggiornamento / Abituali (<span id="badge-modal-cnt-lavorati">0</span>)
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link py-1.5 fs-7 fw-semibold" id="tab-modal-altri-tab" data-bs-toggle="pill" data-bs-target="#tab-modal-altri" type="button" role="tab">
+                    <i class="bi bi-plus-circle me-1"></i>Altri Prodotti Catalogo (<span id="badge-modal-cnt-altri">0</span>)
+                  </button>
+                </li>
+              </ul>
+
+              <div class="tab-content" id="pills-modal-scheda-tabContent">
+                <!-- TAB 1: Prodotti in Aggiornamento / Abituali -->
+                <div class="tab-pane fade show active" id="tab-modal-lavorati" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+                    <div class="input-group input-group-sm flex-grow-1">
+                      <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                      <input type="text" class="form-control border-start-0" placeholder="🔍 Cerca nei prodotti per nome o codice..." oninput="filtraModalLavorati(this.value)">
+                    </div>
+                    <div class="btn-group btn-group-sm flex-shrink-0">
+                      <button type="button" class="btn btn-outline-secondary btn-xs rounded-pill me-1 px-2 py-0" style="font-size: 0.72rem;" onclick="selezionaModalLavorati(true)">Tutti</button>
+                      <button type="button" class="btn btn-outline-secondary btn-xs rounded-pill px-2 py-0" style="font-size: 0.72rem;" onclick="selezionaModalLavorati(false)">Nessuno</button>
+                    </div>
+                  </div>
+                  <div class="border rounded-3 p-2 bg-light bg-opacity-50" style="max-height: 260px; overflow-y: auto;" id="container-modal-lavorati">
+                    <!-- Dynamically rendered -->
+                  </div>
+                </div>
+
+                <!-- TAB 2: Altri Prodotti Catalogo -->
+                <div class="tab-pane fade" id="tab-modal-altri" role="tabpanel">
+                  <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                      <input type="text" class="form-control border-start-0" placeholder="🔍 Cerca tutti i prodotti catalogo per nome o codice..." oninput="filtraModalAltri(this.value)">
+                    </div>
+                  </div>
+                  <div class="border rounded-3 p-2 bg-light bg-opacity-50" style="max-height: 260px; overflow-y: auto;" id="container-modal-altri">
+                    <!-- Dynamically rendered -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-text small mt-1">Puoi selezionare qualsiasi prodotto dal catalogo, modificare UM (PZ/KG), Quantità e Prezzo unitario.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">PDF Prodotti Acquistati (Opzionale)</label>
+              <input type="file" class="form-control rounded-3" name="pdf_file" accept=".pdf">
+              <div class="form-text small">Opzionale. Carica un PDF se desideri estrarre automaticamente prodotti da una fattura/DDT.</div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label fw-semibold small">Note / Osservazioni</label>
+              <textarea class="form-control rounded-3" name="note" rows="2" placeholder="Note sulla settimana, promozioni applicate o motivi di calo..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-outline-secondary rounded-4 px-3" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="btn btn-primary rounded-4 px-4 fw-semibold">
+              <i class="bi bi-check-lg me-1"></i>Salva e Analizza
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL STORICO SETTIMANALE -->
+  <div class="modal fade" id="modalStoricoSettimanale" tabindex="-1" aria-labelledby="modalStoricoSettimanaleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalStoricoSettimanaleLabel">
+            <i class="bi bi-clock-history text-primary me-2"></i>Storico Caricamenti Settimanali
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body py-3">
+          {% if fatturato_settimanale_list %}
+            <div class="table-responsive">
+              <table class="table sheet-table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Periodo Settimanale</th>
+                    <th>Fatturato (€)</th>
+                    <th>Note / PDF</th>
+                    <th>Data Inserimento</th>
+                    <th class="text-end">Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for s in fatturato_settimanale_list %}
+                    <tr>
+                      <td class="fw-bold text-primary">{{ s.periodo_str }}</td>
+                      <td class="fw-bold text-success">€ {{ "%.2f"|format(s.totale) }}</td>
+                      <td>
+                        {% if s.pdf_nome %}
+                          <a href="{{ url_for('static', filename='uploads/pdf_settimanali/' ~ s.pdf_nome) }}" target="_blank" class="badge bg-light text-primary border text-decoration-none me-1">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                          </a>
+                        {% endif %}
+                        {% if s.note %}
+                          <span class="small text-muted d-block text-truncate" style="max-width: 150px;">{{ s.note }}</span>
+                        {% endif %}
+                        {% if not s.pdf_nome and not s.note %}
+                          <span class="text-muted small">–</span>
+                        {% endif %}
+                      </td>
+                      <td class="small text-muted">{{ s.data_inserimento.strftime('%d/%m/%Y %H:%M') if s.data_inserimento and s.data_inserimento.strftime else s.data_inserimento }}</td>
+                      <td class="text-end">
+                        <form action="{{ url_for('elimina_aggiornamento_settimanale', cliente_id=cliente.id, update_id=s.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Confermi l\'eliminazione del fatturato di {{ s.periodo_str }} (€ {{ s.totale }})?');">
+                          <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                            <i class="bi bi-trash me-1"></i>Elimina
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+              Nessun aggiornamento settimanale registrato finora per questo cliente.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
 
 {% block scripts %}
@@ -675,80 +1157,102 @@ document.addEventListener("DOMContentLoaded", () => {
   const tblN = document.querySelector("#tabella-non-lavorati tbody");
   const countL = document.getElementById("count-lavorati");
   const countN = document.getElementById("count-non-lavorati");
-
+ 
   function norm(v){ return (v ?? "").toString().trim(); }
-
+ 
   function aggiornaRiepilogo() {
-    tblL.innerHTML = "";
-    tblN.innerHTML = "";
-
+    if (tblL) tblL.innerHTML = "";
+    if (tblN) tblN.innerHTML = "";
+ 
     let nL = 0, nN = 0;
-
+ 
     lista.forEach(p => {
-      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      const select = document.querySelector(`select[name="stato_associazione[${p.id}]"]`);
+      const val = select ? select.value : 'no';
       const forn = norm(document.querySelector(`input[name="fornitore[${p.id}]"]`)?.value) || "–";
       const att = norm(document.querySelector(`input[name="prezzo_attuale[${p.id}]"]`)?.value) || "–";
       const off = norm(document.querySelector(`input[name="prezzo_offerta[${p.id}]"]`)?.value) || "–";
-
+ 
       const cod = (p.codice || "—").toString();
       const nomeConCod = `<span class="d-inline-flex align-items-center gap-2 flex-wrap">
         <span class="prod-nome">${p.nome}</span>
         <span class="badge text-bg-light border prod-code-badge">COD: ${cod}</span>
       </span>`;
-
-      if (chk && chk.checked) {
+ 
+      if (val === 'lavorato') {
         nL++;
-        tblL.insertAdjacentHTML("beforeend",
-          `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
-        );
+        if (tblL) {
+          tblL.insertAdjacentHTML("beforeend",
+            `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td></tr>`
+          );
+        }
       } else {
         nN++;
-        tblN.insertAdjacentHTML("beforeend",
-          `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
-        );
+        if (tblN) {
+          tblN.insertAdjacentHTML("beforeend",
+            `<tr><td>${nomeConCod}</td><td>${p.categoria}</td><td>${forn}</td><td>${att}</td><td>${off}</td></tr>`
+          );
+        }
       }
-
+ 
       const row = document.querySelector(`tr.riga-prodotto[data-pid="${p.id}"]`);
-      if (row) {
-        const badge = row.querySelector(".badge-stato");
-        if (badge) {
-          if (chk && chk.checked) {
-            badge.className = "badge badge-stato text-bg-success";
-            badge.textContent = "Lavorato";
-          } else {
-            badge.className = "badge badge-stato text-bg-secondary";
-            badge.textContent = "No";
-          }
+      if (row && select) {
+        select.classList.remove("text-success", "border-success", "text-warning", "border-warning", "text-secondary");
+        if (val === "lavorato") {
+          select.classList.add("text-success", "border-success");
+          row.style.backgroundColor = "rgba(25, 135, 84, 0.08)";
+        } else if (val === "potenziale") {
+          select.classList.add("text-warning", "border-warning");
+          row.style.backgroundColor = "rgba(255, 193, 7, 0.12)";
+        } else {
+          select.classList.add("text-secondary");
+          row.style.backgroundColor = "";
         }
       }
     });
-
-    countL.textContent = nL;
-    countN.textContent = nN;
-
+ 
+    if (countL) countL.textContent = nL;
+    if (countN) countN.textContent = nN;
+ 
     aggiornaBadgeCategorie();
   }
 
   function aggiornaBadgeCategorie() {
     const cats = new Map();
     lista.forEach(p => {
-      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${p.id}"]`);
+      const select = document.querySelector(`select[name="stato_associazione[${p.id}]"]`);
+      const val = select ? select.value : 'no';
       const key = p.catId;
-      if (!cats.has(key)) cats.set(key, { tot:0, lav:0 });
+      if (!cats.has(key)) cats.set(key, { tot:0, lav:0, pot:0 });
       const obj = cats.get(key);
       obj.tot++;
-      if (chk && chk.checked) obj.lav++;
+      if (val === 'lavorato') obj.lav++;
+      if (val === 'potenziale') obj.pot++;
     });
 
     cats.forEach((v, k) => {
       const b = document.getElementById(`badge-cat-${k}`);
-      if (b) b.textContent = `${v.lav}/${v.tot}`;
+      if (b) {
+        b.innerHTML = `<span class="text-success fw-bold">${v.lav}</span>/<span class="text-warning fw-bold">${v.pot}</span>/${v.tot}`;
+      }
     });
   }
 
   aggiornaRiepilogo();
-  document.querySelectorAll(".chk-lavorato").forEach(c => c.addEventListener("change", aggiornaRiepilogo));
-  document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => i.addEventListener("input", aggiornaRiepilogo));
+  
+  const markProductsDirty = () => {
+    const flag = document.getElementById("prodotti_modificati");
+    if (flag) flag.value = "1";
+  };
+  
+  document.querySelectorAll(".sel-stato-associazione").forEach(select => {
+    select.addEventListener("change", aggiornaRiepilogo);
+    select.addEventListener("change", markProductsDirty);
+  });
+  document.querySelectorAll("input[name^='fornitore'],input[name^='prezzo']").forEach(i => {
+    i.addEventListener("input", aggiornaRiepilogo);
+    i.addEventListener("input", markProductsDirty);
+  });
 
   function normalizeCodeText(txt){
     return (txt || "").toLowerCase().replace("cod:", "").trim();
@@ -791,19 +1295,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------- TOGGLE SOLO LAVORATI / NON LAVORATI / TUTTI ----------
+  // ---------- TOGGLE SOLO LAVORATI / POTENZIALI / NON LAVORATI / TUTTI ----------
   function showMode(mode) {
     document.querySelectorAll("tr.riga-prodotto").forEach(r => {
       const pid = r.dataset.pid;
-      const chk = document.querySelector(`input[name="prodotti_lavorati[]"][value="${pid}"]`);
-      const isLav = !!(chk && chk.checked);
+      const select = document.querySelector(`select[name="stato_associazione[${pid}]"]`);
+      const val = select ? select.value : 'no';
 
-      if (mode === "lavorati") r.style.display = isLav ? "" : "none";
-      else if (mode === "non") r.style.display = !isLav ? "" : "none";
+      if (mode === "lavorati") r.style.display = (val === "lavorato") ? "" : "none";
+      else if (mode === "potenziali") r.style.display = (val === "potenziale") ? "" : "none";
+      else if (mode === "non") r.style.display = (val === "no") ? "" : "none";
       else r.style.display = "";
     });
   }
   document.getElementById("btn-show-lavorati")?.addEventListener("click", () => showMode("lavorati"));
+  document.getElementById("btn-show-potenziali")?.addEventListener("click", () => showMode("potenziali"));
   document.getElementById("btn-show-non-lavorati")?.addEventListener("click", () => showMode("non"));
   document.getElementById("btn-show-tutti")?.addEventListener("click", () => showMode("all"));
 
@@ -817,6 +1323,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const chk = r.querySelector(".chk-lavorato");
       if (chk) chk.checked = checked;
     });
+    const flag = document.getElementById("prodotti_modificati");
+    if (flag) flag.value = "1";
     aggiornaRiepilogo();
   }
 
@@ -949,6 +1457,560 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
 });
+
+// ==========================================
+// FUNZIONI AGGIORNAMENTO & ANALISI SETTIMANALE
+// ==========================================
+async function caricaAnalisiSettimanale(updateId = null) {
+  const clienteId = {{ cliente.id }};
+  let url = `/api/clienti/${clienteId}/analisi_settimanale`;
+  if (updateId) {
+    url += `?update_id=${updateId}`;
+  }
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (data.status !== "ok" || !data.has_data) {
+      document.getElementById('kpi-val-totale').innerText = '€ 0.00';
+      document.getElementById('kpi-val-acquistati').innerText = '0';
+      document.getElementById('kpi-val-mancanti').innerText = '0';
+      document.getElementById('kpi-val-fatturato-mancante').innerText = '€ 0.00';
+      return;
+    }
+
+    currentAnalisiData = data;
+
+    document.getElementById('kpi-val-totale').innerText = '€ ' + (data.totale_settimana || 0).toLocaleString('it-IT', {minimumFractionDigits: 2});
+    
+    const badgeDelta = document.getElementById('kpi-badge-delta');
+    if (data.delta_settimana > 0) {
+      badgeDelta.className = 'small text-success fw-bold';
+      badgeDelta.innerHTML = `<i class="bi bi-arrow-up"></i> +€ ${data.delta_settimana.toFixed(2)} (+${data.perc_delta}%) vs prec.`;
+    } else if (data.delta_settimana < 0) {
+      badgeDelta.className = 'small text-danger fw-bold';
+      badgeDelta.innerHTML = `<i class="bi bi-arrow-down"></i> -€ ${Math.abs(data.delta_settimana).toFixed(2)} (${data.perc_delta}%) vs prec.`;
+    } else {
+      badgeDelta.className = 'small text-muted';
+      badgeDelta.innerText = 'Stabile vs settimana prec.';
+    }
+
+    const acqList = data.acquistati || [];
+    const manList = data.prodotti_mancanti || [];
+    const potList = data.prodotti_potenziali_mancanti || [];
+
+    document.getElementById('kpi-val-acquistati').innerText = acqList.length;
+    document.getElementById('kpi-val-mancanti').innerText = manList.length;
+    document.getElementById('kpi-val-fatturato-mancante').innerText = '€ ' + (data.fatturato_mancante_stimato || 0).toLocaleString('it-IT', {minimumFractionDigits: 2});
+
+    document.getElementById('cnt-mancanti').innerText = manList.length;
+    document.getElementById('cnt-acquistati').innerText = acqList.length;
+    document.getElementById('cnt-potenziali-mancanti').innerText = potList.length;
+
+    // TAB 1: Mancanti
+    const tbodyMancanti = document.getElementById('tbody-mancanti');
+    if (manList.length === 0) {
+      tbodyMancanti.innerHTML = `<tr><td colspan="5" class="text-center text-success py-3"><i class="bi bi-check-circle me-1"></i>Ottimo! Il cliente ha acquistato tutti i suoi prodotti abituali in questo periodo.</td></tr>`;
+    } else {
+      tbodyMancanti.innerHTML = manList.map(p => `
+        <tr>
+          <td><span class="badge bg-light text-dark border">${p.codice || 'N/D'}</span></td>
+          <td><strong class="text-danger">${p.nome || p.prodotto_nome}</strong></td>
+          <td><span class="badge bg-light text-secondary border">${p.categoria || p.categoria_nome || '–'}</span></td>
+          <td class="fw-semibold">€ ${(p.prezzo_abituale || p.prezzo_stimato || 0).toFixed(2)}</td>
+          <td class="text-end">
+            <a href="https://wa.me/${(document.getElementById('telefono')?.value || '{{ whatsapp_number }}').replace(/[^0-9]/g, '')}?text=Ciao,%20ho%20notato%20che%20nella%20consegna%20di%20questa%20settimana%20manca%20${encodeURIComponent(p.nome || p.prodotto_nome)}.%20Vuoi%20che%20te%20lo%20inserisca?" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+              <i class="bi bi-whatsapp me-1"></i>Sollecita
+            </a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // TAB 2: Acquistati
+    const tbodyAcquistati = document.getElementById('tbody-acquistati');
+    if (acqList.length === 0) {
+      tbodyAcquistati.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Nessun dettaglio prodotti estratto per questo aggiornamento.</td></tr>`;
+    } else {
+      tbodyAcquistati.innerHTML = acqList.map(p => `
+        <tr>
+          <td><span class="badge bg-light text-dark border">${p.codice || p.codice_pdf || 'N/D'}</span></td>
+          <td><strong>${p.nome || p.prodotto_nome || p.nome_pdf}</strong></td>
+          <td><span class="badge bg-success text-white font-monospace">${p.quantita || 1} ${p.um_pdf || 'PZ'}</span></td>
+          <td class="fw-semibold">€ ${(p.prezzo_pdf || 0).toFixed(2)}</td>
+          <td class="fw-bold text-success font-monospace">€ ${(p.totale_riga || (p.quantita * p.prezzo_pdf) || 0).toFixed(2)}</td>
+          <td><span class="badge bg-light text-secondary border">${p.categoria || p.categoria_nome || '–'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // TAB 3: Potenziali
+    const tbodyPotenziali = document.getElementById('tbody-potenziali-mancanti');
+    if (potList.length === 0) {
+      tbodyPotenziali.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Nessun prodotto potenziale suggerito.</td></tr>`;
+    } else {
+      tbodyPotenziali.innerHTML = potList.map(p => `
+        <tr>
+          <td><span class="badge bg-light text-dark border">${p.codice || 'N/D'}</span></td>
+          <td><strong class="text-warning-emphasis">${p.nome || p.prodotto_nome}</strong></td>
+          <td><span class="badge bg-light text-secondary border">${p.categoria || p.categoria_nome || '–'}</span></td>
+          <td class="text-end">
+            <a href="https://wa.me/${(document.getElementById('telefono')?.value || '{{ whatsapp_number }}').replace(/[^0-9]/g, '')}?text=Ciao,%20ti%20segnalo%20in%20offerta%20${encodeURIComponent(p.nome || p.prodotto_nome)}.%20Ti%20interessa%20provarlo?" target="_blank" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3">
+              <i class="bi bi-whatsapp me-1"></i>Proponi
+            </a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento analisi settimanale:", err);
+  }
+}
+
+let currentAnalisiData = null;
+
+function formatPrezzo(val) {
+  if (val === null || val === undefined || isNaN(val)) return '0.00';
+  return parseFloat(val).toFixed(2);
+}
+
+function calcolaSubtotaleScheda(pid) {
+  const qEl = document.getElementById(`qty_inp_scheda_${pid}`);
+  const pEl = document.getElementById(`prezzo_inp_scheda_${pid}`);
+  const subEl = document.getElementById(`subtotale_badge_scheda_${pid}`);
+  if (qEl && pEl && subEl) {
+    const q = parseFloat(qEl.value) || 0;
+    const p = parseFloat(pEl.value) || 0;
+    const sub = q * p;
+    subEl.innerText = `€ ${sub.toFixed(2)}`;
+  }
+}
+
+function togglePrezzoInputScheda(pid, isChecked) {
+  const pInp = document.getElementById(`prezzo_inp_scheda_${pid}`);
+  const qInp = document.getElementById(`qty_inp_scheda_${pid}`);
+  const uInp = document.getElementById(`um_inp_scheda_${pid}`);
+  const badge = document.getElementById(`subtotale_badge_scheda_${pid}`);
+
+  if (pInp) pInp.disabled = !isChecked;
+  if (qInp) qInp.disabled = !isChecked;
+  if (uInp) uInp.disabled = !isChecked;
+
+  if (badge) {
+    if (isChecked) {
+      badge.classList.remove('text-secondary');
+      badge.classList.add('text-success');
+    } else {
+      badge.classList.remove('text-success');
+      badge.classList.add('text-secondary');
+    }
+  }
+
+  if (isChecked) {
+    calcolaSubtotaleScheda(pid);
+  }
+}
+
+async function caricaProdottiModal(updateId = null) {
+  const clienteId = {{ cliente.id }};
+  
+  try {
+    const respComp = await fetch(`/api/clienti/${clienteId}/prodotti_completi`);
+    const dataComp = await respComp.json();
+    if (dataComp.status !== "ok") return;
+
+    let mapAcquistati = {};
+    if (updateId) {
+      const respAna = await fetch(`/api/clienti/${clienteId}/analisi_settimanale?update_id=${updateId}`);
+      const dataAna = await respAna.json();
+      if (dataAna.status === "ok" && dataAna.has_data) {
+        (dataAna.acquistati || []).forEach(p => {
+          if (p.prodotto_id) {
+            mapAcquistati[p.prodotto_id] = p;
+          }
+        });
+      }
+    }
+
+    let listLavorati = [...dataComp.lavorati];
+    if (updateId) {
+      listLavorati.sort((a, b) => {
+        const hasA = mapAcquistati[a.id] ? 1 : 0;
+        const hasB = mapAcquistati[b.id] ? 1 : 0;
+        return hasB - hasA;
+      });
+    }
+
+    document.getElementById('badge-modal-cnt-lavorati').innerText = listLavorati.length;
+    const containerLav = document.getElementById('container-modal-lavorati');
+    if (listLavorati.length === 0) {
+      containerLav.innerHTML = `<div class="text-muted small p-2 text-center">Nessun prodotto lavorato. Spunta i prodotti nel tab "Altri Prodotti"!</div>`;
+    } else {
+      containerLav.innerHTML = listLavorati.map(p => {
+        const itemAcc = mapAcquistati[p.id];
+        const isChecked = updateId ? (itemAcc != null) : true;
+        const qtyVal = itemAcc ? (itemAcc.quantita || 1) : 1;
+        const umVal = itemAcc ? (itemAcc.um_pdf || 'PZ') : 'PZ';
+        const priceVal = itemAcc ? (itemAcc.prezzo_pdf || 0) : (p.prezzo_offerta || p.prezzo_attuale || 0);
+
+        return `
+          <div class="d-flex align-items-center justify-content-between py-1.5 px-2 border-bottom border-light item-modal-lavorato" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+              <input class="form-check-input chk-modal-lavorato flex-shrink-0 cursor-pointer me-1" type="checkbox" style="width: 1.15rem; height: 1.15rem;" name="prodotti_acquistati_ids" value="${p.id}" id="chk_ms_${p.id}" ${isChecked ? 'checked' : ''} onchange="togglePrezzoInputScheda(${p.id}, this.checked)">
+              <label class="form-check-label small text-color text-truncate mb-0 cursor-pointer" for="chk_ms_${p.id}">
+                ${itemAcc ? '<span class="badge bg-warning bg-opacity-20 text-warning-emphasis border border-warning me-1" style="font-size:0.68rem;">In Settimana</span>' : ''}
+                <strong>${p.nome}</strong> 
+                ${p.codice ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size:0.7rem;">Cod: ${p.codice}</span>` : ''} 
+                <span class="text-muted ms-1">(${p.categoria_nome})</span>
+              </label>
+            </div>
+
+            <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+              <select name="um_prodotto_${p.id}" id="um_inp_scheda_${p.id}" class="form-select form-select-sm py-0 px-1 border-secondary-subtle text-center fw-bold" style="font-size:0.75rem; width:54px; height:26px;" ${!isChecked ? 'disabled' : ''} onchange="calcolaSubtotaleScheda(${p.id})">
+                <option value="PZ" ${umVal === 'PZ' ? 'selected' : ''}>PZ</option>
+                <option value="KG" ${umVal === 'KG' ? 'selected' : ''}>KG</option>
+              </select>
+              <input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center fw-semibold px-1 py-0" name="quantita_prodotto_${p.id}" id="qty_inp_scheda_${p.id}" value="${qtyVal}" placeholder="Qtà" style="font-size: 0.8rem; width: 55px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              <div class="d-flex align-items-center gap-0.5">
+                <span class="small text-muted" style="font-size: 0.72rem;">€</span>
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-semibold px-1 py-0" name="prezzo_prodotto_${p.id}" id="prezzo_inp_scheda_${p.id}" value="${formatPrezzo(priceVal)}" placeholder="Prezzo" style="font-size: 0.8rem; width: 72px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              </div>
+              <span class="badge bg-light ${isChecked ? 'text-success' : 'text-secondary'} border font-monospace ms-1" id="subtotale_badge_scheda_${p.id}" style="font-size: 0.72rem; min-width: 60px; text-align: right;">
+                € ${formatPrezzo(qtyVal * priceVal)}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('badge-modal-cnt-altri').innerText = dataComp.altri.length;
+    const containerAltri = document.getElementById('container-modal-altri');
+    if (dataComp.altri.length === 0) {
+      containerAltri.innerHTML = `<div class="text-muted small p-2 text-center">Tutti i prodotti del catalogo sono già nel listino abituale.</div>`;
+    } else {
+      containerAltri.innerHTML = dataComp.altri.map(p => {
+        const itemAcc = mapAcquistati[p.id];
+        const isChecked = itemAcc != null;
+        const qtyVal = itemAcc ? (itemAcc.quantita || 1) : 1;
+        const umVal = itemAcc ? (itemAcc.um_pdf || 'PZ') : 'PZ';
+        const priceVal = itemAcc ? (itemAcc.prezzo_pdf || 0) : (p.prezzo_attuale || 0);
+
+        return `
+          <div class="d-flex align-items-center justify-content-between py-1.5 px-2 border-bottom border-light item-modal-altro" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+              <input class="form-check-input chk-modal-altro flex-shrink-0 cursor-pointer me-1" type="checkbox" style="width: 1.15rem; height: 1.15rem;" name="prodotti_acquistati_ids" value="${p.id}" id="chk_msa_${p.id}" ${isChecked ? 'checked' : ''} onchange="togglePrezzoInputScheda(${p.id}, this.checked)">
+              <label class="form-check-label small text-color text-truncate mb-0 cursor-pointer" for="chk_msa_${p.id}">
+                <span class="badge bg-light text-primary border me-1">Nuovo</span> 
+                <strong>${p.nome}</strong> 
+                ${p.codice ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size:0.7rem;">Cod: ${p.codice}</span>` : ''} 
+                <span class="text-muted ms-1">(${p.categoria_nome})</span>
+              </label>
+            </div>
+
+            <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+              <select name="um_prodotto_${p.id}" id="um_inp_scheda_${p.id}" class="form-select form-select-sm py-0 px-1 border-secondary-subtle text-center fw-bold" style="font-size:0.75rem; width:54px; height:26px;" ${!isChecked ? 'disabled' : ''} onchange="calcolaSubtotaleScheda(${p.id})">
+                <option value="PZ" ${umVal === 'PZ' ? 'selected' : ''}>PZ</option>
+                <option value="KG" ${umVal === 'KG' ? 'selected' : ''}>KG</option>
+              </select>
+              <input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center fw-semibold px-1 py-0" name="quantita_prodotto_${p.id}" id="qty_inp_scheda_${p.id}" value="${qtyVal}" placeholder="Qtà" style="font-size: 0.8rem; width: 55px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              <div class="d-flex align-items-center gap-0.5">
+                <span class="small text-muted" style="font-size: 0.72rem;">€</span>
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-semibold px-1 py-0" name="prezzo_prodotto_${p.id}" id="prezzo_inp_scheda_${p.id}" value="${formatPrezzo(priceVal)}" placeholder="Prezzo" style="font-size: 0.8rem; width: 72px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              </div>
+              <span class="badge bg-light ${isChecked ? 'text-success' : 'text-secondary'} border font-monospace ms-1" id="subtotale_badge_scheda_${p.id}" style="font-size: 0.72rem; min-width: 60px; text-align: right;">
+                € ${formatPrezzo(qtyVal * priceVal)}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento prodotti modal:", err);
+  }
+}
+
+function filtraModalLavorati(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.item-modal-lavorato').forEach(item => {
+    const nome = item.getAttribute('data-nome') || '';
+    const cod = item.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      item.classList.remove('d-none');
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+}
+
+function filtraModalAltri(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.item-modal-altro').forEach(item => {
+    const nome = item.getAttribute('data-nome') || '';
+    const cod = item.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      item.classList.remove('d-none');
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+}
+
+function selezionaModalLavorati(val) {
+  document.querySelectorAll('.chk-modal-lavorato').forEach(chk => {
+    chk.checked = val;
+    const pid = chk.value;
+    togglePrezzoInputScheda(pid, val);
+  });
+}
+
+async function apriNuovoCaricamentoModal() {
+  document.getElementById('modal_edit_update_id').value = '';
+  document.getElementById('modalAggiornamentoSettimanaleLabel').innerHTML = '<i class="bi bi-calendar-week text-primary me-2"></i>Nuovo Aggiornamento Settimanale';
+  document.getElementById('input_totale_fatturato').value = '';
+  impostaDatePredefiniteModal();
+
+  await caricaProdottiModal(null);
+
+  const modal = new bootstrap.Modal(document.getElementById('modalAggiornamentoSettimanale'));
+  modal.show();
+}
+
+async function modificaSettimanaCorrente() {
+  const sel = document.getElementById('select-settimana-analisi');
+  if (!sel || !sel.value) {
+    alert("Nessun aggiornamento settimanale selezionato da modificare.");
+    return;
+  }
+  const updateId = sel.value;
+  const clienteId = {{ cliente.id }};
+
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/analisi_settimanale?update_id=${updateId}`);
+    const data = await resp.json();
+    if (data.status !== "ok" || !data.has_data) return;
+
+    document.getElementById('modal_edit_update_id').value = data.update_id;
+    document.getElementById('modalAggiornamentoSettimanaleLabel').innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i>Modifica Aggiornamento (${data.periodo_str})`;
+    
+    if (data.data_inizio_iso) document.getElementById('input_data_inizio').value = data.data_inizio_iso;
+    if (data.data_fine_iso) document.getElementById('input_data_fine').value = data.data_fine_iso;
+    document.getElementById('input_totale_fatturato').value = data.totale_settimana;
+
+    await caricaProdottiModal(updateId);
+
+    const modal = new bootstrap.Modal(document.getElementById('modalAggiornamentoSettimanale'));
+    modal.show();
+
+  } catch (err) {
+    console.error("Errore recupero dati modifica aggiornamento:", err);
+    alert("Impossibile caricare i dati per la modifica.");
+  }
+}
+
+async function eliminaSettimanaCorrente() {
+  const sel = document.getElementById('select-settimana-analisi');
+  if (!sel || !sel.value) {
+    alert("Nessun aggiornamento settimanale selezionato da eliminare.");
+    return;
+  }
+  const updateId = sel.value;
+  const clienteId = {{ cliente.id }};
+
+  if (!confirm("Sei sicuro di voler eliminare questo aggiornamento settimanale?")) return;
+
+  try {
+    const resp = await fetch(`/clienti/${clienteId}/aggiornamento_settimanale/${updateId}/elimina`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.status === "ok") {
+      window.location.reload();
+    } else {
+      alert("Errore durante l'eliminazione.");
+    }
+  } catch (err) {
+    console.error("Errore eliminazione aggiornamento:", err);
+    alert("Impossibile eliminare l'aggiornamento.");
+  }
+}
+
+function impostaDatePredefiniteModal() {
+  const oggi = new Date();
+  const setteGiorniFa = new Date();
+  setteGiorniFa.setDate(oggi.getDate() - 6);
+
+  const inpIni = document.getElementById('input_data_inizio');
+  const inpFine = document.getElementById('input_data_fine');
+  if (inpIni && !inpIni.value) {
+    inpIni.value = setteGiorniFa.toISOString().split('T')[0];
+  }
+  if (inpFine && !inpFine.value) {
+    inpFine.value = oggi.toISOString().split('T')[0];
+  }
+}
+
+async function caricaStatistiche4w() {
+  const clienteId = {{ cliente.id }};
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/statistiche_settimanali_4w`);
+    const data = await resp.json();
+    const secEl = document.getElementById('sezione-statistiche-4w');
+    if (!data.status || data.status !== "ok" || !data.has_data) {
+      if (secEl) secEl.style.display = 'none';
+      return;
+    }
+    if (secEl) secEl.style.display = 'block';
+
+    document.getElementById('kpi-4w-totale').innerText = '€ ' + data.totale_4w.toLocaleString('it-IT', {minimumFractionDigits: 2});
+    document.getElementById('kpi-4w-media').innerText = '€ ' + data.media_settimanale.toLocaleString('it-IT', {minimumFractionDigits: 2}) + ' /sett';
+
+    const trendValEl = document.getElementById('kpi-4w-trend-val');
+    const trendBadgeEl = document.getElementById('kpi-4w-trend-badge');
+    if (data.stato_trend === 'crescita') {
+      trendValEl.className = 'kpi-mini-val text-success';
+      trendValEl.innerText = `+${data.perc_trend}%`;
+      trendBadgeEl.className = 'small text-success fw-bold';
+      trendBadgeEl.innerHTML = `<i class="bi bi-graph-up"></i> In Crescita (+4w)`;
+    } else if (data.stato_trend === 'calo') {
+      trendValEl.className = 'kpi-mini-val text-danger';
+      trendValEl.innerText = `${data.perc_trend}%`;
+      trendBadgeEl.className = 'small text-danger fw-bold';
+      trendBadgeEl.innerHTML = `<i class="bi bi-graph-down"></i> In Calo (-4w)`;
+    } else {
+      trendValEl.className = 'kpi-mini-val text-secondary';
+      trendValEl.innerText = `${data.perc_trend}%`;
+      trendBadgeEl.className = 'small text-muted';
+      trendBadgeEl.innerText = `Stabile su 4w`;
+    }
+
+    const cntNuovi = (data.prodotti_nuovi || []).length;
+    const cntPersi = (data.prodotti_persi || []).length;
+    document.getElementById('kpi-4w-bilancio-val').innerText = `${cntNuovi} / ${cntPersi}`;
+    document.getElementById('kpi-4w-bilancio-sub').innerHTML = `<span class="text-success">+${cntNuovi} Nuovi</span> | <span class="text-danger">-${cntPersi} Persi</span>`;
+
+    const sList = data.settimane || [];
+    for (let i = 0; i < 4; i++) {
+      const thEl = document.getElementById(`th-w${3 - i}`);
+      if (thEl) {
+        if (sList[i]) {
+          thEl.innerText = sList[i].label;
+        } else {
+          thEl.innerText = `Sett ${i+1}`;
+        }
+      }
+    }
+
+    const tbody = document.getElementById('tbody-statistiche-4w');
+    if (!data.prodotti_trend || data.prodotti_trend.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-3">Nessun dato prodotto nelle ultime 4 settimane.</td></tr>`;
+    } else {
+      tbody.innerHTML = data.prodotti_trend.map(p => {
+        const wq = p.weekly_qty || [];
+        while (wq.length < 4) wq.unshift(0);
+
+        let trendBadge = '';
+        if (p.trend === 'crescita') {
+          trendBadge = `<span class="badge bg-success bg-opacity-15 text-success border border-success"><i class="bi bi-arrow-up-right me-1"></i>In Crescita</span>`;
+        } else if (p.trend === 'calo') {
+          trendBadge = `<span class="badge bg-danger bg-opacity-15 text-danger border border-danger"><i class="bi bi-arrow-down-right me-1"></i>In Calo</span>`;
+        } else {
+          trendBadge = `<span class="badge bg-secondary bg-opacity-10 text-secondary border"><i class="bi bi-dash me-1"></i>Stabile</span>`;
+        }
+
+        return `
+          <tr class="row-stat-4w" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+            <td><span class="badge bg-light text-dark border">${p.codice || 'N/D'}</span></td>
+            <td><strong>${p.nome}</strong> <span class="text-muted small">(${p.categoria})</span></td>
+            <td><span class="badge bg-light text-secondary border">${p.um}</span></td>
+            <td class="text-center font-monospace">${wq[0] > 0 ? wq[0] : '–'}</td>
+            <td class="text-center font-monospace">${wq[1] > 0 ? wq[1] : '–'}</td>
+            <td class="text-center font-monospace">${wq[2] > 0 ? wq[2] : '–'}</td>
+            <td class="text-center font-monospace fw-bold text-primary">${wq[3] > 0 ? wq[3] : '–'}</td>
+            <td class="text-end fw-bold">${p.totale_qty} ${p.um}</td>
+            <td class="text-end fw-bold text-success">€ ${p.totale_spesa.toFixed(2)}</td>
+            <td class="text-center">${trendBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const containerNuovi = document.getElementById('container-nuovi-4w');
+    if (!data.prodotti_nuovi || data.prodotti_nuovi.length === 0) {
+      containerNuovi.innerHTML = `<div class="text-muted small py-2">Nessun nuovo prodotto introdotto nelle ultime 4 settimane.</div>`;
+    } else {
+      containerNuovi.innerHTML = data.prodotti_nuovi.map(p => `
+        <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom border-success border-opacity-10">
+          <div>
+            <strong class="small text-dark">${p.nome}</strong>
+            <span class="badge bg-light text-secondary border ms-1" style="font-size:0.68rem;">${p.categoria}</span>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-success text-white font-monospace">${p.totale_qty} ${p.um}</span>
+            <span class="small fw-semibold text-success ms-1">€ ${p.totale_spesa.toFixed(2)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    const containerPersi = document.getElementById('container-persi-4w');
+    if (!data.prodotti_persi || data.prodotti_persi.length === 0) {
+      containerPersi.innerHTML = `<div class="text-muted small py-2 text-success"><i class="bi bi-check-circle me-1"></i>Nessun prodotto abituale perso nelle ultime settimane!</div>`;
+    } else {
+      containerPersi.innerHTML = data.prodotti_persi.map(p => `
+        <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom border-danger border-opacity-10">
+          <div>
+            <strong class="small text-danger">${p.nome}</strong>
+            <span class="badge bg-light text-secondary border ms-1" style="font-size:0.68rem;">Cod: ${p.codice}</span>
+          </div>
+          <div>
+            <a href="https://wa.me/{{ whatsapp_number }}?text=Ciao,%20ho%20notato%20che%20nelle%20ultime%20settimane%20non%20hai%20più%20ordinato%20${encodeURIComponent(p.nome)}.%20Possiamo%20riaggiungerlo?" target="_blank" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-0" style="font-size:0.72rem;">
+              <i class="bi bi-whatsapp me-1"></i>Sollecita
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento statistiche 4w:", err);
+  }
+}
+
+function filtraTabelleStatistiche4w(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.row-stat-4w').forEach(r => {
+    const nome = r.getAttribute('data-nome') || '';
+    const cod = r.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      r.classList.remove('d-none');
+    } else {
+      r.classList.add('d-none');
+    }
+  });
+}
+
+impostaDatePredefiniteModal();
+
+const modalEl = document.getElementById('modalAggiornamentoSettimanale');
+if (modalEl) {
+  modalEl.addEventListener('show.bs.modal', function () {
+    const editId = document.getElementById('modal_edit_update_id').value;
+    const container = document.getElementById('container-modal-lavorati');
+    if (!container || container.children.length === 0 || !container.querySelector('.item-modal-lavorato')) {
+      caricaProdottiModal(editId || null);
+    }
+  });
+}
+
+const selAnalisi = document.getElementById('select-settimana-analisi');
+if (selAnalisi && selAnalisi.value) {
+  caricaAnalisiSettimanale(selAnalisi.value);
+} else {
+  caricaAnalisiSettimanale();
+}
 </script>
 
 <style>

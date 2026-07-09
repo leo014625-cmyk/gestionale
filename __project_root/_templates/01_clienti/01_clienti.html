@@ -1,6 +1,6 @@
 {% extends "01_base.html" %}
 
-{% block title %}Clienti - Horeca Suite{% endblock %}
+{% block title %}Anagrafica & Gestione Clienti - Horeca Suite{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -9,140 +9,168 @@
   .kpi-card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 1.25rem;
+    border-radius: 16px;
+    padding: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: var(--shadow-sm);
-    flex: 1 1 200px;
-    transition: transform 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    flex: 1 1 220px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: transparent;
+    transition: background 0.3s;
   }
   .kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
   }
+  .kpi-card-primary::before { background: var(--primary); }
+  .kpi-card-success::before { background: var(--success); }
+  .kpi-card-danger::before { background: var(--danger); }
+  .kpi-card-secondary::before { background: var(--secondary); }
+
   .kpi-card-details h6 {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.25rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
   }
   .kpi-card-details .kpi-num {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.65rem;
-    font-weight: 700;
-    line-height: 1;
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.1;
   }
 
   /* Filters Panel */
   .filters-card {
-    background-color: var(--card-bg);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
+    border-radius: 16px;
     padding: 1.5rem;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
     margin-bottom: 2rem;
   }
   .filters-card .form-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
   .filters-card .form-control, .filters-card .form-select {
     background-color: var(--bg-color);
     color: var(--text-color);
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    padding: 0.6rem 1rem;
+    padding: 0.65rem 1rem;
     font-size: 0.9rem;
-    transition: all 0.2s;
+    transition: all 0.2s ease-in-out;
   }
   .filters-card .form-control:focus, .filters-card .form-select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 13, 110, 253), 0.15);
   }
 
   /* Table Cards */
   .table-container-card {
-    background-color: var(--card-bg);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
     overflow: hidden;
+    transition: box-shadow 0.3s;
   }
-  .custom-table {
-    margin-bottom: 0;
+  .table-container-card:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
   }
   .custom-table th {
     background-color: var(--bg-color);
     color: var(--text-color);
     font-family: 'Outfit', sans-serif;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     border-bottom: 2px solid var(--border-color);
-    padding: 1.15rem 1rem;
+    padding: 1.25rem 1rem;
   }
   .custom-table td {
     padding: 1.15rem 1rem;
     border-bottom: 1px solid var(--border-color);
     color: var(--text-color);
     font-size: 0.92rem;
-    transition: background-color 0.2s;
+  }
+  .custom-table tbody tr {
+    transition: background-color 0.2s ease;
   }
   .custom-table tbody tr:hover td {
-    background-color: var(--primary-light);
+    background-color: rgba(var(--primary-rgb, 13, 110, 253), 0.03);
   }
 
   /* Status Pills */
   .status-pill {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 0.35rem 0.75rem;
-    border-radius: 20px;
-    display: inline-block;
+    letter-spacing: 0.05em;
+    padding: 0.4rem 0.8rem;
+    border-radius: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
   }
   .status-attivo {
     background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success);
+    color: #10b981;
     border: 1px solid rgba(16, 185, 129, 0.2);
   }
   .status-bloccato {
     background-color: rgba(239, 68, 68, 0.1);
-    color: var(--danger);
+    color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
   }
   .status-inattivo {
     background-color: rgba(100, 116, 139, 0.1);
-    color: var(--text-muted);
+    color: #64748b;
     border: 1px solid rgba(100, 116, 139, 0.2);
-  }
-
-  /* Action Buttons */
-  .action-btn-group .btn {
-    border-radius: 8px;
-    padding: 0.4rem 0.65rem;
-    transition: all 0.2s;
-  }
-  .action-btn-group .btn:hover {
-    transform: translateY(-1px);
   }
 
   .zone-section-title {
     font-family: 'Outfit', sans-serif;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 1.35rem;
-    margin-top: 2rem;
+    color: var(--text-color);
+    margin-top: 2.5rem;
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  /* Action circles */
+  .action-btn-circle {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
   }
 </style>
 {% endblock %}
@@ -153,54 +181,66 @@
   <!-- Header Section -->
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
-      <h1 class="h2 mb-1">Anagrafica Clienti</h1>
-      <p class="text-muted mb-0">Gestisci i dettagli commerciali e lo stato delle relazioni con i tuoi clienti.</p>
+      <h1 class="h2 mb-1 fw-bold">Anagrafica & Gestione Clienti</h1>
+      <p class="text-muted mb-0">Gestisci i dettagli commerciali, registra il fatturato settimanale ed analizza l'andamento del portfolio.</p>
     </div>
 
+    <!-- POPUP LAUNCHER BUTTONS IN HEADER -->
     <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('nuovo_cliente') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-person-plus-fill"></i> Nuovo Cliente
-      </a>
-      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-house-door"></i> Dashboard
-      </a>
+      <button type="button" class="btn btn-outline-primary rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalListaClienti">
+        <i class="bi bi-list-columns-reverse text-primary"></i> Directory Clienti
+      </button>
+
+      <button type="button" class="btn btn-outline-info rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalStatisticheLavoro">
+        <i class="bi bi-bar-chart-line-fill text-info"></i> Statistiche Lavoro
+      </button>
+
+      <button type="button" class="btn btn-outline-warning rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm text-warning" data-bs-toggle="modal" data-bs-target="#modalQuickWeeklyEntry" onclick="impostaDatePredefiniteQuick()">
+        <i class="bi bi-lightning-charge-fill text-warning"></i> Aggiornamento Settimanale
+      </button>
+
+      <button type="button" class="btn btn-outline-success rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm text-success" data-bs-toggle="modal" data-bs-target="#modalNuovoCliente">
+        <i class="bi bi-person-plus-fill text-success"></i> Nuovo Cliente
+      </button>
+
+      <button type="button" class="btn btn-primary rounded-4 px-3.5 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCaricaPromoScadenze">
+        <i class="bi bi-file-earmark-arrow-up text-white"></i> Carica Promo Scadenze
+      </button>
     </div>
   </div>
 
-  {# ============================
-     KPI Counters Panel
-     ============================ #}
+  {# KPI Counters Panel #}
   {% set tot_clienti = stati_clienti|length %}
   {% set attivi = stati_clienti.values()|select('equalto', 'attivo')|list|length %}
   {% set bloccati = stati_clienti.values()|select('equalto', 'bloccato')|list|length %}
   {% set inattivi = stati_clienti.values()|select('equalto', 'inattivo')|list|length %}
 
   <div class="d-flex flex-wrap gap-3 mb-4">
-    <div class="kpi-card">
+    <div class="kpi-card kpi-card-primary">
       <div class="kpi-card-details">
         <h6>Clienti Totali</h6>
-        <div class="kpi-num text-primary">{{ tot_clienti }}</div>
+        <div class="kpi-num text-primary font-monospace">{{ tot_clienti }}</div>
       </div>
       <div class="fs-3"><i class="bi bi-people text-primary opacity-75"></i></div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card kpi-card-success">
       <div class="kpi-card-details">
         <h6>Attivi</h6>
-        <div class="kpi-num text-success">{{ attivi }}</div>
+        <div class="kpi-num text-success font-monospace">{{ attivi }}</div>
       </div>
       <div class="fs-3"><i class="bi bi-check-circle text-success opacity-75"></i></div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card kpi-card-danger">
       <div class="kpi-card-details">
         <h6>Bloccati</h6>
-        <div class="kpi-num text-danger">{{ bloccati }}</div>
+        <div class="kpi-num text-danger font-monospace">{{ bloccati }}</div>
       </div>
       <div class="fs-3"><i class="bi bi-exclamation-octagon text-danger opacity-75"></i></div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card kpi-card-secondary">
       <div class="kpi-card-details">
         <h6>Inattivi</h6>
-        <div class="kpi-num text-secondary">{{ inattivi }}</div>
+        <div class="kpi-num text-secondary font-monospace">{{ inattivi }}</div>
       </div>
       <div class="fs-3"><i class="bi bi-clock-history text-secondary opacity-75"></i></div>
     </div>
@@ -209,7 +249,6 @@
   <!-- Filters Card Panel -->
   <div class="filters-card">
     <form method="get" class="row g-3 align-items-end">
-      <!-- Search Input -->
       <div class="col-12 col-sm-4 col-lg-3">
         <label class="form-label mb-1" for="searchInput">Ricerca Testuale</label>
         <div class="position-relative">
@@ -219,7 +258,6 @@
         </div>
       </div>
 
-      <!-- Zona Select -->
       <div class="col-6 col-sm-3 col-lg-2">
         <label class="form-label mb-1" for="zonaSelect">Filtra per Zona</label>
         <select id="zonaSelect" name="zona" class="form-select" onchange="this.form.submit()">
@@ -230,7 +268,6 @@
         </select>
       </div>
 
-      <!-- Stato Select -->
       <div class="col-6 col-sm-3 col-lg-2">
         <label class="form-label mb-1" for="statoSelect">Stato Cliente</label>
         <select id="statoSelect" name="stato" class="form-select" onchange="this.form.submit()">
@@ -241,7 +278,6 @@
         </select>
       </div>
 
-      <!-- Order Select -->
       <div class="col-12 col-sm-2 col-lg-2">
         <label class="form-label mb-1" for="orderSelect">Ordina per</label>
         <select id="orderSelect" name="order" class="form-select" onchange="this.form.submit()">
@@ -250,7 +286,6 @@
         </select>
       </div>
 
-      <!-- Submit and Reset Buttons -->
       <div class="col-12 col-sm-4 col-lg-3 d-flex gap-2">
         <button type="submit" class="btn btn-primary rounded-4 w-100 fw-semibold">Applica Filtri</button>
         <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4 px-3" title="Resetta Filtri"><i class="bi bi-arrow-counterclockwise"></i></a>
@@ -258,9 +293,7 @@
     </form>
   </div>
 
-  <!-- =============================== -->
   <!-- LISTA CLIENTI ZONA PER ZONA -->
-  <!-- =============================== -->
   {% if clienti_per_zona %}
     {% for zona, clienti in clienti_per_zona.items() %}
       {% set zona_label = zona if zona else 'Zona Non Specificata' %}
@@ -283,79 +316,81 @@
                     <th>Nome Cliente</th>
                     <th style="width: 150px;">Zona</th>
                     <th class="text-center" style="width: 140px;">Andamento</th>
-                    <th class="text-end" style="width: 180px;">Fatturato Totale (€)</th>
-                    <th style="width: 140px;" class="text-center">Azioni</th>
+                    <th class="text-end" style="width: 180px;">Fatturato Totale</th>
+                    <th style="width: 160px;" class="text-center">Azioni</th>
                   </tr>
                 </thead>
                 <tbody>
                   {% for cliente in clienti %}
                     <tr>
-                      <!-- Status Pill -->
                       <td class="text-center">
                         {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
                         {% if stato == 'attivo' %}
-                          <span class="status-pill status-attivo">Attivo</span>
+                          <span class="status-pill status-attivo">
+                            <i class="bi bi-check-circle-fill me-1"></i>Attivo
+                          </span>
                         {% elif stato == 'bloccato' %}
-                          <span class="status-pill status-bloccato">Bloccato</span>
+                          <span class="status-pill status-bloccato">
+                            <i class="bi bi-x-circle-fill me-1"></i>Bloccato
+                          </span>
                         {% else %}
-                          <span class="status-pill status-inattivo">Inattivo</span>
+                          <span class="status-pill status-inattivo">
+                            <i class="bi bi-slash-circle me-1"></i>Inattivo
+                          </span>
                         {% endif %}
                       </td>
 
-                      <!-- Name Link -->
                       <td>
-                        <a class="text-decoration-none fw-bold text-color" href="{{ url_for('cliente_scheda', id=cliente.id) }}">
+                        <a class="text-decoration-none fw-bold text-color hover-primary" href="{{ url_for('cliente_scheda', id=cliente.id) }}">
                           {{ cliente.nome }}
                         </a>
                       </td>
 
-                      <!-- Zone Label -->
                       <td>
-                        <span class="text-muted small fw-semibold"><i class="bi bi-geo-alt me-1"></i>{{ cliente.zona or '–' }}</span>
+                        <span class="text-muted small fw-semibold"><i class="bi bi-geo-alt me-1 text-primary"></i>{{ cliente.zona or '–' }}</span>
                       </td>
 
-                      <!-- Growth Trend Badge -->
                       <td class="text-center">
                         {% set andamento = andamento_clienti.get(cliente.id) %}
                         {% if andamento is not none %}
                           {% if andamento > 0 %}
-                            <span class="text-success fw-bold">
+                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill font-monospace px-2.5 py-1.5">
                               <i class="bi bi-arrow-up-short"></i>+{{ andamento }}%
                             </span>
                           {% elif andamento < 0 %}
-                            <span class="text-danger fw-bold">
+                            <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill font-monospace px-2.5 py-1.5">
                               <i class="bi bi-arrow-down-short"></i>{{ andamento }}%
                             </span>
                           {% else %}
-                            <span class="text-muted fw-semibold">0%</span>
+                            <span class="badge bg-light text-muted border rounded-pill font-monospace px-2.5 py-1.5">
+                              0%
+                            </span>
                           {% endif %}
                         {% else %}
                           <span class="text-muted small">N/A</span>
                         {% endif %}
                       </td>
 
-                      <!-- Total Revenue -->
-                      <td class="text-end">
+                      <td class="text-end fw-bold font-monospace text-success">
                         {% if cliente.fatturato_totale is not none %}
-                          <span class="fw-bold text-success">{{ "%.2f"|format(cliente.fatturato_totale) }} €</span>
+                          € {{ "%.2f"|format(cliente.fatturato_totale) }}
                         {% else %}
-                          <span class="text-muted small fst-italic">0.00 €</span>
+                          <span class="text-muted small fst-italic">€ 0.00</span>
                         {% endif %}
                       </td>
 
-                      <!-- Action Button Groups -->
                       <td class="text-center">
-                        <div class="btn-group action-btn-group" role="group" aria-label="Azioni Cliente">
-                          <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-outline-primary btn-sm" title="Visualizza Scheda">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                          <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-outline-primary btn-sm action-btn-circle" title="Visualizza Scheda">
                             <i class="bi bi-eye"></i>
                           </a>
-                          <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-outline-warning btn-sm" title="Modifica Cliente">
+                          <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-outline-warning btn-sm action-btn-circle" title="Modifica">
                             <i class="bi bi-pencil"></i>
                           </a>
                           <form action="{{ url_for('elimina_cliente', id=cliente.id) }}" method="POST"
                                 onsubmit="return confirm('Sei sicuro di voler eliminare definitivamente questo cliente? Questa operazione cancellerà anche i suoi listini e non è reversibile.');"
-                                style="display:inline;">
-                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina Cliente">
+                                style="display:inline-block; margin:0;">
+                            <button type="submit" class="btn btn-outline-danger btn-sm action-btn-circle" title="Elimina">
                               <i class="bi bi-trash"></i>
                             </button>
                           </form>
@@ -385,4 +420,1161 @@
   {% endif %}
 
 </div>
+
+<!-- ================================================================= -->
+<!-- POPUP 1: MODAL STRUMENTO RAPIDO FATTURATI E PRODOTTI SETTIMANALI -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalQuickWeeklyEntry" tabindex="-1" aria-labelledby="modalQuickWeeklyEntryLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <form id="formQuickWeekly" action="" method="POST" enctype="multipart/form-data">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalQuickWeeklyEntryLabel">
+            <i class="bi bi-lightning-charge-fill text-warning fs-4"></i>
+            <span>Aggiornamento Settimanale Fatturato & Prodotti</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        
+        <div class="modal-body py-3">
+          <p class="small text-muted mb-3">Seleziona il cliente e le date della settimana, inserisci il fatturato e spunta i prodotti lavorati o aggiungi nuove referenze dal catalogo.</p>
+          
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold small text-primary"><i class="bi bi-person-fill me-1"></i>Cliente</label>
+              <select id="quick_select_cliente" class="form-select rounded-3 fw-bold border-primary-subtle" required onchange="onQuickClienteChange(this.value)">
+                <option value="">-- Seleziona un Cliente --</option>
+                {% if clienti_per_zona %}
+                  {% for z, clist in clienti_per_zona.items() %}
+                    <optgroup label="{{ z if z else 'Altre Zone' }}">
+                      {% for c in clist %}
+                        <option value="{{ c.id }}">{{ c.nome }} ({{ c.zona or '–' }})</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small"><i class="bi bi-calendar-event me-1"></i>Data Inizio</label>
+              <input type="date" class="form-control rounded-3" name="data_inizio" id="quick_data_inizio" required>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small"><i class="bi bi-calendar-event-fill me-1"></i>Data Fine</label>
+              <input type="date" class="form-control rounded-3" name="data_fine" id="quick_data_fine" required>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small"><i class="bi bi-currency-euro me-1"></i>Fatturato Settimana (€)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0">€</span>
+                <input type="number" step="0.01" class="form-control border-start-0 rounded-end-3" name="totale_fatturato" id="quick_totale_fatturato" placeholder="es. 450.00" required>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small"><i class="bi bi-file-earmark-pdf me-1"></i>PDF Ordine/Fattura (Opzionale)</label>
+              <input type="file" class="form-control rounded-3" name="pdf_file" accept=".pdf">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small"><i class="bi bi-chat-text me-1"></i>Note / Osservazioni (Opzionale)</label>
+            <input type="text" class="form-control rounded-3" name="note" placeholder="es. Promozioni inserite o note sulla settimana...">
+          </div>
+
+          <hr class="my-3 text-muted opacity-25">
+
+          <!-- Prodotti Selection Tabs -->
+          <div id="quick_prodotti_section" style="display: none;">
+            <ul class="nav nav-pills nav-fill mb-3 gap-2" id="pills-tab-quick" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active rounded-4 py-2 fw-semibold small d-flex align-items-center justify-content-center gap-1" id="pills-lavorati-tab" data-bs-toggle="pill" data-bs-target="#pills-lavorati" type="button" role="tab">
+                  <i class="bi bi-check-circle-fill"></i> Prodotti Abituali Lavorati <span class="badge bg-white text-primary ms-1" id="badge-cnt-lavorati">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-4 py-2 fw-semibold small d-flex align-items-center justify-content-center gap-1" id="pills-altri-tab" data-bs-toggle="pill" data-bs-target="#pills-altri" type="button" role="tab">
+                  <i class="bi bi-plus-circle-fill"></i> Altri Prodotti Catalogo <span class="badge bg-light text-dark ms-1" id="badge-cnt-altri">0</span>
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content" id="pills-tabContent-quick">
+              <!-- TAB 1: LAVORATI -->
+              <div class="tab-pane fade show active" id="pills-lavorati" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="small text-muted">Spunta i prodotti acquistati dal listino abituale:</span>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary btn-xs rounded-pill me-1 px-2 py-0" style="font-size:0.72rem;" onclick="selezionaQuickLavorati(true)">Tutti</button>
+                    <button type="button" class="btn btn-outline-secondary btn-xs rounded-pill px-2 py-0" style="font-size:0.72rem;" onclick="selezionaQuickLavorati(false)">Nessuno</button>
+                  </div>
+                </div>
+                <input type="text" class="form-control form-control-sm rounded-3 mb-2" id="filter_lavorati_prodotti" placeholder="🔍 Cerca lavorati per nome o codice..." onkeyup="filtraLavoratiProdotti(this.value)">
+                <div class="border rounded-3 p-2 bg-light bg-opacity-50" style="max-height: 200px; overflow-y: auto;" id="container-quick-lavorati">
+                  <!-- Dynamically filled -->
+                </div>
+              </div>
+
+              <!-- TAB 2: ALTRI PRODOTTI CATALOGO -->
+              <div class="tab-pane fade" id="pills-altri" role="tabpanel">
+                <div class="mb-2">
+                  <input type="text" class="form-control form-control-sm rounded-3 mb-2" id="filter_altri_prodotti" placeholder="🔍 Cerca prodotti per nome o codice articolo..." onkeyup="filtraAltriProdotti(this.value)">
+                  <span class="small text-muted">Se il cliente ha iniziato a ordinare nuovi prodotti non ancora nel suo listino, spuntali qui: verranno inseriti in automatico nei suoi <strong>Lavorati</strong>!</span>
+                </div>
+                <div class="border rounded-3 p-2 bg-light bg-opacity-50" style="max-height: 200px; overflow-y: auto;" id="container-quick-altri">
+                  <!-- Dynamically filled -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="quick_prodotti_placeholder" class="text-center py-4 text-muted bg-light rounded-3 border">
+            <i class="bi bi-arrow-up-circle fs-3 d-block text-primary mb-1"></i>
+            Seleziona un cliente in alto per caricare la lista prodotti.
+          </div>
+
+        </div>
+
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary rounded-4 px-3" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary rounded-4 px-4 fw-semibold shadow-sm">
+            <i class="bi bi-check-lg me-1"></i>Salva Aggiornamento
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- POPUP 2: MODAL LISTA CLIENTI -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalListaClienti" tabindex="-1" aria-labelledby="modalListaClientiLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalListaClientiLabel">
+          <i class="bi bi-list-columns-reverse text-primary fs-4"></i>
+          <span>Directory & Lista Clienti Portfolio</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body py-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+          <div class="input-group input-group-sm flex-grow-1" style="max-width: 360px;">
+            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control border-start-0" id="filtraModalClientiInp" placeholder="🔍 Cerca cliente, referente o zona..." oninput="filtraModalClienti(this.value)">
+          </div>
+          <span class="badge bg-light text-secondary border px-3 py-1.5 rounded-pill">
+            Totale Clienti: {{ clienti|length }}
+          </span>
+        </div>
+
+        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+          <table class="table sheet-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Referente & Contatti</th>
+                <th>Zona</th>
+                <th>Stato</th>
+                <th class="text-end">Fatturato Tot.</th>
+                <th style="width: 130px;" class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in clienti %}
+                {% set st = stati_clienti.get(c.id, 'attivo') %}
+                <tr class="row-modal-cliente" data-nome="{{ (c.nome or '')|lower }}" data-zona="{{ (c.zona or '')|lower }}" data-ref="{{ (c.referente or '')|lower }}">
+                  <td>
+                    <strong class="text-color d-block">{{ c.nome }}</strong>
+                    {% if c.indirizzo %}<span class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ c.indirizzo }}</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if c.referente %}<div class="small text-color"><i class="bi bi-person me-1 text-muted"></i>{{ c.referente }}</div>{% endif %}
+                    {% if c.telefono %}<div class="small text-muted"><i class="bi bi-telephone me-1"></i>{{ c.telefono }}</div>{% endif %}
+                  </td>
+                  <td><span class="badge bg-light text-secondary border">{{ c.zona or 'N/D' }}</span></td>
+                  <td>
+                    {% if st == 'attivo' %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success">Attivo</span>
+                    {% elif st == 'bloccato' %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">Bloccato</span>
+                    {% else %}
+                      <span class="badge bg-secondary bg-opacity-10 text-secondary border">Inattivo</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end fw-bold font-monospace text-primary">€ {{ "%.2f"|format(c.fatturato_totale or 0) }}</td>
+                  <td class="text-end">
+                    <a href="{{ url_for('dettaglio_cliente', id=c.id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                      <i class="bi bi-eye me-1"></i>Scheda
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- POPUP 3: MODAL STATISTICHE LAVORO -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalStatisticheLavoro" tabindex="-1" aria-labelledby="modalStatisticheLavoroLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-0 pb-0 px-4 pt-4">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalStatisticheLavoroLabel">
+          <i class="bi bi-bar-chart-line-fill text-info fs-4"></i>
+          <span>Analisi Avanzata & Statistiche Portfolio</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body px-4 py-3">
+        <!-- Spinner Loading -->
+        <div id="stat-lavoro-spinner" class="text-center py-5">
+          <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Caricamento statistiche...</span>
+          </div>
+          <p class="text-muted mt-3">Caricamento in corso dei dati di fatturato, clienti e prodotti...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="stat-lavoro-error" class="alert alert-danger d-none py-3" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <span>Si è verificato un errore nel caricamento delle statistiche. Riprova più tardi.</span>
+        </div>
+
+        <!-- main content container (hidden initially) -->
+        <div id="stat-lavoro-content" class="d-none">
+          <!-- Month-to-date and PMTD comparison card -->
+          <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background: linear-gradient(135deg, rgba(var(--primary-rgb, 13, 110, 253), 0.08), rgba(var(--info-rgb, 13, 202, 240), 0.08)); border: 1px solid rgba(var(--primary-rgb), 0.1) !important;">
+            <div class="row align-items-center">
+              <div class="col-12 col-md-7">
+                <span class="badge bg-info text-dark fw-bold mb-2">Confronto Mese Corrente vs Precedente</span>
+                <h4 class="fw-bold mb-2 text-color">Performance Stesso Periodo (Month-to-Date)</h4>
+                <p class="text-muted small mb-0">Fatturato cumulato dall'inizio del mese ad oggi, confrontato con lo stesso intervallo di giorni del mese precedente.</p>
+              </div>
+              <div class="col-12 col-md-5 mt-3 mt-md-0 text-md-end">
+                <div class="d-inline-block text-start me-4">
+                  <div class="text-muted small">Questo Mese (MTD)</div>
+                  <div class="fs-3 fw-bold text-primary font-monospace" id="stat-mtd-val">€ 0.00</div>
+                </div>
+                <div class="d-inline-block text-start me-3">
+                  <div class="text-muted small">Mese Scorso (PMTD)</div>
+                  <div class="fs-4 fw-semibold text-secondary font-monospace" id="stat-pmtd-val">€ 0.00</div>
+                </div>
+                <div class="mt-2">
+                  <span id="stat-pmtd-badge" class="badge rounded-pill fs-6 px-3 py-1.5 fw-bold">--</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI summary row -->
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+              <div class="kpi-mini-card p-3 rounded-4 h-100 border border-light" style="background-color: var(--card-bg);">
+                <div class="kpi-mini-title text-muted small">Fatturato Cumulato Totale</div>
+                <div class="kpi-mini-val text-success font-monospace fs-4 fw-bold mt-1" id="stat-kpi-cumulato">€ 0.00</div>
+                <span class="small text-muted">Totale storico registrato</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="kpi-mini-card p-3 rounded-4 h-100 border border-light" style="background-color: var(--card-bg);">
+                <div class="kpi-mini-title text-muted small">Clienti Attivi</div>
+                <div class="kpi-mini-val text-primary fs-4 fw-bold mt-1" id="stat-kpi-attivi">0</div>
+                <span class="small text-muted" id="stat-kpi-attivi-perc">0% del totale</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="kpi-mini-card p-3 rounded-4 h-100 border border-light" style="background-color: var(--card-bg);">
+                <div class="kpi-mini-title text-muted small">Clienti Inattivi</div>
+                <div class="kpi-mini-val text-secondary fs-4 fw-bold mt-1" id="stat-kpi-inattivi">0</div>
+                <span class="small text-muted">Nessun ordine nel mese</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="kpi-mini-card p-3 rounded-4 h-100 border border-light" style="background-color: var(--card-bg);">
+                <div class="kpi-mini-title text-muted small">Clienti Bloccati</div>
+                <div class="kpi-mini-val text-danger fs-4 fw-bold mt-1" id="stat-kpi-bloccati">0</div>
+                <span class="small text-muted">Sospesi o a rischio</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABS NAV FOR STATS -->
+          <div class="mb-4">
+            <ul class="nav nav-pills gap-2 p-1 bg-light bg-opacity-50 rounded-4 d-inline-flex" id="pills-tab-stats" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link active rounded-4 fw-bold px-4 py-2" id="pill-andamento-tab" data-bs-toggle="pill" data-bs-target="#pill-andamento" role="tab" aria-controls="pill-andamento" aria-selected="true">
+                  <i class="bi bi-graph-up-arrow me-1"></i> Andamento Settimanale
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link rounded-4 fw-bold px-4 py-2" id="pill-prodotti-tab" data-bs-toggle="pill" data-bs-target="#pill-prodotti" role="tab" aria-controls="pill-prodotti" aria-selected="false">
+                  <i class="bi bi-box-seam me-1"></i> Prodotti Inseriti & Persi
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link rounded-4 fw-bold px-4 py-2" id="pill-clienti-tab" data-bs-toggle="pill" data-bs-target="#pill-clienti" role="tab" aria-controls="pill-clienti" aria-selected="false">
+                  <i class="bi bi-people-fill me-1"></i> Crescita & Calo Clienti
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link rounded-4 fw-bold px-4 py-2" id="pill-zone-tab" data-bs-toggle="pill" data-bs-target="#pill-zone" role="tab" aria-controls="pill-zone" aria-selected="false">
+                  <i class="bi bi-geo-alt-fill me-1"></i> Analisi Zone
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="tab-content" id="pills-tab-statsContent">
+            <!-- TAB 1: ANDAMENTO SETTIMANALE -->
+            <div class="tab-pane fade show active" id="pill-andamento" role="tabpanel" aria-labelledby="pill-andamento-tab">
+              <div class="card border-0 bg-light bg-opacity-50 rounded-4 p-4">
+                <h6 class="fw-bold text-color mb-3 d-flex align-items-center gap-2">
+                  <i class="bi bi-calendar-check text-primary"></i>
+                  <span>Differenze di Fatturato Ultime Settimane</span>
+                </h6>
+                <div class="table-responsive">
+                  <table class="table sheet-table align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Periodo Settimana</th>
+                        <th class="text-end">Fatturato Portfolio</th>
+                        <th class="text-end">Variazione (€)</th>
+                        <th class="text-center">Variazione (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="stat-table-settimane">
+                      <!-- Dynamically filled -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: PRODOTTI INSERITI & PERSI -->
+            <div class="tab-pane fade" id="pill-prodotti" role="tabpanel" aria-labelledby="pill-prodotti-tab">
+              <div class="row g-3">
+                <!-- Prodotti Inseriti -->
+                <div class="col-12 col-md-6">
+                  <div class="card border-0 bg-success bg-opacity-10 border-success border-opacity-10 rounded-4 p-4 h-100">
+                    <h6 class="fw-bold text-success mb-3 d-flex align-items-center gap-2">
+                      <i class="bi bi-plus-circle-fill"></i>
+                      <span>Prodotti Inseriti / Nuove Vendite (4W)</span>
+                    </h6>
+                    <p class="text-muted small">Prodotti acquistati nelle ultime 4 settimane ma mai venduti nelle 4 settimane precedenti.</p>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle table-borderless mb-0">
+                        <thead>
+                          <tr class="text-success border-bottom border-success border-opacity-25" style="font-size:0.85rem;">
+                            <th>Codice</th>
+                            <th>Prodotto</th>
+                            <th class="text-end">Qtà</th>
+                            <th class="text-end">Clienti</th>
+                          </tr>
+                        </thead>
+                        <tbody id="stat-list-nuovi" style="font-size:0.9rem;">
+                          <!-- Dynamically filled -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Prodotti Persi -->
+                <div class="col-12 col-md-6">
+                  <div class="card border-0 bg-danger bg-opacity-10 border-danger border-opacity-10 rounded-4 p-4 h-100">
+                    <h6 class="fw-bold text-danger mb-3 d-flex align-items-center gap-2">
+                      <i class="bi bi-dash-circle-fill"></i>
+                      <span>Prodotti Persi / Vendite Sospese</span>
+                    </h6>
+                    <p class="text-muted small">Prodotti venduti nelle precedenti 4 settimane ma spariti negli ultimi 4 update.</p>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle table-borderless mb-0">
+                        <thead>
+                          <tr class="text-danger border-bottom border-danger border-opacity-25" style="font-size:0.85rem;">
+                            <th>Codice</th>
+                            <th>Prodotto</th>
+                            <th class="text-end">Qtà Precedente</th>
+                            <th class="text-end">Clienti Persi</th>
+                          </tr>
+                        </thead>
+                        <tbody id="stat-list-persi" style="font-size:0.9rem;">
+                          <!-- Dynamically filled -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 3: CRESCITA & CALO CLIENTI -->
+            <div class="tab-pane fade" id="pill-clienti" role="tabpanel" aria-labelledby="pill-clienti-tab">
+              <!-- Top overall 4w clients -->
+              <div class="card border-0 bg-light bg-opacity-50 rounded-4 p-4 mb-3">
+                <h6 class="fw-bold text-color mb-3 d-flex align-items-center gap-2">
+                  <i class="bi bi-trophy-fill text-warning"></i>
+                  <span>Top Clienti per Volume di Spesa (Ultime 4W)</span>
+                </h6>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr style="font-size:0.85rem;">
+                        <th style="width: 50px;">Rank</th>
+                        <th>Cliente</th>
+                        <th>Zona</th>
+                        <th class="text-end">Spesa Totale (4W)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="stat-list-top-clienti" style="font-size:0.9rem;">
+                      <!-- Dynamically filled -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="row g-3">
+                <!-- Growing Clients -->
+                <div class="col-12 col-md-6">
+                  <div class="card border-0 bg-success bg-opacity-10 border-success border-opacity-10 rounded-4 p-4 h-100">
+                    <h6 class="fw-bold text-success mb-3 d-flex align-items-center gap-2">
+                      <i class="bi bi-graph-up text-success"></i>
+                      <span>Clienti in Forte Crescita (+4W)</span>
+                    </h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm table-borderless align-middle mb-0">
+                        <thead>
+                          <tr class="border-bottom border-success border-opacity-20 text-success" style="font-size:0.85rem;">
+                            <th>Cliente</th>
+                            <th class="text-end">Aumento (€)</th>
+                            <th class="text-end">Variazione (%)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="stat-list-growing-clienti" style="font-size:0.9rem;">
+                          <!-- Dynamically filled -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Declining Clients -->
+                <div class="col-12 col-md-6">
+                  <div class="card border-0 bg-danger bg-opacity-10 border-danger border-opacity-10 rounded-4 p-4 h-100">
+                    <h6 class="fw-bold text-danger mb-3 d-flex align-items-center gap-2">
+                      <i class="bi bi-graph-down text-danger"></i>
+                      <span>Clienti in Forte Calo / Allerta (-4W)</span>
+                    </h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm table-borderless align-middle mb-0">
+                        <thead>
+                          <tr class="border-bottom border-danger border-opacity-20 text-danger" style="font-size:0.85rem;">
+                            <th>Cliente</th>
+                            <th class="text-end">Calo (€)</th>
+                            <th class="text-end">Variazione (%)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="stat-list-declining-clienti" style="font-size:0.9rem;">
+                          <!-- Dynamically filled -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 4: ZONE -->
+            <div class="tab-pane fade" id="pill-zone" role="tabpanel" aria-labelledby="pill-zone-tab">
+              <div class="card border-0 bg-light bg-opacity-50 rounded-4 p-4">
+                <h6 class="fw-bold text-color mb-3 d-flex align-items-center gap-2">
+                  <i class="bi bi-geo-alt-fill text-danger"></i>
+                  <span>Ripartizione & Rendimento delle Zone</span>
+                </h6>
+                <div class="table-responsive">
+                  <table class="table sheet-table align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Zona</th>
+                        <th class="text-center">Numero Clienti</th>
+                        <th class="text-end">Fatturato Zona</th>
+                        <th class="text-end">Rendimento Medio Cliente</th>
+                        <th style="width: 250px;">Quota Fatturato</th>
+                      </tr>
+                    </thead>
+                    <tbody id="stat-table-zone">
+                      <!-- Dynamically filled -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 pt-0">
+        <a href="{{ url_for('pagina_statistiche') }}" class="btn btn-outline-primary rounded-4 fw-semibold px-4">
+          <i class="bi bi-arrows-fullscreen me-2"></i>Apri Dashboard Completa
+        </a>
+        <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- POPUP 4: MODAL NUOVO CLIENTE -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalNuovoCliente" tabindex="-1" aria-labelledby="modalNuovoClienteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <form action="{{ url_for('nuovo_cliente') }}" method="POST">
+        <div class="modal-header border-0 pb-0 px-4 pt-4">
+          <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalNuovoClienteLabel">
+            <i class="bi bi-person-plus-fill text-success fs-4"></i>
+            <span>Nuova Anagrafica Cliente</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body px-4 py-3">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small">Ragione Sociale / Nome Cliente</label>
+              <input type="text" class="form-control rounded-3" name="nome" placeholder="es. Ristorante da Mario" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small">Telefono / Cellulare</label>
+              <input type="text" class="form-control rounded-3" name="telefono" placeholder="es. 3471234567">
+            </div>
+            
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small">Zona di Consegna</label>
+              <select name="zona" class="form-select rounded-3" id="nuovo_cliente_zona_select" onchange="toggleNuovaZonaInput(this.value)" required>
+                <option value="">-- Seleziona Zona --</option>
+                {% for z in zone %}
+                  <option value="{{ z }}">{{ z }}</option>
+                {% endfor %}
+                <option value="nuova_zona">+ Crea Nuova Zona...</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-6" id="nuovo_cliente_nuova_zona_wrapper" style="display: none;">
+              <label class="form-label fw-semibold small text-primary">Inserisci Nuova Zona</label>
+              <input type="text" class="form-control rounded-3 border-primary-subtle" name="nuova_zona" id="nuovo_cliente_nuova_zona" placeholder="Nome nuova zona">
+            </div>
+
+            <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small">Frequenza delle Visite</label>
+              <select name="frequenza_visita" class="form-select rounded-3">
+                <option value="">Nessuna visita programmata</option>
+                <option value="settimanale">Settimanale</option>
+                <option value="quindicinale">Quindicinale</option>
+                <option value="mensile">Mensile</option>
+              </select>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small">Giorno Visita</label>
+              <select name="giorno_visita_standard" class="form-select rounded-3">
+                <option value="">Nessuno</option>
+                <option value="1">Lunedì</option>
+                <option value="2">Martedì</option>
+                <option value="3">Mercoledì</option>
+                <option value="4">Giovedì</option>
+                <option value="5">Venerdì</option>
+                <option value="6">Sabato</option>
+                <option value="7">Domenica</option>
+              </select>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small">Orario Visita</label>
+              <input type="time" class="form-control rounded-3" name="ora_visita_standard">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold small d-block">Giorni di Consegna Preferiti</label>
+              <div class="d-flex flex-wrap gap-3 mt-1">
+                {% for g_val, g_label in [('LUN', 'Lunedì'), ('MAR', 'Martedì'), ('MER', 'Mercoledì'), ('GIO', 'Giovedì'), ('VEN', 'Venerdì'), ('SAB', 'Sabato')] %}
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="consegna_giorni[]" value="{{ g_val }}" id="chk_giorno_{{ g_val }}">
+                    <label class="form-check-label small" for="chk_giorno_{{ g_val }}">{{ g_label }}</label>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 px-4 pb-4 pt-0">
+          <button type="button" class="btn btn-outline-secondary rounded-4 px-4" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-success rounded-4 px-4 fw-bold">
+            <i class="bi bi-person-plus-fill me-1"></i>Aggiungi Cliente
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- POPUP 5: MODAL CARICA PROMO SCADENZE -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalCaricaPromoScadenze" tabindex="-1" aria-labelledby="modalCaricaPromoScadenzeLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-0 pb-0 px-4 pt-4">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalCaricaPromoScadenzeLabel">
+          <i class="bi bi-file-earmark-arrow-up text-primary fs-4"></i>
+          <span>Strumento Promo Scadenze</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body px-4 py-3">
+        <!-- Upload Form -->
+        <div class="card border-0 bg-light p-4 rounded-4 mb-4">
+          <h6 class="fw-bold mb-2">Carica Nuova Promo Scadenze (PDF)</h6>
+          <p class="text-muted small">Carica il listino delle promozioni o scadenze per estrarre gli articoli e vedere immediatamente quali clienti li lavorano abitualmente.</p>
+          <form action="/clienti/promo_scadenze/carica" method="POST" enctype="multipart/form-data" class="row g-3 align-items-center">
+            <div class="col-12 col-md-8">
+              <input type="file" class="form-control rounded-3" name="pdf_file" accept=".pdf" required>
+            </div>
+            <div class="col-12 col-md-4">
+              <button type="submit" class="btn btn-primary rounded-4 w-100 fw-bold">
+                <i class="bi bi-upload me-2"></i>Elabora e Sovrascrivi
+              </button>
+            </div>
+          </form>
+          <div class="form-text small text-danger mt-1">Caricando un nuovo file PDF, i prodotti della promozione precedente verranno azzerati automaticamente.</div>
+        </div>
+
+        <!-- Spinner Promo Loading -->
+        <div id="promo-scad-spinner" class="text-center py-4 d-none">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Caricamento promo...</span>
+          </div>
+          <p class="text-muted small mt-2">Ricerca incrociata dei clienti attivi...</p>
+        </div>
+
+        <!-- Promo Products List -->
+        <div id="promo-scad-results">
+          <h6 class="fw-bold text-color mb-3"><i class="bi bi-box-seam text-primary me-2"></i>Articoli Promo Scadenze Attiva</h6>
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table sheet-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 110px;">Codice</th>
+                  <th>Prodotto Estratto</th>
+                  <th style="width: 120px;" class="text-end">Prezzo Promo</th>
+                  <th>Clienti Lavorano Prodotto</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-promo-scad">
+                <!-- Dynamically filled -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 pt-0">
+        <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Helper to format float safely without TypeError
+function formatPrezzo(val) {
+  if (val === null || val === undefined) return '0.00';
+  const n = parseFloat(val);
+  return isNaN(n) ? '0.00' : n.toFixed(2);
+}
+
+function filtraModalClienti(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.row-modal-cliente').forEach(row => {
+    const nome = row.getAttribute('data-nome') || '';
+    const zona = row.getAttribute('data-zona') || '';
+    const ref = row.getAttribute('data-ref') || '';
+    if (!term || nome.includes(term) || zona.includes(term) || ref.includes(term)) {
+      row.classList.remove('d-none');
+    } else {
+      row.classList.add('d-none');
+    }
+  });
+}
+
+function impostaDatePredefiniteQuick() {
+  const oggi = new Date();
+  const setteGiorniFa = new Date();
+  setteGiorniFa.setDate(oggi.getDate() - 6);
+
+  const inpIni = document.getElementById('quick_data_inizio');
+  const inpFine = document.getElementById('quick_data_fine');
+  if (inpIni && !inpIni.value) {
+    inpIni.value = setteGiorniFa.toISOString().split('T')[0];
+  }
+  if (inpFine && !inpFine.value) {
+    inpFine.value = oggi.toISOString().split('T')[0];
+  }
+}
+
+async function onQuickClienteChange(clienteId) {
+  const form = document.getElementById('formQuickWeekly');
+  const section = document.getElementById('quick_prodotti_section');
+  const placeholder = document.getElementById('quick_prodotti_placeholder');
+
+  if (!clienteId) {
+    section.style.display = 'none';
+    placeholder.style.display = 'block';
+    form.action = '';
+    return;
+  }
+
+  form.action = `/clienti/${clienteId}/aggiornamento_settimanale`;
+  placeholder.style.display = 'none';
+  section.style.display = 'block';
+
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/prodotti_completi`);
+    const data = await resp.json();
+    if (data.status !== "ok") return;
+
+    // Render Lavorati
+    document.getElementById('badge-cnt-lavorati').innerText = data.lavorati.length;
+    const containerLav = document.getElementById('container-quick-lavorati');
+    if (data.lavorati.length === 0) {
+      containerLav.innerHTML = `<div class="text-muted small p-2 text-center">Nessun prodotto contrassegnato come abituale per questo cliente. Spunta i prodotti nel tab "Altri Prodotti"!</div>`;
+    } else {
+      containerLav.innerHTML = data.lavorati.map(p => `
+        <div class="d-flex align-items-center justify-content-between py-1.5 px-2 border-bottom border-light item-lavorato-prodotto" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+          <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+            <input class="form-check-input chk-quick-lavorato flex-shrink-0 cursor-pointer me-1" type="checkbox" style="width: 1.15rem; height: 1.15rem;" name="prodotti_acquistati_ids" value="${p.id}" id="chk_q_${p.id}" checked onchange="togglePrezzoInput(${p.id}, this.checked)">
+            <label class="form-check-label small text-color text-truncate mb-0 cursor-pointer" for="chk_q_${p.id}">
+              <strong>${p.nome}</strong> 
+              ${p.codice ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size:0.7rem;">Cod: ${p.codice}</span>` : ''} 
+              <span class="text-muted ms-1">(${p.categoria_nome})</span>
+            </label>
+          </div>
+
+          <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+            <select name="um_prodotto_${p.id}" id="um_inp_${p.id}" class="form-select form-select-sm py-0 px-1 border-secondary-subtle text-center fw-bold" style="font-size:0.75rem; width:54px; height:26px;" onchange="calcolaSubtotaleRiga(${p.id})">
+              <option value="PZ">PZ</option>
+              <option value="KG">KG</option>
+            </select>
+            <input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center fw-semibold px-1 py-0" name="quantita_prodotto_${p.id}" id="qty_inp_${p.id}" value="1" placeholder="Qtà" title="Quantità (PZ o KG)" style="font-size: 0.8rem; width: 55px; height: 26px;" oninput="calcolaSubtotaleRiga(${p.id})">
+            <div class="d-flex align-items-center gap-0.5">
+              <span class="small text-muted" style="font-size: 0.72rem;">€</span>
+              <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-semibold px-1 py-0" name="prezzo_prodotto_${p.id}" id="prezzo_inp_${p.id}" value="${formatPrezzo(p.prezzo_offerta || p.prezzo_attuale)}" placeholder="Prezzo" title="Prezzo unitario (€)" style="font-size: 0.8rem; width: 72px; height: 26px;" oninput="calcolaSubtotaleRiga(${p.id})">
+            </div>
+            <span class="badge bg-light text-success border font-monospace ms-1" id="subtotale_badge_${p.id}" style="font-size: 0.72rem; min-width: 60px; text-align: right;">
+              € ${formatPrezzo(p.prezzo_offerta || p.prezzo_attuale)}
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Altri
+    document.getElementById('badge-cnt-altri').innerText = data.altri.length;
+    const containerAltri = document.getElementById('container-quick-altri');
+    if (data.altri.length === 0) {
+      containerAltri.innerHTML = `<div class="text-muted small p-2 text-center">Tutti i prodotti del catalogo sono già nel listino di questo cliente.</div>`;
+    } else {
+      containerAltri.innerHTML = data.altri.map(p => `
+        <div class="d-flex align-items-center justify-content-between py-1.5 px-2 border-bottom border-light item-altro-prodotto" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+          <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+            <input class="form-check-input chk-quick-altro flex-shrink-0 cursor-pointer me-1" type="checkbox" style="width: 1.15rem; height: 1.15rem;" name="prodotti_acquistati_ids" value="${p.id}" id="chk_qa_${p.id}" onchange="togglePrezzoInput(${p.id}, this.checked)">
+            <label class="form-check-label small text-color text-truncate mb-0 cursor-pointer" for="chk_qa_${p.id}">
+              <span class="badge bg-light text-primary border me-1">Nuovo</span> 
+              <strong>${p.nome}</strong> 
+              ${p.codice ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size:0.7rem;">Cod: ${p.codice}</span>` : ''} 
+              <span class="text-muted ms-1">(${p.categoria_nome})</span>
+            </label>
+          </div>
+
+          <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+            <select name="um_prodotto_${p.id}" id="um_inp_${p.id}" class="form-select form-select-sm py-0 px-1 border-secondary-subtle text-center fw-bold" style="font-size:0.75rem; width:54px; height:26px;" disabled onchange="calcolaSubtotaleRiga(${p.id})">
+              <option value="PZ">PZ</option>
+              <option value="KG">KG</option>
+            </select>
+            <input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center fw-semibold px-1 py-0" name="quantita_prodotto_${p.id}" id="qty_inp_${p.id}" value="1" placeholder="Qtà" title="Quantità (PZ o KG)" disabled style="font-size: 0.8rem; width: 55px; height: 26px;" oninput="calcolaSubtotaleRiga(${p.id})">
+            <div class="d-flex align-items-center gap-0.5">
+              <span class="small text-muted" style="font-size: 0.72rem;">€</span>
+              <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-semibold px-1 py-0" name="prezzo_prodotto_${p.id}" id="prezzo_inp_${p.id}" value="${formatPrezzo(p.prezzo_attuale)}" placeholder="Prezzo" title="Prezzo unitario (€)" disabled style="font-size: 0.8rem; width: 72px; height: 26px;" oninput="calcolaSubtotaleRiga(${p.id})">
+            </div>
+            <span class="badge bg-light text-secondary border font-monospace ms-1" id="subtotale_badge_${p.id}" style="font-size: 0.72rem; min-width: 60px; text-align: right;">
+              € ${formatPrezzo(p.prezzo_attuale)}
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento prodotti cliente:", err);
+  }
+}
+
+function calcolaSubtotaleRiga(pid) {
+  const qEl = document.getElementById(`qty_inp_${pid}`);
+  const pEl = document.getElementById(`prezzo_inp_${pid}`);
+  const subEl = document.getElementById(`subtotale_badge_${pid}`);
+  if (qEl && pEl && subEl) {
+    const q = parseFloat(qEl.value) || 0;
+    const p = parseFloat(pEl.value) || 0;
+    const sub = q * p;
+    subEl.innerText = `€ ${sub.toFixed(2)}`;
+  }
+}
+
+function togglePrezzoInput(pid, isChecked) {
+  const pInp = document.getElementById(`prezzo_inp_${pid}`);
+  const qInp = document.getElementById(`qty_inp_${pid}`);
+  const uInp = document.getElementById(`um_inp_${pid}`);
+  const badge = document.getElementById(`subtotale_badge_${pid}`);
+
+  if (pInp) pInp.disabled = !isChecked;
+  if (qInp) qInp.disabled = !isChecked;
+  if (uInp) uInp.disabled = !isChecked;
+
+  if (badge) {
+    if (isChecked) {
+      badge.classList.remove('text-secondary');
+      badge.classList.add('text-success');
+    } else {
+      badge.classList.remove('text-success');
+      badge.classList.add('text-secondary');
+    }
+  }
+
+  if (isChecked) {
+    calcolaSubtotaleRiga(pid);
+    if (qInp) setTimeout(() => qInp.focus(), 50);
+  }
+}
+
+function toggleCheckboxFromContainer(chkId) {
+  const chk = document.getElementById(chkId);
+  if (chk) {
+    chk.checked = !chk.checked;
+    chk.dispatchEvent(new Event('change'));
+  }
+}
+
+function selezionaQuickLavorati(val) {
+  document.querySelectorAll('.chk-quick-lavorato').forEach(chk => {
+    chk.checked = val;
+    const pid = chk.value;
+    togglePrezzoInput(pid, val);
+  });
+}
+
+function filtraLavoratiProdotti(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.item-lavorato-prodotto').forEach(item => {
+    const nome = item.getAttribute('data-nome') || '';
+    const cod = item.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      item.classList.remove('d-none');
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+}
+
+function filtraAltriProdotti(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.item-altro-prodotto').forEach(item => {
+    const nome = item.getAttribute('data-nome') || '';
+    const cod = item.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      item.classList.remove('d-none');
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+}
+
+async function caricaStatisticheLavoro() {
+  const spinner = document.getElementById('stat-lavoro-spinner');
+  const errorAlert = document.getElementById('stat-lavoro-error');
+  const content = document.getElementById('stat-lavoro-content');
+
+  if (spinner) spinner.classList.remove('d-none');
+  if (errorAlert) errorAlert.classList.add('d-none');
+  if (content) content.classList.add('d-none');
+
+  try {
+    const response = await fetch('/api/statistiche_portfolio');
+    const data = await response.json();
+
+    if (data.status !== 'ok') {
+      throw new Error("Errore API status");
+    }
+
+    // 1. Month-to-date and PMTD
+    document.getElementById('stat-mtd-val').innerText = '€ ' + (data.mtd_tot || 0).toLocaleString('it-IT', {minimumFractionDigits: 2});
+    document.getElementById('stat-pmtd-val').innerText = '€ ' + (data.pmtd_tot || 0).toLocaleString('it-IT', {minimumFractionDigits: 2});
+    
+    const badgePmtd = document.getElementById('stat-pmtd-badge');
+    if (data.delta_pmtd > 0) {
+      badgePmtd.className = 'badge rounded-pill bg-success px-3 py-1.5 fw-bold';
+      badgePmtd.innerHTML = `<i class="bi bi-arrow-up-circle-fill me-1"></i> +€ ${data.delta_pmtd.toLocaleString('it-IT', {minimumFractionDigits: 2})} (+${data.perc_pmtd}%)`;
+    } else if (data.delta_pmtd < 0) {
+      badgePmtd.className = 'badge rounded-pill bg-danger px-3 py-1.5 fw-bold';
+      badgePmtd.innerHTML = `<i class="bi bi-arrow-down-circle-fill me-1"></i> -€ ${Math.abs(data.delta_pmtd).toLocaleString('it-IT', {minimumFractionDigits: 2})} (${data.perc_pmtd}%)`;
+    } else {
+      badgePmtd.className = 'badge rounded-pill bg-secondary px-3 py-1.5 fw-bold';
+      badgePmtd.innerText = 'Stabile vs mese scorso';
+    }
+
+    // 2. KPIs
+    document.getElementById('stat-kpi-cumulato').innerText = '€ ' + (data.tot_cumulato || 0).toLocaleString('it-IT', {minimumFractionDigits: 2});
+    document.getElementById('stat-kpi-attivi').innerText = data.attivi;
+    const attiviPerc = data.tot_clienti > 0 ? ((data.attivi / data.tot_clienti) * 100).toFixed(1) : 0;
+    document.getElementById('stat-kpi-attivi-perc').innerText = `${attiviPerc}% del totale`;
+    document.getElementById('stat-kpi-inattivi').innerText = data.inattivi;
+    document.getElementById('stat-kpi-bloccati').innerText = data.bloccati;
+
+    // 3. Tabella Settimane
+    const tbodySettimane = document.getElementById('stat-table-settimane');
+    if (!data.weeks_chrono || data.weeks_chrono.length === 0) {
+      tbodySettimane.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Nessuna settimana registrata</td></tr>`;
+    } else {
+      tbodySettimane.innerHTML = data.weeks_chrono.map(w => {
+        let varBadge = '<span class="text-muted">–</span>';
+        let percBadge = '<span class="text-muted">–</span>';
+        if (w.delta > 0) {
+          varBadge = `<span class="text-success fw-bold font-monospace">+€ ${w.delta.toLocaleString('it-IT', {minimumFractionDigits: 2})}</span>`;
+          percBadge = `<span class="badge bg-success bg-opacity-10 text-success rounded-pill font-monospace"><i class="bi bi-caret-up-fill small me-1"></i>+${w.perc}%</span>`;
+        } else if (w.delta < 0) {
+          varBadge = `<span class="text-danger fw-bold font-monospace">-€ ${Math.abs(w.delta).toLocaleString('it-IT', {minimumFractionDigits: 2})}</span>`;
+          percBadge = `<span class="badge bg-danger bg-opacity-10 text-danger rounded-pill font-monospace"><i class="bi bi-caret-down-fill small me-1"></i>${w.perc}%</span>`;
+        }
+        return `
+          <tr>
+            <td class="fw-bold">${w.label}</td>
+            <td class="text-end fw-bold text-primary font-monospace">€ ${w.totale.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+            <td class="text-end font-monospace">${varBadge}</td>
+            <td class="text-center">${percBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 4. Prodotti Nuovi
+    const tbodyNuovi = document.getElementById('stat-list-nuovi');
+    if (!data.prodotti_nuovi || data.prodotti_nuovi.length === 0) {
+      tbodyNuovi.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Nessun nuovo inserimento in questo periodo.</td></tr>`;
+    } else {
+      tbodyNuovi.innerHTML = data.prodotti_nuovi.map(p => `
+        <tr class="align-middle">
+          <td><span class="badge bg-light text-dark border font-monospace">${p.codice}</span></td>
+          <td><strong>${p.nome}</strong><br><span class="text-muted" style="font-size:0.75rem;">${p.categoria}</span></td>
+          <td class="text-end fw-bold text-success font-monospace">${p.tot_qty}</td>
+          <td class="text-end"><span class="badge bg-success bg-opacity-10 text-success rounded-pill">${p.tot_clienti} ${p.tot_clienti === 1 ? 'cliente' : 'clienti'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // 5. Prodotti Persi
+    const tbodyPersi = document.getElementById('stat-list-persi');
+    if (!data.prodotti_persi || data.prodotti_persi.length === 0) {
+      tbodyPersi.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Nessuna sospensione rilevata in questo periodo.</td></tr>`;
+    } else {
+      tbodyPersi.innerHTML = data.prodotti_persi.map(p => `
+        <tr class="align-middle">
+          <td><span class="badge bg-light text-dark border font-monospace">${p.codice}</span></td>
+          <td><strong>${p.nome}</strong><br><span class="text-muted" style="font-size:0.75rem;">${p.categoria}</span></td>
+          <td class="text-end fw-bold text-danger font-monospace">${p.tot_qty}</td>
+          <td class="text-end"><span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">${p.tot_clienti} ${p.tot_clienti === 1 ? 'cliente' : 'clienti'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // 6. Top Clienti (4W)
+    const tbodyTopClienti = document.getElementById('stat-list-top-clienti');
+    if (!data.top_clienti_4w || data.top_clienti_4w.length === 0) {
+      tbodyTopClienti.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Dati non disponibili</td></tr>`;
+    } else {
+      tbodyTopClienti.innerHTML = data.top_clienti_4w.map((c, i) => `
+        <tr>
+          <td><span class="badge bg-warning text-dark rounded-circle" style="width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;">${i+1}</span></td>
+          <td><strong>${c.nome}</strong></td>
+          <td><span class="badge bg-light text-secondary border">${c.zona}</span></td>
+          <td class="text-end fw-bold text-primary font-monospace">€ ${c.totale_4w.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+        </tr>
+      `).join('');
+    }
+
+    // 7. Growing Clients
+    const tbodyGrowing = document.getElementById('stat-list-growing-clienti');
+    if (!data.growing_clients || data.growing_clients.length === 0) {
+      tbodyGrowing.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">Nessun trend in forte crescita.</td></tr>`;
+    } else {
+      tbodyGrowing.innerHTML = data.growing_clients.map(c => `
+        <tr>
+          <td><strong>${c.nome}</strong><br><span class="text-muted small">${c.zona}</span></td>
+          <td class="text-end fw-bold text-success font-monospace">+€ ${c.delta.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+          <td class="text-end fw-bold text-success font-monospace">+${c.perc}%</td>
+        </tr>
+      `).join('');
+    }
+
+    // 8. Declining Clients
+    const tbodyDeclining = document.getElementById('stat-list-declining-clienti');
+    if (!data.declining_clients || data.declining_clients.length === 0) {
+      tbodyDeclining.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">Nessun trend in calo rilevante.</td></tr>`;
+    } else {
+      tbodyDeclining.innerHTML = data.declining_clients.map(c => `
+        <tr>
+          <td><strong>${c.nome}</strong><br><span class="text-muted small">${c.zona}</span></td>
+          <td class="text-end fw-bold text-danger font-monospace">-€ ${Math.abs(c.delta).toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+          <td class="text-end fw-bold text-danger font-monospace">${c.perc}%</td>
+        </tr>
+      `).join('');
+    }
+
+    // 9. Zone Performance
+    const tbodyZone = document.getElementById('stat-table-zone');
+    if (!data.zone_perf || data.zone_perf.length === 0) {
+      tbodyZone.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Dati zone non disponibili</td></tr>`;
+    } else {
+      tbodyZone.innerHTML = data.zone_perf.map(z => {
+        const pct = data.tot_cumulato > 0 ? ((z.tot_fatturato / data.tot_cumulato) * 100).toFixed(1) : 0;
+        return `
+          <tr>
+            <td><strong class="text-color">${z.zona}</strong></td>
+            <td class="text-center"><span class="badge bg-light text-secondary border font-monospace">${z.num_clienti}</span></td>
+            <td class="text-end fw-bold font-monospace text-primary">€ ${z.tot_fatturato.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+            <td class="text-end fw-semibold font-monospace text-muted">€ ${z.avg_per_cliente.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height: 6px;">
+                  <div class="progress-bar bg-info" role="progressbar" style="width: ${pct}%" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <span class="small fw-bold text-muted" style="min-width: 40px; text-align: right;">${pct}%</span>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    if (spinner) spinner.classList.add('d-none');
+    if (content) content.classList.remove('d-none');
+  } catch (err) {
+    console.error("Errore caricamento statistiche portfolio:", err);
+    if (spinner) spinner.classList.add('d-none');
+    if (errorAlert) errorAlert.classList.remove('d-none');
+  }
+}
+
+function toggleNuovaZonaInput(val) {
+  const wrapper = document.getElementById('nuovo_cliente_nuova_zona_wrapper');
+  const input = document.getElementById('nuovo_cliente_nuova_zona');
+  if (val === 'nuova_zona') {
+    wrapper.style.display = 'block';
+    input.required = true;
+  } else {
+    wrapper.style.display = 'none';
+    input.required = false;
+    input.value = '';
+  }
+}
+
+async function caricaPromoScadenze() {
+  const spinner = document.getElementById('promo-scad-spinner');
+  const tbody = document.getElementById('tbody-promo-scad');
+
+  if (spinner) spinner.classList.remove('d-none');
+  tbody.innerHTML = '';
+
+  try {
+    const response = await fetch('/api/promo_scadenze');
+    const data = await response.json();
+
+    if (data.status !== 'ok') {
+      throw new Error("Errore API status");
+    }
+
+    if (!data.has_data) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4"><i class="bi bi-info-circle me-1"></i>Nessun prodotto presente nella promo scadenze attuale. Carica un listino PDF sopra.</td></tr>`;
+    } else {
+      tbody.innerHTML = data.prodotti.map(p => {
+        let clientiHtml = '';
+        if (!p.prodotto_id) {
+          clientiHtml = `<span class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Codice non presente nel database prodotti</span>`;
+        } else if (p.clienti.length === 0) {
+          clientiHtml = `<span class="text-muted small">Nessun cliente lavora questo articolo</span>`;
+        } else {
+          clientiHtml = p.clienti.map(c => `
+            <a href="/clienti/${c.id}" class="badge bg-light text-dark border text-decoration-none me-1.5 mb-1 hover-primary py-1.5 px-2">
+              <i class="bi bi-person me-0.5 text-primary"></i>${c.nome} <span class="text-muted" style="font-size:0.75rem;">(${c.zona})</span>
+            </a>
+          `).join('');
+        }
+
+        return `
+          <tr>
+            <td><span class="badge bg-light text-dark border font-monospace px-2 py-1">${p.codice}</span></td>
+            <td><strong>${p.nome}</strong></td>
+            <td class="text-end fw-bold text-success font-monospace">€ ${p.prezzo.toFixed(2)} / ${p.um}</td>
+            <td><div class="d-flex flex-wrap align-items-center gap-1">${clientiHtml}</div></td>
+          </tr>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error("Errore caricamento promo scadenze:", err);
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4"><i class="bi bi-exclamation-octagon-fill me-1"></i>Errore durante il recupero dei dati. Riprova.</td></tr>`;
+  } finally {
+    if (spinner) spinner.classList.add('d-none');
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  impostaDatePredefiniteQuick();
+
+  const modalStat = document.getElementById('modalStatisticheLavoro');
+  if (modalStat) {
+    modalStat.addEventListener('show.bs.modal', function () {
+      caricaStatisticheLavoro();
+    });
+  }
+
+  const modalPromo = document.getElementById('modalCaricaPromoScadenze');
+  if (modalPromo) {
+    modalPromo.addEventListener('show.bs.modal', function () {
+      caricaPromoScadenze();
+    });
+  }
+});
+</script>
 {% endblock %}

@@ -30,7 +30,7 @@ with app.test_client() as client:
             for p in cur.fetchall():
                 prodotti_da_categorizzare.append(p['id'])
                 
-    if non prodotti_da_categorizzare:
+    if not prodotti_da_categorizzare:
         # Prende i primi tre
         with app.app_context():
             with get_db() as db:

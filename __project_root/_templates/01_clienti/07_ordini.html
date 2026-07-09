@@ -116,9 +116,14 @@
       <p class="text-muted mb-0">Quadro riassuntivo dei giorni di consegna standard pianificati per ciascun cliente.</p>
     </div>
 
-    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-      <i class="bi bi-house-door"></i> Dashboard
-    </a>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('download_ordini_pdf') }}" class="btn btn-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-pdf"></i> Scarica PDF
+      </a>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-house-door"></i> Dashboard
+      </a>
+    </div>
   </div>
 
   <!-- Weekly Board Grid Grid -->

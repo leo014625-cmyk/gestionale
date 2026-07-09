@@ -1,403 +1,878 @@
 {% extends "01_base.html" %}
 
-{% block title %}BETA Volantino - Gestionale Horeca{% endblock %}
+{% block title %}BETA Volantino - Editor Professionale (Stile InDesign) - Gestionale Horeca{% endblock %}
 
 {% block content %}
-
-<h1 class="mb-4">🧪 BETA – Editor Volantino (Stile InPublish)</h1>
-
-<div class="row">
-
-  <!-- TOOLBAR LATERALE -->
-  <div class="col-md-3">
-
-    <!-- Nome volantino -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-card-text me-1"></i> Nome volantino
+<div class="container-fluid py-3 px-4" style="background-color: #f8fafc; min-height: 92vh; color: #0f172a; font-family: 'Inter', sans-serif;">
+  
+  <!-- BARRA DI INTESTAZIONE SUPERIORE (TEMA CHIARO PREMIUM) -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 p-3 rounded-3 shadow-sm bg-white border" style="border-color: #e2e8f0;">
+    <div class="d-flex align-items-center gap-3">
+      <div class="p-2 bg-primary bg-opacity-10 rounded-3 text-primary border border-primary border-opacity-25">
+        <i class="bi bi-palette-fill fs-4"></i>
       </div>
-      <div class="card-body">
-        <input type="text" id="volantino-nome" class="form-control form-control-sm"
-               placeholder="Es. VOLANTINO ITTICO NOVEMBRE"
-               value="{{ nome_volantino or '' }}">
+      <div>
+        <h4 class="mb-0 fw-bold tracking-tight text-dark">🧪 Volantino Editor Pro</h4>
+        <p class="mb-0 text-muted small">Crea impaginazioni di alto livello in stile InDesign</p>
+      </div>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+      <div class="input-group input-group-sm border rounded-3 bg-light" style="max-width: 300px; border-color: #cbd5e1;">
+        <span class="input-group-text bg-transparent border-0 text-muted"><i class="bi bi-file-earmark-text"></i></span>
+        <input type="text" id="volantino-nome" class="form-control bg-transparent border-0 text-dark fw-semibold" 
+               placeholder="Nome volantino (es. Offerte Giugno)" value="{{ nome_volantino or '' }}">
+      </div>
+      
+      <select id="volantino-tipo" class="form-select form-select-sm bg-light border-secondary border-opacity-25 text-dark rounded-3 px-3" style="width: auto;">
+        <option value="volantino" {% if tipo_volantino == 'volantino' or not tipo_volantino %}selected{% endif %}>Volantino Standard</option>
+        <option value="promo_mensile" {% if tipo_volantino == 'promo_mensile' %}selected{% endif %}>Promo Mensile</option>
+        <option value="promo_scadenza" {% if tipo_volantino == 'promo_scadenza' %}selected{% endif %}>Promo Scadenze</option>
+        <option value="promo_pesce" {% if tipo_volantino == 'promo_pesce' %}selected{% endif %}>Promo Pesce</option>
+        <option value="promo_carne" {% if tipo_volantino == 'promo_carne' %}selected{% endif %}>Promo Carne</option>
+      </select>
+
+      <button class="btn btn-primary btn-sm px-3 fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2" id="save-layout">
+        <i class="bi bi-cloud-upload-fill"></i> Salva
+      </button>
+      
+      <!-- CARICA PDF BOTTONE -->
+      <button class="btn btn-danger btn-sm px-3 fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2" id="import-pdf-btn">
+        <i class="bi bi-file-earmark-pdf-fill"></i> Carica PDF
+      </button>
+      <input type="file" id="import-pdf-file" accept="application/pdf" style="display: none;">
+      
+      <div class="dropdown">
+        <button class="btn btn-outline-dark btn-sm px-3 fw-bold rounded-3 dropdown-toggle d-flex align-items-center gap-2" type="button" id="dropdownEsporta" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-download"></i> Esporta
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end rounded-3 shadow border" aria-labelledby="dropdownEsporta">
+          <li><button class="dropdown-item py-2 d-flex align-items-center gap-2" id="export-pdf"><i class="bi bi-file-pdf text-danger"></i> Scarica PDF Completo</button></li>
+          <li><button class="dropdown-item py-2 d-flex align-items-center gap-2" id="export-png"><i class="bi bi-file-image text-success"></i> Scarica Foglio Corrente PNG</button></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- PANNELLO DI SINISTRA: IMPOSTAZIONI GLOBALI & STRUTTURA -->
+    <div class="col-md-3 col-12">
+      <div class="d-flex flex-column gap-3 scrollable-sidebar" style="height: calc(100vh - 160px); min-height: 600px; overflow-y: auto; padding-right: 6px;">
+        
+        <!-- SEZIONE PAGINE / FOGLI -->
+        <div class="card border bg-white shadow-sm" style="border-color: #e2e8f0;">
+          <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-journal-album text-primary"></i> Gestione Fogli
+            </h6>
+            <span class="badge bg-primary" id="badge-pagine-count">1 Pagina</span>
+          </div>
+          <div class="card-body pt-0">
+            <div id="lista-pagine" class="d-flex flex-column gap-2 mb-3" style="max-height: 160px; overflow-y: auto;">
+              <!-- Generato da JS -->
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <button class="btn btn-light btn-sm w-100 py-2 border rounded-3 d-flex align-items-center justify-content-center gap-1 text-dark fw-semibold" id="aggiungi-pagina">
+                  <i class="bi bi-plus-circle text-primary"></i> Nuovo Foglio
+                </button>
+              </div>
+              <div class="col-6">
+                <button class="btn btn-light btn-sm w-100 py-2 border rounded-3 d-flex align-items-center justify-content-center gap-1 text-dark fw-semibold" id="duplica-pagina">
+                  <i class="bi bi-files text-warning"></i> Duplica Foglio
+                </button>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm w-100 py-2 mt-2 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-sm" id="adatta-tutti-top">
+              <i class="bi bi-arrows-expand"></i> Copia layout su tutti i fogli
+            </button>
+          </div>
+        </div>
+
+        <!-- CONFIGURAZIONE DIMENSIONI FOGLIO -->
+        <div class="card border bg-white shadow-sm" style="border-color: #e2e8f0;">
+          <div class="card-header border-0 bg-transparent py-3">
+            <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-aspect-ratio text-primary"></i> Dimensioni & Layout Foglio
+            </h6>
+          </div>
+          <div class="card-body pt-0">
+            <!-- ZOOM VISTA EDITOR -->
+            <div class="mb-3 p-2 rounded border bg-light" style="border-color: #e2e8f0;">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small text-muted fw-semibold">Zoom Vista Editor</span>
+                <div class="d-flex align-items-center gap-2">
+                  <button class="btn btn-xs btn-outline-primary py-0 px-1 text-xs d-flex align-items-center gap-1" id="btn-auto-fit" style="font-size: 10px; padding: 2px 5px;" title="Adatta allo Schermo">
+                    <i class="bi bi-arrows-angle-contract"></i> Adatta
+                  </button>
+                  <span class="text-primary fw-bold small"><span id="val-vista-zoom">75</span>%</span>
+                </div>
+              </div>
+              <input type="range" id="vista-zoom" class="form-range" min="30" max="120" step="5" value="75">
+            </div>
+            
+            <!-- SLIDER LARGHEZZA E ALTEZZA -->
+            <div class="mb-3">
+              <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
+                <span>Larghezza Foglio</span>
+                <span class="text-primary"><span id="val-larghezza">800</span>px</span>
+              </label>
+              <input type="range" id="foglio-larghezza" class="form-range" min="500" max="1500" step="10" value="800">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
+                <span>Altezza Foglio</span>
+                <span class="text-primary"><span id="val-altezza">1100</span>px</span>
+              </label>
+              <input type="range" id="foglio-altezza" class="form-range" min="600" max="1800" step="10" value="1100">
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-4">
+                <label class="form-label small text-muted">Pad Top</label>
+                <input type="number" id="foglio-padding-top" class="form-control form-control-sm bg-white border text-dark" value="10">
+              </div>
+              <div class="col-4">
+                <label class="form-label small text-muted">Pad Bottom</label>
+                <input type="number" id="foglio-padding-bottom" class="form-control form-control-sm bg-white border text-dark" value="10">
+              </div>
+              <div class="col-4">
+                <label class="form-label small text-muted">Pad Laterale</label>
+                <input type="number" id="foglio-padding-sides" class="form-control form-control-sm bg-white border text-dark" value="10">
+              </div>
+            </div>
+
+            <!-- CONFIGURAZIONE INTESTAZIONE (HEADER) -->
+            <div class="border-top pt-3 mt-3">
+              <h7 class="fw-bold d-block text-dark mb-2 small">Intestazione (Header)</h7>
+              <div class="mb-3">
+                <label class="form-label small text-muted">Alt. Header (px)</label>
+                <input type="number" id="header-altezza" class="form-control form-control-sm bg-white border text-dark" value="80">
+                <input type="hidden" id="footer-altezza" value="0">
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label small text-muted">Adattamento Logo Header</label>
+                <select id="header-fit" class="form-select form-select-sm bg-white border text-dark">
+                  <option value="contain" selected>Conserva Proporzioni (Consigliato per Loghi)</option>
+                  <option value="cover">Riempi Interamente (Consigliato per Sfondi)</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small text-muted">Zoom Logo Header</label>
+                <input type="range" id="header-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
+              </div>
+            </div>
+
+            <!-- GRIGLIA PRODOTTI CON SLIDER -->
+            <div class="border-top pt-3 mt-3">
+              <h7 class="fw-bold d-block text-dark mb-2 small">Griglia Prodotti</h7>
+              
+              <div class="mb-3">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
+                  <span>Distanza Celle (Gap)</span>
+                  <span class="text-primary"><span id="val-gap">10</span>px</span>
+                </label>
+                <input type="range" id="griglia-gap" class="form-range" min="0" max="40" step="1" value="10">
+              </div>
+
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <label class="form-label small text-muted">Colonne</label>
+                  <input type="number" id="griglia-colonne" class="form-control form-control-sm bg-white border text-dark" value="3" min="1" max="6">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted">Righe</label>
+                  <input type="number" id="griglia-righe" class="form-control form-control-sm bg-white border text-dark" value="3" min="1" max="10">
+                </div>
+              </div>
+            </div>
+
+            <!-- PRESETS & ADATTA -->
+            <div class="border-top pt-3 mt-3 d-grid gap-2">
+              <button class="btn btn-outline-primary btn-sm py-2 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-1" id="adatta-tutti">
+                <i class="bi bi-arrows-expand"></i> Adatta a tutti i fogli
+              </button>
+              <div class="row g-2">
+                <div class="col-6">
+                  <button class="btn btn-outline-success btn-sm w-100 py-2 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-1" id="salva-preset">
+                    <i class="bi bi-bookmark-star-fill"></i> Salva Default
+                  </button>
+                </div>
+                <div class="col-6">
+                  <button class="btn btn-outline-secondary btn-sm w-100 py-2 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-1" id="carica-preset">
+                    <i class="bi bi-download"></i> Carica Default
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- Tipo volantino -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-tag-fill me-1"></i> Tipo volantino / Promo
+    <!-- CENTRAL WORKSPACE: IL CANVAS DI DISEGNO (TEMA CHIARO) -->
+    <div class="col-md-6 col-12">
+      <!-- HEADER FISSO SOPRA L'AREA DI DISEGNO (RISOLVE IL TASTO FLOAT IN MEZZO) -->
+      <div class="d-flex justify-content-between align-items-center mb-2 px-2 py-1 rounded bg-white border shadow-sm" style="border-color: #e2e8f0;">
+        <span class="small fw-bold text-dark d-flex align-items-center gap-1">
+          <i class="bi bi-aspect-ratio text-primary"></i> Area di Impaginazione Volantino
+        </span>
+        <span class="badge bg-light text-muted border fw-normal" id="zoom-status">Layout Dinamico Attivo</span>
       </div>
-      <div class="card-body">
-        <select id="volantino-tipo" class="form-select form-select-sm">
-          <option value="volantino" {% if tipo_volantino == 'volantino' or not tipo_volantino %}selected{% endif %}>Standard (Volantino)</option>
-          <option value="promo_mensile" {% if tipo_volantino == 'promo_mensile' %}selected{% endif %}>Promo Mensile</option>
-          <option value="promo_scadenza" {% if tipo_volantino == 'promo_scadenza' %}selected{% endif %}>Promo Scadenze</option>
-          <option value="promo_pesce" {% if tipo_volantino == 'promo_pesce' %}selected{% endif %}>Promo Pesce</option>
-          <option value="promo_carne" {% if tipo_volantino == 'promo_carne' %}selected{% endif %}>Promo Carne</option>
-          <option value="promo_singolo" {% if tipo_volantino == 'promo_singolo' %}selected{% endif %}>Promo Singolo Prodotto</option>
-        </select>
-      </div>
-    </div>
 
-    <!-- Pagine -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-journal-text me-1"></i> Pagine</span>
-      </div>
-      <div class="card-body">
-        <div id="lista-pagine" class="mb-2"></div>
-        <div class="d-grid gap-2">
-          <button class="btn btn-primary btn-sm" id="aggiungi-pagina">
-            ➕ Aggiungi pagina
-          </button>
-          <button class="btn btn-outline-primary btn-sm" id="duplica-pagina">
-            📄 Duplica pagina corrente
-          </button>
+      <div class="card border bg-light shadow-inner overflow-auto d-flex align-items-start justify-content-center p-4 workspace-board" 
+           style="border-color: #e2e8f0; height: calc(100vh - 160px); min-height: 600px;">
+        
+        <div id="pagine-container" class="position-relative mx-auto" style="margin-top: 10px;">
+          <!-- La pagina attiva verrà iniettata e modificata qui dinamicamente -->
         </div>
       </div>
     </div>
 
-    <!-- Zoom Header -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-aspect-ratio me-1"></i> Zoom immagine header
-      </div>
-      <div class="card-body">
-        <input type="range" id="header-zoom" class="form-range" min="1" max="3" step="0.05" value="1">
-        <div class="small text-muted">Agisce sulla pagina corrente (immagine in alto).</div>
-      </div>
-    </div>
-
-    <!-- Layout griglia -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-grid-3x3-gap-fill me-1"></i> Layout griglia pagina
-      </div>
-      <div class="card-body">
-        <!-- Righe fisse = 3: questi bottoni cambiano SOLO le colonne -->
-        <button class="btn btn-outline-primary w-100 mb-2" data-grid="2x3">Griglia 2 × 3</button>
-        <button class="btn btn-outline-primary w-100 mb-2" data-grid="3x3">Griglia 3 × 3</button>
-        <button class="btn btn-outline-primary w-100 mb-2" data-grid="4x3">Griglia 4 × 3</button>
-        <small class="text-muted d-block mt-1">
-          Righe sempre 3 fisse. Le box sono tutte uguali.
-        </small>
-      </div>
-    </div>
-
-    <!-- Stile prezzo (shortcut rapido) -->
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-tag-fill me-1"></i> Stile prezzo (rapido)
-      </div>
-      <div class="card-body d-grid gap-2">
-        <button class="btn btn-warning btn-sm" data-price-style="yellow">Cartellino giallo</button>
-        <button class="btn btn-danger btn-sm" data-price-style="red">Cartellino rosso</button>
-        <button class="btn btn-info btn-sm" data-price-style="blue">Cartellino blu</button>
-        <button class="btn btn-outline-secondary btn-sm" data-price-style="round">Tondo</button>
-        <button class="btn btn-outline-secondary btn-sm" data-price-style="angle">Angolo promo</button>
-        <button class="btn btn-outline-secondary btn-sm" data-price-style="strike">Barrato + nuovo</button>
-        <button class="btn btn-outline-secondary btn-sm" data-price-style="base">Semplice</button>
-        <small class="text-muted">
-          Puoi anche gestire il prezzo nel popup della box.
-        </small>
-      </div>
-    </div>
-
-    <!-- Azioni celle / volantino -->
-    <div class="card shadow-sm">
-      <div class="card-header fw-bold">
-        <i class="bi bi-tools me-1"></i> Azioni
-      </div>
-      <div class="card-body d-grid gap-2">
-        <button class="btn btn-outline-secondary btn-sm" id="duplica-cella">
-          📄 Duplica cella selezionata
-        </button>
-        <button class="btn btn-outline-danger btn-sm" id="elimina-cella">
-          🗑️ Elimina cella selezionata
-        </button>
-        <hr>
-        <button class="btn btn-outline-primary w-100 mb-2" id="save-layout">
-          💾 Salva Volantino
-        </button>
-        <button class="btn btn-outline-dark w-100 mb-2" id="export-pdf">
-          📄 Esporta PDF
-        </button>
-        <button class="btn btn-outline-success w-100" id="export-png">
-          🖼️ Esporta pagina corrente PNG
-        </button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- AREA VOLANTINO -->
-  <div class="col-md-9">
-    <div id="pagine-container" style="width: 800px; margin:auto;">
-      <!-- Le pagine verranno iniettate via JS -->
-    </div>
-  </div>
-
-</div>
-
-<!-- ============================================
-     MODAL EDITOR CELLA (stile InPublish)
-============================================= -->
-<div class="modal fade" id="cellEditorModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">✏️ Modifica box prodotto</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                aria-label="Chiudi"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="row g-3">
-
-          <!-- COLONNA IMMAGINE -->
-          <div class="col-md-5">
-            <label class="form-label small text-muted">Immagine prodotto</label>
-
-            <div id="modal-image-preview"
-                 class="border rounded d-flex align-items-center justify-content-center mb-2 ratio ratio-4x3 bg-light"
-                 style="overflow:hidden; cursor:grab;">
-              <span class="text-muted small">Clicca per caricare immagine</span>
-            </div>
-
-            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="modal-change-image">
-              🖼️ Cambia immagine
-            </button>
-            <input type="file" id="modal-image-input" class="d-none" accept="image/*">
-
-            <div class="mt-2">
-              <label class="form-label small text-muted">Zoom immagine</label>
-              <input type="range" id="modal-image-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
-            </div>
-
-            <div class="mt-2">
-              <label class="form-label small text-muted">Posizione orizzontale</label>
-              <input type="range" id="modal-image-pos-x" class="form-range" min="0" max="100" step="1" value="50">
-            </div>
-            <div class="mt-2">
-              <label class="form-label small text-muted">Posizione verticale</label>
-              <input type="range" id="modal-image-pos-y" class="form-range" min="0" max="100" step="1" value="50">
-            </div>
-
-            <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-2" id="modal-image-center">
-              🎯 Centra immagine
-            </button>
-
-            <div class="mt-3">
-              <label class="form-label small text-muted">Effetto immagine</label>
-              <select id="modal-image-filter" class="form-select form-select-sm">
-                <option value="none">Nessuno</option>
-                <option value="bw">Bianco e nero</option>
-                <option value="warm">Caldo</option>
-                <option value="cool">Freddo</option>
-                <option value="contrast">Contrasto forte</option>
-              </select>
-            </div>
+    <!-- PANNELLO DI DESTRA: ISPETTORE DI DETTAGLIO CELLA -->
+    <div class="col-md-3 col-12">
+      <div class="card border bg-white shadow-sm inspector-card" style="border-color: #e2e8f0; height: calc(100vh - 160px); min-height: 600px; overflow-y: auto;">
+        <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-sliders text-primary"></i> Proprietà Box Selezionata
+          </h6>
+        </div>
+        <div class="card-body pt-0">
+          
+          <div id="inspector-placeholder" class="text-center py-5 text-muted">
+            <i class="bi bi-cursor-fill fs-2 mb-3 d-block text-secondary"></i>
+            <p class="small">Seleziona una box prodotto nel foglio di disegno o fai doppio-click per configurarla in dettaglio.</p>
           </div>
 
-          <!-- COLONNA DATI PRODOTTO -->
-          <div class="col-md-7">
-
-            <div class="mb-2">
-              <label class="form-label small">Nome prodotto</label>
-              <input type="text" id="modal-title" class="form-control form-control-sm"
-                     placeholder="Es. Salmone norvegese intero">
-            </div>
-
-            <div class="mb-2">
-              <label class="form-label small">Descrizione</label>
-              <textarea id="modal-desc" class="form-control form-control-sm" rows="3"
-                        placeholder="Esempio: Prodotto ittico fresco, allevato in Norvegia..."></textarea>
-            </div>
-
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label small">Prezzo</label>
-                <input type="text" id="modal-price" class="form-control form-control-sm"
-                       placeholder="Es. € 9,90">
-              </div>
-              <div class="col-6">
-                <label class="form-label small">Stile prezzo</label>
-                <select id="modal-price-style" class="form-select form-select-sm">
-                  <option value="base">Semplice</option>
-                  <option value="yellow">Cartellino giallo</option>
-                  <option value="red">Cartellino rosso</option>
-                  <option value="blue">Cartellino blu</option>
-                  <option value="round">Tondo</option>
-                  <option value="angle">Angolo promo</option>
-                  <option value="strike">Barrato + nuovo</option>
-                </select>
+          <div id="inspector-content" class="d-none">
+            
+            <!-- CARICA PRODOTTO DAL GESTIONALE -->
+            <div class="mb-4 p-3 rounded-3 bg-light border" style="border-color: #e2e8f0;">
+              <label class="form-label small text-muted fw-bold d-flex align-items-center gap-1">
+                <i class="bi bi-database-fill-check text-primary"></i> Prefila da Database Horeca
+              </label>
+              <div class="position-relative">
+                <input type="text" id="db-prodotto-search" class="form-control form-control-sm bg-white border text-dark" 
+                       placeholder="Cerca per nome o codice...">
+                <div id="db-prodotto-results" class="position-absolute w-100 bg-white rounded shadow-lg overflow-auto mt-1 border" 
+                     style="max-height: 180px; z-index: 100; display: none;">
+                  <!-- Risultati della ricerca -->
+                </div>
               </div>
             </div>
 
-            <div class="row g-2 mb-2">
+            <!-- DATI CELLA PRODOTTO -->
+            <div class="mb-3">
+              <label class="form-label small text-muted">Codice Prodotto</label>
+              <input type="text" id="inspector-codice" class="form-control form-control-sm bg-white border text-dark">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small text-muted">Nome Prodotto</label>
+              <input type="text" id="inspector-titolo" class="form-control form-control-sm bg-white border text-dark">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small text-muted">Descrizione</label>
+              <textarea id="inspector-descrizione" rows="2" class="form-control form-control-sm bg-white border text-dark"></textarea>
+            </div>
+
+            <div class="form-check form-switch mb-3" style="padding-left: 2.5em;">
+              <input class="form-check-input" type="checkbox" id="inspector-show-desc" checked>
+              <label class="form-check-label small text-muted fw-bold" for="inspector-show-desc">
+                Mostra Descrizione
+              </label>
+            </div>
+
+            <div class="row g-2 mb-3">
               <div class="col-6">
-                <label class="form-label small">Layout box</label>
-                <select id="modal-layout" class="form-select form-select-sm">
-                  <option value="image-top">Immagine sopra, testo sotto</option>
-                  <option value="image-left">Immagine sinistra, testo destra</option>
-                  <option value="full-image-price">Immagine piena con prezzo</option>
-                </select>
+                <label class="form-label small text-muted">Prezzo Prodotto</label>
+                <input type="text" id="inspector-prezzo" class="form-control form-control-sm bg-white border text-dark" placeholder="Es: € 9.90">
               </div>
               <div class="col-6">
-                <label class="form-label small">Allineamento testo</label>
-                <select id="modal-align" class="form-select form-select-sm">
-                  <option value="start">Sinistra</option>
-                  <option value="center">Centro</option>
-                  <option value="end">Destra</option>
-                </select>
+                <label class="form-label small text-muted">Prezzo Barrato / Alt</label>
+                <input type="text" id="inspector-prezzo-old" class="form-control form-control-sm bg-white border text-dark" placeholder="Es: € 14.90">
               </div>
             </div>
 
-            <!-- Tipografia -->
-            <div class="border rounded p-2 mb-2 bg-light-subtle">
-              <div class="row g-2">
+            <!-- IMMAGINE PRODOTTO & GOOGLE SEARCH -->
+            <div class="mb-4 border-top pt-3">
+              <label class="form-label small text-muted fw-bold d-block mb-2">Immagine Prodotto</label>
+              
+              <div id="inspector-img-preview" class="border rounded d-flex align-items-center justify-content-center mb-2 bg-light" 
+                   style="height: 120px; overflow: hidden; position: relative;">
+                <span class="text-muted small">Nessuna Immagine</span>
+              </div>
+              
+              <div class="d-flex gap-1 mb-2">
+                <button class="btn btn-light btn-sm flex-grow-1 border text-dark d-flex align-items-center justify-content-center gap-1" id="inspector-img-file-btn">
+                  <i class="bi bi-upload"></i> Locale
+                </button>
+                <input type="file" id="inspector-img-file-input" class="d-none" accept="image/*">
+                <button class="btn btn-outline-danger btn-sm" id="inspector-img-rimuovi" title="Rimuovi immagine"><i class="bi bi-trash"></i></button>
+              </div>
+
+              <div class="form-check form-switch mb-3 bg-light p-2 rounded border d-flex align-items-center justify-content-between" style="padding-left: 2.5em;">
+                <label class="form-check-label small text-dark fw-semibold" for="inspector-img-nobg">
+                  <i class="bi bi-magic text-primary me-1"></i> Rimuovi Sfondo (No-BG)
+                </label>
+                <input class="form-check-input me-1" type="checkbox" id="inspector-img-nobg" checked>
+              </div>
+
+              <!-- INTELLIGENT GOOGLE IMAGE SEARCH -->
+              <div class="p-2 rounded bg-light border mb-3">
+                <div class="d-flex align-items-center gap-1 mb-2">
+                  <i class="bi bi-search text-warning small"></i>
+                  <span class="small fw-semibold text-dark">Ricerca Immagini Google</span>
+                </div>
+                <div class="input-group input-group-sm mb-2">
+                  <input type="text" id="google-img-query" class="form-control bg-white text-dark border" placeholder="Nome ingrediente/pesce...">
+                  <button class="btn btn-warning fw-semibold px-2" id="google-img-search-btn"><i class="bi bi-search"></i> Trova</button>
+                </div>
+                <div id="google-img-gallery" class="row g-1 overflow-auto" style="max-height: 130px; display: none;">
+                  <!-- Anteprime caricate via API -->
+                </div>
+                <div id="google-img-loading" class="text-center py-2 text-muted small" style="display: none;">
+                  <span class="spinner-border spinner-border-sm me-1 text-warning" role="status"></span> Ricerca in corso...
+                </div>
+              </div>
+
+              <!-- CONTROLLI ZOOM, ARROTONDAMENTO, OFFSET E PROPORZIONI IMMAGINE -->
+              <div class="p-3 rounded bg-light border">
+                <h7 class="fw-bold d-block text-dark mb-2 small"><i class="bi bi-bounding-box text-primary me-1"></i> Inquadratura & Contorno</h7>
+                <div class="mb-2">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Zoom Immagine</span>
+                    <span class="text-primary"><span id="val-img-zoom">1.0</span>x</span>
+                  </label>
+                  <input type="range" id="inspector-img-zoom" class="form-range" min="0.5" max="3.0" step="0.05" value="1.0">
+                </div>
+
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label class="form-label small text-muted">Offset X (%)</label>
+                    <input type="range" id="inspector-img-pos-x" class="form-range" min="0" max="100" step="1" value="50">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted">Offset Y (%)</label>
+                    <input type="range" id="inspector-img-pos-y" class="form-range" min="0" max="100" step="1" value="50">
+                  </div>
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Arrotondamento Foto</span>
+                    <span class="text-primary"><span id="val-img-radius">4</span>px</span>
+                  </label>
+                  <input type="range" id="inspector-img-radius" class="form-range" min="0" max="50" step="1" value="4">
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Margine Interno Foto</span>
+                    <span class="text-primary"><span id="val-img-padding">0</span>px</span>
+                  </label>
+                  <input type="range" id="inspector-img-padding" class="form-range" min="0" max="25" step="1" value="0">
+                </div>
+
+                <div>
+                  <label class="form-label small text-muted">Proporzioni Box Foto</label>
+                  <select id="inspector-img-aspect" class="form-select form-select-sm bg-white border text-dark">
+                    <option value="auto">Originale / Auto</option>
+                    <option value="1/1">1:1 Quadrato</option>
+                    <option value="4/3">4:3 Classico</option>
+                    <option value="16/9">16:9 Panoramico</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- PERSONALIZZAZIONE TIPOGRAFIA & STILE NOME PRODOTTO -->
+            <div class="mb-4 border-top pt-3">
+              <label class="form-label small text-muted fw-bold d-block mb-2">Tipografia Nome Prodotto</label>
+              
+              <div class="row g-2 mb-2">
                 <div class="col-6">
-                  <label class="form-label small">Font</label>
-                  <select id="modal-font-family" class="form-select form-select-sm">
-                    <option value="">Default</option>
-                    <option value="Roboto, sans-serif">Roboto</option>
-                    <option value="'Open Sans', sans-serif">Open Sans</option>
-                    <option value="Montserrat, sans-serif">Montserrat</option>
-                    <option value="'Lato', sans-serif">Lato</option>
+                  <label class="form-label small text-muted">Font Family</label>
+                  <select id="inspector-font-family" class="form-select form-select-sm bg-white border text-dark">
+                    <option value="inherit">Default</option>
+                    <option value="'Inter', sans-serif">Inter</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                    <option value="'Outfit', sans-serif">Outfit</option>
+                    <option value="'Playfair Display', serif">Playfair Serif</option>
                   </select>
                 </div>
                 <div class="col-6">
-                  <label class="form-label small">Colore testo</label>
-                  <input type="color" id="modal-font-color" class="form-control form-control-sm" value="#000000">
+                  <label class="form-label small text-muted">Colore Nome</label>
+                  <input type="color" id="inspector-font-color" class="form-control form-control-sm bg-white border" value="#000000">
                 </div>
               </div>
 
-              <div class="row g-2 mt-2">
-                <div class="col-4">
-                  <label class="form-label small">Titolo (px)</label>
-                  <input type="number" id="modal-title-size" class="form-control form-control-sm" min="8" max="40" value="14">
+              <!-- SLIDERS PER TIPOGRAFIA NOME PRODOTTO -->
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Grandezza Titolo</span>
+                  <span class="text-primary"><span id="val-title-size">17</span>px</span>
+                </label>
+                <input type="range" id="inspector-title-size" class="form-range" min="8" max="30" step="1" value="17">
+              </div>
+
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted">Spessore Font</label>
+                  <select id="inspector-title-weight" class="form-select form-select-sm bg-white border text-dark">
+                    <option value="300">Sottile</option>
+                    <option value="400">Normale</option>
+                    <option value="500">Medio</option>
+                    <option value="600">Semigrassetto</option>
+                    <option value="700" selected>Grassetto</option>
+                    <option value="900">Nero / Black</option>
+                  </select>
                 </div>
-                <div class="col-4">
-                  <label class="form-label small">Descrizione (px)</label>
-                  <input type="number" id="modal-desc-size" class="form-control form-control-sm" min="8" max="30" value="11">
-                </div>
-                <div class="col-4">
-                  <label class="form-label small">Prezzo (px)</label>
-                  <input type="number" id="modal-price-size" class="form-control form-control-sm" min="8" max="40" value="16">
+                <div class="col-6">
+                  <label class="form-label small text-muted">Allineamento</label>
+                  <select id="inspector-align" class="form-select form-select-sm bg-white border text-dark">
+                    <option value="start">Sinistra</option>
+                    <option value="center">Centro</option>
+                    <option value="end">Destra</option>
+                  </select>
                 </div>
               </div>
 
-              <div class="mt-2 d-flex flex-wrap gap-3">
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-title-bold">
-                  <label class="form-check-label small">Titolo grassetto</label>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Spazio Lettere</span>
+                  </label>
+                  <input type="range" id="inspector-title-spacing" class="form-range" min="-1" max="5" step="0.5" value="0">
                 </div>
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-desc-italic">
-                  <label class="form-check-label small">Descrizione corsivo</label>
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Interlinea</span>
+                  </label>
+                  <input type="range" id="inspector-title-height" class="form-range" min="0.8" max="2.0" step="0.1" value="1.2">
                 </div>
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-price-bold">
-                  <label class="form-check-label small">Prezzo grassetto</label>
+              </div>
+
+              <div class="d-flex flex-wrap gap-3 py-2">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="inspector-desc-italic">
+                  <label class="form-check-label small text-dark" for="inspector-desc-italic">Desc. Corsivo</label>
                 </div>
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" id="modal-text-uppercase">
-                  <label class="form-check-label small">TUTTO MAIUSCOLO</label>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="inspector-text-uppercase">
+                  <label class="form-check-label small text-dark" for="inspector-text-uppercase">TUTTO MAIUSCOLO</label>
                 </div>
               </div>
             </div>
 
-            <!-- Stile box -->
-            <div class="border rounded p-2 mb-2 bg-light-subtle">
+            <!-- CONTROLLI AVANZATI PER IL PREZZO -->
+            <div class="mb-4 border-top pt-3">
+              <label class="form-label small text-muted fw-bold d-block mb-2">Stile & Personalizzazione Prezzo</label>
+              
+              <div class="mb-3">
+                <label class="form-label small text-muted">Stile Grafico Prezzo</label>
+                <select id="inspector-price-style" class="form-select form-select-sm bg-white border text-dark">
+                  <option value="base">Semplice</option>
+                  <option value="yellow">Cartellino Giallo</option>
+                  <option value="red">Cartellino Rosso</option>
+                  <option value="blue">Cartellino Blu</option>
+                  <option value="round">Tondo</option>
+                  <option value="angle">Angolo Promo</option>
+                  <option value="strike">Barrato + Nuovo</option>
+                </select>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Dimensione Prezzo</span>
+                  <span class="text-primary"><span id="val-price-size">26</span>px</span>
+                </label>
+                <input type="range" id="inspector-price-size" class="form-range" min="10" max="36" step="1" value="26">
+              </div>
+
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <label class="form-label small text-muted">Colore Prezzo</label>
+                  <input type="color" id="inspector-price-color" class="form-control form-control-sm bg-white border" value="#e11d48">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted">Colore Sfondo Prezzo</label>
+                  <input type="color" id="inspector-price-bg" class="form-control form-control-sm bg-white border" value="#ffffff">
+                </div>
+              </div>
+
               <div class="row g-2">
                 <div class="col-6">
-                  <label class="form-label small">Bordo</label>
-                  <select id="modal-border-style" class="form-select form-select-sm">
+                  <label class="form-label small text-muted">Valuta</label>
+                  <select id="inspector-price-currency" class="form-select form-select-sm bg-white border text-dark">
+                    <option value="€">€ (Euro)</option>
+                    <option value="$">$ (Dollaro)</option>
+                    <option value="£">£ (Sterlina)</option>
+                    <option value="">nessuna</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted">Spessore Prezzo</label>
+                  <select id="inspector-price-weight" class="form-select form-select-sm bg-white border text-dark">
+                    <option value="400">Normale</option>
+                    <option value="600">Semigrassetto</option>
+                    <option value="700" selected>Grassetto</option>
+                    <option value="900">Extra Grassetto</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONTROLLI BORDI E BACKGROUND BOX -->
+            <div class="mb-4 border-top pt-3">
+              <label class="form-label small text-muted fw-bold d-block mb-2">Bordi & Sfondo Cella</label>
+              
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted">Stile Bordo</label>
+                  <select id="inspector-border-style" class="form-select form-select-sm bg-white border text-dark">
                     <option value="solid">Solido</option>
                     <option value="dashed">Tratteggiato</option>
                     <option value="none">Nessuno</option>
                   </select>
                 </div>
                 <div class="col-6">
-                  <label class="form-label small">Colore bordo</label>
-                  <input type="color" id="modal-border-color" class="form-control form-control-sm" value="#dddddd">
+                  <label class="form-label small text-muted">Colore Bordo</label>
+                  <input type="color" id="inspector-border-color" class="form-control form-control-sm bg-white border" value="#dddddd">
                 </div>
               </div>
 
-              <div class="row g-2 mt-2">
+              <div class="row g-2 mb-3">
                 <div class="col-4">
-                  <label class="form-label small">Radius (px)</label>
-                  <input type="number" id="modal-radius" class="form-control form-control-sm" min="0" max="30" value="4">
+                  <label class="form-label small text-muted">Radius (px)</label>
+                  <input type="number" id="inspector-radius" class="form-control form-control-sm bg-white border text-dark" value="6">
                 </div>
                 <div class="col-4">
-                  <label class="form-label small">Sfondo</label>
-                  <input type="color" id="modal-bgcolor" class="form-control form-control-sm" value="#ffffff">
+                  <label class="form-label small text-muted">Sfondo</label>
+                  <input type="color" id="inspector-bgcolor" class="form-control form-control-sm bg-white border" value="#ffffff">
                 </div>
-                <div class="col-4 d-flex align-items-end">
-                  <div class="form-check form-check-sm">
-                    <input class="form-check-input" type="checkbox" id="modal-shadow">
-                    <label class="form-check-label small">Ombra</label>
+                <div class="col-4 d-flex align-items-end justify-content-center">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="inspector-shadow">
+                    <label class="form-check-label small text-dark" for="inspector-shadow">Ombra</label>
                   </div>
                 </div>
               </div>
+
+              <div class="mb-3">
+                <label class="form-label small text-muted">Layout Interno Cella</label>
+                <select id="inspector-layout" class="form-select form-select-sm bg-white border text-dark">
+                  <option value="image-top">Immagine Sopra, Testo Sotto</option>
+                  <option value="image-left">Immagine Sinistra, Testo Destra</option>
+                  <option value="modern-split">Nome/Codice a Sinistra, Foto al Centro, Prezzo in basso a destra</option>
+                  <option value="full-image-price">Immagine Piena con Prezzo</option>
+                </select>
+              </div>
             </div>
 
-            <!-- Libreria demo -->
-            <div class="border rounded p-2 bg-light-subtle">
-              <label class="form-label small">Libreria prodotti demo</label>
-              <select id="modal-product-library" class="form-select form-select-sm">
-                <option value="">-- scegli --</option>
-                <option value="salmone">Salmone norvegese intero</option>
-                <option value="gamberi">Gamberi argentini sgusciati</option>
-                <option value="polpo">Polpo mediterraneo decongelato</option>
-              </select>
-              <small class="text-muted d-block mt-1">Solo esempio: non collegato al gestionale</small>
+            <!-- AZIONI RAPIDE CELLA -->
+            <div class="d-grid gap-2 mb-3">
+              <button class="btn btn-outline-primary btn-sm py-2 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-sm" id="inspector-applica-stile-tutti">
+                <i class="bi bi-intersect"></i> Copia stile cella su tutti i fogli
+              </button>
+              <button class="btn btn-outline-danger btn-sm py-2 rounded-3" id="inspector-elimina-cella">
+                <i class="bi bi-trash-fill"></i> Svuota Cella Selezionata
+              </button>
             </div>
 
           </div>
+
         </div>
       </div>
+    </div>
 
-      <div class="modal-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button type="button" class="btn btn-primary" id="modal-save">💾 Salva box</button>
-      </div>
+  </div>
+</div>
 
+<!-- Toast di notifica rapida -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+  <div id="appToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-body bg-white text-dark border rounded-3 shadow-lg" id="appToastBody">
+      OK
     </div>
   </div>
 </div>
-
-<!-- Toast container -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
-  <div id="appToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="toast-body" id="appToastBody">OK</div>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 
+<!-- Librerie per ordinamento, canvas e generazione pdf -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-
   let pagine = [];
   let paginaCorrente = 0;
   let cellaSelezionata = null;
+  let dbProdotti = []; // Array per precaricare i prodotti del database
 
+  // DOM elements
   const pagineContainer = document.getElementById("pagine-container");
   const listaPagine = document.getElementById("lista-pagine");
+  const badgePagineCount = document.getElementById("badge-pagine-count");
   const inputNome = document.getElementById("volantino-nome");
+  const selectTipo = document.getElementById("volantino-tipo");
 
-  /* ----------------------
-       TOAST
-  -----------------------*/
+  // Global & Page layout controls
+  const controlLarghezza = document.getElementById("foglio-larghezza");
+  const controlAltezza = document.getElementById("foglio-altezza");
+  const controlPadTop = document.getElementById("foglio-padding-top");
+  const controlPadBottom = document.getElementById("foglio-padding-bottom");
+  const controlPadSides = document.getElementById("foglio-padding-sides");
+  const controlHeaderH = document.getElementById("header-altezza");
+  const controlFooterH = document.getElementById("footer-altezza");
+  const controlHeaderFit = document.getElementById("header-fit");
+  const controlHeaderZoom = document.getElementById("header-zoom");
+  const controlCols = document.getElementById("griglia-colonne");
+  const controlRows = document.getElementById("griglia-righe");
+  const controlGap = document.getElementById("griglia-gap");
+
+  // Range value displays
+  const valLarghezza = document.getElementById("val-larghezza");
+  const valAltezza = document.getElementById("val-altezza");
+  const valGap = document.getElementById("val-gap");
+  const controlVistaZoom = document.getElementById("vista-zoom");
+  const valVistaZoom = document.getElementById("val-vista-zoom");
+
+  // Inspector Elements
+  const inspectorPlaceholder = document.getElementById("inspector-placeholder");
+  const inspectorContent = document.getElementById("inspector-content");
+  
+  const searchDbProdotto = document.getElementById("db-prodotto-search");
+  const searchDbResults = document.getElementById("db-prodotto-results");
+  
+  const inspectorCodice = document.getElementById("inspector-codice");
+  const inspectorTitolo = document.getElementById("inspector-titolo");
+  const inspectorDescrizione = document.getElementById("inspector-descrizione");
+  const inspectorPrezzo = document.getElementById("inspector-prezzo");
+  const inspectorPrezzoOld = document.getElementById("inspector-prezzo-old");
+  
+  const inspectorImgPreview = document.getElementById("inspector-img-preview");
+  const inspectorImgFileInput = document.getElementById("inspector-img-file-input");
+  const inspectorImgFileBtn = document.getElementById("inspector-img-file-btn");
+  const inspectorImgRimuovi = document.getElementById("inspector-img-rimuovi");
+  const inspectorImgNoBg = document.getElementById("inspector-img-nobg");
+  const inspectorShowDesc = document.getElementById("inspector-show-desc");
+  
+  const googleImgQuery = document.getElementById("google-img-query");
+  const googleImgSearchBtn = document.getElementById("google-img-search-btn");
+  const googleImgGallery = document.getElementById("google-img-gallery");
+  const googleImgLoading = document.getElementById("google-img-loading");
+  
+  const inspectorImgZoom = document.getElementById("inspector-img-zoom");
+  const inspectorImgPosX = document.getElementById("inspector-img-pos-x");
+  const inspectorImgPosY = document.getElementById("inspector-img-pos-y");
+  const inspectorImgRadius = document.getElementById("inspector-img-radius");
+  const inspectorImgPadding = document.getElementById("inspector-img-padding");
+  const inspectorImgAspect = document.getElementById("inspector-img-aspect");
+
+  const valImgZoom = document.getElementById("val-img-zoom");
+  const valImgRadius = document.getElementById("val-img-radius");
+  const valImgPadding = document.getElementById("val-img-padding");
+  
+  const inspectorFontFamily = document.getElementById("inspector-font-family");
+  const inspectorFontColor = document.getElementById("inspector-font-color");
+  const inspectorTitleSize = document.getElementById("inspector-title-size");
+  const inspectorTitleWeight = document.getElementById("inspector-title-weight");
+  const inspectorTitleSpacing = document.getElementById("inspector-title-spacing");
+  const inspectorTitleHeight = document.getElementById("inspector-title-height");
+  const inspectorDescItalic = document.getElementById("inspector-desc-italic");
+  const inspectorTextUpper = document.getElementById("inspector-text-uppercase");
+
+  const valTitleSize = document.getElementById("val-title-size");
+  
+  const inspectorPriceStyle = document.getElementById("inspector-price-style");
+  const inspectorPriceSize = document.getElementById("inspector-price-size");
+  const inspectorPriceColor = document.getElementById("inspector-price-color");
+  const inspectorPriceBg = document.getElementById("inspector-price-bg");
+  const inspectorPriceCurrency = document.getElementById("inspector-price-currency");
+  const inspectorPriceWeight = document.getElementById("inspector-price-weight");
+
+  const valPriceSize = document.getElementById("val-price-size");
+  
+  const inspectorBorderStyle = document.getElementById("inspector-border-style");
+  const inspectorBorderColor = document.getElementById("inspector-border-color");
+  const inspectorRadius = document.getElementById("inspector-radius");
+  const inspectorBgColor = document.getElementById("inspector-bgcolor");
+  const inspectorShadow = document.getElementById("inspector-shadow");
+  
+  const inspectorLayout = document.getElementById("inspector-layout");
+  const inspectorAlign = document.getElementById("inspector-align");
+
+  const btnEliminaCella = document.getElementById("inspector-elimina-cella");
+
+  let localSelectedImageSrc = "";
+
+  /* -------------------------------------------------------------------
+       PRECARICA PRODOTTI DAL DATABASE GESTIONALE
+     ------------------------------------------------------------------- */
+  fetch("/api/prodotti_volantino")
+    .then(r => r.json())
+    .then(data => {
+      dbProdotti = data || [];
+    })
+    .catch(err => console.error("Impossibile caricare i prodotti del database:", err));
+
+  // Gestione ricerca e autocomplete prodotti del database
+  searchDbProdotto.addEventListener("input", () => {
+    const text = searchDbProdotto.value.trim().toLowerCase();
+    if (!text) {
+      searchDbResults.style.display = "none";
+      return;
+    }
+    const filtered = dbProdotti.filter(p => 
+      p.nome.toLowerCase().includes(text) || 
+      p.codice.toLowerCase().includes(text)
+    ).slice(0, 10);
+
+    if (filtered.length === 0) {
+      searchDbResults.innerHTML = `<div class="p-2 text-muted small text-center">Nessun prodotto trovato</div>`;
+    } else {
+      searchDbResults.innerHTML = filtered.map(p => `
+        <div class="p-2 border-bottom small db-item" 
+             style="cursor: pointer;" 
+             data-nome="${p.nome}" 
+             data-codice="${p.codice}" 
+             data-prezzo="${p.prezzo}" 
+             data-immagine="${p.immagine}"
+             data-image-zoom="${p.imageZoom || '1.0'}"
+             data-image-pos-x="${p.imagePosX || '50'}"
+             data-image-pos-y="${p.imagePosY || '50'}">
+          <div class="fw-bold text-dark">${p.nome}</div>
+          <div class="text-muted d-flex justify-content-between">
+            <span>Cod: ${p.codice || 'N.D.'}</span>
+            <span class="text-primary fw-semibold">€ ${p.prezzo || '0.00'}</span>
+          </div>
+        </div>
+      `).join("");
+
+      searchDbResults.querySelectorAll(".db-item").forEach(item => {
+        item.addEventListener("click", () => {
+          const nome = item.dataset.nome;
+          const codice = item.dataset.codice;
+          const prezzo = item.dataset.prezzo;
+          const immagine = item.dataset.immagine;
+          const imageZoom = item.dataset.imageZoom || "1.0";
+          const imagePosX = item.dataset.imagePosX || "50";
+          const imagePosY = item.dataset.imagePosY || "50";
+
+          inspectorTitolo.value = nome;
+          inspectorCodice.value = codice;
+          inspectorPrezzo.value = "€ " + (prezzo || "0.00");
+          googleImgQuery.value = nome;
+
+          inspectorImgZoom.value = imageZoom;
+          inspectorImgPosX.value = imagePosX;
+          inspectorImgPosY.value = imagePosY;
+          valImgZoom.textContent = parseFloat(imageZoom).toFixed(1);
+
+          if (cellaSelezionata) {
+            cellaSelezionata.dataset.imageZoom = imageZoom;
+            cellaSelezionata.dataset.imagePosX = imagePosX;
+            cellaSelezionata.dataset.imagePosY = imagePosY;
+          }
+
+          if (immagine) {
+            handleNewProductImage(immagine);
+          } else {
+            localSelectedImageSrc = "";
+            if (cellaSelezionata) {
+              cellaSelezionata.dataset.imgOriginal = "";
+              cellaSelezionata.dataset.imgNoBg = "";
+            }
+            setInspectorImage("");
+          }
+
+          // Cerca sempre le immagini correlate su Google per il prodotto selezionato
+          if (nome && nome.trim() !== "" && nome.trim() !== "PRODOTTO") {
+            eseguiRicercaImmaginiGoogle(nome.trim());
+          }
+
+          updateActiveCellFromInspector();
+          searchDbResults.style.display = "none";
+          searchDbProdotto.value = "";
+        });
+      });
+    }
+    searchDbResults.style.display = "block";
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#db-prodotto-search")) {
+      searchDbResults.style.display = "none";
+    }
+  });
+
+  /* -------------------------------------------------------------------
+       RICERCA IMMAGINI INTELLIGENTE CON GOOGLE IMAGES
+     ------------------------------------------------------------------- */
+  function eseguiRicercaImmaginiGoogle(query) {
+    if (!query) return;
+    googleImgLoading.style.display = "block";
+    googleImgGallery.style.display = "none";
+    googleImgGallery.innerHTML = "";
+
+    fetch(`/api/cerca_immagine?q=${encodeURIComponent(query)}`)
+      .then(r => r.json())
+      .then(urls => {
+        googleImgLoading.style.display = "none";
+        if (!urls || urls.length === 0) {
+          googleImgGallery.innerHTML = `<div class="col-12 py-2 text-center text-muted small">Nessuna immagine trovata</div>`;
+          googleImgGallery.style.display = "flex";
+          return;
+        }
+
+        googleImgGallery.innerHTML = urls.map(url => `
+          <div class="col-3 position-relative">
+            <img src="${url}" class="img-fluid rounded border gg-thumbnail" 
+                 style="height: 40px; width: 100%; object-fit: cover; cursor: pointer;" title="Usa questa immagine">
+          </div>
+        `).join("");
+
+        googleImgGallery.querySelectorAll(".gg-thumbnail").forEach(th => {
+          th.addEventListener("click", () => {
+            handleNewProductImage(th.src);
+            showToast("Immagine Google applicata con successo!");
+          });
+        });
+
+        googleImgGallery.style.display = "flex";
+      })
+      .catch(err => {
+        googleImgLoading.style.display = "none";
+        googleImgGallery.innerHTML = `<div class="col-12 py-2 text-center text-danger small">Errore nel recupero immagini</div>`;
+        googleImgGallery.style.display = "flex";
+      });
+  }
+
+  googleImgSearchBtn.addEventListener("click", () => {
+    eseguiRicercaImmaginiGoogle(googleImgQuery.value.trim());
+  });
+
+  googleImgQuery.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      eseguiRicercaImmaginiGoogle(googleImgQuery.value.trim());
+    }
+  });
+
+  /* -------------------------------------------------------------------
+       TOAST NOTIFICHE RAPIDE
+     ------------------------------------------------------------------- */
   const toastEl = document.getElementById("appToast");
   const toastBody = document.getElementById("appToastBody");
   const toast = toastEl ? new bootstrap.Toast(toastEl, { delay: 1800 }) : null;
@@ -408,303 +883,1323 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.show();
   }
 
-  /* ----------------------
-       AUTOSAVE (dirty flag + protezione)
-  -----------------------*/
-  let dirty = false;
-  let autosaveTimer = null;
-
-  function markDirty() {
-    dirty = true;
-    if (autosaveTimer) clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => { /* hook autosave se vuoi */ }, 1200);
-  }
-
-  window.addEventListener("beforeunload", (e) => {
-    if (!dirty) return;
-    e.preventDefault();
-    e.returnValue = "";
+  /* -------------------------------------------------------------------
+       GESTIONE PRESET (LOCALSTORAGE)
+     ------------------------------------------------------------------- */
+  document.getElementById("salva-preset").addEventListener("click", () => {
+    const preset = {
+      larghezza: controlLarghezza.value,
+      altezza: controlAltezza.value,
+      padTop: controlPadTop.value,
+      padBottom: controlPadBottom.value,
+      padSides: controlPadSides.value,
+      headerH: controlHeaderH.value,
+      footerH: controlFooterH.value,
+      headerFit: controlHeaderFit.value,
+      cols: controlCols.value,
+      rows: controlRows.value,
+      gap: controlGap.value
+    };
+    localStorage.setItem("horeca_volantino_preset", JSON.stringify(preset));
+    showToast("Dimensioni e Layout salvati come Default!");
   });
 
-  /* ----------------------
-       SELEZIONE
-  -----------------------*/
-  let selectedCells = new Set();
+  document.getElementById("carica-preset").addEventListener("click", () => {
+    const raw = localStorage.getItem("horeca_volantino_preset");
+    if (!raw) {
+      showToast("Nessun preset salvato!");
+      return;
+    }
+    const preset = JSON.parse(raw);
+    controlLarghezza.value = preset.larghezza;
+    controlAltezza.value = preset.altezza;
+    controlPadTop.value = preset.padTop;
+    controlPadBottom.value = preset.padBottom;
+    controlPadSides.value = preset.padSides;
+    controlHeaderH.value = preset.headerH;
+    controlFooterH.value = preset.footerH;
+    controlHeaderFit.value = preset.headerFit || "contain";
+    controlCols.value = preset.cols;
+    controlRows.value = preset.rows;
+    controlGap.value = preset.gap;
 
-  function clearSelection() {
-    selectedCells.forEach(c => c.classList.remove("cella-selezionata"));
-    selectedCells.clear();
-    cellaSelezionata = null;
-  }
+    valLarghezza.textContent = preset.larghezza;
+    valAltezza.textContent = preset.altezza;
+    valGap.textContent = preset.gap;
 
-  function selectCell(cell, add=false) {
-    if (!add) clearSelection();
-    selectedCells.add(cell);
-    cell.classList.add("cella-selezionata");
-    cellaSelezionata = cell;
-  }
+    applicaDimensioniFoglio(pagine[paginaCorrente]);
+    rigeneraGrigliaCorrente();
+    showToast("Preset di default caricato!");
+  });
 
-  function applyToSelected(fn) {
-    if (!selectedCells.size) return;
-    selectedCells.forEach(cell => {
-      fn(cell);
-      applyCellSize(cell);
-      applyPriceStyle(cell);
-      applyLayout(cell);
-      applyTextAlign(cell);
-      applyTypography(cell);
-      applyBoxStyle(cell);
-      applyImageFilter(cell);
-      applyImageTransform(cell);
+  /* -------------------------------------------------------------------
+       APPLICA CONFIGURAZIONE FOGLIO A TUTTI GLI ALTRI FOGLI
+     ------------------------------------------------------------------- */
+  function applicaLayoutATuttiIFogli() {
+    if (!pagine.length) return;
+    const srcPage = pagine[paginaCorrente];
+
+    const srcCols = parseInt(srcPage.dataset.cols, 10);
+    const srcRows = parseInt(srcPage.dataset.rows, 10);
+    const srcGap = parseInt(srcPage.dataset.gap, 10);
+
+    const srcHeader = srcPage.querySelector(".page-header");
+    const srcFooter = srcPage.querySelector(".page-footer");
+
+    pagine.forEach((page, idx) => {
+      if (idx === paginaCorrente) return;
+      
+      // Copia attributi dataset di pagina
+      page.dataset.larghezza = srcPage.dataset.larghezza;
+      page.dataset.altezza = srcPage.dataset.altezza;
+      page.dataset.padTop = srcPage.dataset.padTop;
+      page.dataset.padBottom = srcPage.dataset.padBottom;
+      page.dataset.padSides = srcPage.dataset.padSides;
+      page.dataset.headerH = srcPage.dataset.headerH;
+      page.dataset.footerH = srcPage.dataset.footerH;
+      page.dataset.headerFit = srcPage.dataset.headerFit || "contain";
+      page.dataset.headerZoom = srcPage.dataset.headerZoom || "1";
+      page.dataset.cols = srcPage.dataset.cols;
+      page.dataset.rows = srcPage.dataset.rows;
+      page.dataset.gap = srcPage.dataset.gap;
+
+      // Copia header e footer (contenenti loghi, testi, immagini di sfondo)
+      const targetHeader = page.querySelector(".page-header");
+      if (srcHeader && targetHeader) {
+        targetHeader.innerHTML = srcHeader.innerHTML;
+        abilitaUploadImmagineHeaderFooter(targetHeader);
+      }
+      const targetFooter = page.querySelector(".page-footer");
+      if (srcFooter && targetFooter) {
+        targetFooter.innerHTML = srcFooter.innerHTML;
+        abilitaUploadImmagineHeaderFooter(targetFooter);
+      }
+
+      applicaDimensioniFoglio(page);
+      applicaStrutturaGriglia(page, srcCols, srcRows, srcGap);
+
+      // Sincronizza numero e stile delle celle
+      const grid = page.querySelector(".page-grid");
+      const vecchieCelle = Array.from(grid.querySelectorAll(".cella-prodotto"));
+      grid.innerHTML = "";
+
+      const totCelle = srcCols * srcRows;
+      const srcCells = srcPage.querySelectorAll(".cella-prodotto");
+
+      for (let i = 0; i < totCelle; i++) {
+        let cell;
+        if (i < vecchieCelle.length) {
+          cell = vecchieCelle[i];
+        } else {
+          cell = creaCellaVuota();
+        }
+
+        // Copia lo stile e la disposizione dal foglio sorgente
+        const styleKeys = [
+          'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 
+          'priceSize', 'priceColor', 'priceBg', 'priceCurrency', 'priceWeight', 'descItalic', 
+          'textUpper', 'priceStyle', 'layout', 'textAlign', 'fontFamily', 'fontColor', 
+          'borderStyle', 'borderColor', 'radius', 'bgColor', 'shadow', 'imageFilter', 
+          'imageZoom', 'imagePosX', 'imagePosY', 'imageRadius', 'imagePadding', 'imageAspect', 'showDesc'
+        ];
+
+        const srcCell = srcCells[i] || srcCells[0];
+        if (srcCell) {
+          styleKeys.forEach(key => {
+            if (srcCell.dataset[key] !== undefined) {
+              cell.dataset[key] = srcCell.dataset[key];
+            }
+          });
+        }
+
+        initCellaEvents(cell);
+        applicaCellaRendering(cell);
+        grid.appendChild(cell);
+      }
     });
-    markDirty();
+
+    showToast("Layout, intestazione (logo), pié di pagina e stili delle celle copiati su tutti i fogli!");
   }
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && cellaSelezionata) {
-      apriEditorCella(cellaSelezionata);
-    }
-    if (e.key === "Escape") {
-      clearSelection();
-    }
-    if (e.key === "Delete" && selectedCells.size) {
-      selectedCells.forEach(c => c.remove());
-      clearSelection();
-      markDirty();
-      showToast("Celle eliminate");
-    }
-  });
+  const btnAdattaTutti = document.getElementById("adatta-tutti");
+  if (btnAdattaTutti) btnAdattaTutti.addEventListener("click", applicaLayoutATuttiIFogli);
 
-  /* ----------------------
-       HEADER ZOOM (pagina corrente)
-  -----------------------*/
-  const headerZoomInput = document.getElementById("header-zoom");
+  const btnAdattaTuttiTop = document.getElementById("adatta-tutti-top");
+  if (btnAdattaTuttiTop) btnAdattaTuttiTop.addEventListener("click", applicaLayoutATuttiIFogli);
 
-  function applyHeaderZoom(pageEl) {
+  // Copia stile della singola cella a tutte le celle di tutti i fogli
+  const btnApplicaStileTutti = document.getElementById("inspector-applica-stile-tutti");
+  if (btnApplicaStileTutti) {
+    btnApplicaStileTutti.addEventListener("click", () => {
+      if (!cellaSelezionata) {
+        showToast("Seleziona prima una cella prodotto!");
+        return;
+      }
+
+      const styleKeys = [
+        'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 
+        'priceSize', 'priceColor', 'priceBg', 'priceCurrency', 'priceWeight', 'descItalic', 
+        'textUpper', 'priceStyle', 'layout', 'textAlign', 'fontFamily', 'fontColor', 
+        'borderStyle', 'borderColor', 'radius', 'bgColor', 'shadow', 'imageFilter', 
+        'imageZoom', 'imagePosX', 'imagePosY', 'imageRadius', 'imagePadding', 'imageAspect', 'showDesc'
+      ];
+
+      let count = 0;
+      pagine.forEach(page => {
+        const cells = page.querySelectorAll(".cella-prodotto");
+        cells.forEach(cell => {
+          if (cell === cellaSelezionata) return; // Salta se stessa
+          
+          styleKeys.forEach(key => {
+            if (cellaSelezionata.dataset[key] !== undefined) {
+              cell.dataset[key] = cellaSelezionata.dataset[key];
+            }
+          });
+          applicaCellaRendering(cell);
+          count++;
+        });
+      });
+
+      showToast(`Stile del prodotto applicato con successo a tutte le ${count} celle di tutti i fogli!`);
+    });
+  }
+
+  /* -------------------------------------------------------------------
+       DIMENSIONI PAGINA (IN LINEA)
+     ------------------------------------------------------------------- */
+  function applicaDimensioniFoglio(pageEl) {
+    if (!pageEl) return;
+    
+    // Se è la pagina corrente in modifica attiva, aggiorna prima il suo dataset con i valori dei controlli
+    if (pageEl === pagine[paginaCorrente]) {
+      pageEl.dataset.larghezza = controlLarghezza.value;
+      pageEl.dataset.altezza = controlAltezza.value;
+      pageEl.dataset.padTop = controlPadTop.value;
+      pageEl.dataset.padBottom = controlPadBottom.value;
+      pageEl.dataset.padSides = controlPadSides.value;
+      pageEl.dataset.headerH = controlHeaderH.value;
+      pageEl.dataset.footerH = controlFooterH.value;
+      pageEl.dataset.headerFit = controlHeaderFit.value;
+    }
+    
+    // Leggi da dataset (con fallback ai controlli globali)
+    const larghezza = pageEl.dataset.larghezza || controlLarghezza.value;
+    const altezza = pageEl.dataset.altezza || controlAltezza.value;
+    const padTop = pageEl.dataset.padTop || controlPadTop.value;
+    const padBottom = pageEl.dataset.padBottom || controlPadBottom.value;
+    const padSides = pageEl.dataset.padSides || controlPadSides.value;
+    const headerH = pageEl.dataset.headerH || controlHeaderH.value;
+    const footerH = pageEl.dataset.footerH || controlFooterH.value;
+    const headerFit = pageEl.dataset.headerFit || controlHeaderFit.value || "contain";
+
+    // Sincronizza dataset
+    pageEl.dataset.larghezza = larghezza;
+    pageEl.dataset.altezza = altezza;
+    pageEl.dataset.padTop = padTop;
+    pageEl.dataset.padBottom = padBottom;
+    pageEl.dataset.padSides = padSides;
+    pageEl.dataset.headerH = headerH;
+    pageEl.dataset.footerH = footerH;
+    pageEl.dataset.headerFit = headerFit;
+
+    // Se è la pagina corrente, sincronizza testi sliders
+    if (pageEl === pagine[paginaCorrente]) {
+      valLarghezza.textContent = larghezza;
+      valAltezza.textContent = altezza;
+    }
+
+    // Applica stili inline
+    pageEl.style.width = larghezza + "px";
+    pageEl.style.height = altezza + "px";
+    pageEl.style.paddingTop = padTop + "px";
+    pageEl.style.paddingBottom = padBottom + "px";
+    pageEl.style.paddingLeft = padSides + "px";
+    pageEl.style.paddingRight = padSides + "px";
+
     const z = parseFloat(pageEl.dataset.headerZoom || "1");
+    const header = pageEl.querySelector(".page-header");
+    
+    if (header) {
+      const baseH = parseInt(headerH, 10) || 80;
+      header.style.height = (baseH * z) + "px";
+      header.style.display = "flex";
+      header.style.alignItems = "center";
+      header.style.justifyContent = "center";
+      header.style.overflow = "hidden";
+    }
+
+    // Adattamento immagine del logo (contain vs cover)
+    const fit = headerFit || "contain";
     const img = pageEl.querySelector(".page-header img");
-    if (!img) return;
-    img.style.transform = `scale(${z})`;
+    if (img) {
+      img.style.objectFit = fit;
+      if (fit === "contain") {
+        img.style.width = "auto";
+        img.style.height = "auto";
+        img.style.maxWidth = "100%";
+        img.style.maxHeight = "100%";
+        img.style.margin = "0 auto";
+        img.style.display = "block";
+      } else {
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.maxWidth = "none";
+        img.style.maxHeight = "none";
+        img.style.margin = "0";
+        img.style.display = "block";
+      }
+    }
+
+    applicaZoomLogoHeader(pageEl);
+    if (pageEl === pagine[paginaCorrente]) {
+      applyVistaZoom();
+    }
   }
 
-  function syncHeaderZoomUI() {
-    const page = pagine[paginaCorrente];
-    if (!page || !headerZoomInput) return;
-    const z = parseFloat(page.dataset.headerZoom || "1");
-    headerZoomInput.value = z;
-    applyHeaderZoom(page);
+  function applicaZoomLogoHeader(pageEl) {
+    if (!pageEl) return;
+    const img = pageEl.querySelector(".page-header img");
+    if (img) {
+      img.style.transform = "none";
+    }
   }
 
-  if (headerZoomInput) {
-    headerZoomInput.addEventListener("input", () => {
+  [controlLarghezza, controlAltezza, controlPadTop, controlPadBottom, controlPadSides, controlHeaderH, controlFooterH].forEach(input => {
+    input.addEventListener("input", () => {
       const page = pagine[paginaCorrente];
       if (!page) return;
-      page.dataset.headerZoom = String(parseFloat(headerZoomInput.value));
-      applyHeaderZoom(page);
-      markDirty();
+      applicaDimensioniFoglio(page);
+      applicaStrutturaGriglia(page, parseInt(page.dataset.cols, 10), parseInt(page.dataset.rows, 10), parseInt(page.dataset.gap, 10));
+    });
+  });
+
+  controlHeaderZoom.addEventListener("input", () => {
+    const page = pagine[paginaCorrente];
+    if (!page) return;
+    page.dataset.headerZoom = controlHeaderZoom.value;
+    applicaDimensioniFoglio(page);
+    applicaStrutturaGriglia(page, parseInt(page.dataset.cols, 10), parseInt(page.dataset.rows, 10), parseInt(page.dataset.gap, 10));
+  });
+
+  controlHeaderFit.addEventListener("change", () => {
+    const page = pagine[paginaCorrente];
+    if (!page) return;
+    page.dataset.headerFit = controlHeaderFit.value;
+    applicaDimensioniFoglio(page);
+  });
+
+  function applyVistaZoom() {
+    if (!controlVistaZoom) return;
+    const zoom = controlVistaZoom.value;
+    valVistaZoom.textContent = zoom;
+    pagineContainer.style.transform = `scale(${zoom / 100})`;
+    pagineContainer.style.transformOrigin = "top center";
+    
+    const scale = zoom / 100;
+    const originalHeight = parseInt(controlAltezza.value, 10) || 1100;
+    const scaledHeight = originalHeight * scale;
+    pagineContainer.style.height = (scaledHeight + 40) + "px";
+    
+    const originalWidth = parseInt(controlLarghezza.value, 10) || 800;
+    const scaledWidth = originalWidth * scale;
+    pagineContainer.style.width = scaledWidth + "px";
+  }
+
+  function autoFitZoom() {
+    const board = document.querySelector(".workspace-board");
+    if (!board) return;
+    const boardHeight = board.clientHeight;
+    const boardWidth = board.clientWidth;
+    
+    const page = pagine[paginaCorrente];
+    if (!page) return;
+    
+    const pageHeight = parseInt(page.dataset.altezza || controlAltezza.value, 10) || 1100;
+    const pageWidth = parseInt(page.dataset.larghezza || controlLarghezza.value, 10) || 800;
+    
+    // We want the page to fit with some padding (e.g. 48px margin)
+    const fitHeightZoom = ((boardHeight - 24) / pageHeight) * 100;
+    const fitWidthZoom = ((boardWidth - 24) / pageWidth) * 100;
+    
+    let bestZoom = Math.min(fitHeightZoom, fitWidthZoom);
+    bestZoom = Math.max(30, Math.min(120, Math.floor(bestZoom)));
+    
+    controlVistaZoom.value = bestZoom;
+    applyVistaZoom();
+  }
+
+  controlVistaZoom.addEventListener("input", applyVistaZoom);
+  
+  const btnAutoFit = document.getElementById("btn-auto-fit");
+  if (btnAutoFit) {
+    btnAutoFit.addEventListener("click", (e) => {
+      e.preventDefault();
+      autoFitZoom();
     });
   }
 
-  /* ----------------------
-       VARIABILI MODAL
-  -----------------------*/
-  const cellEditorModalEl = document.getElementById("cellEditorModal");
-  const cellEditorModal = new bootstrap.Modal(cellEditorModalEl);
+  window.addEventListener("resize", () => {
+    autoFitZoom();
+  });
 
-  const modalImagePreview = document.getElementById("modal-image-preview");
-  const modalChangeImage = document.getElementById("modal-change-image");
-  const modalImageInput = document.getElementById("modal-image-input");
-  const modalImageZoom = document.getElementById("modal-image-zoom");
-  const modalImageFilter = document.getElementById("modal-image-filter");
+  /* -------------------------------------------------------------------
+       GESTIONE GRIGLIE E RIGHE FISSE
+     ------------------------------------------------------------------- */
+  function applicaStrutturaGriglia(pageEl, cols, rows, gap) {
+    const grid = pageEl.querySelector(".page-grid");
+    const header = pageEl.querySelector(".page-header");
 
-  const modalImagePosX = document.getElementById("modal-image-pos-x");
-  const modalImagePosY = document.getElementById("modal-image-pos-y");
-  const modalImageCenter = document.getElementById("modal-image-center");
+    grid.style.display = "grid";
+    grid.style.gap = gap + "px";
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
-  const modalTitle = document.getElementById("modal-title");
-  const modalDesc = document.getElementById("modal-desc");
-  const modalPrice = document.getElementById("modal-price");
-  const modalPriceStyle = document.getElementById("modal-price-style");
+    const pageH = parseInt(pageEl.dataset.altezza || "1100", 10);
+    const paddingTop = parseInt(pageEl.dataset.padTop || "10", 10);
+    const paddingBottom = parseInt(pageEl.dataset.padBottom || "10", 10);
+    
+    // Deterministic header height calculation to avoid offsetHeight browser sync issues
+    const headerH = parseInt(pageEl.dataset.headerH || "80", 10);
+    const z = parseFloat(pageEl.dataset.headerZoom || "1");
+    const hHeight = header ? (headerH * z) : 0;
 
-  const modalLayout = document.getElementById("modal-layout");
-  const modalAlign = document.getElementById("modal-align");
+    const availableH = Math.max(100, pageH - paddingTop - paddingBottom - hHeight - 20); 
+    const rowH = Math.max(50, Math.floor((availableH - (gap * (rows - 1))) / rows));
 
-  const modalFontFamily = document.getElementById("modal-font-family");
-  const modalFontColor = document.getElementById("modal-font-color");
-  const modalTitleSize = document.getElementById("modal-title-size");
-  const modalDescSize = document.getElementById("modal-desc-size");
-  const modalPriceSize = document.getElementById("modal-price-size");
-  const modalTitleBold = document.getElementById("modal-title-bold");
-  const modalDescItalic = document.getElementById("modal-desc-italic");
-  const modalPriceBold = document.getElementById("modal-price-bold");
-  const modalTextUpper = document.getElementById("modal-text-uppercase");
-
-  const modalBorderStyle = document.getElementById("modal-border-style");
-  const modalBorderColor = document.getElementById("modal-border-color");
-  const modalRadius = document.getElementById("modal-radius");
-  const modalBgColor = document.getElementById("modal-bgcolor");
-  const modalShadow = document.getElementById("modal-shadow");
-
-  const modalProductLibrary = document.getElementById("modal-product-library");
-  const modalSave = document.getElementById("modal-save");
-
-  let modalImageData = "";
-  let modalZoomValue = 1;
-  let modalPosX = 50;
-  let modalPosY = 50;
-
-  function applyModalImageTransform() {
-    const img = document.querySelector("#modal-img");
-    if (!img) return;
-    img.style.transform = `scale(${modalZoomValue})`;
-    img.style.objectPosition = `${modalPosX}% ${modalPosY}%`;
+    grid.style.gridTemplateRows = `repeat(${rows}, ${rowH}px)`;
+    grid.style.alignItems = "stretch";
   }
 
-  /* Drag per spostare l'inquadratura nel modal */
-  let isDragging = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let startPosX = 50;
-  let startPosY = 50;
+  function rigeneraGrigliaCorrente() {
+    const page = pagine[paginaCorrente];
+    const grid = page.querySelector(".page-grid");
+    const cols = parseInt(controlCols.value, 10);
+    const rows = parseInt(controlRows.value, 10);
+    const gap = parseInt(controlGap.value, 10);
 
-  modalImagePreview.addEventListener("mousedown", (e) => {
-    const img = document.querySelector("#modal-img");
-    if (!img) return;
-    isDragging = true;
-    modalImagePreview.style.cursor = "grabbing";
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    startPosX = modalPosX;
-    startPosY = modalPosY;
-    e.preventDefault();
-  });
+    page.dataset.cols = cols;
+    page.dataset.rows = rows;
+    page.dataset.gap = gap;
 
-  window.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
-    const sensitivity = 0.12 / Math.max(0.6, modalZoomValue);
-    const dx = (e.clientX - dragStartX) * sensitivity;
-    const dy = (e.clientY - dragStartY) * sensitivity;
+    valGap.textContent = gap;
 
-    modalPosX = Math.max(0, Math.min(100, startPosX - dx));
-    modalPosY = Math.max(0, Math.min(100, startPosY - dy));
+    applicaStrutturaGriglia(page, cols, rows, gap);
 
-    modalImagePosX.value = Math.round(modalPosX);
-    modalImagePosY.value = Math.round(modalPosY);
+    const vecchieCelle = Array.from(grid.querySelectorAll(".cella-prodotto"));
+    grid.innerHTML = "";
 
-    applyModalImageTransform();
-  });
-
-  window.addEventListener("mouseup", () => {
-    if (!isDragging) return;
-    isDragging = false;
-    modalImagePreview.style.cursor = "grab";
-  });
-
-  /* ----------------------
-     LIBRERIA PRODOTTI DEMO
-  -----------------------*/
-  const productLibrary = {
-    "salmone": {
-      titolo: "Salmone norvegese intero",
-      descrizione: "Salmone allevato in Norvegia, ideale per forno o carpaccio.",
-      prezzo: "€ 9,90"
-    },
-    "gamberi": {
-      titolo: "Gamberi argentini sgusciati",
-      descrizione: "Gamberi argentini decongelati, pronti da cucinare.",
-      prezzo: "€ 12,50"
-    },
-    "polpo": {
-      titolo: "Polpo mediterraneo decongelato",
-      descrizione: "Polpo tenero ideale per insalate e secondi piatti.",
-      prezzo: "€ 15,90"
+    const totCelle = cols * rows;
+    for (let i = 0; i < totCelle; i++) {
+      if (i < vecchieCelle.length) {
+        const cell = vecchieCelle[i];
+        initCellaEvents(cell);
+        grid.appendChild(cell);
+      } else {
+        grid.appendChild(creaCellaVuota());
+      }
     }
-  };
 
-  modalProductLibrary.addEventListener("change", () => {
-    const key = modalProductLibrary.value;
-    if (!productLibrary[key]) return;
-    modalTitle.value = productLibrary[key].titolo;
-    modalDesc.value = productLibrary[key].descrizione;
-    modalPrice.value = productLibrary[key].prezzo;
+    clearSelection();
+  }
+
+  [controlCols, controlRows].forEach(ctrl => {
+    ctrl.addEventListener("change", rigeneraGrigliaCorrente);
   });
+  controlGap.addEventListener("input", rigeneraGrigliaCorrente);
 
-  function setModalImage(src) {
-    modalImageData = src || "";
-    if (!src) {
-      modalImagePreview.innerHTML = `<span class="text-muted small">Clicca per caricare immagine</span>`;
+  /* -------------------------------------------------------------------
+       CREAZIONE DI UNA SINGOLA CELLA PRODOTTO
+     ------------------------------------------------------------------- */
+  function creaCellaVuota() {
+    const cell = document.createElement("div");
+    cell.classList.add("cella-prodotto");
+
+    // Valori di default
+    Object.assign(cell.dataset, {
+      codice: "",
+      titleSize: "17",
+      titleWeight: "700",
+      titleSpacing: "0",
+      titleHeight: "1.2",
+      codeSize: "9",
+      descSize: "10",
+      priceSize: "26",
+      priceColor: "#e11d48",
+      priceBg: "#ffffff",
+      priceCurrency: "€",
+      priceWeight: "800",
+      descItalic: "0",
+      textUpper: "0",
+      priceStyle: "base",
+      layout: "image-top",
+      textAlign: "start",
+      fontFamily: "inherit",
+      fontColor: "#222222",
+      borderStyle: "solid",
+      borderColor: "#e2e8f0",
+      radius: "6",
+      bgColor: "#ffffff",
+      shadow: "0",
+      imageFilter: "none",
+      imageZoom: "1.0",
+      imagePosX: "50",
+      imagePosY: "50",
+      imageRadius: "4",
+      imagePadding: "0",
+      imageAspect: "auto",
+      oldPrice: ""
+    });
+
+    cell.innerHTML = `
+      <div class="cella-inner">
+        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center">
+          <span class="text-muted small text-center" style="font-size: 8px;">Nessun prodotto</span>
+        </div>
+        <div class="testo-box">
+          <div class="codice small mb-1"></div>
+          <div class="titolo fw-bold small mb-1">PRODOTTO</div>
+          <div class="descrizione small text-muted mb-1">Fai click per selezionare</div>
+          <div class="prezzo fw-bold prezzo-base">€ 0.00</div>
+        </div>
+      </div>
+    `;
+
+    initCellaEvents(cell);
+    applicaCellaRendering(cell);
+    return cell;
+  }
+
+  function initCellaEvents(cell) {
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      selezionaCella(cell);
+    });
+
+    cell.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      selezionaCella(cell);
+      searchDbProdotto.focus();
+    });
+
+    // Supporto Drag & Drop immagini direttamente sulla singola cella della griglia
+    ["dragenter", "dragover"].forEach(eventName => {
+      cell.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cell.classList.add("border-primary", "bg-primary-subtle", "opacity-75");
+      }, false);
+    });
+
+    ["dragleave", "dragend", "drop"].forEach(eventName => {
+      cell.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cell.classList.remove("border-primary", "bg-primary-subtle", "opacity-75");
+      }, false);
+    });
+
+    cell.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      gestisciDropImmagine(e, (imageSrc) => {
+        selezionaCella(cell);
+        handleNewProductImage(imageSrc);
+        showToast("Immagine applicata alla cella selezionata!");
+      });
+    });
+  }
+
+  /* -------------------------------------------------------------------
+       RENDERING DEGLI STILI DELLA CELLA PRODOTTO
+     ------------------------------------------------------------------- */
+  function applicaCellaRendering(cell) {
+    if (!cell) return;
+
+    const wrapper = cell.querySelector(".cella-inner");
+    const imgBox = cell.querySelector(".img-box");
+    const textBox = cell.querySelector(".testo-box");
+    const titoloEl = cell.querySelector(".titolo");
+    const codiceEl = cell.querySelector(".codice");
+    const descEl = cell.querySelector(".descrizione");
+    const prezzoEl = cell.querySelector(".prezzo");
+
+    // 1. Layout Interno
+    const layout = cell.dataset.layout || "image-top";
+    cell.className = "cella-prodotto cella-layout-" + layout;
+    
+    wrapper.style = "";
+    imgBox.style = "";
+    textBox.style = "";
+    if (prezzoEl) prezzoEl.style = "";
+
+    // Clear absolute layouts
+    textBox.style.position = "";
+    textBox.style.bottom = "";
+    textBox.style.left = "";
+    textBox.style.right = "";
+    textBox.style.background = "";
+    textBox.style.padding = "";
+    textBox.style.borderRadius = "";
+
+    // Sincronizzazione aspetto proporzioni
+    const imgAspect = cell.dataset.imageAspect || "auto";
+
+    // Adapt image box size to be uniform in each layout
+    if (layout === "image-top") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      wrapper.style.justifyContent = "space-between";
+      wrapper.style.height = "100%";
+      
+      // Apply exact aspect-ratio if chosen
+      imgBox.style.aspectRatio = (imgAspect !== "auto") ? imgAspect : "";
+      
+      if (imgAspect === "auto") {
+        imgBox.style.height = "55%";
+        imgBox.style.width = "100%";
+        imgBox.style.flex = "0 0 55%";
+      } else {
+        imgBox.style.height = "auto";
+        imgBox.style.width = "100%";
+        imgBox.style.flex = "none";
+        imgBox.style.maxHeight = "55%"; // keep it bounded
+      }
+      imgBox.style.display = "flex";
+      imgBox.style.alignItems = "center";
+      imgBox.style.justifyContent = "center";
+      
+      textBox.style.flex = "1 1 auto";
+      textBox.style.display = "flex";
+      textBox.style.flexDirection = "column";
+      textBox.style.justifyContent = "flex-start";
+    } else if (layout === "image-left") {
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "row";
+      wrapper.style.alignItems = "stretch";
+      wrapper.style.height = "100%";
+      
+      imgBox.style.aspectRatio = (imgAspect !== "auto") ? imgAspect : "";
+      
+      if (imgAspect === "auto") {
+        imgBox.style.width = "40%";
+        imgBox.style.height = "100%";
+        imgBox.style.flex = "0 0 40%";
+      } else {
+        imgBox.style.width = "auto";
+        imgBox.style.height = "100%";
+        imgBox.style.flex = "none";
+        imgBox.style.maxWidth = "40%";
+      }
+      imgBox.style.display = "flex";
+      imgBox.style.alignItems = "center";
+      imgBox.style.justifyContent = "center";
+      
+      textBox.style.flex = "1 1 60%";
+      textBox.style.display = "flex";
+      textBox.style.flexDirection = "column";
+      textBox.style.justifyContent = "center";
+    } else if (layout === "full-image-price") {
+      wrapper.style.position = "relative";
+      wrapper.style.height = "100%";
+      
+      imgBox.style.height = "100%";
+      imgBox.style.width = "100%";
+      
+      textBox.style.position = "absolute";
+      textBox.style.bottom = "4px";
+      textBox.style.left = "4px";
+      textBox.style.right = "4px";
+      textBox.style.background = "rgba(255,255,255,0.9)";
+      textBox.style.padding = "4px";
+      textBox.style.borderRadius = "4px";
+    } else if (layout === "modern-split") {
+      // Nome e Codice a sinistra in alto, Immagine al centro, Prezzo a destra in basso
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "row";
+      wrapper.style.alignItems = "stretch";
+      wrapper.style.justifyContent = "space-between";
+      wrapper.style.height = "100%";
+      wrapper.style.width = "100%";
+      
+      // Optimized proportions: 45% left (more space for text), 30% center (image), 25% right (price)
+      textBox.style.flex = "1 1 45%";
+      textBox.style.display = "flex";
+      textBox.style.flexDirection = "column";
+      textBox.style.justifyContent = "flex-start";
+      textBox.style.alignItems = "flex-start";
+      textBox.style.padding = "4px";
+      textBox.style.minWidth = "0";
+      textBox.style.order = "1";
+      
+      // Center Column (Image box)
+      imgBox.style.aspectRatio = (imgAspect !== "auto") ? imgAspect : "";
+      
+      if (imgAspect === "auto") {
+        imgBox.style.flex = "0 0 30%";
+        imgBox.style.height = "100%";
+      } else {
+        imgBox.style.flex = "none";
+        imgBox.style.width = "auto";
+        imgBox.style.height = "100%";
+        imgBox.style.maxWidth = "30%";
+      }
+      imgBox.style.display = "flex";
+      imgBox.style.alignItems = "center";
+      imgBox.style.justifyContent = "center";
+      imgBox.style.order = "2";
+      
+      // Right Column (Price badge) -> Move to wrapper child and align bottom-right
+      if (prezzoEl) {
+        if (prezzoEl.parentElement === textBox) {
+          wrapper.appendChild(prezzoEl);
+        }
+        prezzoEl.style.flex = "0 0 25%";
+        prezzoEl.style.display = "flex";
+        prezzoEl.style.alignItems = "flex-end";
+        prezzoEl.style.justifyContent = "flex-end";
+        prezzoEl.style.alignSelf = "flex-end";
+        prezzoEl.style.paddingBottom = "8px"; // slightly more padding for clarity
+        prezzoEl.style.order = "3";
+      }
+    }
+
+    // Restore prezzoEl child element order if NOT modern-split
+    if (layout !== "modern-split" && prezzoEl && prezzoEl.parentElement === wrapper) {
+      textBox.appendChild(prezzoEl);
+    }
+
+    // 2. Allineamento testo
+    const align = cell.dataset.textAlign || "start";
+    textBox.className = "testo-box text-" + align;
+
+    // 3. Tipografia Prodotto
+    const fontFamily = cell.dataset.fontFamily || "inherit";
+    const fontColor = cell.dataset.fontColor || "#222222";
+    
+    const titleSize = cell.dataset.titleSize || "17";
+    const titleWeight = cell.dataset.titleWeight || "700";
+    const titleSpacing = cell.dataset.titleSpacing || "0";
+    const titleHeight = cell.dataset.titleHeight || "1.2";
+
+    const codeSize = cell.dataset.codeSize || "9";
+    const descSize = cell.dataset.descSize || "10";
+    const textUpper = cell.dataset.textUpper === "1";
+    const descItalic = cell.dataset.descItalic === "1";
+
+    if (titoloEl) {
+      titoloEl.style.fontFamily = fontFamily;
+      titoloEl.style.color = fontColor;
+      titoloEl.style.fontSize = titleSize + "px";
+      titoloEl.style.fontWeight = titleWeight;
+      titoloEl.style.letterSpacing = titleSpacing + "px";
+      titoloEl.style.lineHeight = titleHeight;
+      titoloEl.style.textTransform = textUpper ? "uppercase" : "none";
+      if (layout === "modern-split") {
+        titoloEl.style.textAlign = "left";
+        titoloEl.style.marginTop = "2px";
+      } else {
+        titoloEl.style.textAlign = "";
+        titoloEl.style.marginTop = "";
+      }
+    }
+    if (codiceEl) {
+      codiceEl.style.fontFamily = fontFamily;
+      codiceEl.style.fontSize = codeSize + "px";
+      if (cell.dataset.codice) {
+        codiceEl.innerText = "Cod: " + cell.dataset.codice;
+        if (layout === "modern-split") {
+          // Premium grey badge-style code tag
+          codiceEl.style.background = "#e2e8f0";
+          codiceEl.style.color = "#475569";
+          codiceEl.style.fontWeight = "600";
+          codiceEl.style.padding = "2px 6px";
+          codiceEl.style.borderRadius = "4px";
+          codiceEl.style.display = "inline-block";
+          codiceEl.style.marginBottom = "4px";
+        } else {
+          // Standard style
+          codiceEl.style.background = "";
+          codiceEl.style.color = "";
+          codiceEl.style.fontWeight = "";
+          codiceEl.style.padding = "";
+          codiceEl.style.borderRadius = "";
+          codiceEl.style.display = "block";
+          codiceEl.style.marginBottom = "";
+        }
+      } else {
+        codiceEl.style.display = "none";
+      }
+    }
+    if (descEl) {
+      descEl.style.fontFamily = fontFamily;
+      descEl.style.color = "#64748b";
+      descEl.style.fontSize = descSize + "px";
+      descEl.style.fontStyle = descItalic ? "italic" : "normal";
+      
+      const showDesc = cell.dataset.showDesc !== "0";
+      descEl.style.display = showDesc ? "block" : "none";
+    }
+
+    // 4. Stile Prezzo Personalizzato
+    if (prezzoEl) {
+      const priceSize = parseInt(cell.dataset.priceSize || "26", 10);
+      const priceColor = cell.dataset.priceColor || "#e11d48";
+      const priceBg = cell.dataset.priceBg || "#ffffff";
+      const priceCurrency = cell.dataset.priceCurrency !== undefined ? cell.dataset.priceCurrency : "€";
+      const priceWeight = "800"; // Sempre Extra Bold per massimo impatto visivo
+
+      prezzoEl.style.fontFamily = fontFamily;
+      prezzoEl.style.fontSize = priceSize + "px";
+      prezzoEl.style.fontWeight = priceWeight;
+      
+      // Posiziona il prezzo più in basso all'interno della box
+      if (layout !== "modern-split") {
+        prezzoEl.style.marginTop = "auto";
+        prezzoEl.style.paddingTop = "10px";
+      } else {
+        prezzoEl.style.marginTop = "";
+        prezzoEl.style.paddingTop = "";
+      }
+      
+      const priceStyle = cell.dataset.priceStyle || "base";
+      prezzoEl.className = "prezzo prezzo-" + priceStyle;
+
+      if (priceStyle === "base" || priceStyle === "strike") {
+        prezzoEl.style.color = priceColor;
+        prezzoEl.style.backgroundColor = "transparent";
+        prezzoEl.style.border = "none";
+        prezzoEl.style.padding = "0";
+      } else {
+        prezzoEl.style.color = priceColor;
+        prezzoEl.style.backgroundColor = priceBg;
+        prezzoEl.style.border = `1px solid ${priceColor}`;
+      }
+
+      let rawPrezzo = prezzoEl.innerText || "€ 0.00";
+      let numericText = rawPrezzo.replace(/[€$£\s]/g, "");
+      if (numericText) {
+        prezzoEl.innerText = (priceCurrency ? priceCurrency + " " : "") + numericText;
+      }
+
+      if (priceStyle === "strike") {
+        prezzoEl.setAttribute("data-old", cell.dataset.oldPrice || "");
+      } else {
+        prezzoEl.removeAttribute("data-old");
+      }
+    }
+
+    // 5. Inquadratura & Contorno Immagine
+    const imgRadius = cell.dataset.imageRadius || "4";
+    const imgPadding = cell.dataset.imagePadding || "0";
+
+    imgBox.style.borderRadius = imgRadius + "px";
+    imgBox.style.padding = imgPadding + "px";
+
+    if (imgAspect === "1/1") {
+      imgBox.style.aspectRatio = "1 / 1";
+    } else if (imgAspect === "4/3") {
+      imgBox.style.aspectRatio = "4 / 3";
+    } else if (imgAspect === "16/9") {
+      imgBox.style.aspectRatio = "16 / 9";
     } else {
-      modalImagePreview.innerHTML =
-        `<img id="modal-img" src="${src}" style="width:100%; height:100%; object-fit:cover;">`;
-      applyModalImageTransform();
+      imgBox.style.aspectRatio = "";
+    }
+
+    const img = imgBox.querySelector("img");
+    if (img) {
+      img.style.objectFit = "contain";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      
+      const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
+      const px = parseInt(cell.dataset.imagePosX || "50", 10);
+      const py = parseInt(cell.dataset.imagePosY || "50", 10);
+      img.style.transform = `scale(${zoom})`;
+      img.style.objectPosition = `${px}% ${py}%`;
+      img.style.borderRadius = Math.max(0, imgRadius - imgPadding) + "px";
+
+      let f = "none";
+      switch (cell.dataset.imageFilter) {
+        case "bw": f = "grayscale(1)"; break;
+        case "warm": f = "contrast(1.05) saturate(1.2)"; break;
+        case "cool": f = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)"; break;
+        case "contrast": f = "contrast(1.3) saturate(1.2)"; break;
+      }
+      img.style.filter = f;
+    }
+
+    // 6. Contorno cella e ombreggiatura
+    cell.style.borderStyle = cell.dataset.borderStyle || "solid";
+    cell.style.borderColor = cell.dataset.borderColor || "#cbd5e1";
+    cell.style.borderRadius = (cell.dataset.radius || "6") + "px";
+    cell.style.backgroundColor = cell.dataset.bgColor || "#ffffff";
+    cell.classList.toggle("cella-shadow", cell.dataset.shadow === "1");
+  }
+
+  /* -------------------------------------------------------------------
+       ALGORITMO RIMOZIONE SFONDO E IMMAGINI CELLA
+     ------------------------------------------------------------------- */
+  function removeWhiteBackground(imgSrc, callback) {
+    if (!imgSrc) {
+      callback("");
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        
+        // Remove white backgrounds (RGB values above 238)
+        const threshold = 238; 
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+          if (r > threshold && g > threshold && b > threshold) {
+            data[i+3] = 0; // Alpha transparent
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        callback(canvas.toDataURL());
+      } catch (err) {
+        console.warn("Canvas cross-origin error, falling back to original image", err);
+        callback(imgSrc);
+      }
+    };
+    img.onerror = () => {
+      callback(imgSrc);
+    };
+    img.src = imgSrc;
+  }
+
+  function handleNewProductImage(src) {
+    if (!cellaSelezionata) return;
+    const targetCell = cellaSelezionata;
+    
+    // Se l'immagine fornita proviene dal DB ed è solo un nome file (es. non inizia con data:, http, o /)
+    let processedSrc = src;
+    if (src && !src.startsWith("data:") && !src.startsWith("http") && !src.startsWith("/")) {
+      processedSrc = "/static/uploads/volantino_prodotti/" + src;
+    }
+    
+    targetCell.dataset.imgOriginal = processedSrc;
+    targetCell.dataset.useNoBg = "1";
+    if (cellaSelezionata === targetCell) {
+      if (inspectorImgNoBg) inspectorImgNoBg.checked = true;
+      
+      // Show spinner in preview while processing
+      if (inspectorImgPreview) {
+        inspectorImgPreview.innerHTML = `
+          <div class="text-center text-muted small p-2">
+            <span class="spinner-border spinner-border-sm text-primary mb-1 d-block mx-auto" role="status"></span>
+            Rimozione sfondo...
+          </div>
+        `;
+      }
+    }
+    
+    removeWhiteBackground(processedSrc, (noBgSrc) => {
+      targetCell.dataset.imgNoBg = noBgSrc;
+      
+      const activeSrc = noBgSrc || processedSrc;
+      if (cellaSelezionata === targetCell) {
+        localSelectedImageSrc = activeSrc;
+        setInspectorImage(activeSrc);
+      }
+      
+      const imgBox = targetCell.querySelector(".img-box");
+      imgBox.innerHTML = `<img src="${activeSrc}">`;
+      
+      applicaCellaRendering(targetCell);
+      
+      // Salva automaticamente l'immagine nel database prodotti in background
+      const codiceProd = targetCell.dataset.codice || "";
+      const titoloProd = targetCell.querySelector(".titolo")?.innerText || "";
+      
+      if (codiceProd || (titoloProd && titoloProd !== "PRODOTTO" && titoloProd !== "Nessun prodotto")) {
+        fetch("/api/salva_immagine_volantino_prodotto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            codice: codiceProd,
+            titolo: titoloProd,
+            image_src: activeSrc
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "ok") {
+            console.log("Immagine salvata nel database prodotti:", data.url);
+            
+            // Aggiorna i dataset locali per evitare di appesantire con stringhe base64 giganti
+            targetCell.dataset.imgOriginal = data.url;
+            targetCell.dataset.imgNoBg = data.url;
+            
+            if (cellaSelezionata === targetCell) {
+              localSelectedImageSrc = data.url;
+              setInspectorImage(data.url);
+            }
+            
+            const existingImg = imgBox.querySelector("img");
+            if (existingImg) {
+              existingImg.src = data.url;
+            } else {
+              imgBox.innerHTML = `<img src="${data.url}">`;
+            }
+            applicaCellaRendering(targetCell);
+            
+            // Sincronizza la cache client dbProdotti in tempo reale
+            const prodIndex = dbProdotti.findIndex(p => 
+              (codiceProd && p.codice === codiceProd) || 
+              (titoloProd && p.nome.toLowerCase() === titoloProd.toLowerCase())
+            );
+            if (prodIndex > -1) {
+              dbProdotti[prodIndex].immagine = data.url;
+            }
+          }
+        })
+        .catch(err => console.error("Errore salvataggio immagine sul DB prodotti:", err));
+      }
+    });
+  }
+
+  if (inspectorImgNoBg) {
+    inspectorImgNoBg.addEventListener("change", () => {
+      if (!cellaSelezionata) return;
+      cellaSelezionata.dataset.useNoBg = inspectorImgNoBg.checked ? "1" : "0";
+      
+      const originalSrc = cellaSelezionata.dataset.imgOriginal || "";
+      const noBgSrc = cellaSelezionata.dataset.imgNoBg || "";
+      const activeSrc = (inspectorImgNoBg.checked && noBgSrc) ? noBgSrc : originalSrc;
+      
+      localSelectedImageSrc = activeSrc;
+      setInspectorImage(activeSrc);
+      
+      const imgBox = cellaSelezionata.querySelector(".img-box");
+      if (activeSrc) {
+        imgBox.innerHTML = `<img src="${activeSrc}">`;
+      } else {
+        imgBox.innerHTML = `<span class="text-muted small text-center" style="font-size: 8px;">Nessun prodotto</span>`;
+      }
+      
+      applicaCellaRendering(cellaSelezionata);
+    });
+  }
+
+  /* -------------------------------------------------------------------
+       GESTIONE SELEZIONE
+     ------------------------------------------------------------------- */
+  function selezionaCella(cell) {
+    clearSelection();
+    cellaSelezionata = cell;
+    cell.classList.add("cella-selezionata");
+
+    // Mostra l'ispettore delle proprietà
+    inspectorPlaceholder.classList.add("d-none");
+    inspectorContent.classList.remove("d-none");
+
+    // Carica i dati correnti della cella nell'ispettore
+    inspectorCodice.value = cell.dataset.codice || "";
+    inspectorTitolo.value = cell.querySelector(".titolo")?.innerText || "";
+    inspectorDescrizione.value = cell.querySelector(".descrizione")?.innerText || "";
+    inspectorPrezzo.value = cell.querySelector(".prezzo")?.innerText || "";
+    inspectorPrezzoOld.value = cell.dataset.oldPrice || "";
+
+    // Set checkbox, original source and no-bg source
+    let originalSrc = cell.dataset.imgOriginal || "";
+    let noBgSrc = cell.dataset.imgNoBg || "";
+    
+    const existingImg = cell.querySelector(".img-box img");
+    if (existingImg && !originalSrc) {
+      originalSrc = existingImg.src;
+      cell.dataset.imgOriginal = originalSrc;
+      cell.dataset.useNoBg = "0";
+    }
+    
+    const useNoBg = cell.dataset.useNoBg === "1";
+    inspectorImgNoBg.checked = useNoBg;
+    inspectorShowDesc.checked = cell.dataset.showDesc !== "0";
+    
+    localSelectedImageSrc = useNoBg && noBgSrc ? noBgSrc : originalSrc;
+    setInspectorImage(localSelectedImageSrc);
+
+    // Dati inquadratura & contorno
+    inspectorImgZoom.value = cell.dataset.imageZoom || "1.0";
+    inspectorImgPosX.value = cell.dataset.imagePosX || "50";
+    inspectorImgPosY.value = cell.dataset.imagePosY || "50";
+    inspectorImgRadius.value = cell.dataset.imageRadius || "4";
+    inspectorImgPadding.value = cell.dataset.imagePadding || "0";
+    inspectorImgAspect.value = cell.dataset.imageAspect || "auto";
+
+    valImgZoom.textContent = inspectorImgZoom.value;
+    valImgRadius.textContent = inspectorImgRadius.value;
+    valImgPadding.textContent = inspectorImgPadding.value;
+
+    // Stili tipografici nome prodotto
+    inspectorFontFamily.value = cell.dataset.fontFamily || "inherit";
+    inspectorFontColor.value = cell.dataset.fontColor || "#000000";
+    
+     inspectorTitleSize.value = cell.dataset.titleSize || "17";
+     valTitleSize.textContent = inspectorTitleSize.value;
+ 
+     inspectorTitleWeight.value = cell.dataset.titleWeight || "700";
+     inspectorTitleSpacing.value = cell.dataset.titleSpacing || "0";
+     inspectorTitleHeight.value = cell.dataset.titleHeight || "1.2";
+     
+     inspectorDescItalic.checked = cell.dataset.descItalic === "1";
+     inspectorTextUpper.checked = cell.dataset.textUpper === "1";
+ 
+     // Stili Prezzo
+     inspectorPriceStyle.value = cell.dataset.priceStyle || "base";
+     
+     inspectorPriceSize.value = cell.dataset.priceSize || "26";
+     valPriceSize.textContent = inspectorPriceSize.value;
+
+    inspectorPriceColor.value = cell.dataset.priceColor || "#e11d48";
+    inspectorPriceBg.value = cell.dataset.priceBg || "#ffffff";
+    inspectorPriceCurrency.value = cell.dataset.priceCurrency || "€";
+    inspectorPriceWeight.value = cell.dataset.priceWeight || "700";
+
+    // Bordi e sfondi
+    inspectorBorderStyle.value = cell.dataset.borderStyle || "solid";
+    inspectorBorderColor.value = cell.dataset.borderColor || "#cbd5e1";
+    inspectorRadius.value = cell.dataset.radius || "6";
+    inspectorBgColor.value = cell.dataset.bgColor || "#ffffff";
+    inspectorShadow.checked = cell.dataset.shadow === "1";
+
+    // Layout
+    inspectorLayout.value = cell.dataset.layout || "image-top";
+    inspectorAlign.value = cell.dataset.textAlign || "start";
+
+    googleImgQuery.value = inspectorTitolo.value;
+    googleImgGallery.style.display = "none";
+    
+    // Ricerca automatica immagini Google in base al nome del prodotto selezionato
+    const queryProdotto = inspectorTitolo.value ? inspectorTitolo.value.trim() : "";
+    if (queryProdotto && queryProdotto !== "" && queryProdotto !== "PRODOTTO" && queryProdotto !== "Nessun prodotto") {
+      eseguiRicercaImmaginiGoogle(queryProdotto);
     }
   }
 
-  modalImageZoom.addEventListener("input", () => {
-    modalZoomValue = parseFloat(modalImageZoom.value);
-    applyModalImageTransform();
-  });
-  modalImagePosX.addEventListener("input", () => {
-    modalPosX = parseInt(modalImagePosX.value, 10);
-    applyModalImageTransform();
-  });
-  modalImagePosY.addEventListener("input", () => {
-    modalPosY = parseInt(modalImagePosY.value, 10);
-    applyModalImageTransform();
-  });
-  modalImageCenter.addEventListener("click", () => {
-    modalPosX = 50; modalPosY = 50;
-    modalImagePosX.value = 50; modalImagePosY.value = 50;
-    applyModalImageTransform();
+  function clearSelection() {
+    if (cellaSelezionata) {
+      cellaSelezionata.classList.remove("cella-selezionata");
+    }
+    cellaSelezionata = null;
+    inspectorPlaceholder.classList.remove("d-none");
+    inspectorContent.classList.add("d-none");
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".cella-prodotto") && !e.target.closest("#inspector-content") && !e.target.closest(".dropdown-menu")) {
+      clearSelection();
+    }
   });
 
-  modalImagePreview.addEventListener("click", (e) => {
-    if (isDragging) return;
-    modalChangeImage.click();
-  });
-  modalChangeImage.addEventListener("click", () => modalImageInput.click());
-  modalImageInput.addEventListener("change", e => {
+  /* -------------------------------------------------------------------
+       GESTIONE PREVIEW IMMAGINE ISPETTORE
+     ------------------------------------------------------------------- */
+  /* Helper per gestire il drag & drop di immagini (sia da file locale sia trascinata da un'altra scheda come Google Images) */
+  function gestisciDropImmagine(e, callbackApplicazioneImg) {
+    e.preventDefault();
+    
+    // Caso 1: Rilascio di un file locale
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          callbackApplicazioneImg(event.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+      return;
+    }
+    
+    // Caso 2: Rilascio di un URL (trascinata da un'altra scheda o da Google Images)
+    let imageUrl = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+    
+    // Fallback: cerca in text/html
+    if (!imageUrl) {
+      const htmlData = e.dataTransfer.getData("text/html");
+      if (htmlData) {
+        const doc = new DOMParser().parseFromString(htmlData, "text/html");
+        const img = doc.querySelector("img");
+        if (img && img.src) {
+          imageUrl = img.src;
+        }
+      }
+    }
+    
+    if (imageUrl) {
+      callbackApplicazioneImg(imageUrl);
+    }
+  }
+
+  // Abilita Drag & Drop sulla box dell'immagine a destra nell'ispettore
+  if (inspectorImgPreview) {
+    ["dragenter", "dragover"].forEach(eventName => {
+      inspectorImgPreview.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inspectorImgPreview.classList.add("border-primary", "bg-primary-subtle");
+      }, false);
+    });
+
+    ["dragleave", "dragend", "drop"].forEach(eventName => {
+      inspectorImgPreview.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inspectorImgPreview.classList.remove("border-primary", "bg-primary-subtle");
+      }, false);
+    });
+
+    inspectorImgPreview.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      gestisciDropImmagine(e, (imageSrc) => {
+        if (cellaSelezionata) {
+          handleNewProductImage(imageSrc);
+          showToast("Immagine trascinata applicata con successo!");
+        } else {
+          showToast("Seleziona prima un prodotto nella griglia per applicare l'immagine!");
+        }
+      });
+    });
+  }
+
+  function setInspectorImage(src) {
+    if (!src) {
+      inspectorImgPreview.innerHTML = `<span class="text-muted small">Nessuna Immagine</span>`;
+    } else {
+      inspectorImgPreview.innerHTML = `<img src="${src}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    }
+  }
+
+  inspectorImgFileBtn.addEventListener("click", () => inspectorImgFileInput.click());
+  inspectorImgFileInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const r = new FileReader();
-    r.onload = () => setModalImage(r.result);
-    r.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      handleNewProductImage(reader.result);
+    };
+    reader.readAsDataURL(file);
   });
 
-  /* ----------------------
-      FUNZIONI IMMAGINE CELLA
-  -----------------------*/
-  function applyImageTransform(cell) {
-    const img = cell.querySelector(".img-box img");
-    if (!img) return;
-
-    const z = parseFloat(cell.dataset.imageZoom || "1");
-    const x = parseInt(cell.dataset.imagePosX || "50", 10);
-    const y = parseInt(cell.dataset.imagePosY || "50", 10);
-
-    img.style.transform = `scale(${z})`;
-    img.style.objectPosition = `${x}% ${y}%`;
-  }
-
-  function applyImageFilter(cell) {
-    const img = cell.querySelector(".img-box img");
-    if (!img) return;
-
-    let f = "none";
-    switch (cell.dataset.imageFilter) {
-      case "bw": f = "grayscale(1)"; break;
-      case "warm": f = "contrast(1.05) saturate(1.2)"; break;
-      case "cool": f = "contrast(1.05) saturate(1.1) hue-rotate(-15deg)"; break;
-      case "contrast": f = "contrast(1.3) saturate(1.2)"; break;
+  inspectorImgRimuovi.addEventListener("click", () => {
+    localSelectedImageSrc = "";
+    if (cellaSelezionata) {
+      cellaSelezionata.dataset.imgOriginal = "";
+      cellaSelezionata.dataset.imgNoBg = "";
     }
-    img.style.filter = f;
+    setInspectorImage("");
+    updateActiveCellFromInspector();
+  });
+
+  /* -------------------------------------------------------------------
+       AGGIORNAMENTO CELLA ATTIVA DA ISPETTORE (IN TEMPO REALE)
+     ------------------------------------------------------------------- */
+  function updateActiveCellFromInspector() {
+    if (!cellaSelezionata) return;
+
+    valImgZoom.textContent = parseFloat(inspectorImgZoom.value).toFixed(1);
+    valImgRadius.textContent = inspectorImgRadius.value;
+    valImgPadding.textContent = inspectorImgPadding.value;
+    valTitleSize.textContent = inspectorTitleSize.value;
+    valPriceSize.textContent = inspectorPriceSize.value;
+
+    Object.assign(cellaSelezionata.dataset, {
+      codice: inspectorCodice.value.trim(),
+      oldPrice: inspectorPrezzoOld.value.trim(),
+      imageZoom: inspectorImgZoom.value,
+      imagePosX: inspectorImgPosX.value,
+      imagePosY: inspectorImgPosY.value,
+      imageRadius: inspectorImgRadius.value,
+      imagePadding: inspectorImgPadding.value,
+      imageAspect: inspectorImgAspect.value,
+      fontFamily: inspectorFontFamily.value,
+      fontColor: inspectorFontColor.value,
+      titleSize: inspectorTitleSize.value,
+      titleWeight: inspectorTitleWeight.value,
+      titleSpacing: inspectorTitleSpacing.value,
+      titleHeight: inspectorTitleHeight.value,
+      descItalic: inspectorDescItalic.checked ? "1" : "0",
+      textUpper: inspectorTextUpper.checked ? "1" : "0",
+      priceStyle: inspectorPriceStyle.value,
+      priceSize: inspectorPriceSize.value,
+      priceColor: inspectorPriceColor.value,
+      priceBg: inspectorPriceBg.value,
+      priceCurrency: inspectorPriceCurrency.value,
+      priceWeight: inspectorPriceWeight.value,
+      borderStyle: inspectorBorderStyle.value,
+      borderColor: inspectorBorderColor.value,
+      radius: inspectorRadius.value,
+      bgColor: inspectorBgColor.value,
+      shadow: inspectorShadow.checked ? "1" : "0",
+      layout: inspectorLayout.value,
+      textAlign: inspectorAlign.value,
+      showDesc: inspectorShowDesc.checked ? "1" : "0"
+    });
+
+    const imgBox = cellaSelezionata.querySelector(".img-box");
+    if (localSelectedImageSrc) {
+      imgBox.innerHTML = `<img src="${localSelectedImageSrc}">`;
+    } else {
+      imgBox.innerHTML = `<span class="text-muted small text-center" style="font-size: 8px;">Nessun prodotto</span>`;
+    }
+
+    cellaSelezionata.querySelector(".titolo").innerText = inspectorTitolo.value.trim() || "PRODOTTO";
+    cellaSelezionata.querySelector(".descrizione").innerText = inspectorDescrizione.value.trim() || "Fai click per selezionare";
+    cellaSelezionata.querySelector(".prezzo").innerText = inspectorPrezzo.value.trim() || "€ 0.00";
+
+    applicaCellaRendering(cellaSelezionata);
   }
 
-  /* ----------------------
-        UPLOAD IMMAGINI HEADER/FOOTER
-        + applica zoom header
-  -----------------------*/
-  function attachImageUpload(box) {
+  const inspectorInputs = [
+    inspectorCodice, inspectorTitolo, inspectorDescrizione, inspectorShowDesc, inspectorPrezzo, inspectorPrezzoOld,
+    inspectorImgZoom, inspectorImgPosX, inspectorImgPosY, inspectorImgRadius, inspectorImgPadding, inspectorImgAspect,
+    inspectorFontFamily, inspectorFontColor, inspectorTitleSize, inspectorTitleWeight, inspectorTitleSpacing, inspectorTitleHeight,
+    inspectorDescItalic, inspectorTextUpper,
+    inspectorPriceStyle, inspectorPriceSize, inspectorPriceColor, inspectorPriceBg, inspectorPriceCurrency, inspectorPriceWeight,
+    inspectorBorderStyle, inspectorBorderColor, inspectorRadius, inspectorBgColor, inspectorShadow,
+    inspectorLayout, inspectorAlign
+  ];
+
+  inspectorInputs.forEach(input => {
+    input.addEventListener("input", updateActiveCellFromInspector);
+    input.addEventListener("change", updateActiveCellFromInspector);
+  });
+
+  // Aggiorna e avvia la ricerca immagini automatica quando il nome del prodotto viene modificato manualmente
+  inspectorTitolo.addEventListener("change", () => {
+    const val = inspectorTitolo.value.trim();
+    googleImgQuery.value = val;
+    if (val && val !== "" && val !== "PRODOTTO") {
+      eseguiRicercaImmaginiGoogle(val);
+    }
+  });
+
+  btnEliminaCella.addEventListener("click", () => {
+    if (!cellaSelezionata) return;
+    const parentGrid = cellaSelezionata.parentElement;
+    const nuovaVuota = creaCellaVuota();
+    parentGrid.replaceChild(nuovaVuota, cellaSelezionata);
+    clearSelection();
+    showToast("Contenuto box prodotto azzerato!");
+  });
+
+  /* -------------------------------------------------------------------
+       GESTIONE INSERIMENTO IMMAGINI HEADER E FOOTER DEL FOGLIO
+     ------------------------------------------------------------------- */
+  function abilitaUploadImmagineHeaderFooter(box) {
     box.addEventListener("click", (e) => {
       e.stopPropagation();
       const input = document.createElement("input");
@@ -715,16 +2210,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
         const r = new FileReader();
         r.onload = () => {
-          box.innerHTML = `<img src="${r.result}" style="width:100%; height:100%; object-fit:cover;">`;
-
+          box.innerHTML = `<img src="${r.result}">`;
           const page = box.closest(".pagina-volantino");
-          if (page && box.classList.contains("page-header")) {
-            if (!page.dataset.headerZoom) page.dataset.headerZoom = "1";
-            applyHeaderZoom(page);
-            syncHeaderZoomUI();
+          if (page) {
+            applicaDimensioniFoglio(page);
           }
-
-          markDirty();
+          showToast("Logo / Immagine caricata con successo!");
         };
         r.readAsDataURL(file);
       };
@@ -732,700 +2223,403 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ----------------------
-       GRIGLIA FISSA: 3 RIGHE
-  -----------------------*/
-  function setFixedGrid(pageEl, cols, rows = 3) {
-    const grid = pageEl.querySelector(".page-grid");
-    const header = pageEl.querySelector(".page-header");
-    const footer = pageEl.querySelector(".page-footer");
-
-    const gap = 10;
-
-    grid.style.display = "grid";
-    grid.style.gap = gap + "px";
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-
-    // calcolo altezza righe (3 righe fisse)
-    const pageH = pageEl.clientHeight; // 1100px
-    const paddingTopBottom = 20; // padding 10 + 10
-    const available = pageH - header.offsetHeight - footer.offsetHeight - paddingTopBottom;
-
-    const rowH = Math.floor((available - gap * (rows - 1)) / rows);
-
-    grid.style.gridTemplateRows = `repeat(${rows}, ${rowH}px)`;
-    grid.style.alignItems = "stretch";
-  }
-
-  /* ----------------------
-           PAGINE
-  -----------------------*/
-  function creaPagina(cols = 3) {
+  /* -------------------------------------------------------------------
+       GESTIONE STRUTTURA DEL FOGLIO/PAGINA
+     ------------------------------------------------------------------- */
+  function creaPaginaEditor(cols = 3, rows = 3, gap = 10) {
     const page = document.createElement("div");
     page.classList.add("pagina-volantino");
-    page.dataset.cols = cols;
-    page.dataset.headerZoom = page.dataset.headerZoom || "1";
+    
+    // Dataset di default
+    Object.assign(page.dataset, {
+      cols: cols,
+      rows: rows,
+      gap: gap,
+      larghezza: controlLarghezza.value,
+      altezza: controlAltezza.value,
+      padTop: controlPadTop.value,
+      padBottom: controlPadBottom.value,
+      padSides: controlPadSides.value,
+      headerH: controlHeaderH.value,
+      footerH: controlFooterH.value,
+      headerFit: controlHeaderFit.value || "contain",
+      headerZoom: "1"
+    });
 
     page.innerHTML = `
-      <div class="page-header img-drop">
-        <span class="small text-muted">Clicca per inserire header</span>
+      <div class="page-header border border-dashed rounded-3 mb-2 bg-light bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="cursor: pointer; overflow: hidden; height: ${controlHeaderH.value}px;">
+        <div class="text-center small"><i class="bi bi-image fs-5 d-block mb-1"></i>Clicca per caricare il LOGO in alto</div>
       </div>
       <div class="page-grid"></div>
-      <div class="page-footer img-drop">
-        <span class="small text-muted">Clicca per inserire footer</span>
-      </div>
     `;
 
     const header = page.querySelector(".page-header");
-    const footer = page.querySelector(".page-footer");
-    const grid   = page.querySelector(".page-grid");
+    const grid = page.querySelector(".page-grid");
 
-    attachImageUpload(header);
-    attachImageUpload(footer);
+    abilitaUploadImmagineHeaderFooter(header);
 
-    // IMPORTANT: griglia fissa 3 righe
-    setFixedGrid(page, cols, 3);
+    applicaDimensioniFoglio(page);
+    applicaStrutturaGriglia(page, cols, rows, gap);
+
+    const cellTotal = cols * rows;
+    for (let i = 0; i < cellTotal; i++) {
+      grid.appendChild(creaCellaVuota());
+    }
 
     Sortable.create(grid, {
-      animation: 150,
+      animation: 180,
       ghostClass: "sortable-ghost",
-      onEnd: () => markDirty()
+      dragClass: "sortable-drag"
     });
 
     return page;
   }
 
-  function mostraPaginaCorrente() {
+  function visualizzaPaginaCorrente() {
     pagineContainer.innerHTML = "";
     pagineContainer.appendChild(pagine[paginaCorrente]);
 
-    // riallinea grid e header zoom
     const page = pagine[paginaCorrente];
-    setFixedGrid(page, parseInt(page.dataset.cols || "3", 10), 3);
-    applyHeaderZoom(page);
-    syncHeaderZoomUI();
+    controlLarghezza.value = page.dataset.larghezza;
+    controlAltezza.value = page.dataset.altezza;
+    controlPadTop.value = page.dataset.padTop;
+    controlPadBottom.value = page.dataset.padBottom;
+    controlPadSides.value = page.dataset.padSides;
+    controlHeaderH.value = page.dataset.headerH;
+    controlFooterH.value = page.dataset.footerH;
+    controlHeaderFit.value = page.dataset.headerFit || "contain";
+    controlHeaderZoom.value = page.dataset.headerZoom || "1";
+    controlCols.value = page.dataset.cols;
+    controlRows.value = page.dataset.rows;
+    controlGap.value = page.dataset.gap;
+
+    valLarghezza.textContent = page.dataset.larghezza;
+    valAltezza.textContent = page.dataset.altezza;
+    valGap.textContent = page.dataset.gap;
+
+    applicaDimensioniFoglio(page);
+    applicaZoomLogoHeader(page);
   }
 
-  function aggiornaListaPagine() {
+  function aggiornaListaPagineNav() {
     listaPagine.innerHTML = "";
+    badgePagineCount.innerText = pagine.length + (pagine.length === 1 ? " Foglio" : " Fogli");
+
     pagine.forEach((_, i) => {
-      const btn = document.createElement("button");
-      btn.classList.add("btn", "btn-sm", "w-100", "mb-2");
-      if (i === paginaCorrente) btn.classList.add("btn-primary");
-      else btn.classList.add("btn-outline-primary");
+      const card = document.createElement("div");
+      card.classList.add("p-2", "rounded-3", "border", "d-flex", "align-items-center", "justify-content-between", "nav-page-card");
+      
+      if (i === paginaCorrente) {
+        card.style.background = "#e2e8f0";
+        card.style.borderColor = "#007bff";
+      } else {
+        card.style.background = "#ffffff";
+        card.style.borderColor = "#cbd5e1";
+      }
 
-      btn.innerText = "Pagina " + (i + 1);
-      btn.onclick = () => {
+      card.style.cursor = "pointer";
+
+      card.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-file-earmark-fill ${i === paginaCorrente ? 'text-primary' : 'text-muted'}"></i>
+          <span class="small fw-semibold text-dark">Foglio ${i + 1}</span>
+        </div>
+        ${pagine.length > 1 ? `
+          <button class="btn btn-link text-danger btn-sm p-0 m-0 border-0" data-page-idx="${i}" title="Elimina questo foglio">
+            <i class="bi bi-trash"></i>
+          </button>
+        ` : ''}
+      `;
+
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("button")) {
+          const delIdx = parseInt(e.target.closest("button").dataset.pageIdx, 10);
+          pagine.splice(delIdx, 1);
+          if (paginaCorrente >= pagine.length) {
+            paginaCorrente = pagine.length - 1;
+          }
+          visualizzaPaginaCorrente();
+          aggiornaListaPagineNav();
+          showToast("Foglio rimosso!");
+          e.stopPropagation();
+          return;
+        }
+
         paginaCorrente = i;
-        mostraPaginaCorrente();
-        aggiornaListaPagine();
+        visualizzaPaginaCorrente();
+        aggiornaListaPagineNav();
         clearSelection();
-      };
-      listaPagine.appendChild(btn);
-    });
-  }
-  /* ----------------------
-      FUNZIONI STILE CELLE
-  -----------------------*/
-  function applyCellSize(cell) {
-    // ✅ Celle sempre fisse 1x1
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-    cell.style.gridColumn = "span 1";
-    cell.style.gridRow = "span 1";
-  }
+      });
 
-  function applyPriceStyle(cell) {
-    const prezzoEl = cell.querySelector(".prezzo");
-    if (!prezzoEl) return;
-
-    prezzoEl.className = "prezzo fw-bold";
-    const style = cell.dataset.priceStyle || "base";
-    prezzoEl.classList.add("prezzo-" + style);
-
-    if (style === "strike") {
-      const old = cell.dataset.oldPrice || "";
-      prezzoEl.setAttribute("data-old", old);
-    } else {
-      prezzoEl.removeAttribute("data-old");
-    }
-  }
-
-  function applyLayout(cell) {
-    const layout = cell.dataset.layout || "image-top";
-    const wrapper = cell.querySelector(".cella-inner");
-    const imgBox = cell.querySelector(".img-box");
-    const textBox = cell.querySelector(".testo-box");
-    const prezzoEl = cell.querySelector(".prezzo");
-
-    cell.classList.remove(
-      "cella-layout-image-top",
-      "cella-layout-image-left",
-      "cella-layout-full-image-price"
-    );
-    cell.classList.add("cella-layout-" + layout);
-
-    if (!wrapper || !imgBox || !textBox) return;
-
-    wrapper.style = "";
-    imgBox.style = "";
-    textBox.style = "";
-    if (prezzoEl) prezzoEl.style = "";
-
-    if (layout === "image-top") {
-      wrapper.style.display = "flex";
-      wrapper.style.flexDirection = "column";
-      // imgBox gestito da flex CSS
-    }
-    else if (layout === "image-left") {
-      wrapper.style.display = "flex";
-      wrapper.style.flexDirection = "row";
-      imgBox.style.width = "50%";
-    }
-    else if (layout === "full-image-price") {
-      wrapper.style.position = "relative";
-      textBox.style.position = "absolute";
-      textBox.style.bottom = "6px";
-      textBox.style.left = "6px";
-      textBox.style.right = "6px";
-
-      if (prezzoEl) {
-        prezzoEl.style.position = "absolute";
-        prezzoEl.style.top = "6px";
-        prezzoEl.style.right = "6px";
-      }
-    }
-  }
-
-  function applyTextAlign(cell) {
-    const textBox = cell.querySelector(".testo-box");
-    if (!textBox) return;
-
-    textBox.classList.remove("text-start", "text-center", "text-end");
-    const align = cell.dataset.textAlign || "start";
-    if (align === "center") textBox.classList.add("text-center");
-    else if (align === "end") textBox.classList.add("text-end");
-    else textBox.classList.add("text-start");
-  }
-
-  function applyTypography(cell) {
-    const titoloEl = cell.querySelector(".titolo");
-    const descEl = cell.querySelector(".descrizione");
-    const prezzoEl = cell.querySelector(".prezzo");
-
-    const fontFamily = cell.dataset.fontFamily || "";
-    const fontColor = cell.dataset.fontColor || "#000000";
-    const titleSize = cell.dataset.titleSize || "14";
-    const descSize = cell.dataset.descSize || "11";
-    const priceSize = cell.dataset.priceSize || "16";
-
-    const textUpper = cell.dataset.textUpper === "1";
-    const titleBold = cell.dataset.titleBold === "1";
-    const descItalic = cell.dataset.descItalic === "1";
-    const priceBold = cell.dataset.priceBold !== "0";
-
-    [titoloEl, descEl, prezzoEl].forEach(el => {
-      if (!el) return;
-      el.style.fontFamily = fontFamily;
-      el.style.color = fontColor;
-      el.style.textTransform = textUpper ? "uppercase" : "none";
-    });
-
-    if (titoloEl) {
-      titoloEl.style.fontSize = titleSize + "px";
-      titoloEl.classList.toggle("fw-bold", titleBold);
-    }
-    if (descEl) {
-      descEl.style.fontSize = descSize + "px";
-      descEl.style.fontStyle = descItalic ? "italic" : "normal";
-    }
-    if (prezzoEl) {
-      prezzoEl.style.fontSize = priceSize + "px";
-      prezzoEl.classList.toggle("fw-bold", priceBold);
-    }
-  }
-
-  function applyBoxStyle(cell) {
-    cell.style.borderStyle = cell.dataset.borderStyle || "solid";
-    cell.style.borderColor = cell.dataset.borderColor || "#dddddd";
-    cell.style.borderRadius = (cell.dataset.radius || "4") + "px";
-    cell.style.backgroundColor = cell.dataset.bgColor || "#ffffff";
-    cell.classList.toggle("cella-shadow", cell.dataset.shadow === "1");
-  }
-
-  /* ----------------------
-   EVENTI CELLA + CREAZIONE
-  -----------------------*/
-  function initCellaEvents(cell) {
-    cell.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const add = e.shiftKey || e.ctrlKey || e.metaKey;
-      selectCell(cell, add);
-    });
-
-    cell.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      selectCell(cell, false);
-      apriEditorCella(cell);
+      listaPagine.appendChild(card);
     });
   }
 
-  function creaCella() {
-    const cell = document.createElement("div");
-    cell.classList.add("cella-prodotto");
-
-    // fissi 1x1
-    cell.dataset.colspan = "1";
-    cell.dataset.rowspan = "1";
-
-    cell.dataset.priceStyle = "base";
-    cell.dataset.layout = "image-top";
-    cell.dataset.textAlign = "start";
-
-    cell.dataset.fontFamily = "";
-    cell.dataset.fontColor = "#000000";
-    cell.dataset.titleSize = "14";
-    cell.dataset.descSize = "11";
-    cell.dataset.priceSize = "16";
-    cell.dataset.textUpper = "0";
-    cell.dataset.titleBold = "1";
-    cell.dataset.descItalic = "0";
-    cell.dataset.priceBold = "1";
-
-    cell.dataset.borderStyle = "solid";
-    cell.dataset.borderColor = "#dddddd";
-    cell.dataset.radius = "4";
-    cell.dataset.bgColor = "#ffffff";
-    cell.dataset.shadow = "0";
-
-    cell.dataset.imageFilter = "none";
-    cell.dataset.imageZoom = "1";
-    cell.dataset.imagePosX = "50";
-    cell.dataset.imagePosY = "50";
-
-    cell.dataset.oldPrice = "";
-
-    // ✅ Niente resize handle
-    cell.innerHTML = `
-      <div class="cella-inner">
-        <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center">
-          <span class="text-muted small">Doppio click per modificare</span>
-        </div>
-        <div class="testo-box">
-          <div class="titolo fw-bold small mb-1">TITOLO PRODOTTO</div>
-          <div class="descrizione small text-muted mb-1">Descrizione prodotto</div>
-          <div class="prezzo fw-bold prezzo-base">€ 0,00</div>
-        </div>
-      </div>
-    `;
-
-    initCellaEvents(cell);
-
-    applyCellSize(cell);
-    applyPriceStyle(cell);
-    applyLayout(cell);
-    applyTextAlign(cell);
-    applyTypography(cell);
-    applyBoxStyle(cell);
-
-    return cell;
-  }
-
-  /* click fuori: deseleziona (ma non nel modal) */
-  document.addEventListener("click", e => {
-    if (e.target.closest("#cellEditorModal")) return;
-    if (e.target.closest(".cella-prodotto")) return;
-    clearSelection();
-  });
-
-  /* ----------------------
-   BOTTONI STILE PREZZO (multi-selezione)
-  -----------------------*/
-  document.querySelectorAll("[data-price-style]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!selectedCells.size) return showToast("Seleziona una o più celle");
-      const style = btn.dataset.priceStyle;
-      applyToSelected(cell => { cell.dataset.priceStyle = style; });
-      showToast("Stile prezzo applicato");
-    });
-  });
-
-  /* ----------------------
-       GRIGLIA PAGINA (colonne + 3 righe fisse)
-  -----------------------*/
-  document.querySelectorAll("[data-grid]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (!pagine.length) return;
-
-      const [cols] = btn.dataset.grid.split("x").map(Number);
-      const rows = 3;
-
-      const page = pagine[paginaCorrente];
-      const grid = page.querySelector(".page-grid");
-
-      page.dataset.cols = cols;
-
-      setFixedGrid(page, cols, rows);
-      grid.innerHTML = "";
-
-      for (let i = 0; i < cols * rows; i++) {
-        grid.appendChild(creaCella());
-      }
-
-      Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost", onEnd: () => markDirty() });
-
-      clearSelection();
-      markDirty();
-      showToast("Griglia aggiornata (3 righe fisse)");
-    });
-  });
-
-  /* ----------------------
-   AGGIUNGI / DUPLICA PAGINA
-  -----------------------*/
   document.getElementById("aggiungi-pagina").addEventListener("click", () => {
-    const nuova = creaPagina(3);
+    const nuova = creaPaginaEditor(3, 3, 10);
     pagine.push(nuova);
     paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-    markDirty();
-    showToast("Pagina aggiunta");
+    visualizzaPaginaCorrente();
+    aggiornaListaPagineNav();
+    showToast("Nuovo foglio aggiunto al volantino!");
   });
 
   document.getElementById("duplica-pagina").addEventListener("click", () => {
     if (!pagine.length) return;
-
     const originale = pagine[paginaCorrente];
+    
     const clone = originale.cloneNode(true);
-
+    clone.classList.remove("cella-selezionata");
+    
     const header = clone.querySelector(".page-header");
-    const footer = clone.querySelector(".page-footer");
-    attachImageUpload(header);
-    attachImageUpload(footer);
+    if (header) abilitaUploadImmagineHeaderFooter(header);
 
-    const cols = parseInt(originale.dataset.cols || "3", 10);
-    clone.dataset.cols = String(cols);
-    clone.dataset.headerZoom = originale.dataset.headerZoom || "1";
+    const cols = parseInt(originale.dataset.cols, 10);
+    const rows = parseInt(originale.dataset.rows, 10);
+    const gap = parseInt(originale.dataset.gap, 10);
 
-    setFixedGrid(clone, cols, 3);
-    applyHeaderZoom(clone);
+    applicaStrutturaGriglia(clone, cols, rows, gap);
+    applicaZoomLogoHeader(clone);
+
+    clone.querySelectorAll(".cella-prodotto").forEach(cell => {
+      initCellaEvents(cell);
+      applicaCellaRendering(cell);
+    });
 
     const grid = clone.querySelector(".page-grid");
-    Sortable.create(grid, { animation: 150, ghostClass: "sortable-ghost", onEnd: () => markDirty() });
-
-    clone.querySelectorAll(".cella-prodotto").forEach(c => {
-      initCellaEvents(c);
-      // re-apply render
-      applyCellSize(c);
-      applyPriceStyle(c);
-      applyLayout(c);
-      applyTextAlign(c);
-      applyTypography(c);
-      applyBoxStyle(c);
-      applyImageFilter(c);
-      applyImageTransform(c);
+    Sortable.create(grid, {
+      animation: 180,
+      ghostClass: "sortable-ghost",
+      dragClass: "sortable-drag"
     });
 
     pagine.push(clone);
     paginaCorrente = pagine.length - 1;
-    mostraPaginaCorrente();
-    aggiornaListaPagine();
-    markDirty();
-    showToast("Pagina duplicata");
+    visualizzaPaginaCorrente();
+    aggiornaListaPagineNav();
+    showToast("Foglio duplicato con successo!");
   });
 
-  /* ----------------------
-   DUPLICA / ELIMINA CELLA
-  -----------------------*/
-  document.getElementById("duplica-cella").addEventListener("click", () => {
-    if (!cellaSelezionata) return showToast("Seleziona una cella");
-
-    const clone = cellaSelezionata.cloneNode(true);
-    initCellaEvents(clone);
-
-    // re-apply
-    applyCellSize(clone);
-    applyPriceStyle(clone);
-    applyLayout(clone);
-    applyTextAlign(clone);
-    applyTypography(clone);
-    applyBoxStyle(clone);
-    applyImageFilter(clone);
-    applyImageTransform(clone);
-
-    cellaSelezionata.parentElement.appendChild(clone);
-    markDirty();
-    showToast("Cella duplicata");
-  });
-
-  document.getElementById("elimina-cella").addEventListener("click", () => {
-    if (!selectedCells.size) return showToast("Seleziona una o più celle");
-    selectedCells.forEach(c => c.remove());
-    clearSelection();
-    markDirty();
-    showToast("Celle eliminate");
-  });
-
-  /* ----------------------
-      APRI EDITOR CELLA
-  -----------------------*/
-  function apriEditorCella(cell) {
-    cellaSelezionata = cell;
-
-    const img = cell.querySelector(".img-box img")?.src || "";
-    const titolo = cell.querySelector(".titolo")?.innerText || "";
-    const descrizione = cell.querySelector(".descrizione")?.innerText || "";
-    const prezzo = cell.querySelector(".prezzo")?.innerText || "";
-
-    modalZoomValue = parseFloat(cell.dataset.imageZoom || "1");
-    modalPosX = parseInt(cell.dataset.imagePosX || "50", 10);
-    modalPosY = parseInt(cell.dataset.imagePosY || "50", 10);
-
-    modalImageZoom.value = modalZoomValue;
-    modalImagePosX.value = modalPosX;
-    modalImagePosY.value = modalPosY;
-
-    setModalImage(img);
-
-    modalTitle.value = titolo;
-    modalDesc.value = descrizione;
-    modalPrice.value = prezzo;
-
-    modalPriceStyle.value = cell.dataset.priceStyle;
-    modalLayout.value = cell.dataset.layout;
-    modalAlign.value = cell.dataset.textAlign;
-
-    modalFontFamily.value = cell.dataset.fontFamily;
-    modalFontColor.value = cell.dataset.fontColor;
-    modalTitleSize.value = cell.dataset.titleSize;
-    modalDescSize.value = cell.dataset.descSize;
-    modalPriceSize.value = cell.dataset.priceSize;
-    modalTextUpper.checked = cell.dataset.textUpper === "1";
-    modalTitleBold.checked = cell.dataset.titleBold === "1";
-    modalDescItalic.checked = cell.dataset.descItalic === "1";
-    modalPriceBold.checked = cell.dataset.priceBold !== "0";
-
-    modalBorderStyle.value = cell.dataset.borderStyle;
-    modalBorderColor.value = cell.dataset.borderColor;
-    modalRadius.value = cell.dataset.radius;
-    modalBgColor.value = cell.dataset.bgColor;
-    modalShadow.checked = cell.dataset.shadow === "1";
-
-    modalImageFilter.value = cell.dataset.imageFilter;
-    modalProductLibrary.value = "";
-
-    cellEditorModal.show();
-  }
-
-  /* ----------------------
-       SALVA MODIFICHE CELLA
-  -----------------------*/
-  modalSave.addEventListener("click", () => {
-    if (!cellaSelezionata) return;
-
-    const imgBox = cellaSelezionata.querySelector(".img-box");
-    const titoloEl = cellaSelezionata.querySelector(".titolo");
-    const descEl = cellaSelezionata.querySelector(".descrizione");
-    const prezzoEl = cellaSelezionata.querySelector(".prezzo");
-
-    if (modalImageData) {
-      // ✅ immagine sempre adattata alla box (cover via CSS)
-      imgBox.innerHTML = `<img src="${modalImageData}">`;
-    }
-
-    cellaSelezionata.dataset.imageZoom = String(modalZoomValue);
-    cellaSelezionata.dataset.imagePosX = String(modalPosX);
-    cellaSelezionata.dataset.imagePosY = String(modalPosY);
-
-    titoloEl.innerText = modalTitle.value;
-    descEl.innerText = modalDesc.value;
-    prezzoEl.innerText = modalPrice.value;
-
-    cellaSelezionata.dataset.priceStyle = modalPriceStyle.value;
-    cellaSelezionata.dataset.layout = modalLayout.value;
-    cellaSelezionata.dataset.textAlign = modalAlign.value;
-
-    cellaSelezionata.dataset.fontFamily = modalFontFamily.value;
-    cellaSelezionata.dataset.fontColor = modalFontColor.value;
-    cellaSelezionata.dataset.titleSize = modalTitleSize.value;
-    cellaSelezionata.dataset.descSize = modalDescSize.value;
-    cellaSelezionata.dataset.priceSize = modalPriceSize.value;
-
-    cellaSelezionata.dataset.textUpper = modalTextUpper.checked ? "1" : "0";
-    cellaSelezionata.dataset.titleBold = modalTitleBold.checked ? "1" : "0";
-    cellaSelezionata.dataset.descItalic = modalDescItalic.checked ? "1" : "0";
-    cellaSelezionata.dataset.priceBold = modalPriceBold.checked ? "1" : "0";
-
-    cellaSelezionata.dataset.borderStyle = modalBorderStyle.value;
-    cellaSelezionata.dataset.borderColor = modalBorderColor.value;
-    cellaSelezionata.dataset.radius = modalRadius.value;
-    cellaSelezionata.dataset.bgColor = modalBgColor.value;
-    cellaSelezionata.dataset.shadow = modalShadow.checked ? "1" : "0";
-
-    cellaSelezionata.dataset.imageFilter = modalImageFilter.value;
-
-    applyLayout(cellaSelezionata);
-    applyPriceStyle(cellaSelezionata);
-    applyTextAlign(cellaSelezionata);
-    applyTypography(cellaSelezionata);
-    applyBoxStyle(cellaSelezionata);
-    applyImageFilter(cellaSelezionata);
-    applyImageTransform(cellaSelezionata);
-
-    markDirty();
-    cellEditorModal.hide();
-    showToast("Box salvata");
-  });
-
-  /* ----------------------
-       SALVATAGGIO VOLANTINO
-  -----------------------*/
+  /* -------------------------------------------------------------------
+       SALVA INTERO PROGETTO VOLANTINO NEL DATABASE
+     ------------------------------------------------------------------- */
   let volantinoID = "{{ volantino_id or '' }}";
 
   document.getElementById("save-layout").addEventListener("click", () => {
-
     const data = pagine.map(page => {
       const grid = page.querySelector(".page-grid");
       const header = page.querySelector(".page-header");
       const footer = page.querySelector(".page-footer");
 
       const headerImg = header.querySelector("img")?.src || "";
-      const footerImg = footer.querySelector("img")?.src || "";
+      const footerImg = "";
+      
+      const imgOriginal = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.imgOriginal || "") : "";
+      const imgNoBg = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.imgNoBg || "") : "";
+      const useNoBg = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.useNoBg || "0") : "0";
+      const showDesc = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.showDesc || "1") : "1";
+      
       const cols = parseInt(page.dataset.cols || "3", 10);
+      const rows = parseInt(page.dataset.rows || "3", 10);
+      const gap = parseInt(page.dataset.gap || "10", 10);
+      const larghezza = page.dataset.larghezza || "800";
+      const altezza = page.dataset.altezza || "1100";
+      const padTop = page.dataset.padTop || "10";
+      const padBottom = page.dataset.padBottom || "10";
+      const padSides = page.dataset.padSides || "10";
+      const headerH = page.dataset.headerH || "80";
+      const footerH = page.dataset.footerH || "80";
+      const headerFit = page.dataset.headerFit || "contain";
       const headerZoom = page.dataset.headerZoom || "1";
 
       const cells = [];
       grid.querySelectorAll(".cella-prodotto").forEach(c => {
         cells.push({
-          img: c.querySelector(".img-box img")?.src || "",
+          img: c.querySelector(".img-box img")?.src || (c.dataset.useNoBg === "1" ? c.dataset.imgNoBg : c.dataset.imgOriginal) || c.dataset.imgOriginal || c.dataset.imgNoBg || "",
+          imgOriginal: c.dataset.imgOriginal || "",
+          imgNoBg: c.dataset.imgNoBg || "",
+          useNoBg: c.dataset.useNoBg || "0",
+          showDesc: c.dataset.showDesc || "1",
           titolo: c.querySelector(".titolo")?.innerText || "",
           descrizione: c.querySelector(".descrizione")?.innerText || "",
           prezzo: c.querySelector(".prezzo")?.innerText || "",
-          priceStyle: c.dataset.priceStyle,
-          layout: c.dataset.layout,
-          textAlign: c.dataset.textAlign,
-          fontFamily: c.dataset.fontFamily,
-          fontColor: c.dataset.fontColor,
-          titleSize: c.dataset.titleSize,
-          descSize: c.dataset.descSize,
-          priceSize: c.dataset.priceSize,
-          textUpper: c.dataset.textUpper,
-          titleBold: c.dataset.titleBold,
-          descItalic: c.dataset.descItalic,
-          priceBold: c.dataset.priceBold,
-          borderStyle: c.dataset.borderStyle,
-          borderColor: c.dataset.borderColor,
-          radius: c.dataset.radius,
-          bgColor: c.dataset.bgColor,
-          shadow: c.dataset.shadow,
-          imageFilter: c.dataset.imageFilter,
-          imageZoom: c.dataset.imageZoom,
-          imagePosX: c.dataset.imagePosX,
-          imagePosY: c.dataset.imagePosY,
-          oldPrice: c.dataset.oldPrice || ""
+          codice: c.dataset.codice || "",
+          oldPrice: c.dataset.oldPrice || "",
+          priceStyle: c.dataset.priceStyle || "base",
+          priceSize: c.dataset.priceSize || "26",
+          priceColor: c.dataset.priceColor || "#e11d48",
+          priceBg: c.dataset.priceBg || "#ffffff",
+          priceCurrency: c.dataset.priceCurrency || "€",
+          priceWeight: c.dataset.priceWeight || "800",
+          layout: c.dataset.layout || "image-top",
+          textAlign: c.dataset.textAlign || "start",
+          fontFamily: c.dataset.fontFamily || "inherit",
+          fontColor: c.dataset.fontColor || "#222222",
+          titleSize: c.dataset.titleSize || "13",
+          titleWeight: c.dataset.titleWeight || "700",
+          titleSpacing: c.dataset.titleSpacing || "0",
+          titleHeight: c.dataset.titleHeight || "1.2",
+          codeSize: c.dataset.codeSize || "9",
+          descSize: c.dataset.descSize || "10",
+          descItalic: c.dataset.descItalic || "0",
+          textUpper: c.dataset.textUpper || "0",
+          borderStyle: c.dataset.borderStyle || "solid",
+          borderColor: c.dataset.borderColor || "#cbd5e1",
+          radius: c.dataset.radius || "6",
+          bgColor: c.dataset.bgColor || "#ffffff",
+          shadow: c.dataset.shadow || "0",
+          imageFilter: c.dataset.imageFilter || "none",
+          imageZoom: c.dataset.imageZoom || "1.0",
+          imagePosX: c.dataset.imagePosX || "50",
+          imagePosY: c.dataset.imagePosY || "50",
+          imageRadius: c.dataset.imageRadius || "4",
+          imagePadding: c.dataset.imagePadding || "0",
+          imageAspect: c.dataset.imageAspect || "auto"
         });
       });
 
-      return { cols, headerImg, headerZoom, footerImg, cells };
+      return { 
+        cols, rows, gap, larghezza, altezza, padTop, padBottom, padSides, headerH, footerH, headerFit, headerZoom,
+        headerImg, footerImg, cells 
+      };
     });
 
-    const selectTipo = document.getElementById("volantino-tipo");
-    
     fetch("/salva-volantino-beta", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: volantinoID || null,
-        nome: inputNome.value || "Volantino BETA",
+        nome: inputNome.value || "Volantino Pro",
         layout: data,
         tipo: selectTipo ? selectTipo.value : "volantino"
       })
     })
     .then(r => r.json())
     .then(d => {
-      showToast("Volantino salvato!");
-      dirty = false;
+      showToast("Progetto Volantino salvato correttamente!");
       if (d.id) volantinoID = d.id;
     })
     .catch(err => {
       console.error("Errore salvataggio:", err);
-      showToast("Errore salvataggio (console)");
+      showToast("Errore nel salvataggio del volantino");
     });
-
   });
 
-  /* ----------------------
-     RICOSTRUZIONE VOLANTINO
-  -----------------------*/
+  /* -------------------------------------------------------------------
+       RICOSTRUZIONE DALLO STATO SALVATO (BACKEND DATABASE)
+     ------------------------------------------------------------------- */
   {% if layout_json %}
     const salvato = {{ layout_json | safe }};
     if (Array.isArray(salvato)) {
       salvato.forEach(pData => {
-        const page = creaPagina(pData.cols || 3);
+        const cols = parseInt(pData.cols || "3", 10);
+        const rows = parseInt(pData.rows || "3", 10);
+        const gap = parseInt(pData.gap || "10", 10);
+
+        const page = document.createElement("div");
+        page.classList.add("pagina-volantino");
+
+        Object.assign(page.dataset, {
+          cols: cols,
+          rows: rows,
+          gap: gap,
+          larghezza: pData.larghezza || "800",
+          altezza: pData.altezza || "1100",
+          padTop: pData.padTop || "10",
+          padBottom: pData.padBottom || "10",
+          padSides: pData.padSides || "10",
+          headerH: pData.headerH || "80",
+          footerH: pData.footerH || "80",
+          headerFit: pData.headerFit || "contain",
+          headerZoom: pData.headerZoom || "1"
+        });
+
+        page.innerHTML = `
+          <div class="page-header border border-dashed rounded-3 mb-2 bg-light bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="cursor: pointer; overflow: hidden; height: ${page.dataset.headerH}px;">
+            <div class="text-center small"><i class="bi bi-image fs-5 d-block mb-1"></i>Clicca per caricare il LOGO in alto</div>
+          </div>
+          <div class="page-grid"></div>
+        `;
+
+        const header = page.querySelector(".page-header");
         const grid = page.querySelector(".page-grid");
 
-        page.dataset.headerZoom = pData.headerZoom || "1";
+        abilitaUploadImmagineHeaderFooter(header);
 
         if (pData.headerImg) {
-          page.querySelector(".page-header").innerHTML =
-            `<img src="${pData.headerImg}" style="width:100%; height:100%; object-fit:cover;">`;
-          applyHeaderZoom(page);
+          header.innerHTML = `<img src="${pData.headerImg}">`;
         }
-
         if (pData.footerImg) {
-          page.querySelector(".page-footer").innerHTML =
-            `<img src="${pData.footerImg}" style="width:100%; height:100%; object-fit:cover;">`;
+          footer.innerHTML = `<img src="${pData.footerImg}">`;
         }
 
-        setFixedGrid(page, parseInt(pData.cols || "3", 10), 3);
+        applicaDimensioniFoglio(page);
+        applicaStrutturaGriglia(page, cols, rows, gap);
 
         (pData.cells || []).forEach(item => {
-          const cell = creaCella();
-
-          if (item.img) {
-            cell.querySelector(".img-box").innerHTML = `<img src="${item.img}">`;
-          }
-
-          cell.querySelector(".titolo").innerText = item.titolo || "";
-          cell.querySelector(".descrizione").innerText = item.descrizione || "";
-          cell.querySelector(".prezzo").innerText = item.prezzo || "";
-
+          const cell = creaCellaVuota();
+          
           Object.assign(cell.dataset, {
+            codice: item.codice || "",
+            oldPrice: item.oldPrice || "",
             priceStyle: item.priceStyle || "base",
+            priceSize: item.priceSize || "26",
+            priceColor: item.priceColor || "#e11d48",
+            priceBg: item.priceBg || "#ffffff",
+            priceCurrency: item.priceCurrency || "€",
+            priceWeight: item.priceWeight || "800",
             layout: item.layout || "image-top",
             textAlign: item.textAlign || "start",
-            fontFamily: item.fontFamily || "",
-            fontColor: item.fontColor || "#000000",
-            titleSize: item.titleSize || "14",
-            descSize: item.descSize || "11",
-            priceSize: item.priceSize || "16",
-            textUpper: item.textUpper || "0",
-            titleBold: item.titleBold || "1",
+            fontFamily: item.fontFamily || "inherit",
+            fontColor: item.fontColor || "#222222",
+            titleSize: item.titleSize || "13",
+            titleWeight: item.titleWeight || "700",
+            titleSpacing: item.titleSpacing || "0",
+            titleHeight: item.titleHeight || "1.2",
+            codeSize: item.codeSize || "9",
+            descSize: item.descSize || "10",
             descItalic: item.descItalic || "0",
-            priceBold: item.priceBold || "1",
+            textUpper: item.textUpper || "0",
             borderStyle: item.borderStyle || "solid",
-            borderColor: item.borderColor || "#dddddd",
-            radius: item.radius || "4",
+            borderColor: item.borderColor || "#cbd5e1",
+            radius: item.radius || "6",
             bgColor: item.bgColor || "#ffffff",
             shadow: item.shadow || "0",
             imageFilter: item.imageFilter || "none",
-            imageZoom: item.imageZoom || "1",
+            imageZoom: item.imageZoom || "1.0",
             imagePosX: item.imagePosX || "50",
             imagePosY: item.imagePosY || "50",
-            oldPrice: item.oldPrice || ""
+            imageRadius: item.imageRadius || "4",
+            imagePadding: item.imagePadding || "0",
+            imageAspect: item.imageAspect || "auto",
+            imgOriginal: item.imgOriginal || item.img || "",
+            imgNoBg: item.imgNoBg || "",
+            useNoBg: item.useNoBg || "0",
+            showDesc: item.showDesc || "1"
           });
+          const imgToUse = item.img || (item.useNoBg === "1" ? item.imgNoBg : item.imgOriginal) || item.imgOriginal || "";
+          const imgBox = cell.querySelector(".img-box");
+          if (imgToUse) {
+            imgBox.innerHTML = `<img src="${imgToUse}">`;
+          }
 
-          applyCellSize(cell);
-          applyPriceStyle(cell);
-          applyLayout(cell);
-          applyTextAlign(cell);
-          applyTypography(cell);
-          applyBoxStyle(cell);
-          applyImageFilter(cell);
-          applyImageTransform(cell);
+          cell.querySelector(".titolo").innerText = item.titolo || "PRODOTTO";
+          cell.querySelector(".descrizione").innerText = item.descrizione || "Fai click per selezionare";
+          cell.querySelector(".prezzo").innerText = item.prezzo || "€ 0.00";
 
+          applicaCellaRendering(cell);
           grid.appendChild(cell);
+        });
+
+        const diff = (cols * rows) - (pData.cells || []).length;
+        for (let i = 0; i < diff; i++) {
+          grid.appendChild(creaCellaVuota());
+        }
+
+        Sortable.create(grid, {
+          animation: 180,
+          ghostClass: "sortable-ghost",
+          dragClass: "sortable-drag"
         });
 
         pagine.push(page);
@@ -1433,167 +2627,726 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   {% endif %}
 
-  if (!pagine.length) pagine.push(creaPagina(3));
+  if (!pagine.length) pagine.push(creaPaginaEditor(3, 3, 10));
 
-  mostraPaginaCorrente();
-  aggiornaListaPagine();
+  visualizzaPaginaCorrente();
+  autoFitZoom();
+  aggiornaListaPagineNav();
 
-  /* ----------------------
-        EXPORT PDF
-        - temporaneamente rimuove outline selezione
-  -----------------------*/
+  // Helper per attendere il caricamento delle immagini in un clone DOM prima del rendering canvas
+  function waitImagesLoaded(element) {
+    const imgs = Array.from(element.querySelectorAll("img"));
+    const promises = imgs.map(img => {
+      return new Promise((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve();
+        } else {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          // Forza caricamento nel clone riassegnando src
+          const src = img.src;
+          if (src) {
+            img.src = "";
+            img.src = src;
+          } else {
+            resolve();
+          }
+        }
+      });
+    });
+    return Promise.all(promises);
+  }
+
+  /* -------------------------------------------------------------------
+       ESPORTAZIONE PDF COMPLETO MULTIPAGINA
+     ------------------------------------------------------------------- */
   document.getElementById("export-pdf").addEventListener("click", async () => {
-    const pdf = new jspdf.jsPDF("p", "px", [800, 1100]);
-    const originalPage = paginaCorrente;
-
-    const prevSelected = [...selectedCells];
+    showToast("Generazione del PDF in corso...");
     clearSelection();
 
+    const originalPage = paginaCorrente;
+    const w = parseInt(pagine[0].dataset.larghezza || "800", 10);
+    const h = parseInt(pagine[0].dataset.altezza || "1100", 10);
+
+    const pdf = new jspdf.jsPDF({
+      orientation: w > h ? "landscape" : "portrait",
+      unit: "px",
+      format: [w, h]
+    });
+
     for (let i = 0; i < pagine.length; i++) {
-      if (i > 0) pdf.addPage();
+      if (i > 0) pdf.addPage([w, h]);
 
       paginaCorrente = i;
-      mostraPaginaCorrente();
+      visualizzaPaginaCorrente();
+      
+      // Crea un clone temporaneo a scala reale 1:1 fuori dallo schermo per evitare bug di posizionamento/scale
+      const clone = pagine[i].cloneNode(true);
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px";
+      clone.style.top = "-9999px";
+      clone.style.transform = "none";
+      clone.style.transformOrigin = "top left";
+      
+      clone.classList.remove("cella-selezionata");
+      clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
 
-      const canvas = await html2canvas(pagine[i], { scale: 2, backgroundColor: "#ffffff" });
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 800, 1100);
+      // Append clone to the DOM first so clientWidth / clientHeight calculations are accurate
+      document.body.appendChild(clone);
+
+      // Attendiamo che tutte le immagini del clone siano caricate prima di calcolare le posizioni
+      await waitImagesLoaded(clone);
+      clone.querySelectorAll(".cella-prodotto").forEach(cell => {
+        const titolo = cell.querySelector(".titolo")?.innerText || "";
+        const codice = cell.dataset.codice || "";
+        const haImg = cell.querySelector(".img-box img") !== null;
+        
+        // Cella considerata vuota se priva di codice ed ha il titolo o l'immagine di default
+        const isVuota = !codice && (titolo === "PRODOTTO" || !haImg);
+        
+        if (isVuota) {
+          cell.style.visibility = "hidden"; // Rende invisibile la cella ma mantiene intatto il layout della griglia
+        } else {
+          // Fix immagini per html2canvas (utilizza il posizionamento assoluto calcolato a partire dalle dimensioni reali per evitare sgranature/sfocature)
+          const imgBox = cell.querySelector(".img-box");
+          if (imgBox) {
+            const img = imgBox.querySelector("img");
+            if (img) {
+              if (img.naturalWidth && img.naturalHeight) {
+                const boxW = imgBox.clientWidth || imgBox.offsetWidth;
+                const boxH = imgBox.clientHeight || imgBox.offsetHeight;
+                
+                if (boxW > 0 && boxH > 0) {
+                  const imgW = img.naturalWidth;
+                  const imgH = img.naturalHeight;
+                  
+                  const boxAspect = boxW / boxH;
+                  const imgAspect = imgW / imgH;
+                  
+                  let wFit, hFit;
+                  if (imgAspect > boxAspect) {
+                    wFit = boxW;
+                    hFit = boxW / imgAspect;
+                  } else {
+                    hFit = boxH;
+                    wFit = boxH * imgAspect;
+                  }
+                  
+                  const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
+                  const px = parseInt(cell.dataset.imagePosX || "50", 10);
+                  const py = parseInt(cell.dataset.imagePosY || "50", 10);
+                  
+                  const wZoomed = wFit * zoom;
+                  const hZoomed = hFit * zoom;
+                  
+                  const left = (boxW - wZoomed) * (px / 100);
+                  const top = (boxH - hZoomed) * (py / 100);
+                  
+                  imgBox.style.position = "relative";
+                  imgBox.style.overflow = "hidden";
+                  
+                  img.style.position = "absolute";
+                  img.style.width = wZoomed + "px";
+                  img.style.height = hZoomed + "px";
+                  img.style.left = left + "px";
+                  img.style.top = top + "px";
+                  img.style.transform = "none";
+                  img.style.objectFit = "fill";
+                  img.style.objectPosition = "0 0";
+                }
+              } else {
+                // Fallback a div background-image se le dimensioni reali non sono pronte
+                const src = img.src;
+                const zoom = img.style.transform || "none";
+                const pos = img.style.objectPosition || "50% 50%";
+                const radius = img.style.borderRadius || "0px";
+                const filter = img.style.filter || "none";
+
+                const divImg = document.createElement("div");
+                divImg.style.width = "100%";
+                divImg.style.height = "100%";
+                divImg.style.backgroundImage = `url("${src}")`;
+                divImg.style.backgroundSize = "contain";
+                divImg.style.backgroundPosition = pos;
+                divImg.style.backgroundRepeat = "no-repeat";
+                divImg.style.transform = zoom;
+                divImg.style.borderRadius = radius;
+                divImg.style.filter = filter;
+
+                imgBox.replaceChild(divImg, img);
+              }
+            }
+          }
+        }
+      });
+      
+      const canvas = await html2canvas(clone, { 
+        scale: 3, 
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false
+      });
+      
+      document.body.removeChild(clone);
+      
+      // Renderizza a grandezza naturale 100% in formato PNG lossless ad altissima definizione (scale: 3)
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
     }
 
     paginaCorrente = originalPage;
-    mostraPaginaCorrente();
-    prevSelected.forEach(c => selectCell(c, true));
+    visualizzaPaginaCorrente();
+    aggiornaListaPagineNav();
 
-    pdf.save((inputNome.value || "volantino") + ".pdf");
+    pdf.save((inputNome.value.trim() || "volantino_pro") + ".pdf");
+    showToast("PDF scaricato con successo!");
   });
 
-  /* ----------------------
-        EXPORT PNG
-  -----------------------*/
+  /* -------------------------------------------------------------------
+       ESPORTAZIONE PNG FOGLIO ATTIVO
+     ------------------------------------------------------------------- */
   document.getElementById("export-png").addEventListener("click", async () => {
-    const prevSelected = [...selectedCells];
+    showToast("Generazione immagini PNG in corso...");
     clearSelection();
 
-    const canvas = await html2canvas(pagine[paginaCorrente], { scale: 2, backgroundColor: "#ffffff" });
-    const a = document.createElement("a");
-    a.href = canvas.toDataURL("image/png");
-    a.download = (inputNome.value || "volantino") + "_pag" + (paginaCorrente + 1) + ".png";
-    a.click();
+    const originalPage = paginaCorrente;
 
-    prevSelected.forEach(c => selectCell(c, true));
+    for (let i = 0; i < pagine.length; i++) {
+      paginaCorrente = i;
+      visualizzaPaginaCorrente();
+      aggiornaListaPagineNav();
+
+      const clone = pagine[i].cloneNode(true);
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px";
+      clone.style.top = "-9999px";
+      clone.style.transform = "none";
+      clone.style.transformOrigin = "top left";
+      
+      clone.classList.remove("cella-selezionata");
+      clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
+
+      // Append clone to the DOM first so clientWidth / clientHeight calculations are accurate
+      document.body.appendChild(clone);
+
+      // Attendiamo che tutte le immagini del clone siano caricate prima di calcolare le posizioni
+      await waitImagesLoaded(clone);
+      clone.querySelectorAll(".cella-prodotto").forEach(cell => {
+        const titolo = cell.querySelector(".titolo")?.innerText || "";
+        const codice = cell.dataset.codice || "";
+        const haImg = cell.querySelector(".img-box img") !== null;
+        
+        const isVuota = !codice && (titolo === "PRODOTTO" || !haImg);
+        
+        if (isVuota) {
+          cell.style.visibility = "hidden";
+        } else {
+          // Fix immagini per html2canvas (utilizza il posizionamento assoluto calcolato a partire dalle dimensioni reali per evitare sgranature/sfocature)
+          const imgBox = cell.querySelector(".img-box");
+          if (imgBox) {
+            const img = imgBox.querySelector("img");
+            if (img) {
+              if (img.naturalWidth && img.naturalHeight) {
+                const boxW = imgBox.clientWidth || imgBox.offsetWidth;
+                const boxH = imgBox.clientHeight || imgBox.offsetHeight;
+                
+                if (boxW > 0 && boxH > 0) {
+                  const imgW = img.naturalWidth;
+                  const imgH = img.naturalHeight;
+                  
+                  const boxAspect = boxW / boxH;
+                  const imgAspect = imgW / imgH;
+                  
+                  let wFit, hFit;
+                  if (imgAspect > boxAspect) {
+                    wFit = boxW;
+                    hFit = boxW / imgAspect;
+                  } else {
+                    hFit = boxH;
+                    wFit = boxH * imgAspect;
+                  }
+                  
+                  const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
+                  const px = parseInt(cell.dataset.imagePosX || "50", 10);
+                  const py = parseInt(cell.dataset.imagePosY || "50", 10);
+                  
+                  const wZoomed = wFit * zoom;
+                  const hZoomed = hFit * zoom;
+                  
+                  const left = (boxW - wZoomed) * (px / 100);
+                  const top = (boxH - hZoomed) * (py / 100);
+                  
+                  imgBox.style.position = "relative";
+                  imgBox.style.overflow = "hidden";
+                  
+                  img.style.position = "absolute";
+                  img.style.width = wZoomed + "px";
+                  img.style.height = hZoomed + "px";
+                  img.style.left = left + "px";
+                  img.style.top = top + "px";
+                  img.style.transform = "none";
+                  img.style.objectFit = "fill";
+                  img.style.objectPosition = "0 0";
+                }
+              } else {
+                // Fallback a div background-image se le dimensioni reali non sono pronte
+                const src = img.src;
+                const zoom = img.style.transform || "none";
+                const pos = img.style.objectPosition || "50% 50%";
+                const radius = img.style.borderRadius || "0px";
+                const filter = img.style.filter || "none";
+
+                const divImg = document.createElement("div");
+                divImg.style.width = "100%";
+                divImg.style.height = "100%";
+                divImg.style.backgroundImage = `url("${src}")`;
+                divImg.style.backgroundSize = "contain";
+                divImg.style.backgroundPosition = pos;
+                divImg.style.backgroundRepeat = "no-repeat";
+                divImg.style.transform = zoom;
+                divImg.style.borderRadius = radius;
+                divImg.style.filter = filter;
+
+                imgBox.replaceChild(divImg, img);
+              }
+            }
+          }
+        }
+      });
+
+      const canvas = await html2canvas(clone, { 
+        scale: 3, 
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false
+      });
+      
+      document.body.removeChild(clone);
+      
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = (inputNome.value.trim() || "volantino") + "_foglio" + (i + 1) + ".png";
+      a.click();
+      
+      // Breve pausa per evitare che il browser blocchi download multipli contemporanei
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    paginaCorrente = originalPage;
+    visualizzaPaginaCorrente();
+    aggiornaListaPagineNav();
+    showToast("Tutti i fogli PNG scaricati con successo!");
   });
+
+  /* -------------------------------------------------------------------
+       POPOLAMENTO AUTOMATICO DEL VOLANTINO DA PDF SCANSIONATO
+     ------------------------------------------------------------------- */
+  function importaProdottiVolantino(products) {
+    if (!products || products.length === 0) return;
+    
+    // Rimuoviamo tutte le pagine esistenti
+    pagine = [];
+    paginaCorrente = 0;
+    
+    const maxItemsPerPage = 9; // Griglia 3x3 = max 9 prodotti per foglio
+    
+    for (let i = 0; i < products.length; i += maxItemsPerPage) {
+      const chunk = products.slice(i, i + maxItemsPerPage);
+      
+      // Crea un foglio vuoto 3x3 con spaziatura standard di 15px
+      const page = creaPaginaEditor(3, 3, 15);
+      const grid = page.querySelector(".page-grid");
+      grid.innerHTML = ""; // Rimuove le celle vuote di default
+      
+      // Popola le celle con le informazioni reali estratte dal PDF
+      chunk.forEach(p => {
+        const cell = document.createElement("div");
+        cell.classList.add("cella-prodotto");
+        
+        // Dataset completo e preconfigurato
+        Object.assign(cell.dataset, {
+          codice: p.codice || "",
+          titleSize: "17",
+          titleWeight: "700",
+          titleSpacing: "0",
+          titleHeight: "1.2",
+          codeSize: "10",
+          descSize: "11",
+          priceSize: "26",
+          priceColor: "#e11d48",
+          priceBg: "#ffffff",
+          priceCurrency: "€",
+          priceWeight: "800",
+          descItalic: "0",
+          textUpper: "1",
+          priceStyle: "base",
+          layout: "modern-split", // Nome codice a sinistra in alto, Immagine al centro, Prezzo a destra in basso
+          textAlign: "start",
+          fontFamily: "inherit",
+          fontColor: "#0f172a",
+          borderStyle: "solid",
+          borderColor: "#cbd5e1",
+          radius: "8",
+          bgColor: "#ffffff",
+          shadow: "1",
+          imageFilter: "none",
+          imageZoom: p.imageZoom || "1.0",
+          imagePosX: p.imagePosX || "50",
+          imagePosY: p.imagePosY || "50",
+          imageRadius: "6",
+          imagePadding: "5",
+          imageAspect: "contain",
+          oldPrice: "",
+          imgOriginal: p.immagine || "",
+          imgNoBg: p.immagine || "",
+          useNoBg: "1",
+          showDesc: "0" // nascondi descrizione per default in modo che il layout sia pulito ed i prodotti si vedano meglio
+        });
+        
+        const prezzoConUm = `€ ${p.prezzo} / ${p.um}`;
+        
+        cell.innerHTML = `
+          <div class="cella-inner">
+            <div class="img-box border mb-1 bg-light d-flex align-items-center justify-content-center">
+              ${p.immagine ? `<img src="${p.immagine}">` : `<span class="text-muted small text-center" style="font-size: 8px;">Nessuna immagine</span>`}
+            </div>
+            <div class="testo-box">
+              <div class="codice small mb-1">${p.codice || ""}</div>
+              <div class="titolo fw-bold small mb-1">${p.nome || ""}</div>
+              <div class="descrizione small text-muted mb-1" style="display: none;"></div>
+              <div class="prezzo fw-bold prezzo-base">${prezzoConUm}</div>
+            </div>
+          </div>
+        `;
+        
+        initCellaEvents(cell);
+        applicaCellaRendering(cell);
+        grid.appendChild(cell);
+      });
+      
+      // Riempi le celle rimanenti nel foglio se meno di 9 prodotti per l'ultimo foglio
+      const missing = maxItemsPerPage - chunk.length;
+      for (let m = 0; m < missing; m++) {
+        grid.appendChild(creaCellaVuota());
+      }
+      
+      pagine.push(page);
+    }
+    
+    paginaCorrente = 0;
+    visualizzaPaginaCorrente();
+    aggiornaListaPagineNav();
+    showToast(`Volantino generato con successo! ${products.length} prodotti inseriti in ${pagine.length} fogli.`);
+  }
+
+  // Gestione caricamento PDF
+  const importPdfBtn = document.getElementById("import-pdf-btn");
+  const importPdfFile = document.getElementById("import-pdf-file");
+
+  if (importPdfBtn && importPdfFile) {
+    importPdfBtn.addEventListener("click", () => {
+      importPdfFile.click();
+    });
+
+    importPdfFile.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      showToast("Scansione e importazione del PDF in corso... Attendi.");
+      importPdfBtn.disabled = true;
+      importPdfBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Scansione...`;
+
+      const formData = new FormData();
+      formData.append("pdf", file);
+
+      fetch("/api/importa-pdf-volantino", {
+        method: "POST",
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        importPdfBtn.disabled = false;
+        importPdfBtn.innerHTML = `<i class="bi bi-file-earmark-pdf-fill"></i> Carica PDF`;
+        importPdfFile.value = ""; // Reset del file input
+
+        if (data.status === "ok") {
+          const selectTipo = document.getElementById("volantino-tipo");
+          if (selectTipo) {
+            selectTipo.value = "promo_mensile";
+          }
+          
+          const inputNome = document.getElementById("volantino-nome");
+          if (inputNome) {
+            const fileNameNoExt = file.name.replace(/\.[^/.]+$/, "");
+            inputNome.value = "Volantino " + fileNameNoExt;
+          }
+
+          importaProdottiVolantino(data.products);
+        } else {
+          showToast("Errore durante l'importazione: " + data.message);
+        }
+      })
+      .catch(err => {
+        importPdfBtn.disabled = false;
+        importPdfBtn.innerHTML = `<i class="bi bi-file-earmark-pdf-fill"></i> Carica PDF`;
+        importPdfFile.value = "";
+        console.error(err);
+        showToast("Errore di connessione o scansione del PDF.");
+      });
+    });
+  }
 
 });
 </script>
 
 <style>
+/* CLASSI CSS DI PRESTIGIO ED ESTETICA DEL CANVAS */
 .pagina-volantino {
-  width: 800px;
-  height: 1100px;
+  box-sizing: border-box;
   background: #ffffff;
-  border: 1px solid #ddd;
-  box-shadow: 0 0 10px rgba(0,0,0,0.15);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: 10px;
-  margin-bottom: 40px;
+  color: #1e293b;
+  box-shadow: 0 15px 40px rgba(15, 23, 42, 0.15);
+  border: 1px solid #e2e8f0;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  transform-origin: top center;
 }
 
-.page-header,
-.page-footer {
-  height: 80px;
-  border: 1px dashed #ccc;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.page-header, .page-footer {
+  flex: 0 0 auto;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  background-color: #f8fafc;
+}
+
+.page-header img, .page-footer img {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  display: block;
+}
+
+.page-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+/* BOX PRODOTTI */
+.cella-prodotto {
+  box-sizing: border-box;
   cursor: pointer;
   overflow: hidden;
-}
-
-.page-footer { margin-top: 8px; }
-
-.page-header img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  transform-origin:center center;
-}
-
-.page-grid { min-height: 0; }
-
-/* Celle prodotto: tutte uguali e fisse */
-.cella-prodotto {
-  background: #fff;
-  border: 1px solid #ddd;
-  padding: 6px;
-  cursor: pointer;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
   position: relative;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
   height: 100%;
 }
 
 .cella-prodotto:hover {
-  box-shadow: 0 0 8px rgba(0,0,0,0.15);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.06);
 }
 
-/* ✅ Immagine sempre adattata alla box */
-.cella-inner { height: 100%; display: flex; flex-direction: column; }
-.img-box { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-.img-box img { width:100%; height:100%; object-fit:cover; display:block; }
-.testo-box { flex: 0 0 auto; padding-top: 3px; }
-
-/* Selezione */
 .cella-selezionata {
-  outline: 3px solid #007bff;
-  outline-offset: 2px;
+  outline: 3px solid #007bff !important;
+  outline-offset: 1px;
+  box-shadow: 0 0 15px rgba(0, 123, 255, 0.25) !important;
 }
 
-/* Ombra extra */
-.cella-shadow { box-shadow: 0 4px 10px rgba(0,0,0,0.18); }
-
-/* Prezzi */
-.prezzo-base { background: transparent; padding: 2px 4px; border-radius: 4px; }
-.prezzo-yellow { background: #ffeb3b; color: #000; padding: 2px 6px; border-radius: 4px; }
-.prezzo-red { background: #f44336; color: #fff; padding: 2px 6px; border-radius: 4px; }
-.prezzo-blue { background: #2196f3; color: #fff; padding: 2px 6px; border-radius: 4px; }
-.prezzo-round { background: #ff9800; color: #fff; padding: 4px 10px; border-radius: 999px; }
-.prezzo-angle { position: relative; padding: 4px 10px; background: #e91e63; color: #fff; }
-.prezzo-angle::before {
-  content: "";
-  position: absolute;
-  left: -10px;
-  top: 0;
-  border-top: 14px solid #e91e63;
-  border-left: 10px solid transparent;
+.cella-inner {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  box-sizing: border-box;
+  padding: 6px;
 }
 
-.prezzo-strike { display: inline-block; }
+.img-box {
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.testo-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 4px;
+  box-sizing: border-box;
+}
+
+.cella-shadow {
+  box-shadow: 0 6px 15px rgba(0,0,0,0.06);
+}
+
+/* CUSTOM MODERN SPLIT CELLA LAYOUT */
+.cella-layout-modern-split .cella-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cella-layout-modern-split .testo-box {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  padding-right: 6px;
+  min-width: 0;
+  overflow: hidden;
+  order: 1;
+}
+
+.cella-layout-modern-split .img-box {
+  flex: 1 1 35%;
+  height: 90%;
+  margin: 0 auto;
+  border-radius: 4px;
+  overflow: hidden;
+  order: 2;
+}
+
+.cella-layout-modern-split .prezzo {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin-left: 6px;
+  margin-bottom: 4px;
+  order: 3;
+}
+
+/* STILI PREZZI BADGES PERSONALIZZATI */
+.prezzo {
+  display: inline-block;
+  box-sizing: border-box;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.prezzo-base {
+  background: transparent !important;
+  border: none !important;
+}
+
+.prezzo-yellow {
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.prezzo-red {
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.prezzo-blue {
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.prezzo-round {
+  padding: 5px 12px;
+  border-radius: 9999px;
+}
+
+.prezzo-angle {
+  position: relative;
+  padding: 4px 10px;
+}
+
+.prezzo-strike {
+  display: inline-block;
+}
+
 .prezzo-strike::before {
   content: attr(data-old);
   display: block;
   text-decoration: line-through;
-  font-size: 0.7em;
-  opacity: 0.8;
+  font-size: 0.72em;
+  color: #94a3b8;
+  font-weight: normal;
+  margin-bottom: -2px;
 }
 
-/* Layout */
-.cella-layout-image-left .cella-inner { flex-direction: row; }
-.cella-layout-image-left .img-box { width: 50%; margin-right: 4px; flex: 0 0 auto; }
-.cella-layout-full-image-price .cella-inner { position: relative; }
-.cella-layout-full-image-price .testo-box {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  right: 6px;
-  text-shadow: 0 0 3px rgba(0,0,0,0.6);
-  color: #fff;
+.sortable-ghost {
+  opacity: 0.25;
+  border: 2px dashed #007bff !important;
 }
 
-.sortable-ghost { opacity: 0.4; }
+.sortable-drag {
+  opacity: 0.85;
+}
 
-#modal-image-preview img { display: block; }
+/* STILI NAVIGATORE E DECORAZIONI */
+.nav-page-card {
+  transition: all 0.2s ease;
+}
+
+.nav-page-card:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+}
+
+.gg-thumbnail {
+  transition: all 0.15s ease;
+}
+
+.gg-thumbnail:hover {
+  transform: scale(1.08);
+  border-color: #fbbf24 !important;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.25);
+}
+
+/* Workspace scrolling adjustments */
+.workspace-board {
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.03);
+}
+
+.workspace-board::-webkit-scrollbar,
+.inspector-card::-webkit-scrollbar,
+.scrollable-sidebar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.workspace-board::-webkit-scrollbar-track,
+.inspector-card::-webkit-scrollbar-track,
+.scrollable-sidebar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.workspace-board::-webkit-scrollbar-thumb,
+.inspector-card::-webkit-scrollbar-thumb,
+.scrollable-sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.workspace-board::-webkit-scrollbar-thumb:hover,
+.inspector-card::-webkit-scrollbar-thumb:hover,
+.scrollable-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 </style>
-
 {% endblock %}

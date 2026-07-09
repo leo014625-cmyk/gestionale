@@ -1,0 +1,663 @@
+{% extends "01_base.html" %}
+
+{% block title %}Statistiche & Analytics - Horeca Suite{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* Premium Analytics Dashboard Styles */
+  .stats-welcome-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #ffffff;
+    border-radius: var(--radius);
+    padding: 2.5rem 2rem;
+    margin-bottom: 2.5rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .stats-welcome-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .analytics-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    height: 100%;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .analytics-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+
+  .analytics-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .analytics-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .analytics-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Progress bar customizations */
+  .custom-progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--border-color);
+    overflow: hidden;
+    margin-top: 1rem;
+  }
+
+  /* Recommendation Card Alert styles */
+  .rec-card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    transition: all 0.25s ease;
+  }
+  .rec-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .rec-border-danger {
+    border-left: 6px solid var(--danger) !important;
+  }
+  .rec-border-success {
+    border-left: 6px solid var(--success) !important;
+  }
+  .rec-border-warning {
+    border-left: 6px solid var(--warning) !important;
+  }
+  .rec-border-info {
+    border-left: 6px solid var(--accent) !important;
+  }
+
+  /* Tables styling */
+  .table-responsive-custom {
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+  }
+  .table-custom {
+    margin-bottom: 0;
+  }
+  .table-custom th {
+    background-color: rgba(0, 0, 0, 0.015);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  body.dark-mode .table-custom th {
+    background-color: rgba(255, 255, 255, 0.015);
+  }
+  .table-custom td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    color: var(--text-color);
+    background-color: var(--card-bg);
+  }
+  .table-custom tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Badge Custom Colors */
+  .badge-potenziale {
+    background-color: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid rgba(14, 165, 233, 0.15);
+  }
+  .badge-lavorato {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+  <!-- Welcome/Header Card -->
+  <div class="stats-welcome-card d-flex flex-wrap justify-content-between align-items-center gap-4">
+    <div>
+      <h1 class="display-6 fw-bold mb-2">Statistiche Lavoro & Business Intelligence 🚀</h1>
+      <p class="lead mb-0 text-white-50">Analisi dettagliata di fatturato, clienti e andamento catalogo prodotti con consigli strategici.</p>
+    </div>
+    <div>
+      <a href="{{ url_for('clienti') }}" class="btn btn-primary rounded-4 shadow-sm fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-person-plus-fill"></i>
+        <span>Gestisci Clienti</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Grid -->
+  <div class="row g-4 mb-5">
+    <!-- Fatturato Totale -->
+    <div class="col-12 col-sm-6 col-md-3">
+      <div class="analytics-card">
+        <div class="analytics-icon-box bg-soft-success">
+          <i class="bi bi-wallet2"></i>
+        </div>
+        <div class="analytics-value text-success">
+          € {{ "{:,.2f}".format(fatturato_globale).replace(",", "X").replace(".", ",").replace("X", ".") }}
+        </div>
+        <div class="analytics-label">Fatturato Globale</div>
+        <div class="custom-progress">
+          <div class="progress-bar bg-success" style="width: 100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clienti Attivi Ratio -->
+    <div class="col-12 col-sm-6 col-md-3">
+      <div class="analytics-card">
+        <div class="analytics-icon-box bg-soft-primary">
+          <i class="bi bi-people-fill"></i>
+        </div>
+        {% set attivi = stato_clienti.get('attivo', 0) %}
+        {% set ratio_attivi = (attivi / clienti_totali * 100) if clienti_totali > 0 else 0 %}
+        <div class="analytics-value text-primary">
+          {{ attivi }} <span class="fs-6 text-muted">/ {{ clienti_totali }}</span>
+        </div>
+        <div class="analytics-label">Clienti Attivi ({{ "%.1f"|format(ratio_attivi) }}%)</div>
+        <div class="custom-progress">
+          <div class="progress-bar bg-primary" style="width: {{ ratio_attivi }}%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prodotti Potenziali / Opportunità -->
+    <div class="col-12 col-sm-6 col-md-3">
+      <div class="analytics-card">
+        <div class="analytics-icon-box bg-soft-info">
+          <i class="bi bi-lightbulb-fill"></i>
+        </div>
+        <div class="analytics-value text-info">
+          {{ potenziali_tot }}
+        </div>
+        <div class="analytics-label">Prodotti Potenziali Inseriti</div>
+        {% set total_relations = lavorati_tot + potenziali_tot + non_lavorati_tot %}
+        {% set ratio_potenziali = (potenziali_tot / total_relations * 100) if total_relations > 0 else 0 %}
+        <div class="custom-progress">
+          <div class="progress-bar bg-info" style="width: {{ ratio_potenziali }}%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inserimenti / Rimozioni Netto -->
+    <div class="col-12 col-sm-6 col-md-3">
+      <div class="analytics-card">
+        <div class="analytics-icon-box bg-soft-warning">
+          <i class="bi bi-arrow-left-right"></i>
+        </div>
+        {% set netto_operazioni = prodotti_inseriti_30gg - prodotti_rimossi_30gg %}
+        <div class="analytics-value {% if netto_operazioni >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if netto_operazioni >= 0 %}+{% endif %}{{ netto_operazioni }}
+        </div>
+        <div class="analytics-label">Flusso Listino (30gg)</div>
+        <p class="small text-muted mb-0 mt-2">
+          <span class="text-success fw-bold">+{{ prodotti_inseriti_30gg }}</span> Ins. / 
+          <span class="text-danger fw-bold">-{{ prodotti_rimossi_30gg }}</span> Rim.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-4 mb-5">
+    <!-- Trend Storico Fatturato -->
+    <div class="col-12 col-lg-8">
+      <div class="panel-card d-flex flex-column h-100" style="min-height: 400px;">
+        <span class="panel-title">
+          <i class="bi bi-graph-up text-primary"></i>
+          <span>Andamento Fatturato Mensile</span>
+        </span>
+        <div class="flex-grow-1 position-relative" style="height: 300px;">
+          <canvas id="storicoFatturatoChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stato Clienti Doughnut -->
+    <div class="col-12 col-lg-4">
+      <div class="panel-card d-flex flex-column h-100" style="min-height: 400px;">
+        <span class="panel-title">
+          <i class="bi bi-pie-chart text-warning"></i>
+          <span>Distribuzione Stato Clienti</span>
+        </span>
+        <div class="flex-grow-1 d-flex align-items-center justify-content-center position-relative" style="height: 250px;">
+          <canvas id="statoClientiChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actionable Recommendations & Upsell Ops -->
+  <div class="row g-4 mb-5">
+    <!-- Suggerimenti Strategici -->
+    <div class="col-12 col-lg-6">
+      <div class="panel-card h-100">
+        <span class="panel-title">
+          <i class="bi bi-lightning-charge-fill text-primary"></i>
+          <span>Suggerimenti Strategici per Aumentare il Fatturato</span>
+        </span>
+        <div class="d-flex flex-column gap-3">
+          {% for r in raccomandazioni %}
+            <div class="rec-card p-3 rounded-4 rec-border-{{ r.categoria }}">
+              <div class="d-flex align-items-start gap-3">
+                {% if r.categoria == 'danger' %}
+                  <i class="bi bi-exclamation-octagon-fill text-danger fs-4 mt-0.5"></i>
+                {% elif r.categoria == 'success' %}
+                  <i class="bi bi-graph-up text-success fs-4 mt-0.5"></i>
+                {% elif r.categoria == 'warning' %}
+                  <i class="bi bi-star-fill text-warning fs-4 mt-0.5"></i>
+                {% else %}
+                  <i class="bi bi-info-circle-fill text-accent fs-4 mt-0.5"></i>
+                {% endif %}
+                <div>
+                  <h6 class="fw-bold mb-1">{{ r.titolo }}</h6>
+                  <p class="small text-muted mb-2">{{ r.descrizione }}</p>
+                  {% if r.categoria == 'danger' %}
+                    <a href="{{ url_for('visite_clienti') }}" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1">Pianifica Visita di Recupero</a>
+                  {% elif r.categoria == 'success' %}
+                    <a href="{{ url_for('lista_volantini_beta') }}" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1">Crea Volantino Dedicato</a>
+                  {% elif r.categoria == 'warning' %}
+                    <a href="{{ url_for('clienti') }}" class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1">Esplora Anagrafica</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Opportunità di Upselling: Prodotti Potenziali -->
+    <div class="col-12 col-lg-6">
+      <div class="panel-card h-100">
+        <span class="panel-title">
+          <i class="bi bi-arrow-up-right-circle-fill text-success"></i>
+          <span>Top Prodotti Potenziali (Opportunità di Vendita)</span>
+        </span>
+        <p class="small text-muted mb-3">Questi prodotti sono contrassegnati come <strong>"Potenziale"</strong> nel listino di più clienti. Proporli durante le prossime visite ti aiuterà ad incrementare il fatturato.</p>
+        <div class="table-responsive-custom">
+          <table class="table table-custom table-hover">
+            <thead>
+              <tr>
+                <th>Prodotto</th>
+                <th>Categoria</th>
+                <th class="text-center">Clienti Potenziali</th>
+                <th class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if top_potenziali %}
+                {% for p in top_potenziali %}
+                  <tr>
+                    <td>
+                      <span class="fw-bold d-block text-truncate" style="max-width: 200px;">{{ p.prodotto }}</span>
+                    </td>
+                    <td>
+                      <span class="badge bg-light text-secondary border">{{ p.categoria }}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge badge-potenziale px-2.5 py-1 rounded-pill">{{ p.interesse }} Clienti</span>
+                    </td>
+                    <td class="text-end">
+                      <a href="{{ url_for('lista_volantini_beta') }}" class="btn btn-sm btn-outline-primary rounded-pill" title="Aggiungi a volantino promo">
+                        <i class="bi bi-plus-circle"></i> Promo
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Nessun prodotto potenziale configurato.</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recovery List & Top Clients -->
+  <div class="row g-4">
+    <!-- Top 5 Clienti per Fatturato -->
+    <div class="col-12 col-lg-6">
+      <div class="panel-card h-100">
+        <span class="panel-title">
+          <i class="bi bi-star-fill text-warning"></i>
+          <span>I tuoi Top 5 Clienti (Fatturato Storico)</span>
+        </span>
+        <div class="table-responsive-custom">
+          <table class="table table-custom table-hover">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Zona</th>
+                <th>Stato</th>
+                <th class="text-end">Fatturato</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in top_clienti %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('cliente_scheda', id=c.id or c[0]) }}" class="fw-bold text-decoration-none text-color text-truncate d-block" style="max-width: 200px;">
+                      {{ c.nome or c[1] }}
+                    </a>
+                  </td>
+                  <td>{{ c.zona or c[2] or 'N/D' }}</td>
+                  <td>
+                    {% set stato = (c.stato or c[3])|lower %}
+                    {% if stato == 'attivo' %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">Attivo</span>
+                    {% elif stato == 'bloccato' %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">Bloccato</span>
+                    {% else %}
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1">{{ stato|capitalize }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end fw-bold">
+                    € {{ "{:,.2f}".format(c.fatturato_totale or c[4] or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clienti Bloccati/Inattivi di Alto Valore -->
+    <div class="col-12 col-lg-6">
+      <div class="panel-card h-100">
+        <span class="panel-title">
+          <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+          <span>Clienti da Recuperare ad Alto Valore (Bloccati / Inattivi)</span>
+        </span>
+        <p class="small text-muted mb-3">Clienti con fatturato storico elevato che sono attualmente bloccati o inattivi. La loro riattivazione è prioritaria per aumentare il fatturato.</p>
+        <div class="table-responsive-custom">
+          <table class="table table-custom table-hover">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Zona</th>
+                <th>Stato</th>
+                <th class="text-end">Fatturato Perso</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set ns = namespace(found=false) %}
+              {% if top_clienti %}
+                {# Troviamo e mostriamo clienti bloccati storicamente ricchi #}
+                {# Per farlo, useremo una query integrata o filtreremo nel DB in futuro. Per ora mostriamo dal backend tramite raccomandazione o ricavandoli #}
+              {% endif %}
+              {# Mostriamo i clienti bloccati recuperandoli dal db se presenti #}
+              {# Nota: Se non passati esplicitamente, usiamo quelli con stato bloccato / inattivo nello storico #}
+              {# Creiamo un fallback visivo elegante se non ce ne sono #}
+              {# Nel server python passeremo 'clienti_recupero' #}
+              {% if clienti_recupero %}
+                {% for c in clienti_recupero %}
+                  {% set ns.found = true %}
+                  <tr>
+                    <td>
+                      <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-color text-truncate d-block" style="max-width: 200px;">
+                        {{ c.nome }}
+                      </a>
+                    </td>
+                    <td>{{ c.zona or 'N/D' }}</td>
+                    <td>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">{{ c.stato|capitalize }}</span>
+                    </td>
+                    <td class="text-end fw-bold text-danger">
+                      € {{ "{:,.2f}".format(c.fatturato_totale).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% endif %}
+
+              {% if not ns.found %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-5">
+                    <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+                    <span>Ottimo! Non ci sono clienti bloccati o inattivi di valore rilevante da recuperare.</span>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(() => {
+  let charts = {};
+
+  // Resolve CSS themed color tokens
+  function getThemeColors() {
+    const style = getComputedStyle(document.body);
+    return {
+      primary: style.getPropertyValue('--primary').trim() || '#4f46e5',
+      primaryHover: style.getPropertyValue('--primary-hover').trim() || '#4338ca',
+      accent: style.getPropertyValue('--accent').trim() || '#0ea5e9',
+      bgCard: style.getPropertyValue('--card-bg').trim() || '#ffffff',
+      textColor: style.getPropertyValue('--text-color').trim() || '#0f172a',
+      textMuted: style.getPropertyValue('--text-muted').trim() || '#64748b',
+      borderColor: style.getPropertyValue('--border-color').trim() || '#e2e8f0',
+      success: '#10b981',
+      danger: '#ef4444',
+      warning: '#f59e0b'
+    };
+  }
+
+  // Draw Revenue Monthly Line Chart
+  function renderFatturatoChart() {
+    {% if fatturato_mensile is defined and fatturato_mensile %}
+      const fatturatoMensile = {{ fatturato_mensile|tojson }};
+      const mesi = Object.keys(fatturatoMensile).sort();
+      const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+      const labels = mesi.map(m => {
+        const [anno, mese] = m.split('-');
+        return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
+      });
+      const valori = Object.values(fatturatoMensile);
+
+      const colors = getThemeColors();
+      const ctx = document.getElementById('storicoFatturatoChart').getContext('2d');
+
+      // Create gradient fill
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, colors.primary + '33'); // opacity 20%
+      gradient.addColorStop(1, colors.primary + '00'); // opacity 0%
+
+      if (charts.revenue) {
+        charts.revenue.destroy();
+      }
+
+      charts.revenue = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Fatturato (€)',
+            data: valori,
+            borderColor: colors.primary,
+            borderWidth: 3,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: colors.primary,
+            pointBorderColor: colors.bgCard,
+            pointBorderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: colors.bgCard,
+              titleColor: colors.primary,
+              bodyColor: colors.textColor,
+              borderColor: colors.borderColor,
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 12,
+              callbacks: {
+                label: function(context) {
+                  return 'Fatturato: € ' + context.raw.toLocaleString('it-IT', { minimumFractionDigits: 2 });
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: colors.textMuted, font: { family: 'Inter', weight: '600' } }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: colors.borderColor },
+              ticks: { 
+                color: colors.textMuted,
+                callback: function(value) {
+                  return '€ ' + value.toLocaleString('it-IT');
+                }
+              }
+            }
+          }
+        }
+      });
+    {% endif %}
+  }
+
+  // Draw Client Status Doughnut Chart
+  function renderStatoClientiChart() {
+    {% if stato_clienti is defined and stato_clienti %}
+      const statoData = {{ stato_clienti|tojson }};
+      const labelsRaw = Object.keys(statoData);
+      const labels = labelsRaw.map(l => l.charAt(0).toUpperCase() + l.slice(1));
+      const valori = Object.values(statoData);
+
+      const colors = getThemeColors();
+      const ctx = document.getElementById('statoClientiChart').getContext('2d');
+
+      const colorMapping = {
+        'attivo': colors.success,
+        'bloccato': colors.danger,
+        'inattivo': colors.warning,
+        'potenziale': colors.accent
+      };
+      const backgroundColors = labelsRaw.map(l => colorMapping[l] || colors.textMuted);
+
+      if (charts.status) {
+        charts.status.destroy();
+      }
+
+      charts.status = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: valori,
+            backgroundColor: backgroundColors,
+            borderWidth: 3,
+            borderColor: colors.bgCard
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: colors.textColor,
+                font: { family: 'Inter', size: 12, weight: '600' },
+                padding: 15,
+                usePointStyle: true,
+                pointStyle: 'circle'
+              }
+            },
+            tooltip: {
+              backgroundColor: colors.bgCard,
+              titleColor: colors.primary,
+              bodyColor: colors.textColor,
+              borderColor: colors.borderColor,
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 12
+            }
+          },
+          cutout: '72%'
+        }
+      });
+    {% endif %}
+  }
+
+  function initCharts() {
+    renderFatturatoChart();
+    renderStatoClientiChart();
+  }
+
+  document.addEventListener("DOMContentLoaded", initCharts);
+
+  document.addEventListener("themeChanged", () => {
+    setTimeout(initCharts, 50);
+  });
+})();
+</script>
+{% endblock %}

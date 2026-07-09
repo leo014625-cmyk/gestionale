@@ -232,6 +232,10 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm"
+              data-bs-toggle="modal" data-bs-target="#modalAggiornamentoSettimanale">
+        <i class="bi bi-calendar-plus-fill"></i> Aggiornamento Settimanale (Fatturato & PDF)
+      </button>
       <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2">
         <i class="bi bi-pencil-square"></i> Modifica Anagrafica
       </a>
@@ -241,44 +245,118 @@
     </div>
   </div>
 
-  <!-- WhatsApp Bot Integration Card -->
-  <div class="whatsapp-banner mb-4">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="whatsapp-icon-wrapper">
-          <i class="bi bi-whatsapp"></i>
-        </div>
-        <div>
-          <div class="fw-bold d-flex align-items-center gap-2 flex-wrap text-color">
-            <span>Stato WhatsApp Bot</span>
-            {% if wa_linked %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.75rem;"><i class="bi bi-check-circle me-1"></i>Connesso</span>
-            {% else %}
-              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.75rem;"><i class="bi bi-slash-circle me-1"></i>Scollegato</span>
-            {% endif %}
+  <!-- INFO CARD ROW: WhatsApp & Scheduling -->
+  <div class="row g-4 mb-4">
+    <!-- WhatsApp Bot Card -->
+    <div class="col-12 col-md-6">
+      <div class="whatsapp-banner h-100">
+        <div class="d-flex flex-column justify-content-between h-100 gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="whatsapp-icon-wrapper">
+              <i class="bi bi-whatsapp"></i>
+            </div>
+            <div>
+              <div class="fw-bold d-flex align-items-center gap-2 flex-wrap text-color">
+                <span>Stato WhatsApp Bot</span>
+                {% if wa_linked %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.75rem;"><i class="bi bi-check-circle me-1"></i>Connesso</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.75rem;"><i class="bi bi-slash-circle me-1"></i>Scollegato</span>
+                {% endif %}
+              </div>
+              <div class="text-muted small mt-1">
+                {% if has_whatsapp %}
+                  Recapito WhatsApp: <span class="fw-semibold whatsapp-num text-color">{{ whatsapp_number }}</span>
+                {% else %}
+                  Recapito WhatsApp: <span class="fst-italic">Nessun recapito salvato</span>
+                {% endif %}
+              </div>
+            </div>
           </div>
-          <div class="text-muted small mt-1">
+    
+          <div class="d-flex gap-2 mt-auto">
             {% if has_whatsapp %}
-              Recapito WhatsApp: <span class="fw-semibold whatsapp-num text-color">{{ whatsapp_number }}</span>
-            {% else %}
-              Recapito WhatsApp: <span class="fst-italic">Nessun recapito salvato</span>
+              <a class="btn btn-success btn-sm rounded-4 fw-semibold px-3 py-2 d-flex align-items-center gap-2"
+                 href="https://wa.me/{{ whatsapp_number }}"
+                 target="_blank" rel="noopener">
+                <i class="bi bi-chat-dots-fill"></i> Apri Chat WA
+              </a>
             {% endif %}
+            <a class="btn btn-outline-primary btn-sm rounded-4 fw-semibold px-3 py-2 d-flex align-items-center gap-2"
+               href="{{ url_for('modifica_cliente', id=cliente.id) }}">
+              <i class="bi bi-gear-fill"></i> Imposta Numero
+            </a>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="d-flex gap-2">
-        {% if has_whatsapp %}
-          <a class="btn btn-success rounded-4 fw-semibold px-3 py-2 d-flex align-items-center gap-2"
-             href="https://wa.me/{{ whatsapp_number }}"
-             target="_blank" rel="noopener">
-            <i class="bi bi-chat-dots-fill"></i> Apri Chat WA
+    <!-- Scheduling Info Card -->
+    <div class="col-12 col-md-6">
+      <div class="detail-card h-100 d-flex flex-column justify-content-between">
+        <div>
+          <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
+            <i class="bi bi-calendar-event text-primary me-2"></i>Pianificazione Consegne e Visite
+          </h5>
+          
+          <!-- Delivery Days -->
+          <div class="mb-3">
+            <div class="small fw-semibold text-muted mb-1.5">Giorni Consegna Standard (Scarico)</div>
+            {% set giorni_nomi_map = {
+              '1': 'Lunedì',
+              '2': 'Martedì',
+              '3': 'Mercoledì',
+              '4': 'Giovedì',
+              '5': 'Venerdì',
+              '6': 'Sabato',
+              '0': 'Domenica'
+            } %}
+            {% set consegna_list = (cliente.giorni_consegna_standard or '').split(',') %}
+            {% set days_printed = [] %}
+            {% for d in consegna_list %}
+              {% set d_trimmed = d|trim %}
+              {% if d_trimmed in giorni_nomi_map %}
+                {% set _ = days_printed.append(giorni_nomi_map[d_trimmed]) %}
+              {% endif %}
+            {% endfor %}
+            
+            <div class="d-flex flex-wrap">
+              {% for day in days_printed %}
+                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-semibold me-1.5 mb-1.5">{{ day }}</span>
+              {% else %}
+                <span class="text-muted small fst-italic"><i class="bi bi-info-circle me-1"></i>Nessuno scarico previsto</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Visit Days -->
+          <div>
+            <div class="small fw-semibold text-muted mb-2">Visita Standard Programmata</div>
+            {% set g_visita_key = cliente.giorno_visita_standard|string %}
+            {% if g_visita_key in giorni_nomi_map %}
+              <div class="d-flex align-items-center gap-2 bg-light p-2.5 rounded-3 border">
+                <i class="bi bi-calendar-check-fill text-primary fs-5"></i>
+                <div>
+                  <span class="fw-bold text-color">{{ giorni_nomi_map[g_visita_key] }}</span>
+                  {% if cliente.ora_visita_standard_str %}
+                    <span class="text-muted small">alle {{ cliente.ora_visita_standard_str }}</span>
+                  {% endif %}
+                  <span class="badge bg-primary-light text-primary border border-primary-subtle rounded-pill ms-2" style="font-size: 0.72rem; font-weight: 700;">
+                    {{ 'Ogni 2 settimane' if cliente.frequenza_visita == 'bisettimanale' else 'Ogni settimana' }}
+                  </span>
+                </div>
+              </div>
+            {% else %}
+              <span class="text-muted small fst-italic"><i class="bi bi-calendar-x me-1"></i>Nessuna visita programmata</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="text-end mt-3">
+          <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-outline-secondary btn-sm rounded-4 fw-semibold px-3 py-2 d-inline-flex align-items-center gap-2">
+            <i class="bi bi-pencil-square"></i> Gestisci Pianificazione
           </a>
-        {% endif %}
-        <a class="btn btn-outline-primary rounded-4 fw-semibold px-3 py-2 d-flex align-items-center gap-2"
-           href="{{ url_for('modifica_cliente', id=cliente.id) }}">
-          <i class="bi bi-gear-fill"></i> Imposta Numero
-        </a>
+        </div>
       </div>
     </div>
   </div>
@@ -389,33 +467,496 @@
     </div>
   </div>
 
-  <!-- Category & Products Selector Container -->
-  <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">Listino Prodotti per Categoria</h5>
-  <div class="row">
-    <!-- Category Sidebar (col-md-3) -->
-    <div class="col-12 col-md-4 col-lg-3 mb-4">
+  <!-- SECTION: AGGIORNAMENTO SETTIMANALE & ANALISI PRODOTTI MANCANTI -->
+  <div class="card border-0 shadow-sm rounded-4 mb-5 p-4" style="background-color: var(--card-bg);" id="sezione-settimanale">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h4 class="fw-bold mb-1 d-flex align-items-center gap-2">
+          <i class="bi bi-calendar-range-fill text-primary"></i>
+          <span>Analisi Settimanale & Prodotti Non Acquistati</span>
+        </h4>
+        <p class="text-muted small mb-0">Controlla il fatturato settimanale e scopri in tempo reale quali prodotti abituali o potenziali il cliente non ha ordinato.</p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <select id="select-settimana-analisi" class="form-select rounded-4 fw-semibold border-primary-subtle text-primary" onchange="caricaAnalisiSettimanale(this.value)">
+          {% if fatturato_settimanale_list %}
+            {% for s in fatturato_settimanale_list %}
+              <option value="{{ s.id }}" {% if target_update_id and target_update_id == s.id %}selected{% endif %}>{{ s.periodo_str }} - € {{ "%.2f"|format(s.totale) }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="">Nessun aggiornamento presente</option>
+          {% endif %}
+        </select>
+        {% if fatturato_settimanale_list %}
+          <button type="button" class="btn btn-outline-info rounded-4 px-3 text-nowrap fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalStatistiche4W" title="Visualizza statistiche trend ultime 4 settimane" onclick="caricaStatistiche4w()">
+            <i class="bi bi-graph-up-arrow"></i> Statistiche 4W
+          </button>
+          <button type="button" class="btn btn-outline-warning rounded-4 px-3 text-nowrap fw-semibold" title="Modifica l'aggiornamento selezionato" onclick="modificaSettimanaCorrente()">
+            <i class="bi bi-pencil-fill me-1"></i>Modifica
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-4 px-3 text-nowrap" title="Elimina l'aggiornamento selezionato" onclick="eliminaSettimanaCorrente()">
+            <i class="bi bi-trash"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary rounded-4 text-nowrap fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalStoricoSettimanale" title="Visualizza storico completo">
+            <i class="bi bi-clock-history"></i> Storico
+          </button>
+        {% endif %}
+        <button type="button" class="btn btn-primary rounded-4 text-nowrap fw-semibold d-flex align-items-center gap-2" onclick="apriNuovoCaricamentoModal()">
+          <i class="bi bi-plus-lg"></i> Nuovo Caricamento
+        </button>
+      </div>
+    </div>
+
+    <!-- Micro KPI Bar per la Settimana Selezionata -->
+    <div class="row g-3 mb-4" id="kpi-settimana-container">
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Fatturato Settimana</div>
+          <div class="kpi-mini-val text-primary" id="kpi-val-totale">€ 0.00</div>
+          <span class="small" id="kpi-badge-delta">--</span>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prodotti da PDF</div>
+          <div class="kpi-mini-val text-success" id="kpi-val-acquistati">0</div>
+          <span class="small text-muted">Estratti dalla fattura/DDT</span>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prodotti Abituali Saltati</div>
+          <div class="kpi-mini-val text-danger" id="kpi-val-mancanti">0</div>
+          <span class="small text-danger fw-semibold">Attenzione solleciti</span>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Mancato Fatturato Stimato</div>
+          <div class="kpi-mini-val text-warning" id="kpi-val-fatturato-mancante">€ 0.00</div>
+          <span class="small text-muted">Valore stimato non ordinato</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB NAVIGAZIONE DETTAGLI SETTIMANALE -->
+    <ul class="nav nav-tabs nav-tabs-custom mb-3" id="tabAnalisiSettimanale" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-semibold small d-flex align-items-center gap-2" id="tab-mancanti-tab" data-bs-toggle="tab" data-bs-target="#tab-mancanti" type="button" role="tab">
+          <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+          <span>Prodotti Abituali Saltati</span>
+          <span class="badge bg-danger rounded-pill ms-1" id="cnt-mancanti">0</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold small d-flex align-items-center gap-2" id="tab-acquistati-tab" data-bs-toggle="tab" data-bs-target="#tab-acquistati" type="button" role="tab">
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span>Prodotti Ordinati nel Periodo</span>
+          <span class="badge bg-success rounded-pill ms-1" id="cnt-acquistati">0</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold small d-flex align-items-center gap-2" id="tab-potenziali-tab" data-bs-toggle="tab" data-bs-target="#tab-potenziali" type="button" role="tab">
+          <i class="bi bi-star-fill text-warning"></i>
+          <span>Prodotti Potenziali Non Presi</span>
+          <span class="badge bg-warning text-dark rounded-pill ms-1" id="cnt-potenziali-mancanti">0</span>
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="tabAnalisiSettimanaleContent">
+      <!-- TAB 1: Prodotti Abituali Saltati -->
+      <div class="tab-pane fade show active" id="tab-mancanti" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table sheet-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Codice</th>
+                <th>Prodotto</th>
+                <th>Categoria</th>
+                <th>Prezzo Abituale</th>
+                <th style="width: 140px;" class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mancanti">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 2: Prodotti Ordinati nel Periodo -->
+      <div class="tab-pane fade" id="tab-acquistati" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table sheet-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Codice</th>
+                <th>Prodotto</th>
+                <th>Quantità & UM</th>
+                <th>Prezzo Unitario</th>
+                <th>Totale Riga</th>
+                <th>Categoria</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-acquistati">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: Potenziali Non Presi -->
+      <div class="tab-pane fade" id="tab-potenziali" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table sheet-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Codice</th>
+                <th>Prodotto Potenziale</th>
+                <th>Categoria</th>
+                <th style="width: 140px;" class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-potenziali-mancanti">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL STATISTICHE 4 SETTIMANE -->
+  <div class="modal fade" id="modalStatistiche4W" tabindex="-1" aria-labelledby="modalStatistiche4WLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalStatistiche4WLabel">
+            <i class="bi bi-graph-up-arrow text-primary"></i>
+            <span>Statistiche Trend Ultime 4 Settimane</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body py-3">
+          <!-- KPI Summary 4 Settimane -->
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Fatturato 4 Settimane</div>
+                <div class="kpi-mini-val text-primary" id="kpi-4w-totale">€ 0.00</div>
+                <span class="small text-muted">Totale registrato 4w</span>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Media Settimanale</div>
+                <div class="kpi-mini-val text-success" id="kpi-4w-media">€ 0.00 /sett</div>
+                <span class="small text-muted">Media 4 settimane</span>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Trend Fatturato</div>
+                <div class="kpi-mini-val" id="kpi-4w-trend-val">--</div>
+                <span class="small" id="kpi-4w-trend-badge">--</span>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="kpi-mini-card">
+                <div class="kpi-mini-title">Bilancio Prodotti</div>
+                <div class="kpi-mini-val text-dark" id="kpi-4w-bilancio-val">0 / 0</div>
+                <span class="small" id="kpi-4w-bilancio-sub"><span class="text-success">+0 Nuovi</span> | <span class="text-danger">-0 Persi</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabella Trend Consumo Prodotti Ultime 4 Settimane -->
+          <div class="card border-0 bg-light bg-opacity-50 rounded-4 p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-bold mb-0 text-color">
+                <i class="bi bi-box-seam me-1 text-primary"></i>Andamento Consumo Prodotti (Ultime 4 Settimane)
+              </h6>
+              <input type="text" class="form-control form-control-sm rounded-3" style="width: 220px;" placeholder="🔍 Filtra prodotti 4w..." oninput="filtraTabelleStatistiche4w(this.value)">
+            </div>
+
+            <div class="table-responsive">
+              <table class="table sheet-table align-middle mb-0" id="tbl-statistiche-4w">
+                <thead>
+                  <tr>
+                    <th style="width: 110px;">Codice</th>
+                    <th>Prodotto</th>
+                    <th>UM</th>
+                    <th class="text-center" id="th-w3">Sett W-3</th>
+                    <th class="text-center" id="th-w2">Sett W-2</th>
+                    <th class="text-center" id="th-w1">Sett W-1</th>
+                    <th class="text-center" id="th-w0">Sett Attuale</th>
+                    <th class="text-end">Totale 4W</th>
+                    <th class="text-end">Spesa 4W (€)</th>
+                    <th class="text-center" style="width: 120px;">Trend</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-statistiche-4w">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Grid Nuovi Inseriti vs Prodotti Persi -->
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="card border-0 bg-success bg-opacity-10 border-success border-opacity-20 rounded-4 p-3 h-100">
+                <h6 class="fw-bold text-success mb-2 d-flex align-items-center gap-2">
+                  <i class="bi bi-plus-circle-fill"></i>
+                  <span>Nuovi Prodotti Inseriti (Ultime 4W)</span>
+                </h6>
+                <div id="container-nuovi-4w">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="card border-0 bg-danger bg-opacity-10 border-danger border-opacity-20 rounded-4 p-3 h-100">
+                <h6 class="fw-bold text-danger mb-2 d-flex align-items-center gap-2">
+                  <i class="bi bi-dash-circle-fill"></i>
+                  <span>Prodotti Persi / Non Più Ordinati</span>
+                </h6>
+                <div id="container-persi-4w">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AGGIORNAMENTO SETTIMANALE -->
+  <div class="modal fade" id="modalAggiornamentoSettimanale" tabindex="-1" aria-labelledby="modalAggiornamentoSettimanaleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <form action="{{ url_for('salva_aggiornamento_settimanale', cliente_id=cliente.id) }}" method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="update_id" id="modal_edit_update_id" value="">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold" id="modalAggiornamentoSettimanaleLabel">
+              <i class="bi bi-calendar-week text-primary me-2"></i>Aggiornamento Settimanale Fatturato & Prodotti
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body py-3">
+            <p class="small text-muted mb-4">Inserisci il fatturato realizzato in questo periodo e spunta i prodotti ordinati dal cliente. Il fatturato mensile si aggiornerà in automatico.</p>
+            
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold small">Data Inizio Settimana</label>
+                <input type="date" class="form-control rounded-3" name="data_inizio" id="input_data_inizio" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold small">Data Fine Settimana</label>
+                <input type="date" class="form-control rounded-3" name="data_fine" id="input_data_fine" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Fatturato Settimana (€)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0">€</span>
+                <input type="number" step="0.01" class="form-control border-start-0 rounded-end-3" name="totale_fatturato" id="input_totale_fatturato" placeholder="es. 450.00" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <!-- Dual Tab Headers for Modal -->
+              <ul class="nav nav-pills nav-justified mb-2 gap-1" id="pills-modal-scheda-tab" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active py-1.5 fs-7 fw-semibold" id="tab-modal-lavorati-tab" data-bs-toggle="pill" data-bs-target="#tab-modal-lavorati" type="button" role="tab">
+                    <i class="bi bi-box-seam me-1"></i>Prodotti in Aggiornamento / Abituali (<span id="badge-modal-cnt-lavorati">0</span>)
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link py-1.5 fs-7 fw-semibold" id="tab-modal-altri-tab" data-bs-toggle="pill" data-bs-target="#tab-modal-altri" type="button" role="tab">
+                    <i class="bi bi-plus-circle me-1"></i>Altri Prodotti Catalogo (<span id="badge-modal-cnt-altri">0</span>)
+                  </button>
+                </li>
+              </ul>
+
+              <div class="tab-content" id="pills-modal-scheda-tabContent">
+                <!-- TAB 1: Prodotti in Aggiornamento / Abituali -->
+                <div class="tab-pane fade show active" id="tab-modal-lavorati" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+                    <div class="input-group input-group-sm flex-grow-1">
+                      <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                      <input type="text" class="form-control border-start-0" placeholder="🔍 Cerca nei prodotti per nome o codice..." oninput="filtraModalLavorati(this.value)">
+                    </div>
+                    <div class="btn-group btn-group-sm flex-shrink-0">
+                      <button type="button" class="btn btn-outline-secondary btn-xs rounded-pill me-1 px-2 py-0" style="font-size: 0.72rem;" onclick="selezionaModalLavorati(true)">Tutti</button>
+                      <button type="button" class="btn btn-outline-secondary btn-xs rounded-pill px-2 py-0" style="font-size: 0.72rem;" onclick="selezionaModalLavorati(false)">Nessuno</button>
+                    </div>
+                  </div>
+                  <div class="border rounded-3 p-2 bg-light bg-opacity-50" style="max-height: 260px; overflow-y: auto;" id="container-modal-lavorati">
+                    <!-- Dynamically rendered -->
+                  </div>
+                </div>
+
+                <!-- TAB 2: Altri Prodotti Catalogo -->
+                <div class="tab-pane fade" id="tab-modal-altri" role="tabpanel">
+                  <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                      <input type="text" class="form-control border-start-0" placeholder="🔍 Cerca tutti i prodotti catalogo per nome o codice..." oninput="filtraModalAltri(this.value)">
+                    </div>
+                  </div>
+                  <div class="border rounded-3 p-2 bg-light bg-opacity-50" style="max-height: 260px; overflow-y: auto;" id="container-modal-altri">
+                    <!-- Dynamically rendered -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-text small mt-1">Puoi selezionare qualsiasi prodotto dal catalogo, modificare UM (PZ/KG), Quantità e Prezzo unitario.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">PDF Prodotti Acquistati (Opzionale)</label>
+              <input type="file" class="form-control rounded-3" name="pdf_file" accept=".pdf">
+              <div class="form-text small">Opzionale. Carica un PDF se desideri estrarre automaticamente prodotti da una fattura/DDT.</div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label fw-semibold small">Note / Osservazioni</label>
+              <textarea class="form-control rounded-3" name="note" rows="2" placeholder="Note sulla settimana, promozioni applicate o motivi di calo..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-outline-secondary rounded-4 px-3" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="btn btn-primary rounded-4 px-4 fw-semibold">
+              <i class="bi bi-check-lg me-1"></i>Salva e Analizza
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL STORICO SETTIMANALE -->
+  <div class="modal fade" id="modalStoricoSettimanale" tabindex="-1" aria-labelledby="modalStoricoSettimanaleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalStoricoSettimanaleLabel">
+            <i class="bi bi-clock-history text-primary me-2"></i>Storico Caricamenti Settimanali
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body py-3">
+          {% if fatturato_settimanale_list %}
+            <div class="table-responsive">
+              <table class="table sheet-table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Periodo Settimanale</th>
+                    <th>Fatturato (€)</th>
+                    <th>Note / PDF</th>
+                    <th>Data Inserimento</th>
+                    <th class="text-end">Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for s in fatturato_settimanale_list %}
+                    <tr>
+                      <td class="fw-bold text-primary">{{ s.periodo_str }}</td>
+                      <td class="fw-bold text-success">€ {{ "%.2f"|format(s.totale) }}</td>
+                      <td>
+                        {% if s.pdf_nome %}
+                          <a href="{{ url_for('static', filename='uploads/pdf_settimanali/' ~ s.pdf_nome) }}" target="_blank" class="badge bg-light text-primary border text-decoration-none me-1">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                          </a>
+                        {% endif %}
+                        {% if s.note %}
+                          <span class="small text-muted d-block text-truncate" style="max-width: 150px;">{{ s.note }}</span>
+                        {% endif %}
+                        {% if not s.pdf_nome and not s.note %}
+                          <span class="text-muted small">–</span>
+                        {% endif %}
+                      </td>
+                      <td class="small text-muted">{{ s.data_inserimento.strftime('%d/%m/%Y %H:%M') if s.data_inserimento and s.data_inserimento.strftime else s.data_inserimento }}</td>
+                      <td class="text-end">
+                        <form action="{{ url_for('elimina_aggiornamento_settimanale', cliente_id=cliente.id, update_id=s.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Confermi l\'eliminazione del fatturato di {{ s.periodo_str }} (€ {{ s.totale }})?');">
+                          <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                            <i class="bi bi-trash me-1"></i>Elimina
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+              Nessun aggiornamento settimanale registrato finora per questo cliente.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Selector Grid -->
+  <div class="card border-0 shadow-sm rounded-4 mb-5 p-4" style="background-color: var(--card-bg);">
+    <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
+      <i class="bi bi-folder-check text-primary me-2"></i>Listino Prodotti per Categoria (Clicca per visualizzare)
+    </h5>
+    <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-3">
       {% for cat in categorie %}
-        {% set ns = namespace(tot=0, lav=0) %}
+        {% set ns = namespace(tot=0, lav=0, pot=0) %}
         {% for p in prodotti if p.categoria_id == cat.id %}
           {% set ns.tot = ns.tot + 1 %}
           {% if (p.id|string) in prodotti_lavorati %}
             {% set ns.lav = ns.lav + 1 %}
+          {% elif (p.id|string) in prodotti_potenziali %}
+            {% set ns.pot = ns.pot + 1 %}
           {% endif %}
         {% endfor %}
 
-        <div class="cat-selector-card" id="cat-card-{{ cat.id }}" data-cat-id="{{ cat.id }}" onclick="selectCategory('{{ cat.id }}')">
-          <i class="bi bi-box-seam"></i>
-          <h6 class="fw-bold mb-1 text-color">{{ cat.nome }}</h6>
-          <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-0.5 mt-1" style="font-size: 0.72rem;">
-            {{ ns.lav }} / {{ ns.tot }} Lavorati
-          </span>
+        <div class="col">
+          <div class="cat-selector-card h-100 mb-0 d-flex flex-column align-items-center justify-content-center p-3" id="cat-card-{{ cat.id }}" data-cat-id="{{ cat.id }}" onclick="selectCategory('{{ cat.id }}')">
+            <i class="bi bi-box-seam mb-2"></i>
+            <h6 class="fw-bold mb-1 text-color text-center small text-truncate w-100" title="{{ cat.nome }}">{{ cat.nome }}</h6>
+            <div class="d-flex flex-column gap-1 w-100 align-items-center">
+              <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-10 px-2 py-0.5" style="font-size: 0.68rem;">
+                {{ ns.lav }} Lavorati
+              </span>
+              {% if ns.pot > 0 %}
+              <span class="badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning border-opacity-10 px-2 py-0.5" style="font-size: 0.68rem;">
+                {{ ns.pot }} Potenziali
+              </span>
+              {% endif %}
+              <span class="text-muted" style="font-size: 0.65rem;">Totale: {{ ns.tot }}</span>
+            </div>
+          </div>
         </div>
       {% endfor %}
     </div>
+  </div>
 
-    <!-- Interactive Table Content (col-md-9) -->
-    <div class="col-12 col-md-8 col-lg-9">
-      <div id="contenitore-tabella"></div>
+  <!-- Category Products Modal -->
+  <div class="modal fade" id="categoryProductsModal" tabindex="-1" aria-labelledby="categoryProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-0 pb-0" style="padding: 1.5rem 1.5rem 0.5rem 1.5rem;">
+          <h5 class="modal-title fw-bold" id="categoryProductsModalLabel">Listino Prodotti</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modal-body-content" style="padding: 1rem 1.5rem 1.5rem 1.5rem; min-height: 300px;">
+          <!-- Loaded dynamically from template -->
+        </div>
+      </div>
     </div>
   </div>
 
@@ -430,11 +971,28 @@
       <span class="text-muted small">Cerca codice o prodotto nella categoria</span>
     </div>
 
-    <!-- Filter input -->
-    <div class="search-input-wrapper">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Filtra prodotti per nome o codice..."
-             onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+    <!-- Filter Panel -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+      <div class="position-relative flex-grow-1" style="max-width: 320px;">
+        <input type="text" class="form-control form-control-sm ps-4" style="border-radius: 10px;"
+               placeholder="Filtra per nome o codice..."
+               onkeyup="filtraProdotti(this,'{{ cat.id }}')">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-muted small"></i>
+      </div>
+      <div class="d-flex gap-1">
+        <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-1 small btn-filter-lav" data-cat="{{ cat.id }}" style="font-size: 0.75rem;" onclick="showMode('lavorati', '{{ cat.id }}')">
+          <i class="bi bi-check2-circle"></i> Solo lavorati
+        </button>
+        <button type="button" class="btn btn-xs btn-outline-warning rounded-pill px-2.5 py-1 small btn-filter-pot" data-cat="{{ cat.id }}" style="font-size: 0.75rem;" onclick="showMode('potenziali', '{{ cat.id }}')">
+          <i class="bi bi-exclamation-circle"></i> Solo potenziali
+        </button>
+        <button type="button" class="btn btn-xs btn-outline-danger rounded-pill px-2.5 py-1 small btn-filter-non" data-cat="{{ cat.id }}" style="font-size: 0.75rem;" onclick="showMode('non', '{{ cat.id }}')">
+          <i class="bi bi-x-circle"></i> Solo non lavorati
+        </button>
+        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 small btn-filter-all active" data-cat="{{ cat.id }}" style="font-size: 0.75rem;" onclick="showMode('all', '{{ cat.id }}')">
+          <i class="bi bi-collection"></i> Tutti
+        </button>
+      </div>
     </div>
 
     <!-- Table Responsive -->
@@ -454,7 +1012,7 @@
             {% set pid = p.id|string %}
             {% set pa = prezzi_attuali.get(pid) %}
             {% set po = prezzi_offerta.get(pid) %}
-            <tr>
+            <tr style="{% if pid in prodotti_lavorati %}background-color: rgba(25, 135, 84, 0.04);{% elif pid in prodotti_potenziali %}background-color: rgba(255, 193, 7, 0.06);{% endif %} transition: background-color 0.2s;">
               <td>
                 <span class="fw-bold text-color prod-nome">{{ p.nome }}</span>
                 <span class="badge bg-light text-secondary border ms-2 prod-code-badge" style="font-size: 0.72rem;">
@@ -489,6 +1047,8 @@
               <td class="text-center">
                 {% if pid in prodotti_lavorati %}
                   <span class="badge bg-success-subtle text-success border border-success px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">Lavorato</span>
+                {% elif pid in prodotti_potenziali %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">Potenziale</span>
                 {% else %}
                   <span class="badge bg-secondary-subtle text-secondary border border-secondary px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">Non lavorato</span>
                 {% endif %}
@@ -540,9 +1100,21 @@
     return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
   };
 
+  const getMonthsRange = (n) => {
+    const list = [];
+    const today = new Date();
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      list.push(`${y}-${m}`);
+    }
+    return list;
+  };
+
   const getSlice = (tipo) => {
-    if (tipo === 'ultimi3') return mesi.slice(-3);
-    if (tipo === 'ultimi6') return mesi.slice(-6);
+    if (tipo === 'ultimi3') return getMonthsRange(3);
+    if (tipo === 'ultimi6') return getMonthsRange(6);
     return mesi;
   };
 
@@ -616,7 +1188,7 @@
   });
 })();
 
-// Category Selector Controls
+// Category Selector Controls (opens in a modal popup)
 function selectCategory(catId) {
   // Toggle Active Classes on selectors
   document.querySelectorAll('.cat-selector-card').forEach(card => {
@@ -625,23 +1197,26 @@ function selectCategory(catId) {
   const activeCard = document.getElementById(`cat-card-${catId}`);
   if (activeCard) {
     activeCard.classList.add('active');
+    
+    // Update category title in modal header
+    const titleEl = document.getElementById("categoryProductsModalLabel");
+    if (titleEl) {
+      const catName = activeCard.querySelector("h6").innerText;
+      titleEl.innerHTML = `<i class="bi bi-box-seam text-primary me-2"></i>Listino Prodotti - ${catName}`;
+    }
   }
 
-  // Load target template into container
+  // Load target template into modal body container
   const template = document.getElementById(`tabella-template-${catId}`);
-  const container = document.getElementById("contenitore-tabella");
-  if (template && container) {
-    container.innerHTML = template.innerHTML;
+  const modalBody = document.getElementById("modal-body-content");
+  if (template && modalBody) {
+    modalBody.innerHTML = template.innerHTML;
   }
+  
+  // Show Bootstrap modal
+  const myModal = new bootstrap.Modal(document.getElementById('categoryProductsModal'));
+  myModal.show();
 }
-
-// Automatically load the first category on page startup
-document.addEventListener("DOMContentLoaded", () => {
-  const first = document.querySelector(".cat-selector-card");
-  if (first) {
-    selectCategory(first.dataset.catId);
-  }
-});
 
 // Search Filter Controls in templates
 function filtraProdotti(input, catId) {
@@ -655,5 +1230,584 @@ function filtraProdotti(input, catId) {
     r.style.display = ok ? "" : "none";
   });
 }
+
+// Toggle worked, potentials, non-worked, or all items in details view
+function showMode(mode, catId) {
+  const container = document.getElementById(`tabella-prodotti-${catId}`);
+  if (!container) return;
+
+  // Toggle active class on status buttons
+  const modalWrapper = container.closest('.detail-card');
+  if (modalWrapper) {
+    modalWrapper.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+    if (mode === 'lavorati') modalWrapper.querySelector('.btn-filter-lav')?.classList.add('active');
+    else if (mode === 'potenziali') modalWrapper.querySelector('.btn-filter-pot')?.classList.add('active');
+    else if (mode === 'non') modalWrapper.querySelector('.btn-filter-non')?.classList.add('active');
+    else modalWrapper.querySelector('.btn-filter-all')?.classList.add('active');
+  }
+
+  // Filter table rows
+  container.querySelectorAll('tbody tr').forEach(r => {
+    const badge = r.querySelector('.badge');
+    const txt = badge ? badge.textContent.trim().toLowerCase() : '';
+    
+    let ok = false;
+    if (mode === 'lavorati') ok = (txt === 'lavorato');
+    else if (mode === 'potenziali') ok = (txt === 'potenziale');
+    else if (mode === 'non') ok = (txt === 'non lavorato');
+    else ok = true;
+    
+    r.style.display = ok ? '' : 'none';
+  });
+}
+
+function selezionaTuttiProdotti(val) {
+  document.querySelectorAll('.chk-prod-acquistato').forEach(chk => chk.checked = val);
+}
+
+function eliminaSettimanaCorrente() {
+  const sel = document.getElementById('select-settimana-analisi');
+  if (!sel || !sel.value) {
+    alert("Nessun aggiornamento settimanale selezionato da eliminare.");
+    return;
+  }
+  const updateId = sel.value;
+  const text = sel.options[sel.selectedIndex].text;
+  if (confirm(`Sei sicuro di voler eliminare l'aggiornamento (${text})?\nIl fatturato mensile del cliente verrà ricalcolato automaticamente.`)) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/clienti/${clienteId}/aggiornamento_settimanale/${updateId}/elimina`;
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+
+// Analisi Settimanale JS Handler
+async function caricaAnalisiSettimanale(updateId) {
+  const clienteId = {{ cliente.id }};
+  let url = `/api/clienti/${clienteId}/analisi_settimanale`;
+  if (updateId) {
+    url += `?update_id=${updateId}`;
+  }
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.status !== "ok" || !data.has_data) return;
+
+    // Aggiorna KPI
+    document.getElementById('kpi-val-totale').innerText = '€ ' + data.totale_settimana.toLocaleString('it-IT', {minimumFractionDigits: 2});
+    
+    const deltaEl = document.getElementById('kpi-badge-delta');
+    if (data.delta_settimana > 0) {
+      deltaEl.className = 'small text-success fw-bold';
+      deltaEl.innerHTML = `<i class="bi bi-arrow-up-short"></i> +€${data.delta_settimana.toFixed(2)} (+${data.perc_delta.toFixed(1)}%) vs prec.`;
+    } else if (data.delta_settimana < 0) {
+      deltaEl.className = 'small text-danger fw-bold';
+      deltaEl.innerHTML = `<i class="bi bi-arrow-down-short"></i> €${data.delta_settimana.toFixed(2)} (${data.perc_delta.toFixed(1)}%) vs prec.`;
+    } else {
+      deltaEl.className = 'small text-muted';
+      deltaEl.innerText = 'Stesso fatturato periodo prec.';
+    }
+
+    document.getElementById('kpi-val-acquistati').innerText = data.acquistati.length;
+    document.getElementById('kpi-val-mancanti').innerText = data.prodotti_mancanti.length;
+    document.getElementById('kpi-val-fatturato-mancante').innerText = '€ ' + data.fatturato_mancante_stimato.toLocaleString('it-IT', {minimumFractionDigits: 2});
+
+    document.getElementById('cnt-mancanti').innerText = data.prodotti_mancanti.length;
+    document.getElementById('cnt-acquistati').innerText = data.acquistati.length;
+    document.getElementById('cnt-potenziali-mancanti').innerText = data.prodotti_potenziali_mancanti.length;
+
+    // Render TAB 1: Mancanti
+    const tbMancanti = document.getElementById('tbody-mancanti');
+    if (data.prodotti_mancanti.length === 0) {
+      tbMancanti.innerHTML = `<tr><td colspan="5" class="text-center text-success py-4"><i class="bi bi-check-circle-fill fs-4 d-block mb-1"></i>Ottimo! Il cliente ha ordinato tutti i suoi prodotti abituali in questo periodo.</td></tr>`;
+    } else {
+      tbMancanti.innerHTML = data.prodotti_mancanti.map(p => `
+        <tr>
+          <td><span class="badge bg-light text-dark border">${p.codice || 'N/D'}</span></td>
+          <td><strong class="text-danger">${p.nome}</strong></td>
+          <td><span class="badge bg-light text-secondary border">${p.categoria_nome}</span></td>
+          <td class="fw-bold">€ ${p.prezzo_stimato.toFixed(2)}</td>
+          <td class="text-end">
+            <a href="https://wa.me/{{ whatsapp_number }}?text=Ciao,%20ho%20notato%20che%20nel%20periodo%20${encodeURIComponent(data.periodo_str)}%20non%20hai%20ordinato%20${encodeURIComponent(p.nome)}.%20Vuoi%20che%20te%20lo%20aggiunga%20in%20consegna?" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-3">
+              <i class="bi bi-whatsapp me-1"></i>Sollecita
+            </a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render TAB 2: Acquistati
+    const tbAcquistati = document.getElementById('tbody-acquistati');
+    if (data.acquistati.length === 0) {
+      tbAcquistati.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Nessun prodotto registrato per questo periodo.</td></tr>`;
+    } else {
+      tbAcquistati.innerHTML = data.acquistati.map(p => `
+        <tr>
+          <td><span class="badge bg-light text-dark border">${p.codice_pdf || 'N/D'}</span></td>
+          <td><strong>${p.prodotto_nome || p.nome_pdf}</strong></td>
+          <td><span class="badge bg-light text-primary border fw-bold">${p.quantita} ${p.um_pdf || 'PZ'}</span></td>
+          <td class="fw-semibold">€ ${p.prezzo_pdf.toFixed(2)}</td>
+          <td class="fw-bold text-success font-monospace">€ ${(p.totale_riga || (p.quantita * p.prezzo_pdf)).toFixed(2)}</td>
+          <td><span class="badge bg-light text-secondary border">${p.categoria_nome || '–'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Render TAB 3: Potenziali Mancanti
+    const tbPotenziali = document.getElementById('tbody-potenziali-mancanti');
+    if (data.prodotti_potenziali_mancanti.length === 0) {
+      tbPotenziali.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Nessun prodotto potenziale saltato.</td></tr>`;
+    } else {
+      tbPotenziali.innerHTML = data.prodotti_potenziali_mancanti.map(p => `
+        <tr>
+          <td><span class="badge bg-light text-dark border">${p.codice || 'N/D'}</span></td>
+          <td><strong class="text-warning">${p.nome}</strong></td>
+          <td><span class="badge bg-light text-secondary border">${p.categoria_nome}</span></td>
+          <td class="text-end">
+            <a href="{{ url_for('lista_volantini_beta') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+              <i class="bi bi-plus-circle me-1"></i>Proponi in Promo
+            </a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento analisi settimanale:", err);
+  }
+}
+
+let currentAnalisiData = null;
+
+function formatPrezzo(val) {
+  if (val === null || val === undefined || isNaN(val)) return '0.00';
+  return parseFloat(val).toFixed(2);
+}
+
+function calcolaSubtotaleScheda(pid) {
+  const qEl = document.getElementById(`qty_inp_scheda_${pid}`);
+  const pEl = document.getElementById(`prezzo_inp_scheda_${pid}`);
+  const subEl = document.getElementById(`subtotale_badge_scheda_${pid}`);
+  if (qEl && pEl && subEl) {
+    const q = parseFloat(qEl.value) || 0;
+    const p = parseFloat(pEl.value) || 0;
+    const sub = q * p;
+    subEl.innerText = `€ ${sub.toFixed(2)}`;
+  }
+}
+
+function togglePrezzoInputScheda(pid, isChecked) {
+  const pInp = document.getElementById(`prezzo_inp_scheda_${pid}`);
+  const qInp = document.getElementById(`qty_inp_scheda_${pid}`);
+  const uInp = document.getElementById(`um_inp_scheda_${pid}`);
+  const badge = document.getElementById(`subtotale_badge_scheda_${pid}`);
+
+  if (pInp) pInp.disabled = !isChecked;
+  if (qInp) qInp.disabled = !isChecked;
+  if (uInp) uInp.disabled = !isChecked;
+
+  if (badge) {
+    if (isChecked) {
+      badge.classList.remove('text-secondary');
+      badge.classList.add('text-success');
+    } else {
+      badge.classList.remove('text-success');
+      badge.classList.add('text-secondary');
+    }
+  }
+
+  if (isChecked) {
+    calcolaSubtotaleScheda(pid);
+  }
+}
+
+async function caricaProdottiModal(updateId = null) {
+  const clienteId = {{ cliente.id }};
+  
+  try {
+    const respComp = await fetch(`/api/clienti/${clienteId}/prodotti_completi`);
+    const dataComp = await respComp.json();
+    if (dataComp.status !== "ok") return;
+
+    let mapAcquistati = {};
+    if (updateId) {
+      const respAna = await fetch(`/api/clienti/${clienteId}/analisi_settimanale?update_id=${updateId}`);
+      const dataAna = await respAna.json();
+      if (dataAna.status === "ok" && dataAna.has_data) {
+        (dataAna.acquistati || []).forEach(p => {
+          if (p.prodotto_id) {
+            mapAcquistati[p.prodotto_id] = p;
+          }
+        });
+      }
+    }
+
+    // Se in Modifica (updateId != null), ordina PRIMA i prodotti presenti nell'aggiornamento
+    let listLavorati = [...dataComp.lavorati];
+    if (updateId) {
+      listLavorati.sort((a, b) => {
+        const hasA = mapAcquistati[a.id] ? 1 : 0;
+        const hasB = mapAcquistati[b.id] ? 1 : 0;
+        return hasB - hasA;
+      });
+    }
+
+    // Render Tab 1: Lavorati / In Aggiornamento
+    document.getElementById('badge-modal-cnt-lavorati').innerText = listLavorati.length;
+    const containerLav = document.getElementById('container-modal-lavorati');
+    if (listLavorati.length === 0) {
+      containerLav.innerHTML = `<div class="text-muted small p-2 text-center">Nessun prodotto lavorato. Spunta i prodotti nel tab "Altri Prodotti"!</div>`;
+    } else {
+      containerLav.innerHTML = listLavorati.map(p => {
+        const itemAcc = mapAcquistati[p.id];
+        const isChecked = updateId ? (itemAcc != null) : true;
+        const qtyVal = itemAcc ? (itemAcc.quantita || 1) : 1;
+        const umVal = itemAcc ? (itemAcc.um_pdf || 'PZ') : 'PZ';
+        const priceVal = itemAcc ? (itemAcc.prezzo_pdf || 0) : (p.prezzo_offerta || p.prezzo_attuale || 0);
+
+        return `
+          <div class="d-flex align-items-center justify-content-between py-1.5 px-2 border-bottom border-light item-modal-lavorato" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+              <input class="form-check-input chk-modal-lavorato flex-shrink-0 cursor-pointer me-1" type="checkbox" style="width: 1.15rem; height: 1.15rem;" name="prodotti_acquistati_ids" value="${p.id}" id="chk_ms_${p.id}" ${isChecked ? 'checked' : ''} onchange="togglePrezzoInputScheda(${p.id}, this.checked)">
+              <label class="form-check-label small text-color text-truncate mb-0 cursor-pointer" for="chk_ms_${p.id}">
+                ${itemAcc ? '<span class="badge bg-warning bg-opacity-20 text-warning-emphasis border border-warning me-1" style="font-size:0.68rem;">In Settimana</span>' : ''}
+                <strong>${p.nome}</strong> 
+                ${p.codice ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size:0.7rem;">Cod: ${p.codice}</span>` : ''} 
+                <span class="text-muted ms-1">(${p.categoria_nome})</span>
+              </label>
+            </div>
+
+            <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+              <select name="um_prodotto_${p.id}" id="um_inp_scheda_${p.id}" class="form-select form-select-sm py-0 px-1 border-secondary-subtle text-center fw-bold" style="font-size:0.75rem; width:54px; height:26px;" ${!isChecked ? 'disabled' : ''} onchange="calcolaSubtotaleScheda(${p.id})">
+                <option value="PZ" ${umVal === 'PZ' ? 'selected' : ''}>PZ</option>
+                <option value="KG" ${umVal === 'KG' ? 'selected' : ''}>KG</option>
+              </select>
+              <input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center fw-semibold px-1 py-0" name="quantita_prodotto_${p.id}" id="qty_inp_scheda_${p.id}" value="${qtyVal}" placeholder="Qtà" style="font-size: 0.8rem; width: 55px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              <div class="d-flex align-items-center gap-0.5">
+                <span class="small text-muted" style="font-size: 0.72rem;">€</span>
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-semibold px-1 py-0" name="prezzo_prodotto_${p.id}" id="prezzo_inp_scheda_${p.id}" value="${formatPrezzo(priceVal)}" placeholder="Prezzo" style="font-size: 0.8rem; width: 72px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              </div>
+              <span class="badge bg-light ${isChecked ? 'text-success' : 'text-secondary'} border font-monospace ms-1" id="subtotale_badge_scheda_${p.id}" style="font-size: 0.72rem; min-width: 60px; text-align: right;">
+                € ${formatPrezzo(qtyVal * priceVal)}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Tab 2: Altri Catalogo
+    document.getElementById('badge-modal-cnt-altri').innerText = dataComp.altri.length;
+    const containerAltri = document.getElementById('container-modal-altri');
+    if (dataComp.altri.length === 0) {
+      containerAltri.innerHTML = `<div class="text-muted small p-2 text-center">Tutti i prodotti del catalogo sono già nel listino abituale.</div>`;
+    } else {
+      containerAltri.innerHTML = dataComp.altri.map(p => {
+        const itemAcc = mapAcquistati[p.id];
+        const isChecked = itemAcc != null;
+        const qtyVal = itemAcc ? (itemAcc.quantita || 1) : 1;
+        const umVal = itemAcc ? (itemAcc.um_pdf || 'PZ') : 'PZ';
+        const priceVal = itemAcc ? (itemAcc.prezzo_pdf || 0) : (p.prezzo_attuale || 0);
+
+        return `
+          <div class="d-flex align-items-center justify-content-between py-1.5 px-2 border-bottom border-light item-modal-altro" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+              <input class="form-check-input chk-modal-altro flex-shrink-0 cursor-pointer me-1" type="checkbox" style="width: 1.15rem; height: 1.15rem;" name="prodotti_acquistati_ids" value="${p.id}" id="chk_msa_${p.id}" ${isChecked ? 'checked' : ''} onchange="togglePrezzoInputScheda(${p.id}, this.checked)">
+              <label class="form-check-label small text-color text-truncate mb-0 cursor-pointer" for="chk_msa_${p.id}">
+                <span class="badge bg-light text-primary border me-1">Nuovo</span> 
+                <strong>${p.nome}</strong> 
+                ${p.codice ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size:0.7rem;">Cod: ${p.codice}</span>` : ''} 
+                <span class="text-muted ms-1">(${p.categoria_nome})</span>
+              </label>
+            </div>
+
+            <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+              <select name="um_prodotto_${p.id}" id="um_inp_scheda_${p.id}" class="form-select form-select-sm py-0 px-1 border-secondary-subtle text-center fw-bold" style="font-size:0.75rem; width:54px; height:26px;" ${!isChecked ? 'disabled' : ''} onchange="calcolaSubtotaleScheda(${p.id})">
+                <option value="PZ" ${umVal === 'PZ' ? 'selected' : ''}>PZ</option>
+                <option value="KG" ${umVal === 'KG' ? 'selected' : ''}>KG</option>
+              </select>
+              <input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center fw-semibold px-1 py-0" name="quantita_prodotto_${p.id}" id="qty_inp_scheda_${p.id}" value="${qtyVal}" placeholder="Qtà" style="font-size: 0.8rem; width: 55px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              <div class="d-flex align-items-center gap-0.5">
+                <span class="small text-muted" style="font-size: 0.72rem;">€</span>
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-semibold px-1 py-0" name="prezzo_prodotto_${p.id}" id="prezzo_inp_scheda_${p.id}" value="${formatPrezzo(priceVal)}" placeholder="Prezzo" style="font-size: 0.8rem; width: 72px; height: 26px;" ${!isChecked ? 'disabled' : ''} oninput="calcolaSubtotaleScheda(${p.id})">
+              </div>
+              <span class="badge bg-light ${isChecked ? 'text-success' : 'text-secondary'} border font-monospace ms-1" id="subtotale_badge_scheda_${p.id}" style="font-size: 0.72rem; min-width: 60px; text-align: right;">
+                € ${formatPrezzo(qtyVal * priceVal)}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento prodotti modal:", err);
+  }
+}
+
+function filtraModalLavorati(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.item-modal-lavorato').forEach(item => {
+    const nome = item.getAttribute('data-nome') || '';
+    const cod = item.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      item.classList.remove('d-none');
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+}
+
+function filtraModalAltri(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.item-modal-altro').forEach(item => {
+    const nome = item.getAttribute('data-nome') || '';
+    const cod = item.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      item.classList.remove('d-none');
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+}
+
+function selezionaModalLavorati(val) {
+  document.querySelectorAll('.chk-modal-lavorato').forEach(chk => {
+    chk.checked = val;
+    const pid = chk.value;
+    togglePrezzoInputScheda(pid, val);
+  });
+}
+
+async function apriNuovoCaricamentoModal() {
+  document.getElementById('modal_edit_update_id').value = '';
+  document.getElementById('modalAggiornamentoSettimanaleLabel').innerHTML = '<i class="bi bi-calendar-week text-primary me-2"></i>Nuovo Aggiornamento Settimanale';
+  document.getElementById('input_totale_fatturato').value = '';
+  impostaDatePredefiniteModal();
+
+  await caricaProdottiModal(null);
+
+  const modal = new bootstrap.Modal(document.getElementById('modalAggiornamentoSettimanale'));
+  modal.show();
+}
+
+async function modificaSettimanaCorrente() {
+  const sel = document.getElementById('select-settimana-analisi');
+  if (!sel || !sel.value) {
+    alert("Nessun aggiornamento settimanale selezionato da modificare.");
+    return;
+  }
+  const updateId = sel.value;
+  const clienteId = {{ cliente.id }};
+
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/analisi_settimanale?update_id=${updateId}`);
+    const data = await resp.json();
+    if (data.status !== "ok" || !data.has_data) return;
+
+    document.getElementById('modal_edit_update_id').value = data.update_id;
+    document.getElementById('modalAggiornamentoSettimanaleLabel').innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i>Modifica Aggiornamento (${data.periodo_str})`;
+    
+    if (data.data_inizio_iso) document.getElementById('input_data_inizio').value = data.data_inizio_iso;
+    if (data.data_fine_iso) document.getElementById('input_data_fine').value = data.data_fine_iso;
+    document.getElementById('input_totale_fatturato').value = data.totale_settimana;
+
+    await caricaProdottiModal(updateId);
+
+    const modal = new bootstrap.Modal(document.getElementById('modalAggiornamentoSettimanale'));
+    modal.show();
+
+  } catch (err) {
+    console.error("Errore recupero dati modifica aggiornamento:", err);
+    alert("Impossibile caricare i dati per la modifica.");
+  }
+}
+
+// Default dates helper
+function impostaDatePredefiniteModal() {
+  const oggi = new Date();
+  const setteGiorniFa = new Date();
+  setteGiorniFa.setDate(oggi.getDate() - 6);
+
+  const inpIni = document.getElementById('input_data_inizio');
+  const inpFine = document.getElementById('input_data_fine');
+  if (inpIni && !inpIni.value) {
+    inpIni.value = setteGiorniFa.toISOString().split('T')[0];
+  }
+  if (inpFine && !inpFine.value) {
+    inpFine.value = oggi.toISOString().split('T')[0];
+  }
+}
+
+async function caricaStatistiche4w() {
+  const clienteId = {{ cliente.id }};
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/statistiche_settimanali_4w`);
+    const data = await resp.json();
+    const secEl = document.getElementById('sezione-statistiche-4w');
+    if (!data.status || data.status !== "ok" || !data.has_data) {
+      if (secEl) secEl.style.display = 'none';
+      return;
+    }
+    if (secEl) secEl.style.display = 'block';
+
+    // 1. KPI
+    document.getElementById('kpi-4w-totale').innerText = '€ ' + data.totale_4w.toLocaleString('it-IT', {minimumFractionDigits: 2});
+    document.getElementById('kpi-4w-media').innerText = '€ ' + data.media_settimanale.toLocaleString('it-IT', {minimumFractionDigits: 2}) + ' /sett';
+
+    const trendValEl = document.getElementById('kpi-4w-trend-val');
+    const trendBadgeEl = document.getElementById('kpi-4w-trend-badge');
+    if (data.stato_trend === 'crescita') {
+      trendValEl.className = 'kpi-mini-val text-success';
+      trendValEl.innerText = `+${data.perc_trend}%`;
+      trendBadgeEl.className = 'small text-success fw-bold';
+      trendBadgeEl.innerHTML = `<i class="bi bi-graph-up"></i> In Crescita (+4w)`;
+    } else if (data.stato_trend === 'calo') {
+      trendValEl.className = 'kpi-mini-val text-danger';
+      trendValEl.innerText = `${data.perc_trend}%`;
+      trendBadgeEl.className = 'small text-danger fw-bold';
+      trendBadgeEl.innerHTML = `<i class="bi bi-graph-down"></i> In Calo (-4w)`;
+    } else {
+      trendValEl.className = 'kpi-mini-val text-secondary';
+      trendValEl.innerText = `${data.perc_trend}%`;
+      trendBadgeEl.className = 'small text-muted';
+      trendBadgeEl.innerText = `Stabile su 4w`;
+    }
+
+    const cntNuovi = (data.prodotti_nuovi || []).length;
+    const cntPersi = (data.prodotti_persi || []).length;
+    document.getElementById('kpi-4w-bilancio-val').innerText = `${cntNuovi} / ${cntPersi}`;
+    document.getElementById('kpi-4w-bilancio-sub').innerHTML = `<span class="text-success">+${cntNuovi} Nuovi</span> | <span class="text-danger">-${cntPersi} Persi</span>`;
+
+    // 2. Headers colonne settimane
+    const sList = data.settimane || [];
+    for (let i = 0; i < 4; i++) {
+      const thEl = document.getElementById(`th-w${3 - i}`);
+      if (thEl) {
+        if (sList[i]) {
+          thEl.innerText = sList[i].label;
+        } else {
+          thEl.innerText = `Sett ${i+1}`;
+        }
+      }
+    }
+
+    // 3. Tabella Consumo Prodotti
+    const tbody = document.getElementById('tbody-statistiche-4w');
+    if (!data.prodotti_trend || data.prodotti_trend.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-3">Nessun dato prodotto nelle ultime 4 settimane.</td></tr>`;
+    } else {
+      tbody.innerHTML = data.prodotti_trend.map(p => {
+        const wq = p.weekly_qty || [];
+        while (wq.length < 4) wq.unshift(0);
+
+        let trendBadge = '';
+        if (p.trend === 'crescita') {
+          trendBadge = `<span class="badge bg-success bg-opacity-15 text-success border border-success"><i class="bi bi-arrow-up-right me-1"></i>In Crescita</span>`;
+        } else if (p.trend === 'calo') {
+          trendBadge = `<span class="badge bg-danger bg-opacity-15 text-danger border border-danger"><i class="bi bi-arrow-down-right me-1"></i>In Calo</span>`;
+        } else {
+          trendBadge = `<span class="badge bg-secondary bg-opacity-10 text-secondary border"><i class="bi bi-dash me-1"></i>Stabile</span>`;
+        }
+
+        return `
+          <tr class="row-stat-4w" data-nome="${(p.nome||'').toLowerCase()}" data-codice="${(p.codice||'').toLowerCase()}">
+            <td><span class="badge bg-light text-dark border">${p.codice || 'N/D'}</span></td>
+            <td><strong>${p.nome}</strong> <span class="text-muted small">(${p.categoria})</span></td>
+            <td><span class="badge bg-light text-secondary border">${p.um}</span></td>
+            <td class="text-center font-monospace">${wq[0] > 0 ? wq[0] : '–'}</td>
+            <td class="text-center font-monospace">${wq[1] > 0 ? wq[1] : '–'}</td>
+            <td class="text-center font-monospace">${wq[2] > 0 ? wq[2] : '–'}</td>
+            <td class="text-center font-monospace fw-bold text-primary">${wq[3] > 0 ? wq[3] : '–'}</td>
+            <td class="text-end fw-bold">${p.totale_qty} ${p.um}</td>
+            <td class="text-end fw-bold text-success">€ ${p.totale_spesa.toFixed(2)}</td>
+            <td class="text-center">${trendBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 4. Nuovi Inseriti
+    const containerNuovi = document.getElementById('container-nuovi-4w');
+    if (!data.prodotti_nuovi || data.prodotti_nuovi.length === 0) {
+      containerNuovi.innerHTML = `<div class="text-muted small py-2">Nessun nuovo prodotto introdotto nelle ultime 4 settimane.</div>`;
+    } else {
+      containerNuovi.innerHTML = data.prodotti_nuovi.map(p => `
+        <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom border-success border-opacity-10">
+          <div>
+            <strong class="small text-dark">${p.nome}</strong>
+            <span class="badge bg-light text-secondary border ms-1" style="font-size:0.68rem;">${p.categoria}</span>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-success text-white font-monospace">${p.totale_qty} ${p.um}</span>
+            <span class="small fw-semibold text-success ms-1">€ ${p.totale_spesa.toFixed(2)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 5. Prodotti Persi
+    const containerPersi = document.getElementById('container-persi-4w');
+    if (!data.prodotti_persi || data.prodotti_persi.length === 0) {
+      containerPersi.innerHTML = `<div class="text-muted small py-2 text-success"><i class="bi bi-check-circle me-1"></i>Nessun prodotto abituale perso nelle ultime settimane!</div>`;
+    } else {
+      containerPersi.innerHTML = data.prodotti_persi.map(p => `
+        <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom border-danger border-opacity-10">
+          <div>
+            <strong class="small text-danger">${p.nome}</strong>
+            <span class="badge bg-light text-secondary border ms-1" style="font-size:0.68rem;">Cod: ${p.codice}</span>
+          </div>
+          <div>
+            <a href="https://wa.me/{{ whatsapp_number }}?text=Ciao,%20ho%20notato%20che%20nelle%20ultime%20settimane%20non%20hai%20più%20ordinato%20${encodeURIComponent(p.nome)}.%20Possiamo%20riaggiungerlo?" target="_blank" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-0" style="font-size:0.72rem;">
+              <i class="bi bi-whatsapp me-1"></i>Sollecita
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.error("Errore caricamento statistiche 4w:", err);
+  }
+}
+
+function filtraTabelleStatistiche4w(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.row-stat-4w').forEach(r => {
+    const nome = r.getAttribute('data-nome') || '';
+    const cod = r.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      r.classList.remove('d-none');
+    } else {
+      r.classList.add('d-none');
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  impostaDatePredefiniteModal();
+
+  const modalEl = document.getElementById('modalAggiornamentoSettimanale');
+  if (modalEl) {
+    modalEl.addEventListener('show.bs.modal', function () {
+      const editId = document.getElementById('modal_edit_update_id').value;
+      const container = document.getElementById('container-modal-lavorati');
+      if (!container || container.children.length === 0 || !container.querySelector('.item-modal-lavorato')) {
+        caricaProdottiModal(editId || null);
+      }
+    });
+  }
+
+  const sel = document.getElementById('select-settimana-analisi');
+  if (sel && sel.value) {
+    caricaAnalisiSettimanale(sel.value);
+  } else {
+    caricaAnalisiSettimanale();
+  }
+
+  caricaStatistiche4w();
+});
 </script>
 {% endblock %}
