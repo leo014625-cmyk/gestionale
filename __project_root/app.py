@@ -4714,9 +4714,153 @@ def bot_invia():
 @app.route("/meta/webhook", methods=["GET", "POST"])
 def meta_webhook():
     if request.method == "GET":
-        if request.args.get("hub.verify_token") == os.getenv("META_VERIFY_TOKEN"):
+        verify_token = os.getenv("META_VERIFY_TOKEN", "")
+        if request.args.get("hub.verify_token") == verify_token:
             return request.args.get("hub.challenge"), 200
-        return "Error", 403
+        return "Invalid verify token", 403
+        
+    data = request.json or {}
+    
+    for entry in data.get("entry", []):
+        for change in entry.get("changes", []):
+            value = change.get("value", {})
+            if "messages" not in value:
+                continue
+                
+            for msg in value["messages"]:
+                from_raw = msg.get("from", "")
+                from_number = _normalize_phone(from_raw)
+                
+                if not from_number:
+                    continue
+                msg_type = msg.get("type", "")
+                body = ""
+                media_id = None
+                media_mime = None
+                
+                if msg_type == "text":
+                    body = msg.get("text", {}).get("body", "").strip()
+                elif msg_type == "document":
+                    doc = msg.get("document", {})
+                    media_id = doc.get("id")
+                    media_mime = doc.get("mime_type", "")
+                
+                low = body.lower()
+                def safe_send(to, txt):
+                    try:
+                        send_text(to, txt)
+                    except Exception as e:
+                        print("META SEND ERROR:", repr(e))
+                        
+                # SE È ADMIN
+                if is_admin(from_number):
+                    # 1. Controllo File PDF (da Meta WA Media API)
+                    if media_id and "pdf" in (media_mime or ""):
+                        try:
+                            safe_send(from_number, "⏳ PDF ricevuto. Sto scaricando e analizzando le offerte...")
+                            token = os.getenv("META_WA_TOKEN")
+                            # Step A: Get Media URL
+                            media_req = requests.get(f"https://graph.facebook.com/v17.0/{media_id}", headers={"Authorization": f"Bearer {token}"})
+                            if not media_req.ok:
+                                safe_send(from_number, "🚨 Errore URL Media Meta Whatsapp.")
+                                return "OK", 200
+                                
+                            actual_url = media_req.json().get("url")
+                            # Step B: Download File (must pass Bearer header again)
+                            pdf_data = requests.get(actual_url, headers={"Authorization": f"Bearer {token}"})
+                            
+                            pdf_path = f"/tmp/meta_{int(time.time())}.pdf"
+                            with open(pdf_path, 'wb') as f:
+                                f.write(pdf_data.content)
+                            
+                            offers = parse_offers_from_pdf(pdf_path)
+                            if not offers:
+                                safe_send(from_number, "⚠️ Nessuna offerta rilevata dal PDF. Controlla il formato.")
+                                return "OK", 200
+                            
+                            with get_db() as db:
+                                cur = db.cursor(cursor_factory=RealDictCursor)
+                                sent, total_mapped = send_offers_to_customers_pg(cur, offers)
+                                db.commit()
+                                 
+                            safe_send(from_number, f"✅ PDF elaborato! Trovate {len(offers)} offerte.\nMessaggi inviati a *{sent}* clienti (su {total_mapped} con prodotti corrispondenti).")
+                        except Exception as e:
+                            safe_send(from_number, f"🚨 Errore elaborazione PDF:\n{str(e)}")
+                        return "OK", 200
+                        
+                    # 2. Controllo testuale (STATS, SEND)
+                    if low.startswith("stats"):
+                        try:
+                            with get_db() as db:
+                                cur = db.cursor(cursor_factory=RealDictCursor)
+                                cur.execute("SELECT COUNT(*) as tot FROM clienti")
+                                tot_clients = cur.fetchone()["tot"]
+                                cur.execute("SELECT COUNT(*) as tot FROM whatsapp_preferenze WHERE opt_out = FALSE")
+                                linked = cur.fetchone()["tot"]
+                            safe_send(from_number, f"📊 *STATISTICHE BOT*\nClienti Totali: {tot_clients}\nIscritti WhatsApp: {linked}")
+                        except Exception as e:
+                            safe_send(from_number, f"Errore stats: {str(e)}")
+                        return "OK", 200
+                        
+                    if low.startswith("send "):
+                        parts = body.split(" ", 2)
+                        if len(parts) >= 3:
+                            target_pref = parts[1].lower()
+                            msg_body = parts[2]
+                            try:
+                                with get_db() as db:
+                                    cur = db.cursor(cursor_factory=RealDictCursor)
+                                    where_clause = _segment_where(target_pref)
+                                    phone_col = _detect_phone_column(cur) or "telefono"
+                                    cur.execute(f"SELECT c.{phone_col} FROM clienti c LEFT JOIN whatsapp_preferenze wp ON c.id = wp.cliente_id WHERE {where_clause}")
+                                    rows = cur.fetchall()
+                                    cnt = 0
+                                    for r in rows:
+                                        pn = _normalize_phone(r[phone_col])
+                                        if pn:
+                                            send_text(pn, msg_body)
+                                            cnt += 1
+                                    safe_send(from_number, f"✅ Messaggio inviato a {cnt} clienti nel segmento *{target_pref.upper()}*.")
+                            except Exception as e:
+                                safe_send(from_number, f"Errore broadcast: {str(e)}")
+                        return "OK", 200
+                        
+                # MENU (Per Clienti Normali o controlli standard)
+                if low in ("menu", "start", "offerte", "preferenze"):
+                    safe_send(from_number,
+                        "📌 *Preferenze offerte*\n"
+                        "Rispondi con:\n"
+                        "1 = Scadenze\n"
+                        "2 = Pesce\n"
+                        "3 = Carne\n"
+                        "0 = STOP (non ricevere)\n"
+                    )
+                    return "OK", 200
+                    
+                scelta_map = {"1":"PREF_SCADENZA","2":"PREF_PESCE","3":"PREF_CARNE","0":"PREF_STOP"}
+                if low in scelta_map:
+                    scelta_id = scelta_map[low]
+                    try:
+                        with get_db() as conn:
+                            cur = conn.cursor(cursor_factory=RealDictCursor)
+                            cid = find_cliente_id_by_phone(cur, from_number)
+                            if not cid:
+                                safe_send(from_number, "⚠️ Non ti trovo in anagrafica. Usa il numero salvato nel gestionale.")
+                                return "OK", 200
+                            upsert_preferenza(cur, cid, scelta_id)
+                            mark_whatsapp_linked_by_phone(cur, from_number)
+                            conn.commit()
+                        if scelta_id == "PREF_STOP":
+                            safe_send(from_number, "✅ Ok, non riceverai più offerte. Se cambi idea scrivi *MENU*.")
+                        else:
+                            safe_send(from_number, "✅ Preferenza salvata! Se vuoi cambiare, scrivi *MENU*.")
+                    except Exception as e:
+                        print("META PREF ERROR:", repr(e))
+                        safe_send(from_number, "⚠️ Errore nel salvataggio preferenze. Riprova tra poco.")
+                    return "OK", 200
+                    
+                safe_send(from_number, "Scrivi *MENU* per scegliere preferenze.")
+                
     return "OK", 200
 
 @app.route("/bot/invia-pdf", methods=["POST"])
