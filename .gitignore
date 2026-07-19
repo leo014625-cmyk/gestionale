@@ -1,0 +1,8 @@
+venv/
+*.pyc
+**/__pycache__/
+**/*.pyc
+instance/
+gestionale/static/uploads/
+*.pdf
+.DS_Store

@@ -313,6 +313,8 @@ def init_db():
             nome TEXT,
             prezzo REAL,
             um TEXT,
+            scadenza TEXT,
+            quantita TEXT,
             prodotto_id INTEGER REFERENCES prodotti(id) ON DELETE SET NULL
         )''',
         '''CREATE TABLE IF NOT EXISTS fatturato_settimanale (
@@ -375,7 +377,9 @@ def init_db():
             "ALTER TABLE acquisti_settimanali_pdf ADD COLUMN data_fine DATE",
             "ALTER TABLE acquisti_settimanali_dettaglio ADD COLUMN update_id INTEGER",
             "ALTER TABLE acquisti_settimanali_dettaglio ADD COLUMN data_inizio DATE",
-            "ALTER TABLE acquisti_settimanali_dettaglio ADD COLUMN data_fine DATE"
+            "ALTER TABLE acquisti_settimanali_dettaglio ADD COLUMN data_fine DATE",
+            "ALTER TABLE promo_scadenze_prodotti ADD COLUMN scadenza TEXT",
+            "ALTER TABLE promo_scadenze_prodotti ADD COLUMN quantita TEXT"
         ]:
             try:
                 cur.execute(alt_stmt)
@@ -2625,14 +2629,17 @@ def api_statistiche_portfolio():
 @app.route('/clienti/promo_scadenze/carica', methods=['POST'])
 @login_required
 def carica_promo_scadenze():
+    referer = request.referrer or url_for('clienti')
+    redirect_url = url_for('lista_volantini_beta') if 'beta-volantini' in referer else url_for('clienti')
+
     pdf_file = request.files.get('pdf_file')
     if not pdf_file or not pdf_file.filename:
         flash("Seleziona un file PDF valido.", "warning")
-        return redirect(url_for('clienti'))
+        return redirect(redirect_url)
 
     if not pdf_file.filename.lower().endswith('.pdf'):
         flash("Il file caricato deve essere in formato PDF.", "warning")
-        return redirect(url_for('clienti'))
+        return redirect(redirect_url)
 
     # Salvataggio temporaneo
     import tempfile
@@ -2641,12 +2648,12 @@ def carica_promo_scadenze():
     pdf_file.save(temp_path)
 
     try:
-        # Estrai prodotti dal PDF usando la funzione helper esistente
-        offers = parse_offers_from_pdf(temp_path)
+        # Estrai prodotti dal PDF usando la funzione specifica per le scadenze
+        offers = parse_promo_scadenze_from_pdf(temp_path)
         
         if not offers:
             flash("Nessun prodotto trovato nel file PDF.", "warning")
-            return redirect(url_for('clienti'))
+            return redirect(redirect_url)
 
         with get_db() as db:
             cur = db.cursor()
@@ -2672,15 +2679,11 @@ def carica_promo_scadenze():
             for off in offers:
                 code = off.get('code')
                 name = off.get('name', 'Prodotto')
-                
-                # Conversione prezzo sicura
-                price_str = off.get('price')
-                try:
-                    price = float(price_str.replace(',', '.')) if price_str else 0.0
-                except (ValueError, TypeError):
-                    price = 0.0
-                    
+                price = off.get('price', 0.0)
                 um = off.get('um', 'PZ')
+                scadenza = off.get('scadenza', '')
+                quantita = off.get('quantita', '')
+                cat_name = off.get('categoria', 'SCADENZE').upper().strip()
 
                 # Trova corrispondenza
                 prodotto_id = None
@@ -2694,16 +2697,55 @@ def carica_promo_scadenze():
                         except ValueError:
                             pass
 
-                insert_data.append((code, name, price, um, prodotto_id))
+                # Se non esiste nel database, lo creiamo direttamente!
+                if not prodotto_id:
+                    # Trova o crea la categoria in tempo reale
+                    cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
+                    cat_row = cur.fetchone()
+                    if cat_row:
+                        cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+                    else:
+                        cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
+                        try:
+                            cat_row = cur.fetchone()
+                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+                        except Exception:
+                            cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
+                            cat_row = cur.fetchone()
+                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+
+                    price_str = f"{price:.2f}"
+                    cur.execute("""
+                        INSERT INTO prodotti (codice, nome, prezzo, prezzo_con_simbolo, is_promo_mensile, categoria_id)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (code, name, price, f"€ {price_str}", False, cat_id))
+                    try:
+                        row_new = cur.fetchone()
+                        if row_new:
+                            prodotto_id = row_new['id'] if isinstance(row_new, dict) else row_new[0]
+                    except Exception:
+                        pass
+                    if not prodotto_id:
+                        cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
+                        row_new = cur.fetchone()
+                        if row_new:
+                            prodotto_id = row_new['id'] if isinstance(row_new, dict) else row_new[0]
+                    
+                    # Aggiorniamo la mappa in memoria
+                    if prodotto_id:
+                        prod_map[code] = prodotto_id
+
+                insert_data.append((code, name, price, um, scadenza, quantita, prodotto_id))
 
             # Inserimento batch ad altissime prestazioni
             cur.executemany('''
-                INSERT INTO promo_scadenze_prodotti (codice, nome, prezzo, um, prodotto_id)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO promo_scadenze_prodotti (codice, nome, prezzo, um, scadenza, quantita, prodotto_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', insert_data)
             
             db.commit()
-            flash(f"Promo scadenze caricata con successo! Trovati {len(offers)} prodotti.", "success")
+            flash(f"Promo scadenze caricata con successo! Trovati e sincronizzati {len(offers)} prodotti.", "success")
     except Exception as e:
         flash(f"Si è verificato un errore durante l'elaborazione del PDF: {e}", "danger")
     finally:
@@ -2713,7 +2755,166 @@ def carica_promo_scadenze():
         except Exception:
             pass
 
-    return redirect(url_for('clienti'))
+    return redirect(redirect_url)
+
+
+@app.route('/api/salva_preset_default', methods=['POST'])
+@login_required
+def api_salva_preset_default():
+    try:
+        preset_data = request.json or {}
+        
+        # Salva in preset_default.json nella project root
+        preset_path = os.path.join(app.root_path, 'preset_default.json')
+        with open(preset_path, 'w', encoding='utf-8') as f:
+            json.dump(preset_data, f, ensure_ascii=False, indent=4)
+            
+        return jsonify({"status": "ok", "message": "Preset salvato come Default sul server!"})
+    except Exception as e:
+        print("Errore nel salvataggio del preset di default:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/carica_preset_default', methods=['GET'])
+@login_required
+def api_carica_preset_default():
+    try:
+        preset_path = os.path.join(app.root_path, 'preset_default.json')
+        if os.path.exists(preset_path):
+            with open(preset_path, 'r', encoding='utf-8') as f:
+                preset_data = json.load(f)
+            return jsonify({"status": "ok", "preset": preset_data})
+        else:
+            return jsonify({"status": "not_found", "message": "Nessun preset default salvato sul server"})
+    except Exception as e:
+        print("Errore nel caricamento del preset di default:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/importa-pdf-scadenze', methods=['POST'])
+@login_required
+def api_importa_pdf_scadenze():
+    if 'pdf_file' not in request.files:
+        return jsonify({"status": "error", "message": "Nessun file inviato"}), 400
+        
+    pdf_file = request.files['pdf_file']
+    if pdf_file.filename == '':
+        return jsonify({"status": "error", "message": "Nessun file selezionato"}), 400
+        
+    if not pdf_file.filename.lower().endswith('.pdf'):
+        return jsonify({"status": "error", "message": "Il file deve essere un PDF"}), 400
+
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, f"promo_scad_{int(time.time())}.pdf")
+    pdf_file.save(temp_path)
+
+    try:
+        offers = parse_promo_scadenze_from_pdf(temp_path)
+        if not offers:
+            return jsonify({"status": "error", "message": "Nessun prodotto trovato nel PDF"}), 400
+
+        with get_db() as db:
+            cur = db.cursor()
+            
+            # Carica in memoria i prodotti per codice
+            cur.execute("SELECT id, codice FROM prodotti WHERE codice IS NOT NULL AND codice != ''")
+            prod_map = {}
+            for r in cur.fetchall():
+                p_dict = dict(r) if isinstance(r, dict) else {"id": r[0], "codice": r[1]}
+                cod = str(p_dict["codice"]).strip()
+                prod_map[cod] = p_dict["id"]
+                prod_map[cod.lstrip('0')] = p_dict["id"]
+                try:
+                    prod_map[str(int(cod))] = p_dict["id"]
+                except ValueError:
+                    pass
+
+            # Pulisce le promo scadenze precedenti
+            cur.execute('DELETE FROM promo_scadenze_prodotti')
+
+            insert_data = []
+            for off in offers:
+                code = off.get('code')
+                name = off.get('name', 'Prodotto')
+                price = off.get('price', 0.0)
+                um = off.get('um', 'PZ')
+                scadenza = off.get('scadenza', '')
+                quantita = off.get('quantita', '')
+                cat_name = off.get('categoria', 'SCADENZE').upper().strip()
+
+                prodotto_id = None
+                if code:
+                    prodotto_id = prod_map.get(code)
+                    if not prodotto_id:
+                        prodotto_id = prod_map.get(code.lstrip('0'))
+                    if not prodotto_id:
+                        try:
+                            prodotto_id = prod_map.get(str(int(code)))
+                        except ValueError:
+                            pass
+
+                # Se non esiste nel database, lo creiamo direttamente!
+                if not prodotto_id:
+                    # Trova o crea la categoria in tempo reale
+                    cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
+                    cat_row = cur.fetchone()
+                    if cat_row:
+                        cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+                    else:
+                        cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
+                        try:
+                            cat_row = cur.fetchone()
+                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+                        except Exception:
+                            cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
+                            cat_row = cur.fetchone()
+                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+
+                    price_str = f"{price:.2f}"
+                    cur.execute("""
+                        INSERT INTO prodotti (codice, nome, prezzo, prezzo_con_simbolo, is_promo_mensile, categoria_id)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (code, name, price, f"€ {price_str}", False, cat_id))
+                    try:
+                        row_new = cur.fetchone()
+                        if row_new:
+                            prodotto_id = row_new['id'] if isinstance(row_new, dict) else row_new[0]
+                    except Exception:
+                        pass
+                    if not prodotto_id:
+                        cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
+                        row_new = cur.fetchone()
+                        if row_new:
+                            prodotto_id = row_new['id'] if isinstance(row_new, dict) else row_new[0]
+                    
+                    # Aggiorniamo la mappa in memoria
+                    if prodotto_id:
+                        prod_map[code] = prodotto_id
+
+                insert_data.append((code, name, price, um, scadenza, quantita, prodotto_id))
+
+            cur.executemany('''
+                INSERT INTO promo_scadenze_prodotti (codice, nome, prezzo, um, scadenza, quantita, prodotto_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''', insert_data)
+            
+            db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "message": f"Promo scadenze caricata con successo! Sincronizzati {len(offers)} prodotti.",
+            "count": len(offers)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": f"Errore scansione ed elaborazione: {str(e)}"}), 500
+    finally:
+        if os.path.exists(temp_path):
+            try: os.remove(temp_path)
+            except: pass
 
 
 @app.route('/api/promo_scadenze')
@@ -2724,9 +2925,9 @@ def api_promo_scadenze():
         
         # Seleziona tutti i prodotti caricati nella promo scadenze attuale
         cur.execute('''
-            SELECT id, codice, nome, prezzo, um, prodotto_id
+            SELECT id, codice, nome, prezzo, um, scadenza, quantita, prodotto_id
             FROM promo_scadenze_prodotti
-            ORDER BY nome
+            ORDER BY id
         ''')
         rows = cur.fetchall()
         
@@ -2734,7 +2935,7 @@ def api_promo_scadenze():
         prod_ids = []
         for r in rows:
             p_dict = dict(r) if isinstance(r, dict) else {
-                "id": r[0], "codice": r[1], "nome": r[2], "prezzo": r[3], "um": r[4], "prodotto_id": r[5]
+                "id": r[0], "codice": r[1], "nome": r[2], "prezzo": r[3], "um": r[4], "scadenza": r[5], "quantita": r[6], "prodotto_id": r[7]
             }
             pid = p_dict["prodotto_id"]
             prodotti_promo.append({
@@ -2743,6 +2944,8 @@ def api_promo_scadenze():
                 "nome": p_dict["nome"],
                 "prezzo": p_dict["prezzo"] or 0.0,
                 "um": p_dict["um"] or 'PZ',
+                "scadenza": p_dict["scadenza"] or '–',
+                "quantita": p_dict["quantita"] or '–',
                 "prodotto_id": pid,
                 "clienti": []
             })
@@ -2753,8 +2956,9 @@ def api_promo_scadenze():
         clienti_per_prodotto = {}
         if prod_ids:
             placeholders = ",".join(["%s"] * len(prod_ids))
+            phone_col = _detect_phone_column(cur) or "telefono"
             cur.execute(f'''
-                SELECT cp.prodotto_id, c.id AS cliente_id, c.nome AS cliente_nome, c.zona AS cliente_zona
+                SELECT cp.prodotto_id, c.id AS cliente_id, c.nome AS cliente_nome, c.zona AS cliente_zona, c.{phone_col} AS cliente_telefono
                 FROM clienti_prodotti cp
                 JOIN clienti c ON cp.cliente_id = c.id
                 WHERE cp.prodotto_id IN ({placeholders}) AND cp.lavorato = TRUE
@@ -2762,7 +2966,7 @@ def api_promo_scadenze():
             ''', prod_ids)
             for r in cur.fetchall():
                 d = dict(r) if isinstance(r, dict) else {
-                    "prodotto_id": r[0], "cliente_id": r[1], "cliente_nome": r[2], "cliente_zona": r[3]
+                    "prodotto_id": r[0], "cliente_id": r[1], "cliente_nome": r[2], "cliente_zona": r[3], "cliente_telefono": r[4]
                 }
                 pid_val = d["prodotto_id"]
                 if pid_val not in clienti_per_prodotto:
@@ -2770,7 +2974,8 @@ def api_promo_scadenze():
                 clienti_per_prodotto[pid_val].append({
                     "id": d["cliente_id"],
                     "nome": d["cliente_nome"],
-                    "zona": d["cliente_zona"] or '–'
+                    "zona": d["cliente_zona"] or '–',
+                    "telefono": d["cliente_telefono"] or ''
                 })
                 
         # Associa i clienti in memoria in O(1)
@@ -4257,6 +4462,94 @@ def parse_offers_from_pdf(pdf_path: str) -> list[dict]:
         uniq.append(o)
     return uniq
 
+def parse_promo_scadenze_from_pdf(pdf_path: str) -> list[dict]:
+    products = []
+    import pdfplumber
+    import re
+    
+    code_pattern = re.compile(r"^\s*(\d{4,12})\s*$")
+    current_category = "SCADENZE"
+    
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_idx, page in enumerate(pdf.pages):
+                # Prova prima con la strategia standard
+                tables = page.extract_tables()
+                # Se non trova tabelle, prova con una strategia basata sull'allineamento del testo
+                if not tables or len(tables) == 0:
+                    tables = page.extract_tables({
+                        "vertical_strategy": "text",
+                        "horizontal_strategy": "text",
+                        "snap_tolerance": 3,
+                    })
+                
+                for table in tables:
+                    if not table:
+                        continue
+                    for row in table:
+                        if not row or len(row) < 8:
+                            continue
+                        
+                        raw_code = row[1]
+                        code_str = str(raw_code or "").strip()
+                        
+                        # Rilevamento categoria: se il codice non è numerico e c'è del testo maiuscolo
+                        if not code_str or not code_pattern.match(code_str):
+                            cand_cat = str(row[2] or row[1] or "").strip()
+                            if cand_cat.isupper() and len(cand_cat) > 2 and len(cand_cat) < 50:
+                                # Controlla che non sia intestazione generica
+                                if not any(w in cand_cat for w in ["CODICE", "DESCRIZIONE", "UM", "PREZZO", "PAGINA", "SCADENZA", "QUANTIT", "QTA", "DISP"]):
+                                    # E che il resto delle celle sia per lo più vuoto per essere una riga header di categoria
+                                    has_data = False
+                                    for cell in row[3:]:
+                                        if cell and str(cell).strip():
+                                            has_data = True
+                                            break
+                                    if not has_data:
+                                        current_category = cand_cat
+                                        continue
+                        
+                        if not code_str or not code_pattern.match(code_str):
+                            continue
+                            
+                        nome = str(row[2] or "").strip()
+                        um = str(row[3] or "PZ").strip().upper()
+                        scadenza = str(row[4] or "").strip()
+                        quantita = str(row[6] or "").strip()
+                        prezzo_raw = str(row[7] or "").strip()
+                        
+                        price_cleaned = prezzo_raw.replace("€", "").replace(" ", "").replace(",", ".").strip()
+                        try:
+                            prezzo = float(price_cleaned) if price_cleaned else 0.0
+                        except ValueError:
+                            prezzo = 0.0
+                            
+                        products.append({
+                            "code": code_str,
+                            "name": nome,
+                            "um": um,
+                            "scadenza": scadenza,
+                            "quantita": quantita,
+                            "price": prezzo,
+                            "price_str": prezzo_raw,
+                            "categoria": current_category,
+                            "page": page_idx
+                        })
+    except Exception as e:
+        print(f"Errore nel parsing del PDF promo scadenze: {e}")
+        import traceback
+        traceback.print_exc()
+        
+    # Rimuovi duplicati
+    seen = set()
+    uniq = []
+    for p in products:
+        if p["code"] in seen:
+            continue
+        seen.add(p["code"])
+        uniq.append(p)
+    return uniq
+
 def parse_single_offer(code, text, page_idx):
     price_re = re.compile(r"(\d+[\.,]\d{2})")
     um_re = re.compile(r"\b(KG|PZ)\b", re.IGNORECASE)
@@ -5532,6 +5825,175 @@ def beta_volantino():
         print(f"Errore recupero template precedente: {ex}")
     # -----------------------------------
     
+    # Caricamento automatico dei prodotti da promo scadenze se richiesto
+    import_scadenze = request.args.get('scadenze')
+    if import_scadenze == '1':
+        preset_data = {}
+        preset_path = os.path.join(app.root_path, 'preset_default.json')
+        if os.path.exists(preset_path):
+            try:
+                with open(preset_path, 'r', encoding='utf-8') as pf:
+                    preset_data = json.load(pf)
+            except Exception as pex:
+                print("Errore lettura preset default in beta_volantino:", pex)
+
+        try:
+            with get_db() as db:
+                cur = db.cursor()
+                # Seleziona prodotti della promo scadenze ordinati come da PDF (per ID)
+                cur.execute('''
+                    SELECT psp.codice, psp.nome, psp.prezzo, psp.um, psp.prodotto_id, prod.immagine, psp.scadenza
+                    FROM promo_scadenze_prodotti psp
+                    LEFT JOIN prodotti prod ON psp.prodotto_id = prod.id
+                    ORDER BY psp.id
+                ''')
+                psp_rows = cur.fetchall()
+                
+                # Raggruppiamo i prodotti in pagine di 9 elementi (3x3)
+                pagine_prodotti = []
+                temp_page = []
+                for r in psp_rows:
+                    row_dict = dict(r) if isinstance(r, dict) else {
+                        "codice": r[0], "nome": r[1], "prezzo": r[2], "um": r[3], "prodotto_id": r[4], "immagine": r[5], "scadenza": r[6]
+                    }
+                    
+                    prod_id = row_dict["prodotto_id"]
+                    codice = row_dict["codice"] or ""
+                    nome = row_dict["nome"] or ""
+                    prezzo = row_dict["prezzo"]
+                    um = row_dict["um"] or "PZ"
+                    immagine = row_dict["immagine"]
+                    scadenza = row_dict["scadenza"] or ""
+                    
+                    img_url = ""
+                    if immagine:
+                        img_url = url_for('static', filename=f'uploads/volantino_prodotti/{immagine}')
+                        
+                    prezzo_str = f"€ {prezzo:.2f} / {um}" if prezzo else "–"
+                    
+                    cell_data = {
+                        "codice": codice,
+                        "titolo": nome,
+                        "descrizione": "",
+                        "scadenza": scadenza,
+                        "scadenzaSize": "12",
+                        "scadenzaY": "-4",
+                        "prezzo": prezzo_str,
+                        "img": img_url,
+                        "imgOriginal": img_url,
+                        "imgNoBg": img_url,
+                        "useNoBg": "1",
+                        "showDesc": "0",
+                        "priceSize": "26",
+                        "priceColor": "#e11d48",
+                        "priceBg": "#ffffff",
+                        "priceCurrency": "€",
+                        "priceWeight": "800",
+                        "priceStyle": "base",
+                        "layout": "modern-split",
+                        "titleSize": "17",
+                        "titleWeight": "700",
+                        "titleSpacing": "0",
+                        "titleHeight": "1.2",
+                        "codeSize": "10",
+                        "descSize": "11",
+                        "descItalic": "0",
+                        "textUpper": "1",
+                        "fontColor": "#0f172a",
+                        "borderStyle": "solid",
+                        "borderColor": "#cbd5e1",
+                        "radius": "8",
+                        "bgColor": "#ffffff",
+                        "bgTransparent": "0",
+                        "shadow": "1",
+                        "imageZoom": "1.0",
+                        "imagePosX": "50",
+                        "imagePosY": "50",
+                        "imageRadius": "6",
+                        "imagePadding": "5",
+                        "imageAspect": "contain",
+                        "productId": prod_id
+                    }
+                    
+                    if 'cellStyles' in preset_data:
+                        for k, v in preset_data['cellStyles'].items():
+                            if k not in ['codice', 'titolo', 'descrizione', 'scadenza', 'prezzo', 'img', 'imgOriginal', 'imgNoBg', 'productId']:
+                                cell_data[k] = v
+                                
+                    temp_page.append(cell_data)
+                    if len(temp_page) == 9:
+                        pagine_prodotti.append(temp_page)
+                        temp_page = []
+                if temp_page:
+                    pagine_prodotti.append(temp_page)
+                
+                # Se non c'è nessun prodotto, assicuriamoci di avere almeno una griglia vuota
+                if not pagine_prodotti:
+                    pagine_prodotti = [[]]
+                
+                # Costruiamo il layout JSON compatibile (array di pagine)
+                layout_pages = []
+                
+                g_cols = int(preset_data.get('cols', 3)) if preset_data.get('cols') else 3
+                g_rows = int(preset_data.get('rows', 3)) if preset_data.get('rows') else 3
+                g_gap = int(preset_data.get('gap', 10)) if preset_data.get('gap') else 10
+                
+                g_larghezza = preset_data.get('larghezza', '1250')
+                g_altezza = preset_data.get('altezza', '1750')
+                g_padTop = preset_data.get('padTop', '20')
+                g_padBottom = preset_data.get('padBottom', '20')
+                g_padSides = preset_data.get('padSides', '20')
+                g_headerH = preset_data.get('headerH', '120')
+                g_footerH = preset_data.get('footerH', '80')
+                
+                default_logo = "https://us-east-1.tixte.net/uploads/leonardogiorgini.tixte.co/logo-pregis-bordo.png"
+                g_headerImg = preset_data.get('headerImg') if preset_data.get('headerImg') else default_logo
+                
+                g_bgImg = preset_data.get('bgImg', '')
+                g_bgWidth = preset_data.get('bgWidth', '100')
+                g_bgHeight = preset_data.get('bgHeight', '100')
+                g_bgPosX = preset_data.get('bgPosX', '50')
+                g_bgPosY = preset_data.get('bgPosY', '50')
+                g_cellWidth = preset_data.get('cellWidth', '380')
+                g_cellHeight = preset_data.get('cellHeight', '500')
+                
+                for p_idx, cells in enumerate(pagine_prodotti):
+                    layout_pages.append({
+                        "cols": g_cols,
+                        "rows": g_rows,
+                        "gap": g_gap,
+                        "larghezza": g_larghezza,
+                        "altezza": g_altezza,
+                        "padTop": g_padTop,
+                        "padBottom": g_padBottom,
+                        "padSides": g_padSides,
+                        "headerH": g_headerH if p_idx == 0 else "50",
+                        "footerH": g_footerH,
+                        "headerImg": g_headerImg if p_idx == 0 else None,
+                        "footerImg": None,
+                        "cells": cells,
+                        "bgImg": g_bgImg,
+                        "bgWidth": g_bgWidth,
+                        "bgHeight": g_bgHeight,
+                        "bgPosX": g_bgPosX,
+                        "bgPosY": g_bgPosY,
+                        "cellWidth": g_cellWidth,
+                        "cellHeight": g_cellHeight
+                    })
+                    
+                return render_template(
+                    '05_beta_volantino/05_beta_volantino.html',
+                    volantino_id=None,
+                    nome_volantino="Volantino Scadenze",
+                    layout_json=json.dumps(layout_pages),
+                    thumbnail="",
+                    tipo_volantino=tipo
+                )
+        except Exception as ex:
+            print(f"Errore caricamento prodotti scadenze nel volantino: {ex}")
+            import traceback
+            traceback.print_exc()
+
     if not base_layout.get("grid"):
         base_layout["grid"] = []
         for c in range(1, 10):

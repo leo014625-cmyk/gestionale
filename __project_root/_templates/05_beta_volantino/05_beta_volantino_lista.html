@@ -147,6 +147,25 @@
   .bg-info-light { background-color: rgba(13, 202, 240, 0.12); color: #0dcaf0; border: 1px solid rgba(13, 202, 240, 0.2); }
   .bg-warning-light { background-color: rgba(255, 193, 7, 0.12); color: #b28900; border: 1px solid rgba(255, 193, 7, 0.2); }
   .bg-success-light { background-color: rgba(25, 135, 84, 0.12); color: #198754; border: 1px solid rgba(25, 135, 84, 0.2); }
+
+  /* Table styling inside modals */
+  .sheet-table th {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .sheet-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.88rem;
+  }
+  .hover-primary:hover {
+    background-color: var(--primary-light) !important;
+    border-color: var(--primary) !important;
+  }
 </style>
 {% endblock %}
 
@@ -160,7 +179,17 @@
       <p class="text-muted mb-0">Gestisci i volantini avanzati e le promozioni create con l'editor Drag & Drop in tempo reale.</p>
     </div>
 
-    <div class="d-flex gap-2 align-items-center mt-2 mt-md-0">
+    <div class="d-flex gap-2 align-items-center mt-2 mt-md-0 flex-wrap">
+      <!-- Pulsante Promo Mensili -->
+      <button type="button" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCaricaPromoMensili">
+        <i class="bi bi-file-earmark-pdf-fill"></i> Carica Promo Mensili
+      </button>
+
+      <!-- Pulsante Promo Scadenze -->
+      <button type="button" class="btn btn-outline-danger rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCaricaPromoScadenze">
+        <i class="bi bi-clock-history"></i> Carica Promo Scadenze
+      </button>
+
       <a href="{{ url_for('beta_volantino') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
         <i class="bi bi-plus-circle-fill"></i> Nuovo Volantino
       </a>
@@ -460,5 +489,444 @@ document.addEventListener("DOMContentLoaded", () => {
 
   render();
 });
+</script>
+
+<!-- MODAL CARICA PROMO MENSILI -->
+<div class="modal fade" id="modalCaricaPromoMensili" tabindex="-1" aria-labelledby="modalCaricaPromoMensiliLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-0 pb-0 px-4 pt-4">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalCaricaPromoMensiliLabel">
+          <i class="bi bi-file-earmark-pdf-fill text-primary fs-4"></i>
+          <span>Strumento Promo Mensili</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body px-4 py-3">
+        <!-- Upload Form -->
+        <div class="card border-0 bg-light p-4 rounded-4 mb-4">
+          <h6 class="fw-bold mb-2">Carica Nuova Promo Mensile (PDF)</h6>
+          <p class="text-muted small">Carica il listino PDF del volantino o delle promozioni mensili. I prodotti scansionati verranno sincronizzati direttamente nel database con lo stato di "Promo Mensile".</p>
+          
+          <form id="form-carica-promo-mensili" enctype="multipart/form-data" class="row g-3 align-items-center">
+            <div class="col-12 col-md-8">
+              <input type="file" class="form-control rounded-3" id="pdf-file-mensile" name="pdf" accept=".pdf" required>
+            </div>
+            <div class="col-12 col-md-4">
+              <button type="submit" class="btn btn-primary rounded-4 w-100 fw-bold" id="btn-submit-mensile">
+                <i class="bi bi-upload me-2"></i>Elabora e Sincronizza
+              </button>
+            </div>
+          </form>
+          <div class="form-text small text-muted mt-2">I prodotti con codice corrispondente verranno aggiornati con il nuovo prezzo promozionale. Se non presenti nel database, verranno creati automaticamente.</div>
+        </div>
+
+        <!-- Spinner Promo Loading -->
+        <div id="promo-mensile-spinner" class="text-center py-4 d-none">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Scansione PDF in corso...</span>
+          </div>
+          <p class="text-muted small mt-2 fw-semibold text-primary">Estrazione prodotti e sincronizzazione database in corso. Attendi...</p>
+        </div>
+
+        <!-- Feedback Alert -->
+        <div id="promo-mensile-alert" class="alert d-none rounded-4 mb-4"></div>
+
+        <!-- Promo Products List -->
+        <div id="promo-mensile-results" class="d-none">
+          <h6 class="fw-bold text-color mb-3"><i class="bi bi-box-seam text-primary me-2"></i>Prodotti Estratti e Sincronizzati dal PDF</h6>
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table sheet-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 110px;">Codice</th>
+                  <th>Prodotto</th>
+                  <th style="width: 120px;" class="text-end">Prezzo</th>
+                  <th style="width: 150px;">Categoria</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-promo-mensili">
+                <!-- Filled dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 pt-0">
+        <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CARICA PROMO SCADENZE -->
+<div class="modal fade" id="modalCaricaPromoScadenze" tabindex="-1" aria-labelledby="modalCaricaPromoScadenzeLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-0 pb-0 px-4 pt-4">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalCaricaPromoScadenzeLabel">
+          <i class="bi bi-clock-history text-danger fs-4"></i>
+          <span>Strumento Promo Scadenze</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body px-4 py-3">
+        <!-- Upload Form -->
+        <div class="card border-0 bg-light p-4 rounded-4 mb-4">
+          <h6 class="fw-bold mb-2">Carica Nuova Promo Scadenze (PDF)</h6>
+          <p class="text-muted small">Carica il listino delle promozioni o scadenze per estrarre gli articoli e vedere immediatamente quali clienti li lavorano abitualmente.</p>
+          <form id="form-carica-promo-scadenze" enctype="multipart/form-data" class="row g-3 align-items-center">
+            <div class="col-12 col-md-8">
+              <input type="file" class="form-control rounded-3" id="pdf-file-scadenze" name="pdf_file" accept=".pdf" required>
+            </div>
+            <div class="col-12 col-md-4">
+              <button type="submit" class="btn btn-danger rounded-4 w-100 fw-bold" id="btn-submit-scadenze">
+                <i class="bi bi-upload me-2"></i>Elabora e Sovrascrivi
+              </button>
+            </div>
+          </form>
+          <div class="form-text small text-danger mt-1">Caricando un nuovo file PDF, i prodotti della promozione precedente verranno azzerati automaticamente.</div>
+        </div>
+
+        <!-- Feedback Alert Scadenze -->
+        <div id="promo-scadenze-alert" class="alert d-none rounded-4 mb-4"></div>
+
+        <!-- Spinner Promo Loading -->
+        <div id="promo-scad-spinner" class="text-center py-4 d-none">
+          <div class="spinner-border text-danger" role="status">
+            <span class="visually-hidden">Caricamento promo...</span>
+          </div>
+          <p class="text-muted small mt-2">Ricerca incrociata dei clienti attivi...</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-3 gap-1" id="promoScadTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-top-3 fw-bold" id="prodotti-tab" data-bs-toggle="tab" data-bs-target="#prodotti-pane" type="button" role="tab" aria-controls="prodotti-pane" aria-selected="true">
+              <i class="bi bi-box-seam me-1"></i> Articoli Promo Scadenze
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-top-3 fw-bold text-success" id="clienti-tab" data-bs-toggle="tab" data-bs-target="#clienti-pane" type="button" role="tab" aria-controls="clienti-pane" aria-selected="false">
+              <i class="bi bi-whatsapp me-1"></i> Clienti & WhatsApp
+            </button>
+          </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="promoScadTabContent">
+          <!-- Pane 1: Articoli -->
+          <div class="tab-pane fade show active" id="prodotti-pane" role="tabpanel" aria-labelledby="prodotti-tab" tabindex="0">
+            <div id="promo-scad-results">
+              <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table sheet-table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th style="width: 110px;">Codice</th>
+                      <th>Prodotto Estratto</th>
+                      <th style="width: 130px;">Scadenza</th>
+                      <th style="width: 110px;">Q.tà Disp.</th>
+                      <th style="width: 120px;" class="text-end">Prezzo Promo</th>
+                      <th>Clienti che lavorano l'articolo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-promo-scad">
+                    <!-- Dynamically filled -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pane 2: Clienti & WhatsApp -->
+          <div class="tab-pane fade" id="clienti-pane" role="tabpanel" aria-labelledby="clienti-tab" tabindex="0">
+            <div class="alert alert-info rounded-4 mb-3 small d-flex align-items-center gap-2">
+              <i class="bi bi-info-circle-fill fs-5"></i>
+              <span>Di seguito trovi i clienti raggruppati con i prodotti in scadenza che acquistano abitualmente. Clicca sul pulsante WhatsApp per inviare rapidamente un messaggio con le offerte precompilate!</span>
+            </div>
+            
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+              <table class="table sheet-table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 250px;">Cliente</th>
+                    <th style="width: 150px;">Zona</th>
+                    <th>Prodotti in Scadenza Lavorati</th>
+                    <th style="width: 180px;" class="text-center">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-promo-scad-clienti">
+                  <!-- Dynamically filled -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 justify-content-between">
+        <a href="/beta-volantino?tipo=promo_scadenza&scadenze=1" class="btn btn-success rounded-4 px-4 fw-bold">
+          <i class="bi bi-palette-fill me-1"></i> Crea Volantino da Scadenze
+        </a>
+        <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Gestione caricamento dati Promo Scadenze
+  async function caricaPromoScadenzeList() {
+    const spinner = document.getElementById('promo-scad-spinner');
+    const tbody = document.getElementById('tbody-promo-scad');
+    const tbodyClienti = document.getElementById('tbody-promo-scad-clienti');
+
+    if (spinner) spinner.classList.remove('d-none');
+    tbody.innerHTML = '';
+    if (tbodyClienti) tbodyClienti.innerHTML = '';
+
+    try {
+      const response = await fetch('/api/promo_scadenze');
+      const data = await response.json();
+
+      if (data.status !== 'ok') {
+        throw new Error("Errore API status");
+      }
+
+      if (!data.has_data) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-info-circle me-1"></i>Nessun prodotto presente nella promo scadenze attuale. Carica un listino PDF sopra.</td></tr>`;
+        if (tbodyClienti) tbodyClienti.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Nessun dato disponibile.</td></tr>`;
+      } else {
+        // 1. Riempi Tab Prodotti
+        tbody.innerHTML = data.prodotti.map(p => {
+          let clientiHtml = '';
+          if (!p.prodotto_id) {
+            clientiHtml = `<span class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Codice non presente nel database prodotti</span>`;
+          } else if (p.clienti.length === 0) {
+            clientiHtml = `<span class="text-muted small">Nessun cliente lavora questo articolo</span>`;
+          } else {
+            clientiHtml = p.clienti.map(c => `
+              <a href="/clienti/${c.id}" class="badge bg-light text-dark border text-decoration-none me-1.5 mb-1 hover-primary py-1.5 px-2">
+                <i class="bi bi-person me-0.5 text-primary"></i>${c.nome} <span class="text-muted" style="font-size:0.75rem;">(${c.zona})</span>
+              </a>
+            `).join('');
+          }
+
+          return `
+            <tr>
+              <td><span class="badge bg-light text-dark border font-monospace px-2 py-1">${p.codice}</span></td>
+              <td><strong>${p.nome}</strong></td>
+              <td><span class="badge bg-danger-light text-danger rounded-pill px-2 py-1">${p.scadenza}</span></td>
+              <td><span class="fw-bold">${p.quantita}</span></td>
+              <td class="text-end fw-bold text-success font-monospace">€ ${p.prezzo.toFixed(2)} / ${p.um}</td>
+              <td><div class="d-flex flex-wrap align-items-center gap-1">${clientiHtml}</div></td>
+            </tr>
+          `;
+        }).join('');
+
+        // 2. Raggruppa Prodotti per Cliente per Tab WhatsApp
+        const clientiMap = {};
+        data.prodotti.forEach(p => {
+          if (p.prodotto_id && p.clienti && p.clienti.length > 0) {
+            p.clienti.forEach(c => {
+              if (!clientiMap[c.id]) {
+                clientiMap[c.id] = {
+                  id: c.id,
+                  nome: c.nome,
+                  zona: c.zona,
+                  telefono: c.telefono || '',
+                  prodotti: []
+                };
+              }
+              clientiMap[c.id].prodotti.push(p);
+            });
+          }
+        });
+
+        const clientiList = Object.values(clientiMap).sort((a, b) => a.nome.localeCompare(b.nome));
+
+        if (clientiList.length === 0) {
+          if (tbodyClienti) tbodyClienti.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4"><i class="bi bi-info-circle me-1"></i>Nessun cliente lavora i prodotti in questa promozione.</td></tr>`;
+        } else {
+          if (tbodyClienti) {
+            tbodyClienti.innerHTML = clientiList.map(c => {
+              const prodottiHtml = c.prodotti.map(p => `
+                <div class="mb-1 small">
+                  <i class="bi bi-caret-right-fill text-danger me-1"></i>
+                  <strong>${p.nome}</strong> (Cod. ${p.codice}) — 
+                  <span class="text-success fw-bold">€ ${p.prezzo.toFixed(2)} / ${p.um}</span> 
+                  <span class="text-muted" style="font-size: 0.8rem;">[Scad: ${p.scadenza} | Disp: ${p.quantita}]</span>
+                </div>
+              `).join('');
+
+              let msg = `Ciao ${c.nome}! Ti segnaliamo queste promozioni speciali su articoli in scadenza che acquisti abitualmente:\n\n`;
+              c.prodotti.forEach(p => {
+                msg += `• ${p.nome} (Cod. ${p.codice}) a solo € ${p.prezzo.toFixed(2)} / ${p.um} (Scadenza: ${p.scadenza} - Disp: ${p.quantita})\n`;
+              });
+              msg += `\nSei interessato a qualche articolo? Resto a disposizione.`;
+              const waUrl = `https://wa.me/${c.telefono.replace('+', '')}?text=${encodeURIComponent(msg)}`;
+
+              const waButtonHtml = c.telefono 
+                ? `<a href="${waUrl}" target="_blank" class="btn btn-sm btn-success rounded-pill px-3 fw-bold d-flex align-items-center gap-1 justify-content-center">
+                     <i class="bi bi-whatsapp"></i> Invia Offerta
+                   </a>`
+                : `<span class="text-muted small italic"><i class="bi bi-telephone-x me-1"></i>Nessun telefono</span>`;
+
+              return `
+                <tr>
+                  <td><strong>${c.nome}</strong></td>
+                  <td><span class="badge bg-light text-dark border px-2 py-1">${c.zona}</span></td>
+                  <td>${prodottiHtml}</td>
+                  <td class="text-center">${waButtonHtml}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Errore caricamento promo scadenze:", err);
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-octagon-fill me-1"></i>Errore durante il recupero dei dati. Riprova.</td></tr>`;
+      if (tbodyClienti) tbodyClienti.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">Impossibile caricare i dati.</td></tr>`;
+    } finally {
+      if (spinner) spinner.classList.add('d-none');
+    }
+  }
+
+  // Gestione upload Promo Scadenze
+  const formScadenze = document.getElementById("form-carica-promo-scadenze");
+  if (formScadenze) {
+    formScadenze.addEventListener("submit", (e) => {
+      e.preventDefault();
+      
+      const fileInput = document.getElementById("pdf-file-scadenze");
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const spinner = document.getElementById("promo-scad-spinner");
+      const alertBox = document.getElementById("promo-scadenze-alert");
+      const btnSubmit = document.getElementById("btn-submit-scadenze");
+
+      spinner.classList.remove("d-none");
+      alertBox.classList.add("d-none");
+      btnSubmit.disabled = true;
+
+      const formData = new FormData();
+      formData.append("pdf_file", file);
+
+      fetch("/api/importa-pdf-scadenze", {
+        method: "POST",
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        btnSubmit.disabled = false;
+        spinner.classList.add("d-none");
+
+        if (data.status === "ok") {
+          // Successo
+          alertBox.className = "alert alert-success rounded-4 mb-4 d-block";
+          alertBox.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i> ${data.message}`;
+          fileInput.value = ""; // reset
+          
+          // Ricarica la lista degli articoli e dei clienti nel modal in tempo reale
+          caricaPromoScadenzeList();
+        } else {
+          // Errore
+          alertBox.className = "alert alert-danger rounded-4 mb-4 d-block";
+          alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${data.message || "Errore sconosciuto"}`;
+        }
+      })
+      .catch(err => {
+        console.error("Errore caricamento promo scadenze:", err);
+        btnSubmit.disabled = false;
+        spinner.classList.add("d-none");
+        alertBox.className = "alert alert-danger rounded-4 mb-4 d-block";
+        alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Errore di rete o del server. Riprova.`;
+      });
+    });
+  }
+
+  // Gestione upload Promo Mensile
+  const formMensile = document.getElementById("form-carica-promo-mensili");
+  if (formMensile) {
+    formMensile.addEventListener("submit", (e) => {
+      e.preventDefault();
+      
+      const fileInput = document.getElementById("pdf-file-mensile");
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const spinner = document.getElementById("promo-mensile-spinner");
+      const alertBox = document.getElementById("promo-mensile-alert");
+      const resultsDiv = document.getElementById("promo-mensile-results");
+      const tbody = document.getElementById("tbody-promo-mensili");
+      const btnSubmit = document.getElementById("btn-submit-mensile");
+
+      spinner.classList.remove("d-none");
+      alertBox.classList.add("d-none");
+      resultsDiv.classList.add("d-none");
+      btnSubmit.disabled = true;
+
+      const formData = new FormData();
+      formData.append("pdf", file);
+
+      fetch("/api/importa-pdf-volantino", {
+        method: "POST",
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        btnSubmit.disabled = false;
+        spinner.classList.add("d-none");
+
+        if (data.status === "ok") {
+          // Successo
+          alertBox.className = "alert alert-success rounded-4 mb-4 d-block";
+          alertBox.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i> ${data.message}`;
+          
+          if (data.products && data.products.length > 0) {
+            tbody.innerHTML = data.products.map(p => `
+              <tr>
+                <td><span class="badge bg-light text-dark border font-monospace px-2 py-1">${p.codice}</span></td>
+                <td><strong>${p.nome}</strong></td>
+                <td class="text-end fw-bold text-success font-monospace">€ ${p.prezzo} / ${p.um}</td>
+                <td><span class="badge bg-primary-light text-primary rounded-pill px-2.5 py-1">${p.categoria}</span></td>
+              </tr>
+            `).join('');
+            resultsDiv.classList.remove("d-none");
+          } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Nessun prodotto estratto.</td></tr>`;
+            resultsDiv.classList.remove("d-none");
+          }
+          fileInput.value = ""; // reset
+        } else {
+          // Errore
+          alertBox.className = "alert alert-danger rounded-4 mb-4 d-block";
+          alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${data.message || "Errore sconosciuto"}`;
+        }
+      })
+      .catch(err => {
+        console.error("Errore caricamento promo promo_mensile:", err);
+        btnSubmit.disabled = false;
+        spinner.classList.add("d-none");
+        alertBox.className = "alert alert-danger rounded-4 mb-4 d-block";
+        alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Errore di rete o del server. Riprova.`;
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const modalPromo = document.getElementById('modalCaricaPromoScadenze');
+    if (modalPromo) {
+      modalPromo.addEventListener('show.bs.modal', function () {
+        caricaPromoScadenzeList();
+      });
+    }
+  });
 </script>
 {% endblock %}

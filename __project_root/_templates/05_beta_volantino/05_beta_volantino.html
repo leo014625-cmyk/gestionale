@@ -189,6 +189,62 @@
                   <input type="number" id="griglia-righe" class="form-control form-control-sm bg-white border text-dark" value="3" min="1" max="10">
                 </div>
               </div>
+
+              <div class="mb-3">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
+                  <span>Larghezza Celle (px)</span>
+                  <span class="text-primary"><span id="val-cella-w">380</span>px</span>
+                </label>
+                <input type="range" id="griglia-cella-w" class="form-range" min="150" max="600" step="5" value="380">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
+                  <span>Altezza Celle (px)</span>
+                  <span class="text-primary"><span id="val-cella-h">500</span>px</span>
+                </label>
+                <input type="range" id="griglia-cella-h" class="form-range" min="150" max="800" step="5" value="500">
+              </div>
+            </div>
+
+            <!-- SFONDO DIETRO LE CELLE -->
+            <div class="border-top pt-3 mt-3">
+              <h7 class="fw-bold d-block text-dark mb-2 small"><i class="bi bi-image text-success me-1"></i>Sfondo Griglia Prodotti</h7>
+              
+              <div class="d-flex gap-1 mb-2">
+                <button class="btn btn-light btn-sm flex-grow-1 border text-dark d-flex align-items-center justify-content-center gap-1" id="foglio-bg-file-btn">
+                  <i class="bi bi-upload"></i> Carica Sfondo
+                </button>
+                <input type="file" id="foglio-bg-file-input" class="d-none" accept="image/*">
+                <button class="btn btn-outline-danger btn-sm" id="foglio-bg-rimuovi" title="Rimuovi sfondo"><i class="bi bi-trash"></i></button>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Larghezza Sfondo (%)</span>
+                  <span class="text-primary"><span id="val-bg-width">100</span>%</span>
+                </label>
+                <input type="range" id="foglio-bg-width" class="form-range" min="10" max="250" step="5" value="100">
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Altezza Sfondo (%)</span>
+                  <span class="text-primary"><span id="val-bg-height">100</span>%</span>
+                </label>
+                <input type="range" id="foglio-bg-height" class="form-range" min="10" max="250" step="5" value="100">
+              </div>
+
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted">Posizione X (%)</label>
+                  <input type="range" id="foglio-bg-pos-x" class="form-range" min="0" max="100" step="1" value="50">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted">Posizione Y (%)</label>
+                  <input type="range" id="foglio-bg-pos-y" class="form-range" min="0" max="100" step="1" value="50">
+                </div>
+              </div>
             </div>
 
             <!-- PRESETS & ADATTA -->
@@ -281,6 +337,11 @@
             <div class="mb-3">
               <label class="form-label small text-muted">Descrizione</label>
               <textarea id="inspector-descrizione" rows="2" class="form-control form-control-sm bg-white border text-dark"></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small text-muted">Scadenza Prodotto</label>
+              <input type="text" id="inspector-scadenza" class="form-control form-control-sm bg-white border text-dark" placeholder="Es: Scadenza: 15/08/2026">
             </div>
 
             <div class="form-check form-switch mb-3" style="padding-left: 2.5em;">
@@ -421,6 +482,33 @@
                   <span class="text-primary"><span id="val-title-size">17</span>px</span>
                 </label>
                 <input type="range" id="inspector-title-size" class="form-range" min="8" max="30" step="1" value="17">
+              </div>
+
+              <!-- SLIDERS PER TIPOGRAFIA DESCRIZIONE PRODOTTO -->
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Grandezza Descrizione</span>
+                  <span class="text-primary"><span id="val-desc-size">11</span>px</span>
+                </label>
+                <input type="range" id="inspector-desc-size" class="form-range" min="8" max="24" step="1" value="11">
+              </div>
+
+              <!-- SLIDERS PER TIPOGRAFIA SCADENZA PRODOTTO -->
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Grandezza Scadenza</span>
+                  <span class="text-primary"><span id="val-scadenza-size">12</span>px</span>
+                </label>
+                <input type="range" id="inspector-scadenza-size" class="form-range" min="8" max="24" step="1" value="12">
+              </div>
+
+              <!-- CONTROLLO ALTEZZA / POSIZIONE SCADENZA PRODOTTO -->
+              <div class="mb-2">
+                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                  <span>Altezza (Offset) Scadenza</span>
+                  <span class="text-primary"><span id="val-scadenza-y">-4</span>px</span>
+                </label>
+                <input type="range" id="inspector-scadenza-y" class="form-range" min="-15" max="15" step="1" value="-4">
               </div>
 
               <div class="row g-2 mb-2">
@@ -566,6 +654,13 @@
                 </div>
               </div>
 
+              <div class="form-check form-switch mb-3 bg-light p-2 rounded border d-flex align-items-center justify-content-between" style="padding-left: 2.5em;">
+                <label class="form-check-label small text-dark fw-semibold" for="inspector-bg-transparent">
+                  <i class="bi bi-eye-slash-fill text-primary me-1"></i> Rendi Cella Trasparente
+                </label>
+                <input class="form-check-input me-1" type="checkbox" id="inspector-bg-transparent">
+              </div>
+
               <div class="mb-3">
                 <label class="form-label small text-muted">Layout Interno Cella</label>
                 <select id="inspector-layout" class="form-select form-select-sm bg-white border text-dark">
@@ -642,6 +737,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const controlRows = document.getElementById("griglia-righe");
   const controlGap = document.getElementById("griglia-gap");
 
+  // Grid background controls
+  const controlBgFileBtn = document.getElementById("foglio-bg-file-btn");
+  const controlBgFileInput = document.getElementById("foglio-bg-file-input");
+  const controlBgRimuovi = document.getElementById("foglio-bg-rimuovi");
+  const controlBgWidth = document.getElementById("foglio-bg-width");
+  const controlBgHeight = document.getElementById("foglio-bg-height");
+  const controlBgPosX = document.getElementById("foglio-bg-pos-x");
+  const controlBgPosY = document.getElementById("foglio-bg-pos-y");
+
+  const valBgWidth = document.getElementById("val-bg-width");
+  const valBgHeight = document.getElementById("val-bg-height");
+
+  // Cell dimensions controls
+  const controlCellaW = document.getElementById("griglia-cella-w");
+  const controlCellaH = document.getElementById("griglia-cella-h");
+  const valCellaW = document.getElementById("val-cella-w");
+  const valCellaH = document.getElementById("val-cella-h");
+
   // Range value displays
   const valLarghezza = document.getElementById("val-larghezza");
   const valAltezza = document.getElementById("val-altezza");
@@ -659,6 +772,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const inspectorCodice = document.getElementById("inspector-codice");
   const inspectorTitolo = document.getElementById("inspector-titolo");
   const inspectorDescrizione = document.getElementById("inspector-descrizione");
+  const inspectorScadenza = document.getElementById("inspector-scadenza");
   const inspectorPrezzo = document.getElementById("inspector-prezzo");
   const inspectorPrezzoOld = document.getElementById("inspector-prezzo-old");
   
@@ -693,8 +807,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const inspectorTitleHeight = document.getElementById("inspector-title-height");
   const inspectorDescItalic = document.getElementById("inspector-desc-italic");
   const inspectorTextUpper = document.getElementById("inspector-text-uppercase");
+  const inspectorDescSize = document.getElementById("inspector-desc-size");
+  const inspectorScadenzaSize = document.getElementById("inspector-scadenza-size");
+  const inspectorScadenzaY = document.getElementById("inspector-scadenza-y");
 
   const valTitleSize = document.getElementById("val-title-size");
+  const valDescSize = document.getElementById("val-desc-size");
+  const valScadenzaSize = document.getElementById("val-scadenza-size");
+  const valScadenzaY = document.getElementById("val-scadenza-y");
   
   const inspectorPriceStyle = document.getElementById("inspector-price-style");
   const inspectorPriceSize = document.getElementById("inspector-price-size");
@@ -709,6 +829,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const inspectorBorderColor = document.getElementById("inspector-border-color");
   const inspectorRadius = document.getElementById("inspector-radius");
   const inspectorBgColor = document.getElementById("inspector-bgcolor");
+  const inspectorBgTransparent = document.getElementById("inspector-bg-transparent");
   const inspectorShadow = document.getElementById("inspector-shadow");
   
   const inspectorLayout = document.getElementById("inspector-layout");
@@ -798,10 +919,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setInspectorImage("");
           }
 
-          // Cerca sempre le immagini correlate su Google per il prodotto selezionato
-          if (nome && nome.trim() !== "" && nome.trim() !== "PRODOTTO") {
-            eseguiRicercaImmaginiGoogle(nome.trim());
-          }
+
 
           updateActiveCellFromInspector();
           searchDbResults.style.display = "none";
@@ -887,6 +1005,32 @@ document.addEventListener("DOMContentLoaded", () => {
        GESTIONE PRESET (LOCALSTORAGE)
      ------------------------------------------------------------------- */
   document.getElementById("salva-preset").addEventListener("click", () => {
+    let sampleCell = cellaSelezionata || document.querySelector(".cella-prodotto");
+    const cellStyles = {};
+    const cellStylesKeys = [
+      'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 'scadenzaSize', 'scadenzaY',
+      'priceSize', 'priceColor', 'priceBg', 'priceCurrency', 'priceWeight', 'descItalic', 
+      'textUpper', 'priceStyle', 'layout', 'textAlign', 'fontFamily', 'fontColor', 
+      'borderStyle', 'borderColor', 'radius', 'bgColor', 'shadow', 'imageFilter', 
+      'imageZoom', 'imagePosX', 'imagePosY', 'imageRadius', 'imagePadding', 'imageAspect', 'showDesc'
+    ];
+
+    if (sampleCell) {
+      cellStylesKeys.forEach(key => {
+        if (sampleCell.dataset[key] !== undefined) {
+          cellStyles[key] = sampleCell.dataset[key];
+        }
+      });
+    }
+
+    const headerImg = pagine[0]?.querySelector(".page-header img")?.src || "";
+
+    const bgImg = pagine[0]?.dataset.bgImg || "";
+    const bgWidth = pagine[0]?.dataset.bgWidth || "100";
+    const bgHeight = pagine[0]?.dataset.bgHeight || "100";
+    const bgPosX = pagine[0]?.dataset.bgPosX !== undefined ? pagine[0]?.dataset.bgPosX : "50";
+    const bgPosY = pagine[0]?.dataset.bgPosY !== undefined ? pagine[0]?.dataset.bgPosY : "50";
+
     const preset = {
       larghezza: controlLarghezza.value,
       altezza: controlAltezza.value,
@@ -898,19 +1042,72 @@ document.addEventListener("DOMContentLoaded", () => {
       headerFit: controlHeaderFit.value,
       cols: controlCols.value,
       rows: controlRows.value,
-      gap: controlGap.value
+      gap: controlGap.value,
+      headerImg: headerImg,
+      cellStyles: cellStyles,
+      bgImg: bgImg,
+      bgWidth: bgWidth,
+      bgHeight: bgHeight,
+      bgPosX: bgPosX,
+      bgPosY: bgPosY,
+      cellWidth: controlCellaW.value,
+      cellHeight: controlCellaH.value
     };
+
     localStorage.setItem("horeca_volantino_preset", JSON.stringify(preset));
-    showToast("Dimensioni e Layout salvati come Default!");
+
+    fetch("/api/salva_preset_default", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(preset)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === "ok") {
+        showToast("Parametri completi, logo e layout salvati come Default!");
+      } else {
+        showToast("Salvato localmente. Errore server: " + data.message);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      showToast("Salvato in locale nel browser!");
+    });
   });
 
   document.getElementById("carica-preset").addEventListener("click", () => {
-    const raw = localStorage.getItem("horeca_volantino_preset");
-    if (!raw) {
-      showToast("Nessun preset salvato!");
-      return;
-    }
-    const preset = JSON.parse(raw);
+    fetch("/api/carica_preset_default")
+    .then(r => r.json())
+    .then(data => {
+      let preset = null;
+      if (data.status === "ok") {
+        preset = data.preset;
+      } else {
+        const raw = localStorage.getItem("horeca_volantino_preset");
+        if (raw) preset = JSON.parse(raw);
+      }
+
+      if (!preset) {
+        showToast("Nessun preset salvato!");
+        return;
+      }
+
+      applicaPresetAggiustato(preset);
+      showToast("Default caricati con successo!");
+    })
+    .catch(err => {
+      console.warn("Errore server default preset, fallback locale:", err);
+      const raw = localStorage.getItem("horeca_volantino_preset");
+      if (raw) {
+        applicaPresetAggiustato(JSON.parse(raw));
+        showToast("Default caricati dal browser!");
+      } else {
+        showToast("Nessun preset salvato!");
+      }
+    });
+  });
+
+  function applicaPresetAggiustato(preset) {
     controlLarghezza.value = preset.larghezza;
     controlAltezza.value = preset.altezza;
     controlPadTop.value = preset.padTop;
@@ -922,14 +1119,139 @@ document.addEventListener("DOMContentLoaded", () => {
     controlCols.value = preset.cols;
     controlRows.value = preset.rows;
     controlGap.value = preset.gap;
+    controlCellaW.value = preset.cellWidth || "380";
+    controlCellaH.value = preset.cellHeight || "500";
 
     valLarghezza.textContent = preset.larghezza;
     valAltezza.textContent = preset.altezza;
     valGap.textContent = preset.gap;
+    valCellaW.textContent = controlCellaW.value;
+    valCellaH.textContent = controlCellaH.value;
 
     applicaDimensioniFoglio(pagine[paginaCorrente]);
-    rigeneraGrigliaCorrente();
-    showToast("Preset di default caricato!");
+
+    if (preset.headerImg) {
+      pagine.forEach(page => {
+        const header = page.querySelector(".page-header");
+        if (header) {
+          header.innerHTML = `<img src="${preset.headerImg}">`;
+        }
+      });
+    }
+
+    if (preset.bgImg !== undefined) {
+      pagine.forEach(page => {
+        Object.assign(page.dataset, {
+          bgImg: preset.bgImg,
+          bgWidth: preset.bgWidth || "100",
+          bgHeight: preset.bgHeight || "100",
+          bgPosX: preset.bgPosX !== undefined ? preset.bgPosX : "50",
+          bgPosY: preset.bgPosY !== undefined ? preset.bgPosY : "50",
+          cellWidth: preset.cellWidth || "380",
+          cellHeight: preset.cellHeight || "500"
+        });
+        applicaSfondoFoglio(page);
+        applicaStrutturaGriglia(page, parseInt(page.dataset.cols || "3", 10), parseInt(page.dataset.rows || "3", 10), parseInt(page.dataset.gap || "10", 10));
+      });
+      aggiornaIspettoreSfondoControlli(pagine[paginaCorrente]);
+    }
+
+    if (preset.cellStyles) {
+      pagine.forEach(page => {
+        page.querySelectorAll(".cella-prodotto").forEach(cell => {
+          Object.assign(cell.dataset, preset.cellStyles);
+          applicaCellaRendering(cell);
+        });
+      });
+    }
+  }
+
+  /* -------------------------------------------------------------------
+       GESTIONE IMMAGINE DI SFONDO DIETRO LE CELLE DELLA GRIGLIA
+     ------------------------------------------------------------------- */
+  function applicaSfondoFoglio(page) {
+    if (!page) return;
+
+    const bgImg = page.dataset.bgImg || "";
+    if (bgImg) {
+      page.style.backgroundImage = `url("${bgImg}")`;
+      page.style.backgroundRepeat = "no-repeat";
+      
+      const w = page.dataset.bgWidth || "100";
+      const h = page.dataset.bgHeight || "100";
+      page.style.backgroundSize = `${w}% ${h}%`;
+      
+      const x = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "50";
+      const y = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "50";
+      page.style.backgroundPosition = `${x}% ${y}%`;
+    } else {
+      page.style.backgroundImage = "";
+      page.style.backgroundSize = "";
+      page.style.backgroundPosition = "";
+    }
+  }
+
+  function aggiornaIspettoreSfondoControlli(page) {
+    if (!page) return;
+    controlBgWidth.value = page.dataset.bgWidth || "100";
+    controlBgHeight.value = page.dataset.bgHeight || "100";
+    controlBgPosX.value = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "50";
+    controlBgPosY.value = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "50";
+
+    valBgWidth.textContent = controlBgWidth.value;
+    valBgHeight.textContent = controlBgHeight.value;
+  }
+
+  if (controlBgFileBtn && controlBgFileInput) {
+    controlBgFileBtn.addEventListener("click", () => controlBgFileInput.click());
+    
+    controlBgFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const page = pagine[paginaCorrente];
+        if (page) {
+          page.dataset.bgImg = reader.result;
+          applicaSfondoFoglio(page);
+          aggiornaIspettoreSfondoControlli(page);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (controlBgRimuovi) {
+    controlBgRimuovi.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.bgImg = "";
+        applicaSfondoFoglio(page);
+        aggiornaIspettoreSfondoControlli(page);
+      }
+    });
+  }
+
+  function aggiornaSfondoDaControlli() {
+    const page = pagine[paginaCorrente];
+    if (!page) return;
+
+    page.dataset.bgWidth = controlBgWidth.value;
+    page.dataset.bgHeight = controlBgHeight.value;
+    page.dataset.bgPosX = controlBgPosX.value;
+    page.dataset.bgPosY = controlBgPosY.value;
+
+    valBgWidth.textContent = controlBgWidth.value;
+    valBgHeight.textContent = controlBgHeight.value;
+
+    applicaSfondoFoglio(page);
+  }
+
+  [controlBgWidth, controlBgHeight, controlBgPosX, controlBgPosY].forEach(ctrl => {
+    if (ctrl) {
+      ctrl.addEventListener("input", aggiornaSfondoDaControlli);
+      ctrl.addEventListener("change", aggiornaSfondoDaControlli);
+    }
   });
 
   /* -------------------------------------------------------------------
@@ -962,6 +1284,13 @@ document.addEventListener("DOMContentLoaded", () => {
       page.dataset.cols = srcPage.dataset.cols;
       page.dataset.rows = srcPage.dataset.rows;
       page.dataset.gap = srcPage.dataset.gap;
+      
+      // Copia parametri sfondo
+      page.dataset.bgImg = srcPage.dataset.bgImg || "";
+      page.dataset.bgWidth = srcPage.dataset.bgWidth || "100";
+      page.dataset.bgHeight = srcPage.dataset.bgHeight || "100";
+      page.dataset.bgPosX = srcPage.dataset.bgPosX !== undefined ? srcPage.dataset.bgPosX : "50";
+      page.dataset.bgPosY = srcPage.dataset.bgPosY !== undefined ? srcPage.dataset.bgPosY : "50";
 
       // Copia header e footer (contenenti loghi, testi, immagini di sfondo)
       const targetHeader = page.querySelector(".page-header");
@@ -999,7 +1328,7 @@ document.addEventListener("DOMContentLoaded", () => {
           'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 
           'priceSize', 'priceColor', 'priceBg', 'priceCurrency', 'priceWeight', 'descItalic', 
           'textUpper', 'priceStyle', 'layout', 'textAlign', 'fontFamily', 'fontColor', 
-          'borderStyle', 'borderColor', 'radius', 'bgColor', 'shadow', 'imageFilter', 
+          'borderStyle', 'borderColor', 'radius', 'bgColor', 'bgTransparent', 'shadow', 'imageFilter', 
           'imageZoom', 'imagePosX', 'imagePosY', 'imageRadius', 'imagePadding', 'imageAspect', 'showDesc'
         ];
 
@@ -1016,6 +1345,7 @@ document.addEventListener("DOMContentLoaded", () => {
         applicaCellaRendering(cell);
         grid.appendChild(cell);
       }
+      applicaSfondoFoglio(page);
     });
 
     showToast("Layout, intestazione (logo), pié di pagina e stili delle celle copiati su tutti i fogli!");
@@ -1037,10 +1367,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const styleKeys = [
-        'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 
+        'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 'scadenzaSize', 'scadenzaY',
         'priceSize', 'priceColor', 'priceBg', 'priceCurrency', 'priceWeight', 'descItalic', 
         'textUpper', 'priceStyle', 'layout', 'textAlign', 'fontFamily', 'fontColor', 
-        'borderStyle', 'borderColor', 'radius', 'bgColor', 'shadow', 'imageFilter', 
+        'borderStyle', 'borderColor', 'radius', 'bgColor', 'bgTransparent', 'shadow', 'imageFilter', 
         'imageZoom', 'imagePosX', 'imagePosY', 'imageRadius', 'imagePadding', 'imageAspect', 'showDesc'
       ];
 
@@ -1249,23 +1579,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const grid = pageEl.querySelector(".page-grid");
     const header = pageEl.querySelector(".page-header");
 
+    const cellW = pageEl.dataset.cellWidth || "380";
+    const cellH = pageEl.dataset.cellHeight || "500";
+
     grid.style.display = "grid";
     grid.style.gap = gap + "px";
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-
-    const pageH = parseInt(pageEl.dataset.altezza || "1100", 10);
-    const paddingTop = parseInt(pageEl.dataset.padTop || "10", 10);
-    const paddingBottom = parseInt(pageEl.dataset.padBottom || "10", 10);
-    
-    // Deterministic header height calculation to avoid offsetHeight browser sync issues
-    const headerH = parseInt(pageEl.dataset.headerH || "80", 10);
-    const z = parseFloat(pageEl.dataset.headerZoom || "1");
-    const hHeight = header ? (headerH * z) : 0;
-
-    const availableH = Math.max(100, pageH - paddingTop - paddingBottom - hHeight - 20); 
-    const rowH = Math.max(50, Math.floor((availableH - (gap * (rows - 1))) / rows));
-
-    grid.style.gridTemplateRows = `repeat(${rows}, ${rowH}px)`;
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${cellW}px)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, ${cellH}px)`;
+    grid.style.justifyContent = "center";
+    grid.style.alignContent = "start";
     grid.style.alignItems = "stretch";
   }
 
@@ -1305,6 +1627,32 @@ document.addEventListener("DOMContentLoaded", () => {
     ctrl.addEventListener("change", rigeneraGrigliaCorrente);
   });
   controlGap.addEventListener("input", rigeneraGrigliaCorrente);
+
+  function aggiornaDimensioniCelleCorrente() {
+    const page = pagine[paginaCorrente];
+    if (!page) return;
+    const w = controlCellaW.value;
+    const h = controlCellaH.value;
+
+    page.dataset.cellWidth = w;
+    page.dataset.cellHeight = h;
+
+    valCellaW.textContent = w;
+    valCellaH.textContent = h;
+
+    const cols = parseInt(page.dataset.cols || "3", 10);
+    const rows = parseInt(page.dataset.rows || "3", 10);
+    const gap = parseInt(page.dataset.gap || "10", 10);
+
+    applicaStrutturaGriglia(page, cols, rows, gap);
+  }
+
+  [controlCellaW, controlCellaH].forEach(ctrl => {
+    if (ctrl) {
+      ctrl.addEventListener("input", aggiornaDimensioniCelleCorrente);
+      ctrl.addEventListener("change", aggiornaDimensioniCelleCorrente);
+    }
+  });
 
   /* -------------------------------------------------------------------
        CREAZIONE DI UNA SINGOLA CELLA PRODOTTO
@@ -1346,7 +1694,11 @@ document.addEventListener("DOMContentLoaded", () => {
       imageRadius: "4",
       imagePadding: "0",
       imageAspect: "auto",
-      oldPrice: ""
+      oldPrice: "",
+      scadenza: "",
+      scadenzaSize: "12",
+      scadenzaY: "-4",
+      bgTransparent: "0"
     });
 
     cell.innerHTML = `
@@ -1358,6 +1710,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="codice small mb-1"></div>
           <div class="titolo fw-bold small mb-1">PRODOTTO</div>
           <div class="descrizione small text-muted mb-1">Fai click per selezionare</div>
+          <div class="scadenza-tag text-center text-danger fw-semibold mb-1" style="display: none; font-size: 12px; margin-bottom: 2px;"></div>
           <div class="prezzo fw-bold prezzo-base">€ 0.00</div>
         </div>
       </div>
@@ -1639,6 +1992,25 @@ document.addEventListener("DOMContentLoaded", () => {
       descEl.style.display = showDesc ? "block" : "none";
     }
 
+    const scadTag = cell.querySelector(".scadenza-tag");
+    if (scadTag) {
+      scadTag.style.fontFamily = fontFamily;
+      const scadSize = cell.dataset.scadenzaSize || "12";
+      scadTag.style.fontSize = scadSize + "px";
+      
+      const scadY = cell.dataset.scadenzaY !== undefined ? cell.dataset.scadenzaY : "-4";
+      scadTag.style.marginBottom = scadY + "px";
+
+      if (cell.dataset.scadenza) {
+        let cleanText = cell.dataset.scadenza.trim();
+        cleanText = cleanText.replace(/^(scadenza:|scad:|scad)\s*/i, "");
+        scadTag.innerText = "SCAD: " + cleanText;
+        scadTag.style.display = "block";
+      } else {
+        scadTag.style.display = "none";
+      }
+    }
+
     // 4. Stile Prezzo Personalizzato
     if (prezzoEl) {
       const priceSize = parseInt(cell.dataset.priceSize || "26", 10);
@@ -1727,12 +2099,36 @@ document.addEventListener("DOMContentLoaded", () => {
       img.style.filter = f;
     }
 
-    // 6. Contorno cella e ombreggiatura
+    // 6. Contorno cella, trasparenza e ombreggiatura
     cell.style.borderStyle = cell.dataset.borderStyle || "solid";
     cell.style.borderColor = cell.dataset.borderColor || "#cbd5e1";
     cell.style.borderRadius = (cell.dataset.radius || "6") + "px";
-    cell.style.backgroundColor = cell.dataset.bgColor || "#ffffff";
-    cell.classList.toggle("cella-shadow", cell.dataset.shadow === "1");
+
+    const isTransparent = cell.dataset.bgTransparent === "1";
+    
+    if (isTransparent) {
+      cell.style.backgroundColor = "transparent";
+      cell.style.boxShadow = "none";
+      cell.classList.remove("cella-shadow");
+      
+      if (imgBox) {
+        imgBox.style.backgroundColor = "transparent";
+        imgBox.style.borderColor = "transparent";
+        imgBox.classList.remove("bg-light", "border");
+      }
+    } else {
+      cell.style.backgroundColor = cell.dataset.bgColor || "#ffffff";
+      cell.classList.toggle("cella-shadow", cell.dataset.shadow === "1");
+      
+      if (imgBox) {
+        imgBox.style.backgroundColor = "";
+        imgBox.style.borderColor = "";
+        imgBox.classList.add("border");
+        if (!imgBox.querySelector("img")) {
+          imgBox.classList.add("bg-light");
+        }
+      }
+    }
   }
 
   /* -------------------------------------------------------------------
@@ -1909,6 +2305,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inspectorCodice.value = cell.dataset.codice || "";
     inspectorTitolo.value = cell.querySelector(".titolo")?.innerText || "";
     inspectorDescrizione.value = cell.querySelector(".descrizione")?.innerText || "";
+    inspectorScadenza.value = cell.dataset.scadenza || "";
     inspectorPrezzo.value = cell.querySelector(".prezzo")?.innerText || "";
     inspectorPrezzoOld.value = cell.dataset.oldPrice || "";
 
@@ -1946,15 +2343,24 @@ document.addEventListener("DOMContentLoaded", () => {
     inspectorFontFamily.value = cell.dataset.fontFamily || "inherit";
     inspectorFontColor.value = cell.dataset.fontColor || "#000000";
     
-     inspectorTitleSize.value = cell.dataset.titleSize || "17";
-     valTitleSize.textContent = inspectorTitleSize.value;
- 
-     inspectorTitleWeight.value = cell.dataset.titleWeight || "700";
-     inspectorTitleSpacing.value = cell.dataset.titleSpacing || "0";
-     inspectorTitleHeight.value = cell.dataset.titleHeight || "1.2";
-     
-     inspectorDescItalic.checked = cell.dataset.descItalic === "1";
-     inspectorTextUpper.checked = cell.dataset.textUpper === "1";
+    inspectorTitleSize.value = cell.dataset.titleSize || "17";
+    valTitleSize.textContent = inspectorTitleSize.value;
+
+    inspectorTitleWeight.value = cell.dataset.titleWeight || "700";
+    inspectorTitleSpacing.value = cell.dataset.titleSpacing || "0";
+    inspectorTitleHeight.value = cell.dataset.titleHeight || "1.2";
+
+    inspectorDescSize.value = cell.dataset.descSize || "11";
+    valDescSize.textContent = inspectorDescSize.value;
+
+    inspectorScadenzaSize.value = cell.dataset.scadenzaSize || "12";
+    valScadenzaSize.textContent = inspectorScadenzaSize.value;
+
+    inspectorScadenzaY.value = cell.dataset.scadenzaY !== undefined ? cell.dataset.scadenzaY : "-4";
+    valScadenzaY.textContent = inspectorScadenzaY.value;
+
+    inspectorDescItalic.checked = cell.dataset.descItalic === "1";
+    inspectorTextUpper.checked = cell.dataset.textUpper === "1";
  
      // Stili Prezzo
      inspectorPriceStyle.value = cell.dataset.priceStyle || "base";
@@ -1972,6 +2378,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inspectorBorderColor.value = cell.dataset.borderColor || "#cbd5e1";
     inspectorRadius.value = cell.dataset.radius || "6";
     inspectorBgColor.value = cell.dataset.bgColor || "#ffffff";
+    inspectorBgTransparent.checked = cell.dataset.bgTransparent === "1";
     inspectorShadow.checked = cell.dataset.shadow === "1";
 
     // Layout
@@ -1980,12 +2387,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     googleImgQuery.value = inspectorTitolo.value;
     googleImgGallery.style.display = "none";
-    
-    // Ricerca automatica immagini Google in base al nome del prodotto selezionato
-    const queryProdotto = inspectorTitolo.value ? inspectorTitolo.value.trim() : "";
-    if (queryProdotto && queryProdotto !== "" && queryProdotto !== "PRODOTTO" && queryProdotto !== "Nessun prodotto") {
-      eseguiRicercaImmaginiGoogle(queryProdotto);
-    }
   }
 
   function clearSelection() {
@@ -2114,11 +2515,17 @@ document.addEventListener("DOMContentLoaded", () => {
     valImgRadius.textContent = inspectorImgRadius.value;
     valImgPadding.textContent = inspectorImgPadding.value;
     valTitleSize.textContent = inspectorTitleSize.value;
+    valDescSize.textContent = inspectorDescSize.value;
+    valScadenzaSize.textContent = inspectorScadenzaSize.value;
+    valScadenzaY.textContent = inspectorScadenzaY.value;
     valPriceSize.textContent = inspectorPriceSize.value;
 
     Object.assign(cellaSelezionata.dataset, {
       codice: inspectorCodice.value.trim(),
       oldPrice: inspectorPrezzoOld.value.trim(),
+      scadenza: inspectorScadenza.value.trim(),
+      scadenzaSize: inspectorScadenzaSize.value,
+      scadenzaY: inspectorScadenzaY.value,
       imageZoom: inspectorImgZoom.value,
       imagePosX: inspectorImgPosX.value,
       imagePosY: inspectorImgPosY.value,
@@ -2131,6 +2538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       titleWeight: inspectorTitleWeight.value,
       titleSpacing: inspectorTitleSpacing.value,
       titleHeight: inspectorTitleHeight.value,
+      descSize: inspectorDescSize.value,
       descItalic: inspectorDescItalic.checked ? "1" : "0",
       textUpper: inspectorTextUpper.checked ? "1" : "0",
       priceStyle: inspectorPriceStyle.value,
@@ -2143,6 +2551,7 @@ document.addEventListener("DOMContentLoaded", () => {
       borderColor: inspectorBorderColor.value,
       radius: inspectorRadius.value,
       bgColor: inspectorBgColor.value,
+      bgTransparent: inspectorBgTransparent.checked ? "1" : "0",
       shadow: inspectorShadow.checked ? "1" : "0",
       layout: inspectorLayout.value,
       textAlign: inspectorAlign.value,
@@ -2158,18 +2567,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     cellaSelezionata.querySelector(".titolo").innerText = inspectorTitolo.value.trim() || "PRODOTTO";
     cellaSelezionata.querySelector(".descrizione").innerText = inspectorDescrizione.value.trim() || "Fai click per selezionare";
+    const scadTag = cellaSelezionata.querySelector(".scadenza-tag");
+    if (scadTag) {
+      scadTag.innerText = inspectorScadenza.value.trim();
+    }
     cellaSelezionata.querySelector(".prezzo").innerText = inspectorPrezzo.value.trim() || "€ 0.00";
 
     applicaCellaRendering(cellaSelezionata);
   }
 
   const inspectorInputs = [
-    inspectorCodice, inspectorTitolo, inspectorDescrizione, inspectorShowDesc, inspectorPrezzo, inspectorPrezzoOld,
+    inspectorCodice, inspectorTitolo, inspectorDescrizione, inspectorScadenza, inspectorShowDesc, inspectorPrezzo, inspectorPrezzoOld,
     inspectorImgZoom, inspectorImgPosX, inspectorImgPosY, inspectorImgRadius, inspectorImgPadding, inspectorImgAspect,
     inspectorFontFamily, inspectorFontColor, inspectorTitleSize, inspectorTitleWeight, inspectorTitleSpacing, inspectorTitleHeight,
-    inspectorDescItalic, inspectorTextUpper,
+    inspectorDescItalic, inspectorTextUpper, inspectorDescSize, inspectorScadenzaSize, inspectorScadenzaY,
     inspectorPriceStyle, inspectorPriceSize, inspectorPriceColor, inspectorPriceBg, inspectorPriceCurrency, inspectorPriceWeight,
-    inspectorBorderStyle, inspectorBorderColor, inspectorRadius, inspectorBgColor, inspectorShadow,
+    inspectorBorderStyle, inspectorBorderColor, inspectorRadius, inspectorBgColor, inspectorBgTransparent, inspectorShadow,
     inspectorLayout, inspectorAlign
   ];
 
@@ -2178,14 +2591,59 @@ document.addEventListener("DOMContentLoaded", () => {
     input.addEventListener("change", updateActiveCellFromInspector);
   });
 
-  // Aggiorna e avvia la ricerca immagini automatica quando il nome del prodotto viene modificato manualmente
-  inspectorTitolo.addEventListener("change", () => {
-    const val = inspectorTitolo.value.trim();
-    googleImgQuery.value = val;
-    if (val && val !== "" && val !== "PRODOTTO") {
-      eseguiRicercaImmaginiGoogle(val);
+  // Salva l'immagine nel database prodotti non appena vengono inseriti o modificati il Codice o il Titolo del prodotto
+  function salvaImmagineSuDbSePresente() {
+    if (!cellaSelezionata) return;
+    const cod = inspectorCodice.value.trim();
+    const tit = inspectorTitolo.value.trim();
+    const imgOriginal = cellaSelezionata.dataset.imgOriginal || "";
+    
+    // Se non c'è una foto caricata o se il titolo e il codice sono entrambi vuoti o di default, non salviamo
+    if (!imgOriginal || imgOriginal.includes("Nessun prodotto") || (!cod && (!tit || tit === "PRODOTTO" || tit === "Nessun prodotto"))) {
+      return;
     }
-  });
+    
+    fetch("/api/salva_immagine_volantino_prodotto", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        codice: cod,
+        titolo: tit,
+        image_src: imgOriginal
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === "ok") {
+        console.log("Immagine sincronizzata nel database prodotti post-change:", data.url);
+        cellaSelezionata.dataset.imgOriginal = data.url;
+        cellaSelezionata.dataset.imgNoBg = data.url;
+        if (cellaSelezionata) {
+          localSelectedImageSrc = data.url;
+          setInspectorImage(data.url);
+          const imgBox = cellaSelezionata.querySelector(".img-box");
+          if (imgBox) {
+            const img = imgBox.querySelector("img");
+            if (img) img.src = data.url;
+          }
+          applicaCellaRendering(cellaSelezionata);
+        }
+        
+        // Sincronizza cache
+        const prodIndex = dbProdotti.findIndex(p => 
+          (cod && p.codice === cod) || 
+          (tit && p.nome.toLowerCase() === tit.toLowerCase())
+        );
+        if (prodIndex > -1) {
+          dbProdotti[prodIndex].immagine = data.url;
+        }
+      }
+    })
+    .catch(err => console.error("Errore salvataggio immagine post-change:", err));
+  }
+
+  inspectorTitolo.addEventListener("change", salvaImmagineSuDbSePresente);
+  inspectorCodice.addEventListener("change", salvaImmagineSuDbSePresente);
 
   btnEliminaCella.addEventListener("click", () => {
     if (!cellaSelezionata) return;
@@ -2243,7 +2701,14 @@ document.addEventListener("DOMContentLoaded", () => {
       headerH: controlHeaderH.value,
       footerH: controlFooterH.value,
       headerFit: controlHeaderFit.value || "contain",
-      headerZoom: "1"
+      headerZoom: "1",
+      bgImg: "",
+      bgWidth: "100",
+      bgHeight: "100",
+      bgPosX: "50",
+      bgPosY: "50",
+      cellWidth: controlCellaW.value || "380",
+      cellHeight: controlCellaH.value || "500"
     });
 
     page.innerHTML = `
@@ -2272,6 +2737,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dragClass: "sortable-drag"
     });
 
+    applicaSfondoFoglio(page);
     return page;
   }
 
@@ -2292,13 +2758,19 @@ document.addEventListener("DOMContentLoaded", () => {
     controlCols.value = page.dataset.cols;
     controlRows.value = page.dataset.rows;
     controlGap.value = page.dataset.gap;
+    controlCellaW.value = page.dataset.cellWidth || "380";
+    controlCellaH.value = page.dataset.cellHeight || "500";
 
     valLarghezza.textContent = page.dataset.larghezza;
     valAltezza.textContent = page.dataset.altezza;
     valGap.textContent = page.dataset.gap;
+    valCellaW.textContent = controlCellaW.value;
+    valCellaH.textContent = controlCellaH.value;
 
     applicaDimensioniFoglio(page);
     applicaZoomLogoHeader(page);
+    aggiornaIspettoreSfondoControlli(page);
+    applicaSfondoFoglio(page);
   }
 
   function aggiornaListaPagineNav() {
@@ -2461,12 +2933,16 @@ document.addEventListener("DOMContentLoaded", () => {
           titleHeight: c.dataset.titleHeight || "1.2",
           codeSize: c.dataset.codeSize || "9",
           descSize: c.dataset.descSize || "10",
+          scadenza: c.dataset.scadenza || "",
+          scadenzaSize: c.dataset.scadenzaSize || "12",
+          scadenzaY: c.dataset.scadenzaY || "-4",
           descItalic: c.dataset.descItalic || "0",
           textUpper: c.dataset.textUpper || "0",
           borderStyle: c.dataset.borderStyle || "solid",
           borderColor: c.dataset.borderColor || "#cbd5e1",
           radius: c.dataset.radius || "6",
           bgColor: c.dataset.bgColor || "#ffffff",
+          bgTransparent: c.dataset.bgTransparent || "0",
           shadow: c.dataset.shadow || "0",
           imageFilter: c.dataset.imageFilter || "none",
           imageZoom: c.dataset.imageZoom || "1.0",
@@ -2478,9 +2954,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
 
+      const bgImg = page.dataset.bgImg || "";
+      const bgWidth = page.dataset.bgWidth || "100";
+      const bgHeight = page.dataset.bgHeight || "100";
+      const bgPosX = page.dataset.bgPosX || "50";
+      const bgPosY = page.dataset.bgPosY || "50";
+      const cellWidth = page.dataset.cellWidth || "380";
+      const cellHeight = page.dataset.cellHeight || "500";
+
       return { 
         cols, rows, gap, larghezza, altezza, padTop, padBottom, padSides, headerH, footerH, headerFit, headerZoom,
-        headerImg, footerImg, cells 
+        headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, cellWidth, cellHeight 
       };
     });
 
@@ -2531,7 +3015,14 @@ document.addEventListener("DOMContentLoaded", () => {
           headerH: pData.headerH || "80",
           footerH: pData.footerH || "80",
           headerFit: pData.headerFit || "contain",
-          headerZoom: pData.headerZoom || "1"
+          headerZoom: pData.headerZoom || "1",
+          bgImg: pData.bgImg || "",
+          bgWidth: pData.bgWidth || "100",
+          bgHeight: pData.bgHeight || "100",
+          bgPosX: pData.bgPosX !== undefined ? pData.bgPosX : "50",
+          bgPosY: pData.bgPosY !== undefined ? pData.bgPosY : "50",
+          cellWidth: pData.cellWidth || "380",
+          cellHeight: pData.cellHeight || "500"
         });
 
         page.innerHTML = `
@@ -2578,12 +3069,16 @@ document.addEventListener("DOMContentLoaded", () => {
             titleHeight: item.titleHeight || "1.2",
             codeSize: item.codeSize || "9",
             descSize: item.descSize || "10",
+            scadenza: item.scadenza || "",
+            scadenzaSize: item.scadenzaSize || "12",
+            scadenzaY: item.scadenzaY || "-4",
             descItalic: item.descItalic || "0",
             textUpper: item.textUpper || "0",
             borderStyle: item.borderStyle || "solid",
             borderColor: item.borderColor || "#cbd5e1",
             radius: item.radius || "6",
             bgColor: item.bgColor || "#ffffff",
+            bgTransparent: item.bgTransparent || "0",
             shadow: item.shadow || "0",
             imageFilter: item.imageFilter || "none",
             imageZoom: item.imageZoom || "1.0",
@@ -2605,6 +3100,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
           cell.querySelector(".titolo").innerText = item.titolo || "PRODOTTO";
           cell.querySelector(".descrizione").innerText = item.descrizione || "Fai click per selezionare";
+          const sTag = cell.querySelector(".scadenza-tag");
+          if (sTag) {
+            sTag.innerText = item.scadenza || "";
+          }
           cell.querySelector(".prezzo").innerText = item.prezzo || "€ 0.00";
 
           applicaCellaRendering(cell);
@@ -2622,6 +3121,7 @@ document.addEventListener("DOMContentLoaded", () => {
           dragClass: "sortable-drag"
         });
 
+        applicaSfondoFoglio(page);
         pagine.push(page);
       });
     }
@@ -2996,6 +3496,8 @@ document.addEventListener("DOMContentLoaded", () => {
           imagePadding: "5",
           imageAspect: "contain",
           oldPrice: "",
+          scadenza: p.scadenza || "",
+          scadenzaSize: "12",
           imgOriginal: p.immagine || "",
           imgNoBg: p.immagine || "",
           useNoBg: "1",
@@ -3013,6 +3515,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="codice small mb-1">${p.codice || ""}</div>
               <div class="titolo fw-bold small mb-1">${p.nome || ""}</div>
               <div class="descrizione small text-muted mb-1" style="display: none;"></div>
+              <div class="scadenza-tag text-center text-danger fw-semibold mb-1" style="display: none; font-size: 12px; margin-bottom: 2px;"></div>
               <div class="prezzo fw-bold prezzo-base">${prezzoConUm}</div>
             </div>
           </div>
@@ -3157,6 +3660,20 @@ document.addEventListener("DOMContentLoaded", () => {
   outline: 3px solid #007bff !important;
   outline-offset: 1px;
   box-shadow: 0 0 15px rgba(0, 123, 255, 0.25) !important;
+}
+
+.scadenza-tag {
+  margin-bottom: -4px !important;
+  margin-top: 2px !important;
+  line-height: 1 !important;
+}
+
+.page-promo-title:empty::before {
+  content: "Fai click qui per inserire il titolo della promozione (opzionale)...";
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: normal;
+  font-size: 16px;
 }
 
 .cella-inner {
