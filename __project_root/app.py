@@ -4785,34 +4785,47 @@ def meta_webhook():
                     # 1. Controllo File PDF (da Meta WA Media API)
                     if media_id and "pdf" in (media_mime or ""):
                         try:
-                            safe_send(from_number, "⏳ PDF ricevuto. Sto scaricando e analizzando le offerte...")
+                            safe_send(from_number, "⏳ *PDF Ricevuto!* Sto scaricando e analizzando il documento per estrarre le offerte...")
                             token = (os.getenv("META_WA_TOKEN") or "").strip()
                             # Step A: Get Media URL
-                            media_req = requests.get(f"https://graph.facebook.com/v17.0/{media_id}", headers={"Authorization": f"Bearer {token}"})
+                            media_req = requests.get(f"https://graph.facebook.com/v18.0/{media_id}", headers={"Authorization": f"Bearer {token}"})
                             if not media_req.ok:
-                                safe_send(from_number, "🚨 Errore URL Media Meta Whatsapp.")
+                                safe_send(from_number, "🚨 Errore nel recupero del file PDF da Meta WhatsApp.")
                                 return "OK", 200
                                 
                             actual_url = media_req.json().get("url")
                             # Step B: Download File (must pass Bearer header again)
                             pdf_data = requests.get(actual_url, headers={"Authorization": f"Bearer {token}"})
                             
-                            pdf_path = f"/tmp/meta_{int(time.time())}.pdf"
+                            pdf_path = f"/tmp/meta_scadenze_{int(time.time())}.pdf"
                             with open(pdf_path, 'wb') as f:
                                 f.write(pdf_data.content)
                             
-                            offers = parse_offers_from_pdf(pdf_path)
+                            # Estrazione multilivello: prova prima parser scadenze tabellare, poi generico, poi regex
+                            offers = parse_promo_scadenze_from_pdf(pdf_path)
                             if not offers:
-                                safe_send(from_number, "⚠️ Nessuna offerta rilevata dal PDF. Controlla il formato.")
+                                offers = parse_offers_from_pdf(pdf_path)
+                            if not offers:
+                                offers = parse_scadenze_from_pdf(pdf_path)
+                                
+                            if not offers:
+                                safe_send(from_number, "⚠️ Nessuna offerta rilevata dal PDF. Assicurati che il PDF contenga codici prodotto e prezzi.")
                                 return "OK", 200
                             
                             with get_db() as db:
                                 cur = db.cursor(cursor_factory=RealDictCursor)
-                                sent, total_mapped = send_offers_to_customers_pg(cur, offers)
+                                sent, total_mapped, report_lines = send_offers_to_customers_pg(cur, offers)
                                 db.commit()
                                  
-                            safe_send(from_number, f"✅ PDF elaborato! Trovate {len(offers)} offerte.\nMessaggi inviati a *{sent}* clienti (su {total_mapped} con prodotti corrispondenti).")
+                            report_text = f"✅ *PDF Scadenze Elaborato!*\n\n📄 *Offerte totali estratte:* {len(offers)}\n👥 *Clienti profilati e contattati:* {sent} (su {total_mapped} con prodotti corrispondenti)"
+                            if report_lines:
+                                report_text += "\n\n📋 *Dettaglio invii per cliente:*\n" + "\n".join(report_lines[:15])
+                                if len(report_lines) > 15:
+                                    report_text += f"\n*(+altri {len(report_lines)-15} clienti)*"
+                            safe_send(from_number, report_text)
                         except Exception as e:
+                            import traceback
+                            traceback.print_exc()
                             safe_send(from_number, f"🚨 Errore elaborazione PDF:\n{str(e)}")
                         return "OK", 200
                         
@@ -7132,61 +7145,98 @@ def product_id_by_code_pg(cur, code: str) -> int | None:
     if row:
         return row["id"] if isinstance(row, dict) else row[0]
     return None
-def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str]]:
+def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str, str]]:
     phone_col = _detect_phone_column(cur)
     if not phone_col:
         return []
+    # Include clienti che attualmente lavorano il prodotto o lo hanno lavorato in precedenza
     q = f"""
-        SELECT c.id AS cliente_id, c.{phone_col} AS phone
+        SELECT DISTINCT c.id AS cliente_id, c.nome AS cliente_nome, c.{phone_col} AS phone
         FROM clienti c
-        JOIN clienti_prodotti cp ON cp.cliente_id = c.id
-        WHERE cp.prodotto_id = %s
-          AND (cp.lavorato IS TRUE OR cp.lavorato IS NULL)
+        JOIN clienti_prodotti cp ON (cp.cliente_id = c.id OR cp.id_cliente = c.id)
+        LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+        WHERE (cp.prodotto_id = %s OR cp.id_prodotto = %s)
+          AND (cp.lavorato IS TRUE OR cp.potenziale IS TRUE OR cp.lavorato IS NULL OR cp.data_operazione IS NOT NULL)
+          AND COALESCE(wp.opt_out, FALSE) = FALSE
         ORDER BY c.id
     """
-    cur.execute(q, (prodotto_id,))
+    cur.execute(q, (prodotto_id, prodotto_id))
     rows = cur.fetchall() or []
     out = []
     for r in rows:
         cid = r["cliente_id"] if isinstance(r, dict) else r[0]
-        phone = r["phone"] if isinstance(r, dict) else r[1]
+        nome = r["cliente_nome"] if isinstance(r, dict) else r[1]
+        phone = r["phone"] if isinstance(r, dict) else r[2]
         phone = _normalize_phone(phone) or ""
         if phone:
-            out.append((cid, phone))
+            out.append((cid, nome, phone))
     return out
+
 def build_customer_offer_map_pg(cur, offers: list[dict]) -> dict[int, dict]:
     items_by_customer = defaultdict(dict)
     phone_by_customer = {}
+    name_by_customer = {}
+    
     for o in offers:
         pid = product_id_by_code_pg(cur, o["code"])
+        if not pid and o.get("name"):
+            # Cerca anche per nome prodotto se il codice numerico differisce leggermente
+            nome_cand = o["name"][:15].strip()
+            cur.execute("SELECT id FROM prodotti WHERE nome ILIKE %s LIMIT 1", (f"%{nome_cand}%",))
+            row_p = cur.fetchone()
+            if row_p:
+                pid = row_p["id"] if isinstance(row_p, dict) else row_p[0]
+
         if not pid:
             continue
-        for cid, phone in customer_phones_for_product_pg(cur, pid):
+            
+        for cid, nome, phone in customer_phones_for_product_pg(cur, pid):
             phone_by_customer[cid] = phone
+            name_by_customer[cid] = nome
             items_by_customer[cid][o["code"]] = o
+            
     out = {}
     for cid, by_code in items_by_customer.items():
         items = list(by_code.values())
-        items.sort(key=lambda x: x["code"])
-        out[cid] = {"phone": phone_by_customer[cid], "items": items}
+        items.sort(key=lambda x: str(x.get("code", "")))
+        out[cid] = {
+            "cliente_id": cid,
+            "nome": name_by_customer.get(cid, "Gentile Cliente"),
+            "phone": phone_by_customer[cid],
+            "items": items
+        }
     return out
-def format_customer_message(items: list[dict]) -> str:
-    lines = ["📌 *Offerte per te oggi:*"]
-    for o in items[:25]:
-        lines.append(f"- *{o['code']}* {o['name']} → *€ {o['price']}*")
-    if len(items) > 25:
-        lines.append(f"\n(+{len(items)-25} altre)")
-    lines.append("\nRispondi con il codice per ordinare 👍")
+
+def format_customer_message(cliente_nome: str, items: list[dict]) -> str:
+    nome_pulito = (cliente_nome or "Gentile Cliente").strip()
+    lines = [f"👋 Ciao *{nome_pulito}*!\nEcco le migliori offerte e opportunità di oggi sui prodotti dedicati alla tua attività:\n"]
+    for o in items[:15]:
+        scad_info = f" | ⏳ Scadenza: *{o['scadenza']}*" if o.get("scadenza") else ""
+        um_info = f" /{o['um']}" if o.get("um") else ""
+        prezzo_str = o.get("price_str") or f"€ {o.get('price', '')}"
+        lines.append(f"🔹 *{o['name']}* (Cod. {o['code']})\n   💰 Prezzo speciale: *{prezzo_str}{um_info}*{scad_info}")
+    
+    if len(items) > 15:
+        lines.append(f"\n*(...e altri {len(items)-15} prodotti in offerta)*")
+        
+    lines.append("\n🚚 Rispondi con il codice o nome del prodotto per ordinarlo subito o bloccare le quantità! 👍")
     return "\n".join(lines)
-def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int]:
+
+def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int, list[str]]:
     customer_map = build_customer_offer_map_pg(cur, offers)
     sent = 0
+    report_lines = []
     for _, payload in customer_map.items():
         phone = payload["phone"]
-        text = format_customer_message(payload["items"])
+        nome = payload["nome"]
+        text = format_customer_message(nome, payload["items"])
         send_text(phone, text)
         sent += 1
-    return sent, len(customer_map)
+        item_codes = ", ".join([str(it.get('code', '')) for it in payload['items'][:4]])
+        if len(payload['items']) > 4:
+            item_codes += f" (+{len(payload['items'])-4})"
+        report_lines.append(f"• *{nome}*: {len(payload['items'])} prodotti ({item_codes})")
+    return sent, len(customer_map), report_lines
 # ------------------------------------------------------------
 # 4) ADMIN HELPERS
 # ------------------------------------------------------------
