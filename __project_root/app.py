@@ -7315,17 +7315,12 @@ def mark_whatsapp_linked_by_phone(cur, phone_norm: str):
 # ------------------------------------------------------------
 def _segment_where(pref: str) -> str:
     pref = (pref or "").lower()
-    if pref == "scadenza":
-        return "wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE"
-    if pref == "pesce":
-        return "wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE"
-    if pref == "carne":
-        return "wp.opt_out = FALSE AND wp.ricevi_carne = TRUE"
-    if pref == "stop":
-        return "wp.opt_out = TRUE"
-    if pref == "nessuna":
-        return "wp.cliente_id IS NULL"
-    return "c.whatsapp_linked = TRUE"
+    if pref == "scadenza": return "COALESCE(wp.opt_out, FALSE) = FALSE AND wp.ricevi_scadenza = TRUE"
+    if pref == "pesce": return "COALESCE(wp.opt_out, FALSE) = FALSE AND wp.ricevi_pesce = TRUE"
+    if pref == "carne": return "COALESCE(wp.opt_out, FALSE) = FALSE AND wp.ricevi_carne = TRUE"
+    if pref == "stop": return "wp.opt_out = TRUE"
+    if pref == "nessuna": return "wp.cliente_id IS NULL OR (COALESCE(wp.ricevi_scadenza, FALSE) = FALSE AND COALESCE(wp.ricevi_pesce, FALSE) = FALSE AND COALESCE(wp.ricevi_carne, FALSE) = FALSE AND COALESCE(wp.opt_out, FALSE) = FALSE)"
+    return "1=1"
 # ------------------------------------------------------------
 # 7) WEBHOOK META WHATSAPP (testo + preferenze + admin)
 # ------------------------------------------------------------
