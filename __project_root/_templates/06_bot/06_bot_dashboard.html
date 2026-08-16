@@ -156,7 +156,7 @@
 
   <!-- Segment Filters Row -->
   <div class="d-flex flex-wrap gap-2 mb-4">
-    <a class="btn bot-tab-btn {% if pref=='tutti' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='tutti' or not pref %}btn-primary{% else %}btn-outline-secondary{% endif %}"
        href="{{ url_for('bot_dashboard', pref='tutti') }}">
       👥 Tutti i Clienti <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill" id="badge-tutti">{{ counts.n_tutti or 0 }}</span>
     </a>
