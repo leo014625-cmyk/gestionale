@@ -4348,8 +4348,8 @@ def send_text(to: str, text: str):
     to_norm = _normalize_phone(to)
     if not to_norm:
         return None
-    token = os.getenv("META_WA_TOKEN")
-    phone_id = os.getenv("META_WA_PHONE_NUMBER_ID")
+    token = (os.getenv("META_WA_TOKEN") or "").strip()
+    phone_id = (os.getenv("META_WA_PHONE_NUMBER_ID") or "").strip()
     if not token or not phone_id:
         return None
     url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
@@ -4760,7 +4760,7 @@ def meta_webhook():
                     if media_id and "pdf" in (media_mime or ""):
                         try:
                             safe_send(from_number, "⏳ PDF ricevuto. Sto scaricando e analizzando le offerte...")
-                            token = os.getenv("META_WA_TOKEN")
+                            token = (os.getenv("META_WA_TOKEN") or "").strip()
                             # Step A: Get Media URL
                             media_req = requests.get(f"https://graph.facebook.com/v17.0/{media_id}", headers={"Authorization": f"Bearer {token}"})
                             if not media_req.ok:
@@ -6993,8 +6993,8 @@ def send_text(to: str, text: str):
     if not to_norm:
         print("⚠️ send_text: numero non valido:", to)
         return None
-    token = os.getenv("META_WA_TOKEN")
-    phone_id = os.getenv("META_WA_PHONE_NUMBER_ID")
+    token = (os.getenv("META_WA_TOKEN") or "").strip()
+    phone_id = (os.getenv("META_WA_PHONE_NUMBER_ID") or "").strip()
     
     if not token or not phone_id:
         print("Errore: Credenziali Meta non impostate in .env")
