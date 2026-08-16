@@ -4605,58 +4605,27 @@ def _detect_phone_column(cur) -> str | None:
 
 def _segment_where(pref: str) -> str:
     pref = (pref or "").lower()
-    if pref == "scadenza": return "wp.opt_out = FALSE AND wp.ricevi_scadenza = TRUE"
-    if pref == "pesce": return "wp.opt_out = FALSE AND wp.ricevi_pesce = TRUE"
-    if pref == "carne": return "wp.opt_out = FALSE AND wp.ricevi_carne = TRUE"
+    if pref == "scadenza": return "COALESCE(wp.opt_out, FALSE) = FALSE AND wp.ricevi_scadenza = TRUE"
+    if pref == "pesce": return "COALESCE(wp.opt_out, FALSE) = FALSE AND wp.ricevi_pesce = TRUE"
+    if pref == "carne": return "COALESCE(wp.opt_out, FALSE) = FALSE AND wp.ricevi_carne = TRUE"
     if pref == "stop": return "wp.opt_out = TRUE"
-    if pref == "nessuna": return "wp.cliente_id IS NULL"
-    return "c.id IS NOT NULL"
+    if pref == "nessuna": return "wp.cliente_id IS NULL OR (COALESCE(wp.ricevi_scadenza, FALSE) = FALSE AND COALESCE(wp.ricevi_pesce, FALSE) = FALSE AND COALESCE(wp.ricevi_carne, FALSE) = FALSE AND COALESCE(wp.opt_out, FALSE) = FALSE)"
+    return "1=1"
 
-def _normalize_phone_admin(s: str | None) -> str:
-    if not s: return ""
-    return "".join(ch for ch in s if ch.isdigit())
-
-def _admin_list() -> set[str]:
-    raw = os.getenv("ADMIN_WHATSAPP", "")
-    return { _normalize_phone_admin(a) for a in raw.split(",") if a }
-
-def is_admin(from_number: str | None) -> bool:
-    return _normalize_phone_admin(from_number) in _admin_list()
-
-def find_cliente_id_by_phone(cur, phone_norm: str) -> int | None:
-    cur.execute("SELECT id FROM clienti WHERE telefono=%s LIMIT 1", (phone_norm,))
-    row = cur.fetchone()
-    return row[0] if row else None
-
-def upsert_preferenza(cur, cliente_id: int, scelta: str):
-    col_map = {"1": "ricevi_scadenza", "2": "ricevi_pesce", "3": "ricevi_carne"}
-    if scelta == "0":
-        cur.execute("INSERT INTO whatsapp_preferenze (cliente_id, opt_out) VALUES (%s, TRUE) ON CONFLICT (cliente_id) DO UPDATE SET opt_out=TRUE", (cliente_id,))
-    elif scelta in col_map:
-        col = col_map[scelta]
-        cur.execute(f"INSERT INTO whatsapp_preferenze (cliente_id, {col}, opt_out) VALUES (%s, TRUE, FALSE) ON CONFLICT (cliente_id) DO UPDATE SET {col}=TRUE, opt_out=FALSE", (cliente_id,))
-
-def mark_whatsapp_linked_by_phone(cur, phone_norm: str):
-    cur.execute("UPDATE clienti SET whatsapp_linked = TRUE WHERE telefono = %s", (phone_norm,))
-
-def product_id_by_code_pg(cur, code: str) -> int | None:
-    cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
-    row = cur.fetchone()
-    return row[0] if row else None
-
-def customer_phones_for_product_pg(cur, prodotto_id: int) -> list[tuple[int, str]]:
-    cur.execute("SELECT c.id, c.telefono FROM clienti c JOIN clienti_prodotti cp ON cp.cliente_id = c.id WHERE cp.prodotto_id = %s", (prodotto_id,))
-    return [(r[0], r[1]) for r in cur.fetchall() if r[1]]
-
-def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int]:
-    sent = 0
-    for o in offers:
-        pid = product_id_by_code_pg(cur, o["code"])
-        if pid:
-            for cid, phone in customer_phones_for_product_pg(cur, pid):
-                send_text(phone, f"Offerta: {o['name']} a {o['price']}")
-                sent += 1
-    return sent, len(offers)
+def _get_whatsapp_counts(cur) -> dict:
+    cur.execute("""
+        SELECT 
+            COUNT(c.id) as n_tutti,
+            SUM(CASE WHEN wp.ricevi_scadenza = TRUE AND COALESCE(wp.opt_out, FALSE) = FALSE THEN 1 ELSE 0 END) as n_scadenza,
+            SUM(CASE WHEN wp.ricevi_pesce = TRUE AND COALESCE(wp.opt_out, FALSE) = FALSE THEN 1 ELSE 0 END) as n_pesce,
+            SUM(CASE WHEN wp.ricevi_carne = TRUE AND COALESCE(wp.opt_out, FALSE) = FALSE THEN 1 ELSE 0 END) as n_carne,
+            SUM(CASE WHEN wp.opt_out = TRUE THEN 1 ELSE 0 END) as n_stop,
+            SUM(CASE WHEN wp.cliente_id IS NULL OR (COALESCE(wp.ricevi_scadenza, FALSE) = FALSE AND COALESCE(wp.ricevi_pesce, FALSE) = FALSE AND COALESCE(wp.ricevi_carne, FALSE) = FALSE AND COALESCE(wp.opt_out, FALSE) = FALSE) THEN 1 ELSE 0 END) as n_nessuna
+        FROM clienti c
+        LEFT JOIN whatsapp_preferenze wp ON c.id = wp.cliente_id
+    """)
+    res = cur.fetchone() or {}
+    return {k: int(v or 0) for k, v in res.items()}
 
 # ------------------------------------------------------------
 # BOT & WHATSAPP ROUTES
@@ -4665,23 +4634,19 @@ def send_offers_to_customers_pg(cur, offers: list[dict]) -> tuple[int, int]:
 @app.route("/bot", methods=["GET"])
 @login_required
 def bot_dashboard():
-    pref = request.args.get("pref", "scadenza").strip().lower()
+    pref = request.args.get("pref", "tutti").strip().lower()
     with get_db() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT 
-                SUM(CASE WHEN wp.ricevi_scadenza = TRUE AND wp.opt_out = FALSE THEN 1 ELSE 0 END) as n_scadenza,
-                SUM(CASE WHEN wp.ricevi_carne = TRUE AND wp.opt_out = FALSE THEN 1 ELSE 0 END) as n_carne,
-                SUM(CASE WHEN wp.cliente_id IS NULL THEN 1 ELSE 0 END) as n_nessuna
-            FROM clienti c
-            LEFT JOIN whatsapp_preferenze wp ON c.id = wp.cliente_id
-        """)
-        counts = cur.fetchone() or {}
+        counts = _get_whatsapp_counts(cur)
         where_clause = _segment_where(pref)
         phone_col = _detect_phone_column(cur) or "telefono"
         q = f"""
             SELECT c.id, c.nome, c.zona, c.{phone_col} as telefono,
-                   wp.ricevi_scadenza, wp.ricevi_pesce, wp.ricevi_carne, wp.opt_out, wp.updated_at
+                   COALESCE(wp.ricevi_scadenza, FALSE) as ricevi_scadenza,
+                   COALESCE(wp.ricevi_pesce, FALSE) as ricevi_pesce,
+                   COALESCE(wp.ricevi_carne, FALSE) as ricevi_carne,
+                   COALESCE(wp.opt_out, FALSE) as opt_out,
+                   wp.updated_at
             FROM clienti c
             LEFT JOIN whatsapp_preferenze wp ON c.id = wp.cliente_id
             WHERE {where_clause}
@@ -4690,6 +4655,67 @@ def bot_dashboard():
         cur.execute(q)
         clienti = cur.fetchall()
     return render_template("06_bot/06_bot_dashboard.html", pref=pref, counts=counts, clienti=clienti)
+
+@app.route("/bot/api/toggle-preferenza", methods=["POST"])
+@login_required
+def api_toggle_preferenza():
+    data = request.get_json(silent=True) or {}
+    cliente_id = data.get("cliente_id")
+    campo = data.get("campo")
+    valore = bool(data.get("valore"))
+    
+    allowed_fields = {"ricevi_scadenza", "ricevi_pesce", "ricevi_carne", "opt_out"}
+    if not cliente_id or campo not in allowed_fields:
+        return jsonify(success=False, error="Parametri non validi"), 400
+        
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(f"""
+            INSERT INTO whatsapp_preferenze (cliente_id, {campo}, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (cliente_id) DO UPDATE
+            SET {campo} = EXCLUDED.{campo}, updated_at = NOW()
+        """, (cliente_id, valore))
+        conn.commit()
+        counts = _get_whatsapp_counts(cur)
+    return jsonify(success=True, counts=counts)
+
+@app.route("/bot/api/bulk-preferenze", methods=["POST"])
+@login_required
+def api_bulk_preferenze():
+    data = request.get_json(silent=True) or {}
+    cliente_ids = data.get("cliente_ids", [])
+    action = data.get("action")
+    
+    if not cliente_ids or not action:
+        return jsonify(success=False, error="Dati mancanti"), 400
+        
+    action_map = {
+        "add_scadenza": ("ricevi_scadenza", True),
+        "remove_scadenza": ("ricevi_scadenza", False),
+        "add_pesce": ("ricevi_pesce", True),
+        "remove_pesce": ("ricevi_pesce", False),
+        "add_carne": ("ricevi_carne", True),
+        "remove_carne": ("ricevi_carne", False),
+        "set_stop": ("opt_out", True),
+        "unset_stop": ("opt_out", False),
+    }
+    if action not in action_map:
+        return jsonify(success=False, error="Azione non valida"), 400
+        
+    campo, valore = action_map[action]
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        for cid in cliente_ids:
+            cur.execute(f"""
+                INSERT INTO whatsapp_preferenze (cliente_id, {campo}, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (cliente_id) DO UPDATE
+                SET {campo} = EXCLUDED.{campo}, updated_at = NOW()
+            """, (cid, valore))
+        conn.commit()
+        counts = _get_whatsapp_counts(cur)
+    return jsonify(success=True, counts=counts, updated_count=len(cliente_ids))
 
 @app.route("/bot/invia", methods=["POST"])
 @login_required

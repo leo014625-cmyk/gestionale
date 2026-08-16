@@ -1,6 +1,6 @@
 {% extends "01_base.html" %}
 
-{% block title %}Bot WhatsApp - Horeca Suite{% endblock %}
+{% block title %}Bot WhatsApp & Categorie - Horeca Suite{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -11,10 +11,14 @@
     font-size: 0.88rem;
     padding: 0.55rem 1.15rem;
     border-radius: 20px;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
   .bot-tab-btn:hover {
     transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
   }
 
   .bot-compose-card {
@@ -23,7 +27,6 @@
     border-radius: var(--radius);
     padding: 1.5rem;
     box-shadow: var(--shadow-sm);
-    height: 100%;
   }
 
   .segment-table-card {
@@ -39,34 +42,34 @@
     color: var(--text-color);
     font-family: 'Outfit', sans-serif;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 1.15rem 1rem;
+    padding: 1rem 0.85rem;
     border-bottom: 2px solid var(--border-color);
   }
   .custom-table td {
-    padding: 1.15rem 1rem;
+    padding: 0.9rem 0.85rem;
     color: var(--text-color);
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.92rem;
-    transition: background-color 0.2s;
+    font-size: 0.9rem;
+    vertical-align: middle;
   }
   .custom-table tbody tr:hover td {
     background-color: var(--primary-light);
   }
 
   /* Form components overrides */
-  .styled-textarea {
+  .styled-textarea, .styled-input, .styled-select {
     background-color: var(--bg-color);
     color: var(--text-color);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    padding: 0.75rem 1rem;
-    font-size: 0.92rem;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.9rem;
     transition: all 0.2s;
   }
-  .styled-textarea:focus {
+  .styled-textarea:focus, .styled-input:focus, .styled-select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-light);
     outline: none;
@@ -74,26 +77,59 @@
     color: var(--text-color);
   }
 
-  /* WhatsApp segment badges */
-  .badge-stop {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--danger);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+  /* Custom Modern iOS Toggle Switch */
+  .switch-toggle-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
-  .badge-scad {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--warning);
-    border: 1px solid rgba(245, 158, 11, 0.2);
+  .form-check-input.category-switch {
+    width: 2.3rem;
+    height: 1.25rem;
+    cursor: pointer;
+    background-color: #cbd5e1;
+    border-color: #94a3b8;
+    transition: background-color 0.2s, border-color 0.2s;
   }
-  .badge-pesce {
-    background-color: var(--accent-light);
-    color: var(--accent);
-    border: 1px solid rgba(14, 165, 233, 0.2);
+  .form-check-input.category-switch:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
   }
-  .badge-carne {
-    background-color: var(--primary-light);
-    color: var(--primary);
-    border: 1px solid rgba(79, 70, 229, 0.2);
+  .form-check-input.category-switch.switch-scad:checked {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+  }
+  .form-check-input.category-switch.switch-pesce:checked {
+    background-color: #0ea5e9;
+    border-color: #0ea5e9;
+  }
+  .form-check-input.category-switch.switch-carne:checked {
+    background-color: #8b5cf6;
+    border-color: #8b5cf6;
+  }
+  .form-check-input.category-switch.switch-stop:checked {
+    background-color: #ef4444;
+    border-color: #ef4444;
+  }
+
+  .toast-notification {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1060;
+    min-width: 280px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border-radius: 12px;
+    animation: slideInUp 0.3s ease-out;
+  }
+  @keyframes slideInUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .tr-opt-out {
+    opacity: 0.7;
+    background-color: rgba(239, 68, 68, 0.03);
   }
 </style>
 {% endblock %}
@@ -104,164 +140,465 @@
   <!-- Header Section -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-      <h1 class="h2 mb-1">Bot WhatsApp Manager</h1>
-      <p class="text-muted mb-0">Gestisci le preferenze di ricezione commerciale ed effettua invii promozionali automatizzati.</p>
+      <h1 class="h2 mb-1 fw-bold"><i class="bi bi-robot text-success me-2"></i>Bot WhatsApp & Categorie Clienti</h1>
+      <p class="text-muted mb-0">Gestisci con un clic quali clienti appartengono a ciascuna categoria (*Scadenze*, *Pesce*, *Carne*, *Stop*) e invia comunicazioni broadcast.</p>
     </div>
 
-    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-      <i class="bi bi-house-door"></i> Dashboard
-    </a>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-people"></i> Anagrafica Clienti
+      </a>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-house-door"></i> Dashboard
+      </a>
+    </div>
   </div>
 
   <!-- Segment Filters Row -->
   <div class="d-flex flex-wrap gap-2 mb-4">
-    <a class="btn bot-tab-btn {% if pref=='scadenza' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-       href="{{ url_for('bot_dashboard', pref='scadenza') }}">
-      ⏳ Scadenze <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_scadenza or 0 }}</span>
+    <a class="btn bot-tab-btn {% if pref=='tutti' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='tutti') }}">
+      👥 Tutti i Clienti <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill" id="badge-tutti">{{ counts.n_tutti or 0 }}</span>
     </a>
 
-    <a class="btn bot-tab-btn {% if pref=='pesce' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='scadenza' %}btn-warning text-dark fw-bold{% else %}btn-outline-warning text-dark{% endif %}"
+       href="{{ url_for('bot_dashboard', pref='scadenza') }}">
+      ⏳ Scadenze <span class="badge bg-dark text-white ms-1.5 px-2 rounded-pill" id="badge-scadenza">{{ counts.n_scadenza or 0 }}</span>
+    </a>
+
+    <a class="btn bot-tab-btn {% if pref=='pesce' %}btn-info text-dark fw-bold{% else %}btn-outline-info text-dark{% endif %}"
        href="{{ url_for('bot_dashboard', pref='pesce') }}">
-      🐟 Pesce <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_pesce or 0 }}</span>
+      🐟 Pesce <span class="badge bg-dark text-white ms-1.5 px-2 rounded-pill" id="badge-pesce">{{ counts.n_pesce or 0 }}</span>
     </a>
 
     <a class="btn bot-tab-btn {% if pref=='carne' %}btn-primary{% else %}btn-outline-primary{% endif %}"
        href="{{ url_for('bot_dashboard', pref='carne') }}">
-      🥩 Carne <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_carne or 0 }}</span>
+      🥩 Carne <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill" id="badge-carne">{{ counts.n_carne or 0 }}</span>
     </a>
 
-    <a class="btn bot-tab-btn {% if pref=='stop' %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+    <a class="btn bot-tab-btn {% if pref=='stop' %}btn-danger text-white{% else %}btn-outline-danger{% endif %}"
        href="{{ url_for('bot_dashboard', pref='stop') }}">
-      ⛔ Stop / Opt-out <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_stop or 0 }}</span>
+      ⛔ Stop / Opt-out <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill" id="badge-stop">{{ counts.n_stop or 0 }}</span>
     </a>
 
     <a class="btn bot-tab-btn {% if pref=='nessuna' %}btn-dark{% else %}btn-outline-dark{% endif %}"
        href="{{ url_for('bot_dashboard', pref='nessuna') }}">
-      ❓ Nessun Canale <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill">{{ counts.n_nessuna or 0 }}</span>
+      ❓ Nessuna Categoria <span class="badge bg-white text-dark ms-1.5 px-2 rounded-pill" id="badge-nessuna">{{ counts.n_nessuna or 0 }}</span>
     </a>
   </div>
 
   <!-- Main Board Grid -->
   <div class="row g-4 mb-5">
     
-    <!-- Compose Panel -->
-    <div class="col-12 col-lg-4">
-      <div class="bot-compose-card d-flex flex-column">
-        <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
-          <i class="bi bi-send text-primary me-2"></i>Invia Messaggio Massivo
-        </h5>
+    <!-- Left Sidebar: Actions & Broadcast -->
+    <div class="col-12 col-xl-4 col-lg-5">
+      <div class="d-flex flex-column gap-4">
+        
+        <!-- Bulk Category Management Card -->
+        <div class="bot-compose-card">
+          <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
+            <i class="bi bi-check2-square text-primary me-2"></i>Azioni di Gruppo sui Clienti
+          </h5>
+          <p class="small text-muted mb-3">Seleziona le caselle nella tabella a fianco per assegnare o rimuovere categorie in blocco.</p>
+          
+          <div class="d-flex flex-column gap-2.5">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="small fw-semibold text-muted">Selezionati: <strong id="selected-count" class="text-primary fs-6">0</strong></span>
+              <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="btn-select-all-filtered">Seleziona tutti visibili</button>
+            </div>
 
-        <div class="mb-3 p-3 rounded-4 border" style="background-color: var(--primary-light); border-color: rgba(99, 102, 241, 0.1) !important;">
-          <span class="text-muted small d-block mb-0.5 text-uppercase fw-bold">Segmento Destinatario</span>
-          <span class="fw-bold text-primary text-uppercase fs-5"><i class="bi bi-tag-fill me-1"></i>{{ pref }}</span>
+            <select class="styled-select w-100" id="bulk-action-select">
+              <option value="">-- Scegli azione di gruppo --</option>
+              <optgroup label="Assegna Categoria">
+                <option value="add_scadenza">⏳ Aggiungi a Scadenze</option>
+                <option value="add_pesce">🐟 Aggiungi a Pesce</option>
+                <option value="add_carne">🥩 Aggiungi a Carne</option>
+              </optgroup>
+              <optgroup label="Rimuovi da Categoria">
+                <option value="remove_scadenza">❌ Rimuovi da Scadenze</option>
+                <option value="remove_pesce">❌ Rimuovi da Pesce</option>
+                <option value="remove_carne">❌ Rimuovi da Carne</option>
+              </optgroup>
+              <optgroup label="Stato Disiscrizione">
+                <option value="set_stop">⛔ Imposta STOP (Opt-out)</option>
+                <option value="unset_stop">✅ Riabilita (Rimuovi STOP)</option>
+              </optgroup>
+            </select>
+
+            <button type="button" class="btn btn-primary rounded-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2" id="btn-apply-bulk">
+              <i class="bi bi-lightning-charge-fill"></i> Applica ai Selezionati
+            </button>
+          </div>
         </div>
 
-        <form method="POST" action="{{ url_for('bot_invia') }}" class="flex-grow-1 d-flex flex-column gap-3">
-          <input type="hidden" name="pref" value="{{ pref }}">
+        <!-- Compose Broadcast Panel -->
+        <div class="bot-compose-card">
+          <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
+            <i class="bi bi-send-fill text-success me-2"></i>Invia Messaggio WhatsApp
+          </h5>
 
-          <div class="flex-grow-1">
-            <label class="form-label small fw-semibold text-muted">Corpo Messaggio WhatsApp</label>
-            <textarea class="styled-textarea w-100" name="testo" rows="8" required
-                      placeholder="Scrivi qui il messaggio per la campagna promozionale..."></textarea>
-            <small class="text-muted d-block mt-2">
-              💡 Suggerimento: mantieni il testo coinciso, inserisci emoji ed indica una chiara call to action.
-            </small>
+          <div class="mb-3 p-3 rounded-3 border" style="background-color: var(--primary-light); border-color: rgba(99, 102, 241, 0.1) !important;">
+            <span class="text-muted small d-block mb-0.5 text-uppercase fw-bold">Segmento Destinatario</span>
+            <span class="fw-bold text-primary text-uppercase fs-5">
+              <i class="bi bi-tag-fill me-1"></i>{{ pref }}
+            </span>
           </div>
 
-          <button type="submit" class="btn btn-success w-100 rounded-4 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm">
-            <i class="bi bi-whatsapp"></i> Spedisci al Segmento
-          </button>
-        </form>
+          <form method="POST" action="{{ url_for('bot_invia') }}" class="d-flex flex-column gap-3">
+            <input type="hidden" name="pref" value="{{ pref }}">
 
-        <hr class="my-4">
+            <div>
+              <label class="form-label small fw-semibold text-muted">Testo del Messaggio</label>
+              <textarea class="styled-textarea w-100" name="testo" rows="5" required
+                        placeholder="Scrivi qui il messaggio da recapitare ai clienti del segmento..."></textarea>
+              <small class="text-muted d-block mt-1.5" style="font-size: 0.8rem;">
+                💡 Consiglio: inserisci emoji e un invito all'azione chiaro.
+              </small>
+            </div>
 
-        <div>
-          <span class="fw-bold text-uppercase tracking-wider text-muted small d-block mb-2">Comandi WhatsApp (Admin)</span>
-          <p class="small text-muted mb-2">Puoi gestire il bot inviando messaggi WhatsApp ai recapiti abilitati:</p>
-          <ul class="list-unstyled mb-0 d-flex flex-column gap-1.5">
-            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>STATS</strong> → Report contatori</li>
-            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>SEND PESCE</strong> testo...</li>
-            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>SEND CARNE</strong> testo...</li>
-            <li class="small font-monospace text-color bg-light p-1.5 rounded border border-light"><i class="bi bi-chevron-right text-primary me-1"></i><strong>SEND SCADENZA</strong> testo...</li>
+            <button type="submit" class="btn btn-success w-100 rounded-3 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm">
+              <i class="bi bi-whatsapp"></i> Spedisci a {{ clienti|length }} Clienti
+            </button>
+          </form>
+        </div>
+
+        <!-- Admin Shortcuts -->
+        <div class="bot-compose-card">
+          <span class="fw-bold text-uppercase tracking-wider text-muted small d-block mb-2">Comandi WhatsApp Rapidi (Admin)</span>
+          <p class="small text-muted mb-2">Puoi gestire il bot scrivendo dal tuo numero al bot WhatsApp:</p>
+          <ul class="list-unstyled mb-0 d-flex flex-column gap-1.5 font-monospace small">
+            <li class="p-1.5 rounded bg-light border"><strong class="text-primary">STATS</strong> → Report contatori iscritti</li>
+            <li class="p-1.5 rounded bg-light border"><strong class="text-primary">SEND PESCE</strong> testo...</li>
+            <li class="p-1.5 rounded bg-light border"><strong class="text-primary">SEND CARNE</strong> testo...</li>
+            <li class="p-1.5 rounded bg-light border"><strong class="text-primary">SEND SCADENZA</strong> testo...</li>
           </ul>
         </div>
+
       </div>
     </div>
 
-    <!-- Segment Customers List -->
-    <div class="col-12 col-lg-8">
+    <!-- Right Column: Interactive Client Management Table -->
+    <div class="col-12 col-xl-8 col-lg-7">
       <div class="segment-table-card">
-        <div class="d-flex justify-content-between align-items-center border-bottom p-3">
-          <span class="fw-bold text-uppercase tracking-wider text-muted small"><i class="bi bi-people-fill text-primary me-2"></i>Anagrafiche nel Segmento</span>
-          <span class="badge bg-light text-secondary border fs-6 fw-normal px-2.5 rounded-pill">{{ clienti|length }} clienti</span>
+        
+        <!-- Table Topbar: Search & Title -->
+        <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 bg-light-subtle">
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-uppercase tracking-wider text-muted small">
+              <i class="bi bi-sliders text-primary me-1.5"></i>Gestione Categorie Clienti
+            </span>
+            <span class="badge bg-primary text-white rounded-pill px-2.5" id="visible-count">{{ clienti|length }} clienti</span>
+          </div>
+
+          <div class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 260px;">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+              <input type="text" id="table-search-input" class="form-control border-start-0" placeholder="Filtra per nome o telefono...">
+            </div>
+          </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="table custom-table align-middle mb-0">
-            <thead>
+        <!-- Table -->
+        <div class="table-responsive" style="max-height: 75vh; overflow-y: auto;">
+          <table class="table custom-table align-middle mb-0" id="clienti-table">
+            <thead class="sticky-top shadow-sm">
               <tr>
-                <th>Ragione Sociale / Cliente</th>
-                <th class="d-none d-md-table-cell">Zona</th>
-                <th>Recapito</th>
-                <th>Preferenze Ricezione</th>
-                <th class="d-none d-lg-table-cell text-center" style="width: 140px;">Aggiornato il</th>
+                <th style="width: 40px;" class="text-center">
+                  <input type="checkbox" class="form-check-input" id="master-select-checkbox" title="Seleziona tutti">
+                </th>
+                <th>Cliente / Ragione Sociale</th>
+                <th class="d-none d-md-table-cell">Recapito</th>
+                <th class="text-center" style="width: 85px;" title="Ricevi offerte a scadenza ravvicinata">⏳ Scadenze</th>
+                <th class="text-center" style="width: 85px;" title="Ricevi offerte pesce">🐟 Pesce</th>
+                <th class="text-center" style="width: 85px;" title="Ricevi offerte carne">🥩 Carne</th>
+                <th class="text-center" style="width: 85px;" title="Disiscrizione totale">⛔ Stop</th>
               </tr>
             </thead>
             <tbody>
               {% for c in clienti %}
-                <tr>
-                  <td>
-                    <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-color">
-                      {{ c.nome }}
-                    </a>
-                  </td>
-                  <td class="d-none d-md-table-cell">
-                    <span class="text-muted small fw-semibold"><i class="bi bi-geo-alt me-1"></i>{{ c.zona or "-" }}</span>
-                  </td>
-                  <td>
-                    <span class="font-monospace text-color" style="font-size: 0.85rem;"><i class="bi bi-telephone text-muted me-1"></i>{{ c.telefono or 'N/D' }}</span>
+                <tr class="client-row {% if c.opt_out %}tr-opt-out{% endif %}" id="row-{{ c.id }}" data-id="{{ c.id }}" data-nome="{{ c.nome|lower }}" data-tel="{{ (c.telefono or '')|lower }}">
+                  <!-- Checkbox -->
+                  <td class="text-center">
+                    <input type="checkbox" class="form-check-input row-select-checkbox" value="{{ c.id }}">
                   </td>
 
+                  <!-- Name -->
                   <td>
-                    <div class="d-flex flex-wrap gap-1">
-                      {% if c.opt_out %}
-                        <span class="badge badge-stop rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">STOP</span>
-                      {% else %}
-                        {% if c.ricevi_scadenza %}<span class="badge badge-scad rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">SCADENZE</span>{% endif %}
-                        {% if c.ricevi_pesce %}<span class="badge badge-pesce rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">PESCE</span>{% endif %}
-                        {% if c.ricevi_carne %}<span class="badge badge-carne rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">CARNE</span>{% endif %}
-                        {% if (not c.ricevi_scadenza) and (not c.ricevi_pesce) and (not c.ricevi_carne) %}
-                          <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">NESSUNA</span>
-                        {% endif %}
+                    <div class="d-flex flex-column">
+                      <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-dark hover-primary" style="font-size: 0.95rem;">
+                        {{ c.nome }}
+                      </a>
+                      {% if c.zona %}
+                        <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ c.zona }}</small>
                       {% endif %}
                     </div>
                   </td>
 
-                  <td class="d-none d-lg-table-cell text-center">
-                    <span class="text-muted small">
-                      {% if c.updated_at %}
-                        {{ c.updated_at }}
-                      {% else %}
-                        –
-                      {% endif %}
-                    </span>
+                  <!-- Phone -->
+                  <td class="d-none d-md-table-cell">
+                    {% if c.telefono %}
+                      <a href="https://wa.me/{{ c.telefono|replace(' ', '')|replace('+', '') }}" target="_blank" class="text-decoration-none font-monospace small text-muted d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-whatsapp text-success"></i> {{ c.telefono }}
+                      </a>
+                    {% else %}
+                      <span class="text-muted small italic">Nessun numero</span>
+                    {% endif %}
                   </td>
+
+                  <!-- Toggle Scadenze -->
+                  <td class="text-center">
+                    <div class="form-check form-switch switch-toggle-box">
+                      <input class="form-check-input category-switch switch-scad" type="checkbox" 
+                             data-cid="{{ c.id }}" data-field="ricevi_scadenza"
+                             {% if c.ricevi_scadenza %}checked{% endif %}
+                             {% if c.opt_out %}disabled{% endif %}
+                             title="Attiva/Disattiva offerte Scadenze">
+                    </div>
+                  </td>
+
+                  <!-- Toggle Pesce -->
+                  <td class="text-center">
+                    <div class="form-check form-switch switch-toggle-box">
+                      <input class="form-check-input category-switch switch-pesce" type="checkbox" 
+                             data-cid="{{ c.id }}" data-field="ricevi_pesce"
+                             {% if c.ricevi_pesce %}checked{% endif %}
+                             {% if c.opt_out %}disabled{% endif %}
+                             title="Attiva/Disattiva offerte Pesce">
+                    </div>
+                  </td>
+
+                  <!-- Toggle Carne -->
+                  <td class="text-center">
+                    <div class="form-check form-switch switch-toggle-box">
+                      <input class="form-check-input category-switch switch-carne" type="checkbox" 
+                             data-cid="{{ c.id }}" data-field="ricevi_carne"
+                             {% if c.ricevi_carne %}checked{% endif %}
+                             {% if c.opt_out %}disabled{% endif %}
+                             title="Attiva/Disattiva offerte Carne">
+                    </div>
+                  </td>
+
+                  <!-- Toggle Stop -->
+                  <td class="text-center">
+                    <div class="form-check form-switch switch-toggle-box">
+                      <input class="form-check-input category-switch switch-stop" type="checkbox" 
+                             data-cid="{{ c.id }}" data-field="opt_out"
+                             {% if c.opt_out %}checked{% endif %}
+                             title="Imposta Stop / Opt-out">
+                    </div>
+                  </td>
+
                 </tr>
               {% else %}
                 <tr>
-                  <td colspan="5" class="text-center text-muted py-5">
+                  <td colspan="7" class="text-center text-muted py-5">
                     <i class="bi bi-chat-left-dots fs-1 text-primary opacity-25 d-block mb-3"></i>
-                    <h6 class="fw-semibold">Nessun cliente in questo segmento</h6>
-                    <p class="small text-muted mb-0">Non ci sono anagrafiche associate a questo specifico canale di comunicazione.</p>
+                    <h6 class="fw-semibold">Nessun cliente in questa vista</h6>
+                    <p class="small text-muted mb-0">Non ci sono anagrafiche corrispondenti ai filtri selezionati.</p>
                   </td>
                 </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
+
       </div>
     </div>
 
   </div>
 </div>
+
+<!-- Dynamic Floating Toast Feedback -->
+<div id="live-toast" class="toast align-items-center text-white bg-dark border-0 toast-notification d-none" role="alert" aria-live="assertive" aria-atomic="true">
+  <div class="d-flex">
+    <div class="toast-body d-flex align-items-center gap-2" id="toast-message">
+      <i class="bi bi-check-circle-fill text-success fs-5"></i>
+      <span>Preferenza aggiornata con successo.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const toastEl = document.getElementById("live-toast");
+  const toastMsg = document.getElementById("toast-message");
+  let toastTimeout;
+
+  function showToast(message, isSuccess = true) {
+    clearTimeout(toastTimeout);
+    toastMsg.innerHTML = isSuccess 
+      ? `<i class="bi bi-check-circle-fill text-success fs-5"></i> <span>${message}</span>`
+      : `<i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i> <span>${message}</span>`;
+    toastEl.classList.remove("d-none");
+    toastTimeout = setTimeout(() => {
+      toastEl.classList.add("d-none");
+    }, 2500);
+  }
+
+  function updateBadgeCounts(counts) {
+    if (!counts) return;
+    if (document.getElementById("badge-tutti")) document.getElementById("badge-tutti").textContent = counts.n_tutti || 0;
+    if (document.getElementById("badge-scadenza")) document.getElementById("badge-scadenza").textContent = counts.n_scadenza || 0;
+    if (document.getElementById("badge-pesce")) document.getElementById("badge-pesce").textContent = counts.n_pesce || 0;
+    if (document.getElementById("badge-carne")) document.getElementById("badge-carne").textContent = counts.n_carne || 0;
+    if (document.getElementById("badge-stop")) document.getElementById("badge-stop").textContent = counts.n_stop || 0;
+    if (document.getElementById("badge-nessuna")) document.getElementById("badge-nessuna").textContent = counts.n_nessuna || 0;
+  }
+
+  // 1. Single switch toggle handler
+  document.querySelectorAll(".category-switch").forEach(sw => {
+    sw.addEventListener("change", async (e) => {
+      const target = e.target;
+      const cid = target.dataset.cid;
+      const field = target.dataset.field;
+      const isChecked = target.checked;
+      const row = document.getElementById(`row-${cid}`);
+
+      try {
+        const resp = await fetch("/bot/api/toggle-preferenza", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente_id: parseInt(cid),
+            campo: field,
+            valore: isChecked
+          })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showToast("Categoria aggiornata!");
+          updateBadgeCounts(data.counts);
+
+          if (field === "opt_out") {
+            const rowSwitches = row.querySelectorAll(".switch-scad, .switch-pesce, .switch-carne");
+            if (isChecked) {
+              row.classList.add("tr-opt-out");
+              rowSwitches.forEach(s => s.disabled = true);
+            } else {
+              row.classList.remove("tr-opt-out");
+              rowSwitches.forEach(s => s.disabled = false);
+            }
+          }
+        } else {
+          showToast(data.error || "Errore durante il salvataggio", false);
+          target.checked = !isChecked; // revert
+        }
+      } catch (err) {
+        showToast("Errore di connessione al server", false);
+        target.checked = !isChecked; // revert
+      }
+    });
+  });
+
+  // 2. Live Search Input
+  const searchInput = document.getElementById("table-search-input");
+  const visibleCountBadge = document.getElementById("visible-count");
+  const clientRows = document.querySelectorAll(".client-row");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      let visible = 0;
+      clientRows.forEach(row => {
+        const nome = row.dataset.nome || "";
+        const tel = row.dataset.tel || "";
+        if (!q || nome.includes(q) || tel.includes(q)) {
+          row.style.display = "";
+          visible++;
+        } else {
+          row.style.display = "none";
+        }
+      });
+      if (visibleCountBadge) visibleCountBadge.textContent = `${visible} clienti`;
+    });
+  }
+
+  // 3. Row Selection & Bulk Actions
+  const masterCheckbox = document.getElementById("master-select-checkbox");
+  const rowCheckboxes = document.querySelectorAll(".row-select-checkbox");
+  const selectedCountDisplay = document.getElementById("selected-count");
+  const btnSelectAllFiltered = document.getElementById("btn-select-all-filtered");
+  const bulkActionSelect = document.getElementById("bulk-action-select");
+  const btnApplyBulk = document.getElementById("btn-apply-bulk");
+
+  function updateSelectedCount() {
+    const selected = document.querySelectorAll(".row-select-checkbox:checked").length;
+    if (selectedCountDisplay) selectedCountDisplay.textContent = selected;
+  }
+
+  if (masterCheckbox) {
+    masterCheckbox.addEventListener("change", () => {
+      const isChecked = masterCheckbox.checked;
+      rowCheckboxes.forEach(cb => {
+        const row = cb.closest("tr");
+        if (row && row.style.display !== "none") {
+          cb.checked = isChecked;
+        }
+      });
+      updateSelectedCount();
+    });
+  }
+
+  rowCheckboxes.forEach(cb => {
+    cb.addEventListener("change", updateSelectedCount);
+  });
+
+  if (btnSelectAllFiltered) {
+    btnSelectAllFiltered.addEventListener("click", () => {
+      rowCheckboxes.forEach(cb => {
+        const row = cb.closest("tr");
+        if (row && row.style.display !== "none") {
+          cb.checked = true;
+        }
+      });
+      if (masterCheckbox) masterCheckbox.checked = true;
+      updateSelectedCount();
+    });
+  }
+
+  if (btnApplyBulk) {
+    btnApplyBulk.addEventListener("click", async () => {
+      const selectedIds = Array.from(document.querySelectorAll(".row-select-checkbox:checked")).map(cb => parseInt(cb.value));
+      const action = bulkActionSelect.value;
+
+      if (selectedIds.length === 0) {
+        alert("Seleziona almeno un cliente dalla tabella!");
+        return;
+      }
+      if (!action) {
+        alert("Scegli un'azione di gruppo dal menu a tendina!");
+        return;
+      }
+
+      btnApplyBulk.disabled = true;
+      btnApplyBulk.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Applicazione in corso...`;
+
+      try {
+        const resp = await fetch("/bot/api/bulk-preferenze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente_ids: selectedIds,
+            action: action
+          })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showToast(`Aggiornati ${data.updated_count} clienti con successo!`);
+          updateBadgeCounts(data.counts);
+          setTimeout(() => window.location.reload(), 800);
+        } else {
+          showToast(data.error || "Errore durante l'operazione massiva", false);
+          btnApplyBulk.disabled = false;
+          btnApplyBulk.innerHTML = `<i class="bi bi-lightning-charge-fill"></i> Applica ai Selezionati`;
+        }
+      } catch (err) {
+        showToast("Errore di connessione al server", false);
+        btnApplyBulk.disabled = false;
+        btnApplyBulk.innerHTML = `<i class="bi bi-lightning-charge-fill"></i> Applica ai Selezionati`;
+      }
+    });
+  }
+});
+</script>
 {% endblock %}
