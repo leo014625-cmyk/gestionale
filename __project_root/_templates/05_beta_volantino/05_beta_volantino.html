@@ -4233,12 +4233,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const resp = await fetch("/api/importa-pdf-volantino", { method: "POST", body: formData });
-      const data = await resp.json();
+      
+      let data = null;
+      try {
+        data = await resp.json();
+      } catch (jsonErr) {
+        const textErr = await resp.text();
+        throw new Error(textErr ? textErr.substring(0, 150) : "Risposta non valida dal server");
+      }
 
       uploadSpinner.classList.add("d-none");
       dropzone.classList.remove("d-none");
 
-      if (data.status === "ok" && data.products && data.products.length > 0) {
+      if (resp.ok && data && data.status === "ok" && data.products && data.products.length > 0) {
         allExtractedProducts = data.products;
         const fileNameClean = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
         inputNomeVolantino.value = `Volantino ${fileNameClean}`;
@@ -4246,13 +4253,13 @@ document.addEventListener("DOMContentLoaded", () => {
         stepUpload.classList.add("d-none");
         stepWorkbench.classList.remove("d-none");
       } else {
-        uploadAlert.textContent = data.message || "Nessun prodotto trovato nel PDF.";
+        uploadAlert.textContent = (data && data.message) ? data.message : "Nessun prodotto trovato nel PDF.";
         uploadAlert.classList.remove("d-none");
       }
     } catch (err) {
       uploadSpinner.classList.add("d-none");
       dropzone.classList.remove("d-none");
-      uploadAlert.textContent = "Errore di connessione durante la scansione del PDF.";
+      uploadAlert.textContent = `Errore scansione PDF: ${err.message || err}`;
       uploadAlert.classList.remove("d-none");
     }
   }
