@@ -36,11 +36,10 @@
         <i class="bi bi-cloud-upload-fill"></i> Salva
       </button>
       
-      <!-- CARICA PDF BOTTONE -->
-      <button class="btn btn-danger btn-sm px-3 fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2" id="import-pdf-btn">
-        <i class="bi bi-file-earmark-pdf-fill"></i> Carica PDF
+      <!-- CARICA PDF / INPUBLISH STUDIO BOTTONE -->
+      <button class="btn btn-primary btn-sm px-3 fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalInPublishStudio" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border: none;">
+        <i class="bi bi-magic fs-5"></i> InPublish Studio da PDF
       </button>
-      <input type="file" id="import-pdf-file" accept="application/pdf" style="display: none;">
       
       <div class="dropdown">
         <button class="btn btn-outline-dark btn-sm px-3 fw-bold rounded-3 dropdown-toggle d-flex align-items-center gap-2" type="button" id="dropdownEsporta" data-bs-toggle="dropdown" aria-expanded="false">
@@ -207,13 +206,42 @@
               </div>
             </div>
 
+            <!-- BANNER CATEGORIA FOGLIO -->
+            <div class="border-top pt-3 mt-3">
+              <h7 class="fw-bold d-block text-dark mb-2 small"><i class="bi bi-bookmark-star-fill text-primary me-1"></i>Banner Categoria Foglio</h7>
+              <div class="mb-2">
+                <input type="text" id="foglio-cat-title" class="form-control form-control-sm bg-white border text-dark fw-bold" 
+                       placeholder="Titolo Sezione (es. CARNE SCELTA)">
+              </div>
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="small text-muted" style="font-size: 0.75rem;">Colore Fascia:</span>
+                <div class="d-flex align-items-center gap-1" id="foglio-cat-color-picker">
+                  <button type="button" class="btn p-0 rounded-circle border btn-editor-cat-color" data-color="#0f172a" title="Nero Elegante" style="width: 18px; height: 18px; background-color: #0f172a;"></button>
+                  <button type="button" class="btn p-0 rounded-circle border btn-editor-cat-color" data-color="#e11d48" title="Rosso Carne" style="width: 18px; height: 18px; background-color: #e11d48;"></button>
+                  <button type="button" class="btn p-0 rounded-circle border btn-editor-cat-color" data-color="#0284c7" title="Blu Mare" style="width: 18px; height: 18px; background-color: #0284c7;"></button>
+                  <button type="button" class="btn p-0 rounded-circle border btn-editor-cat-color" data-color="#06b6d4" title="Gelo Surgelati" style="width: 18px; height: 18px; background-color: #06b6d4;"></button>
+                  <button type="button" class="btn p-0 rounded-circle border btn-editor-cat-color" data-color="#16a34a" title="Verde Bio" style="width: 18px; height: 18px; background-color: #16a34a;"></button>
+                  <button type="button" class="btn p-0 rounded-circle border btn-editor-cat-color" data-color="#d97706" title="Gold Promo" style="width: 18px; height: 18px; background-color: #d97706;"></button>
+                </div>
+              </div>
+            </div>
+
             <!-- SFONDO DIETRO LE CELLE -->
             <div class="border-top pt-3 mt-3">
               <h7 class="fw-bold d-block text-dark mb-2 small"><i class="bi bi-image text-success me-1"></i>Sfondo Griglia Prodotti</h7>
               
+              <!-- Sfondi Precaricati Dropdown -->
+              <div class="mb-2">
+                <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Sfondo Precaricato</label>
+                <select id="foglio-bg-preset-select" class="form-select form-select-sm bg-white border text-dark">
+                  <option value="">-- Nessuno Sfondo (Trasparente / Bianco) --</option>
+                  <!-- Popolato dinamicamente -->
+                </select>
+              </div>
+
               <div class="d-flex gap-1 mb-2">
                 <button class="btn btn-light btn-sm flex-grow-1 border text-dark d-flex align-items-center justify-content-center gap-1" id="foglio-bg-file-btn">
-                  <i class="bi bi-upload"></i> Carica Sfondo
+                  <i class="bi bi-upload"></i> Carica Immagine
                 </button>
                 <input type="file" id="foglio-bg-file-input" class="d-none" accept="image/*">
                 <button class="btn btn-outline-danger btn-sm" id="foglio-bg-rimuovi" title="Rimuovi sfondo"><i class="bi bi-trash"></i></button>
@@ -1252,6 +1280,55 @@ document.addEventListener("DOMContentLoaded", () => {
       ctrl.addEventListener("input", aggiornaSfondoDaControlli);
       ctrl.addEventListener("change", aggiornaSfondoDaControlli);
     }
+  });
+
+  // Preset Backgrounds Loader for Inspector
+  const controlBgPreset = document.getElementById("foglio-bg-preset-select");
+  if (controlBgPreset) {
+    fetch("/api/sfondi_volantino")
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.sfondi) {
+          data.sfondi.forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.url;
+            opt.textContent = s.nome;
+            controlBgPreset.appendChild(opt);
+          });
+        }
+      })
+      .catch(err => console.warn("Errore caricamento sfondi preset:", err));
+
+    controlBgPreset.addEventListener("change", (e) => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.bgImg = e.target.value;
+        applicaSfondoFoglio(page);
+        aggiornaIspettoreSfondoControlli(page);
+      }
+    });
+  }
+
+  // Category Banner Listeners for Inspector
+  const controlCatTitle = document.getElementById("foglio-cat-title");
+  if (controlCatTitle) {
+    controlCatTitle.addEventListener("input", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.categoryTitle = controlCatTitle.value;
+        applicaBannerCategoria(page);
+      }
+    });
+  }
+
+  document.querySelectorAll(".btn-editor-cat-color").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.categoryBannerColor = btn.dataset.color;
+        applicaBannerCategoria(page);
+      }
+    });
   });
 
   /* -------------------------------------------------------------------
@@ -2737,8 +2814,40 @@ document.addEventListener("DOMContentLoaded", () => {
       dragClass: "sortable-drag"
     });
 
+    applicaBannerCategoria(page);
     applicaSfondoFoglio(page);
     return page;
+  }
+
+  function applicaBannerCategoria(page) {
+    if (!page) return;
+    let banner = page.querySelector(".page-category-banner");
+    const catTitle = page.dataset.categoryTitle || "";
+    const catColor = page.dataset.categoryBannerColor || "#0f172a";
+    
+    if (catTitle && catTitle.trim()) {
+      if (!banner) {
+        banner = document.createElement("div");
+        banner.classList.add("page-category-banner");
+        const grid = page.querySelector(".page-grid");
+        page.insertBefore(banner, grid);
+      }
+      banner.textContent = catTitle;
+      banner.style.backgroundColor = catColor;
+      banner.style.color = "#ffffff";
+      banner.style.padding = "8px 16px";
+      banner.style.fontWeight = "800";
+      banner.style.fontSize = "15px";
+      banner.style.textTransform = "uppercase";
+      banner.style.letterSpacing = "0.05em";
+      banner.style.textAlign = "center";
+      banner.style.borderRadius = "8px";
+      banner.style.marginBottom = "8px";
+      banner.style.boxShadow = "0 3px 6px rgba(0,0,0,0.12)";
+      banner.style.display = "block";
+    } else {
+      if (banner) banner.remove();
+    }
   }
 
   function visualizzaPaginaCorrente() {
@@ -2748,6 +2857,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const page = pagine[paginaCorrente];
     controlLarghezza.value = page.dataset.larghezza;
     controlAltezza.value = page.dataset.altezza;
+    controlPadTop.value = page.dataset.padTop;
+    controlPadBottom.value = page.dataset.padBottom;
+    controlPadSides.value = page.dataset.padSides;
+    controlHeaderH.value = page.dataset.headerH;
+    controlFooterH.value = page.dataset.footerH;
+    controlHeaderFit.value = page.dataset.headerFit || "contain";
+    controlHeaderZoom.value = page.dataset.headerZoom || "1";
+    controlCols.value = page.dataset.cols;
+    controlRows.value = page.dataset.rows;
+    controlGap.value = page.dataset.gap;
+
+    valLarghezza.textContent = controlLarghezza.value;
+    valAltezza.textContent = controlAltezza.value;
+    valGap.textContent = controlGap.value;
+
+    const controlCatTitle = document.getElementById("foglio-cat-title");
+    const controlBgPreset = document.getElementById("foglio-bg-preset-select");
+
+    if (controlCatTitle) controlCatTitle.value = page.dataset.categoryTitle || "";
+    if (controlBgPreset) controlBgPreset.value = page.dataset.bgImg || "";
+
+    applicaBannerCategoria(page);
+    applicaSfondoFoglio(page);
+    aggiornaIspettoreSfondoControlli(page);
+  }
     controlPadTop.value = page.dataset.padTop;
     controlPadBottom.value = page.dataset.padBottom;
     controlPadSides.value = page.dataset.padSides;
@@ -2961,10 +3095,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const bgPosY = page.dataset.bgPosY || "50";
       const cellWidth = page.dataset.cellWidth || "380";
       const cellHeight = page.dataset.cellHeight || "500";
+      const categoryTitle = page.dataset.categoryTitle || "";
+      const categoryBannerColor = page.dataset.categoryBannerColor || "#0f172a";
 
       return { 
         cols, rows, gap, larghezza, altezza, padTop, padBottom, padSides, headerH, footerH, headerFit, headerZoom,
-        headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, cellWidth, cellHeight 
+        headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, cellWidth, cellHeight,
+        categoryTitle, categoryBannerColor
       };
     });
 
@@ -3022,7 +3159,9 @@ document.addEventListener("DOMContentLoaded", () => {
           bgPosX: pData.bgPosX !== undefined ? pData.bgPosX : "50",
           bgPosY: pData.bgPosY !== undefined ? pData.bgPosY : "50",
           cellWidth: pData.cellWidth || "380",
-          cellHeight: pData.cellHeight || "500"
+          cellHeight: pData.cellHeight || "500",
+          categoryTitle: pData.categoryTitle || "",
+          categoryBannerColor: pData.categoryBannerColor || "#0f172a"
         });
 
         page.innerHTML = `
@@ -3046,6 +3185,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         applicaDimensioniFoglio(page);
         applicaStrutturaGriglia(page, cols, rows, gap);
+        applicaBannerCategoria(page);
 
         (pData.cells || []).forEach(item => {
           const cell = creaCellaVuota();
@@ -3866,4 +4006,699 @@ document.addEventListener("DOMContentLoaded", () => {
   background: #94a3b8;
 }
 </style>
+
+<!-- MODAL INPUBLISH STUDIO: WIZARD MULTI-FOGLIO & GESTIONE CATEGORIE / SFONDI -->
+<div class="modal fade" id="modalInPublishStudio" tabindex="-1" aria-labelledby="modalInPublishStudioLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+    <div class="modal-content border-0" style="background-color: #f8fafc; color: #0f172a;">
+      
+      <!-- Modal Top Navbar -->
+      <div class="modal-header border-bottom px-4 py-3 bg-white shadow-sm d-flex justify-content-between align-items-center" style="z-index: 1055;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-2 rounded-3 text-white d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); width: 42px; height: 42px;">
+            <i class="bi bi-magic fs-4"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+              InPublish Layout Studio
+              <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2.5 py-0.5 small" style="font-size: 0.72rem;">Pro Flyer Architect</span>
+            </h5>
+            <p class="text-muted small mb-0">Organizza fogli, categorie, sfondi e posizione prodotti prima di aprire l'editor</p>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-outline-secondary rounded-3 px-3 py-1.5 fw-semibold btn-sm" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg me-1"></i> Chiudi
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body p-4" style="background-color: #f8fafc;">
+        
+        <!-- STEP 1: UPLOAD PDF -->
+        <div id="inpub-step-upload" class="d-flex flex-column align-items-center justify-content-center py-5">
+          <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white" style="max-width: 680px; width: 100%;">
+            <div class="mb-4">
+              <div class="mx-auto rounded-circle d-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px; background: rgba(79, 70, 229, 0.1); color: #4f46e5;">
+                <i class="bi bi-file-earmark-pdf fs-1"></i>
+              </div>
+              <h4 class="fw-bold text-dark mb-2">Carica il PDF con le Offerte</h4>
+              <p class="text-muted small mb-0">Seleziona o trascina il file PDF promozionale (listino fornitori, offerte del mese o promo scadenze). Il sistema estrarrà codici, descrizioni, prezzi e categorie per l'impaginazione rapida.</p>
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div id="inpub-dropzone" class="p-4 rounded-4 border-2 border-dashed d-flex flex-column align-items-center justify-content-center gap-2 mb-4" style="border-color: #cbd5e1; background-color: #f8fafc; cursor: pointer; transition: all 0.2s;">
+              <i class="bi bi-cloud-arrow-up fs-2 text-primary"></i>
+              <span class="fw-semibold text-dark">Trascina qui il file PDF oppure clicca per sfogliare</span>
+              <span class="text-muted small">Supporta file PDF fino a 50MB</span>
+              <input type="file" id="inpub-file-input" accept="application/pdf" style="display: none;">
+            </div>
+
+            <!-- Upload Spinner -->
+            <div id="inpub-upload-spinner" class="d-none py-3">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="text-primary fw-bold small mt-2 mb-0">Scansione del PDF e riconoscimento prodotti in corso...</p>
+            </div>
+
+            <!-- Upload Error Alert -->
+            <div id="inpub-upload-alert" class="alert alert-danger d-none rounded-3 py-2 px-3 small text-start"></div>
+          </div>
+        </div>
+
+        <!-- STEP 2: INPUBLISH WORKBENCH (MULTI-SHEET STAGING) -->
+        <div id="inpub-step-workbench" class="d-none">
+          
+          <!-- Top Control Toolbar -->
+          <div class="card border bg-white shadow-sm rounded-4 p-3 mb-4" style="border-color: #e2e8f0;">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+              
+              <!-- Title & Type -->
+              <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style="min-width: 320px;">
+                <div class="input-group input-group-sm" style="max-width: 320px;">
+                  <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-tag-fill"></i></span>
+                  <input type="text" id="inpub-volantino-nome" class="form-control border-start-0 fw-bold text-dark" placeholder="Titolo Volantino (es. Promo Agosto)">
+                </div>
+
+                <select id="inpub-volantino-tipo" class="form-select form-select-sm fw-semibold" style="width: auto; min-width: 170px;">
+                  <option value="promo_mensile">Promo Mensile</option>
+                  <option value="volantino">Volantino Standard</option>
+                  <option value="promo_carne">Promo Carne</option>
+                  <option value="promo_pesce">Promo Pesce</option>
+                  <option value="promo_scadenza">Promo Scadenze</option>
+                </select>
+              </div>
+
+              <!-- Quick Layout Grid Selector -->
+              <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted fw-semibold d-none d-md-inline">Formato Griglia:</span>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-outline-secondary inpub-grid-btn" data-cols="2" data-rows="2">2x2 (4)</button>
+                  <button type="button" class="btn btn-outline-secondary inpub-grid-btn" data-cols="2" data-rows="3">2x3 (6)</button>
+                  <button type="button" class="btn btn-outline-secondary inpub-grid-btn active btn-primary text-white" data-cols="3" data-rows="3">3x3 (9)</button>
+                  <button type="button" class="btn btn-outline-secondary inpub-grid-btn" data-cols="3" data-rows="4">3x4 (12)</button>
+                </div>
+              </div>
+
+              <!-- Automated Layout Actions -->
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-3 fw-semibold d-flex align-items-center gap-1.5" id="inpub-btn-group-category">
+                  <i class="bi bi-diagram-3-fill"></i> Raggruppa per Categoria
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 fw-semibold d-flex align-items-center gap-1.5" id="inpub-btn-distribute">
+                  <i class="bi bi-distribute-vertical"></i> Distribuisci Equamente
+                </button>
+                <button type="button" class="btn btn-sm btn-success rounded-3 fw-semibold d-flex align-items-center gap-1.5" id="inpub-btn-add-sheet">
+                  <i class="bi bi-plus-circle-fill"></i> Aggiungi Foglio
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Main Layout Split: Sheets Canvas & Parked Drawer -->
+          <div class="row g-4">
+            
+            <!-- Left / Center: Configured Sheets List -->
+            <div class="col-12 col-xl-9 col-lg-8">
+              <div class="d-flex flex-column gap-4" id="inpub-sheets-container">
+                <!-- Sheets rendered dynamically via JS -->
+              </div>
+            </div>
+
+            <!-- Right Sidebar: Unassigned / Parked Products -->
+            <div class="col-12 col-xl-3 col-lg-4">
+              <div class="card border bg-white shadow-sm rounded-4 sticky-top" style="top: 80px; max-height: calc(100vh - 120px); display: flex; flex-direction: column;">
+                <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-inboxes-fill text-warning fs-5"></i>
+                    <h6 class="fw-bold mb-0 text-dark">Prodotti in Attesa / Esclusi</h6>
+                  </div>
+                  <span class="badge bg-warning text-dark rounded-pill px-2.5" id="inpub-unassigned-count">0</span>
+                </div>
+
+                <div class="card-body p-3 overflow-y-auto" style="flex: 1 1 auto; max-height: 450px;" id="inpub-unassigned-container">
+                  <!-- Unassigned product items -->
+                </div>
+
+                <div class="card-footer bg-light border-top p-3 d-flex flex-column gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary rounded-3 w-100 fw-semibold" id="inpub-btn-add-all-unassigned">
+                    <i class="bi bi-plus-all me-1"></i> Inserisci tutti in nuovi fogli
+                  </button>
+                  <button type="button" class="btn btn-primary rounded-4 py-2.5 fw-bold w-100 shadow d-flex align-items-center justify-content-center gap-2" id="inpub-btn-generate-final" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+                    <i class="bi bi-rocket-takeoff-fill fs-5"></i>
+                    <span>Genera Volantino & Apri Editor</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// INPUBLISH STUDIO WORKBENCH INITIALIZER INSIDE EDITOR
+document.addEventListener("DOMContentLoaded", () => {
+  const stepUpload = document.getElementById("inpub-step-upload");
+  const stepWorkbench = document.getElementById("inpub-step-workbench");
+  const dropzone = document.getElementById("inpub-dropzone");
+  const fileInput = document.getElementById("inpub-file-input");
+  const uploadSpinner = document.getElementById("inpub-upload-spinner");
+  const uploadAlert = document.getElementById("inpub-upload-alert");
+
+  const sheetsContainer = document.getElementById("inpub-sheets-container");
+  const unassignedContainer = document.getElementById("inpub-unassigned-container");
+  const unassignedCountBadge = document.getElementById("inpub-unassigned-count");
+
+  const inputNomeVolantino = document.getElementById("inpub-volantino-nome");
+  const selectTipoVolantino = document.getElementById("inpub-volantino-tipo");
+  const btnGroupCategory = document.getElementById("inpub-btn-group-category");
+  const btnDistribute = document.getElementById("inpub-btn-distribute");
+  const btnAddSheet = document.getElementById("inpub-btn-add-sheet");
+  const btnAddAllUnassigned = document.getElementById("inpub-btn-add-all-unassigned");
+  const btnGenerateFinal = document.getElementById("inpub-btn-generate-final");
+
+  let availableSfondi = [];
+  let currentGrid = { cols: 3, rows: 3 };
+  let allExtractedProducts = [];
+  let sheets = [];
+  let unassignedProducts = [];
+
+  async function loadAvailableSfondi() {
+    try {
+      const resp = await fetch("/api/sfondi_volantino");
+      const data = await resp.json();
+      if (data.success) {
+        availableSfondi = data.sfondi || [];
+      }
+    } catch (e) {
+      console.warn("Impossibile caricare sfondi:", e);
+    }
+  }
+  loadAvailableSfondi();
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.style.borderColor = "#4f46e5"; });
+    dropzone.addEventListener("dragleave", () => { dropzone.style.borderColor = "#cbd5e1"; });
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "#cbd5e1";
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) processPdfFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) processPdfFile(e.target.files[0]);
+    });
+  }
+
+  async function processPdfFile(file) {
+    if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
+      uploadAlert.textContent = "Seleziona un file PDF valido.";
+      uploadAlert.classList.remove("d-none");
+      return;
+    }
+
+    uploadAlert.classList.add("d-none");
+    uploadSpinner.classList.remove("d-none");
+    dropzone.classList.add("d-none");
+
+    const formData = new FormData();
+    formData.append("pdf", file);
+
+    try {
+      const resp = await fetch("/api/importa-pdf-volantino", { method: "POST", body: formData });
+      const data = await resp.json();
+
+      uploadSpinner.classList.add("d-none");
+      dropzone.classList.remove("d-none");
+
+      if (data.status === "ok" && data.products && data.products.length > 0) {
+        allExtractedProducts = data.products;
+        const fileNameClean = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+        inputNomeVolantino.value = `Volantino ${fileNameClean}`;
+        initWorkbenchWithProducts(allExtractedProducts);
+        stepUpload.classList.add("d-none");
+        stepWorkbench.classList.remove("d-none");
+      } else {
+        uploadAlert.textContent = data.message || "Nessun prodotto trovato nel PDF.";
+        uploadAlert.classList.remove("d-none");
+      }
+    } catch (err) {
+      uploadSpinner.classList.add("d-none");
+      dropzone.classList.remove("d-none");
+      uploadAlert.textContent = "Errore di connessione durante la scansione del PDF.";
+      uploadAlert.classList.remove("d-none");
+    }
+  }
+
+  function initWorkbenchWithProducts(products) {
+    const maxPerSheet = currentGrid.cols * currentGrid.rows;
+    sheets = [];
+    unassignedProducts = [];
+
+    const byCategory = {};
+    products.forEach(p => {
+      const cat = (p.categoria || "OFFERTE").toUpperCase();
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(p);
+    });
+
+    const catKeys = Object.keys(byCategory);
+
+    if (catKeys.length > 1) {
+      catKeys.forEach(cat => {
+        const catProds = byCategory[cat];
+        for (let i = 0; i < catProds.length; i += maxPerSheet) {
+          const chunk = catProds.slice(i, i + maxPerSheet);
+          let bannerColor = "#0f172a";
+          let bgUrl = "";
+          const catLower = cat.toLowerCase();
+
+          if (catLower.includes("carne")) {
+            bannerColor = "#e11d48";
+            const sCarne = availableSfondi.find(s => s.nome.toLowerCase().includes("carne"));
+            if (sCarne) bgUrl = s.url;
+          } else if (catLower.includes("pesce") || catLower.includes("mare") || catLower.includes("ittic")) {
+            bannerColor = "#0284c7";
+            const sPesce = availableSfondi.find(s => s.nome.toLowerCase().includes("pesce"));
+            if (sPesce) bgUrl = s.url;
+          } else if (catLower.includes("gelo") || catLower.includes("surgelat")) {
+            bannerColor = "#06b6d4";
+          } else if (catLower.includes("orto") || catLower.includes("bio") || catLower.includes("verdura")) {
+            bannerColor = "#16a34a";
+          }
+
+          sheets.push({
+            cols: currentGrid.cols,
+            rows: currentGrid.rows,
+            gap: 12,
+            categoryTitle: cat,
+            categoryBannerColor: bannerColor,
+            bgUrl: bgUrl,
+            products: chunk
+          });
+        }
+      });
+    } else {
+      for (let i = 0; i < products.length; i += maxPerSheet) {
+        sheets.push({
+          cols: currentGrid.cols,
+          rows: currentGrid.rows,
+          gap: 12,
+          categoryTitle: "I NOSTRI PRODOTTI IN OFFERTA",
+          categoryBannerColor: "#4f46e5",
+          bgUrl: "",
+          products: products.slice(i, i + maxPerSheet)
+        });
+      }
+    }
+
+    renderWorkbench();
+  }
+
+  function renderWorkbench() {
+    renderSheets();
+    renderUnassigned();
+  }
+
+  function renderSheets() {
+    sheetsContainer.innerHTML = "";
+    const maxPerSheet = currentGrid.cols * currentGrid.rows;
+
+    sheets.forEach((sheet, sIdx) => {
+      const sheetCard = document.createElement("div");
+      sheetCard.classList.add("card", "border", "bg-white", "shadow-sm", "rounded-4", "overflow-hidden");
+      sheetCard.style.borderColor = "#e2e8f0";
+
+      let sfondiOptions = `<option value="">-- Nessuno sfondo (Bianco) --</option>`;
+      availableSfondi.forEach(s => {
+        const isSel = sheet.bgUrl === s.url ? "selected" : "";
+        sfondiOptions += `<option value="${s.url}" ${isSel}>${s.nome}</option>`;
+      });
+
+      sheetCard.innerHTML = `
+        <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 bg-light" style="background-color: #f1f5f9 !important;">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-dark text-white rounded-pill px-3 py-1.5 fw-bold">
+              <i class="bi bi-file-earmark me-1"></i> Foglio ${sIdx + 1}
+            </span>
+            <span class="badge ${sheet.products.length >= maxPerSheet ? 'bg-danger' : 'bg-primary'} rounded-pill px-2.5 py-1">
+              ${sheet.products.length} / ${maxPerSheet} prodotti
+            </span>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="d-flex align-items-center gap-1.5">
+              <label class="small fw-semibold text-muted mb-0"><i class="bi bi-image"></i> Sfondo:</label>
+              <select class="form-select form-select-sm rounded-3 sheet-bg-select" data-sheet="${sIdx}" style="min-width: 180px;">
+                ${sfondiOptions}
+              </select>
+            </div>
+
+            ${sheets.length > 1 ? `
+              <button type="button" class="btn btn-outline-danger btn-sm rounded-3 btn-remove-sheet" data-sheet="${sIdx}" title="Elimina Foglio">
+                <i class="bi bi-trash"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+
+        <div class="p-3 border-bottom bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 450px;">
+            <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.75rem;"><i class="bi bi-bookmark-star-fill text-primary"></i> Banner:</span>
+            <input type="text" class="form-control form-control-sm fw-bold sheet-cat-title" data-sheet="${sIdx}" 
+                   placeholder="Nome Sezione / Categoria (es. CARNE SCELTA)" value="${sheet.categoryTitle || ''}">
+          </div>
+
+          <div class="d-flex align-items-center gap-1.5">
+            <span class="small text-muted fw-semibold me-1">Colore:</span>
+            ${[
+              { c: '#0f172a', name: 'Nero Elegante' },
+              { c: '#e11d48', name: 'Rosso Carne' },
+              { c: '#0284c7', name: 'Blu Mare' },
+              { c: '#06b6d4', name: 'Gelo Surgelati' },
+              { c: '#16a34a', name: 'Verde Bio' },
+              { c: '#d97706', name: 'Gold Promo' }
+            ].map(col => `
+              <button type="button" class="btn p-0 rounded-circle border btn-sheet-color ${sheet.categoryBannerColor === col.c ? 'ring-active' : ''}" 
+                      data-sheet="${sIdx}" data-color="${col.c}" title="${col.name}"
+                      style="width: 22px; height: 22px; background-color: ${col.c}; outline: ${sheet.categoryBannerColor === col.c ? '2px solid #4f46e5' : 'none'}; outline-offset: 2px;">
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="p-3" style="background-color: #fafafa; min-height: 180px;">
+          <div class="row g-2 sheet-products-grid" data-sheet="${sIdx}">
+            ${sheet.products.map((p, pIdx) => `
+              <div class="col-12 col-md-6 col-xl-4 product-card-wrapper" data-sheet="${sIdx}" data-pidx="${pIdx}">
+                <div class="card border rounded-3 p-2.5 h-100 shadow-xs d-flex flex-column justify-content-between" style="background-color: #ffffff; border-color: #cbd5e1 !important;">
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="rounded-2 border bg-light d-flex align-items-center justify-content-center overflow-hidden" style="width: 48px; height: 48px; flex-shrink: 0;">
+                      ${p.immagine ? `<img src="${p.immagine}" style="width: 100%; height: 100%; object-fit: contain;">` : `<i class="bi bi-box text-muted"></i>`}
+                    </div>
+                    <div class="overflow-hidden" style="flex: 1 1 auto;">
+                      <span class="badge bg-light text-dark border font-monospace px-1.5 py-0.5 small" style="font-size: 0.68rem;">${p.codice || 'NO COD'}</span>
+                      <div class="fw-bold text-truncate text-dark small" title="${p.nome}">${p.nome}</div>
+                      <div class="fw-bold text-success font-monospace small">€ ${p.prezzo} <small class="text-muted">/${p.um || 'PZ'}</small></div>
+                    </div>
+                  </div>
+
+                  <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-auto">
+                    <button type="button" class="btn btn-xs btn-light border py-0 px-2 btn-move-prev" data-sheet="${sIdx}" data-pidx="${pIdx}" ${sIdx === 0 ? 'disabled' : ''} title="Sposta al foglio precedente">
+                      <i class="bi bi-arrow-left"></i>
+                    </button>
+
+                    <button type="button" class="btn btn-xs btn-outline-danger py-0 px-2 border-0 btn-exclude-prod" data-sheet="${sIdx}" data-pidx="${pIdx}" title="Escludi dal foglio">
+                      <i class="bi bi-trash small"></i>
+                    </button>
+
+                    <button type="button" class="btn btn-xs btn-light border py-0 px-2 btn-move-next" data-sheet="${sIdx}" data-pidx="${pIdx}" ${sIdx === sheets.length - 1 ? 'disabled' : ''} title="Sposta al foglio successivo">
+                      <i class="bi bi-arrow-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+
+            ${sheet.products.length === 0 ? `
+              <div class="col-12 text-center py-4 text-muted">
+                <i class="bi bi-inbox fs-3 d-block mb-1 opacity-50"></i>
+                <span class="small">Questo foglio è vuoto. Aggiungi prodotti dai fogli vicini o dai prodotti in attesa.</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      sheetsContainer.appendChild(sheetCard);
+    });
+
+    attachSheetEvents();
+  }
+
+  function renderUnassigned() {
+    unassignedCountBadge.textContent = unassignedProducts.length;
+    unassignedContainer.innerHTML = "";
+
+    if (unassignedProducts.length === 0) {
+      unassignedContainer.innerHTML = `
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-check-circle fs-3 text-success d-block mb-2"></i>
+          <span class="small">Tutti i prodotti del PDF sono assegnati ai fogli!</span>
+        </div>
+      `;
+      return;
+    }
+
+    unassignedProducts.forEach((p, uIdx) => {
+      const card = document.createElement("div");
+      card.classList.add("card", "border", "rounded-3", "p-2", "mb-2", "shadow-xs");
+      card.style.borderColor = "#e2e8f0";
+
+      let sheetAssignButtons = sheets.map((s, sIdx) => `
+        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-1.5 btn-assign-to-sheet" data-uidx="${uIdx}" data-sheet="${sIdx}" style="font-size: 0.72rem;">
+          + Foglio ${sIdx + 1}
+        </button>
+      `).join('');
+
+      card.innerHTML = `
+        <div class="d-flex align-items-center gap-2 mb-1.5">
+          <div class="rounded border bg-light d-flex align-items-center justify-content-center overflow-hidden" style="width: 36px; height: 36px; flex-shrink: 0;">
+            ${p.immagine ? `<img src="${p.immagine}" style="width: 100%; height: 100%; object-fit: contain;">` : `<i class="bi bi-box text-muted"></i>`}
+          </div>
+          <div class="overflow-hidden" style="flex: 1 1 auto;">
+            <div class="fw-bold text-truncate small">${p.nome}</div>
+            <div class="text-success font-monospace small" style="font-size: 0.78rem;">€ ${p.prezzo} / ${p.um || 'PZ'}</div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-1 border-top pt-1.5">
+          <span class="small text-muted me-1" style="font-size: 0.72rem;">Assegna a:</span>
+          ${sheetAssignButtons}
+        </div>
+      `;
+      unassignedContainer.appendChild(card);
+    });
+
+    attachUnassignedEvents();
+  }
+
+  function attachSheetEvents() {
+    document.querySelectorAll(".sheet-bg-select").forEach(sel => {
+      sel.addEventListener("change", (e) => {
+        const sIdx = parseInt(e.target.dataset.sheet);
+        sheets[sIdx].bgUrl = e.target.value;
+      });
+    });
+
+    document.querySelectorAll(".sheet-cat-title").forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        const sIdx = parseInt(e.target.dataset.sheet);
+        sheets[sIdx].categoryTitle = e.target.value;
+      });
+    });
+
+    document.querySelectorAll(".btn-sheet-color").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sIdx = parseInt(btn.dataset.sheet);
+        sheets[sIdx].categoryBannerColor = btn.dataset.color;
+        renderWorkbench();
+      });
+    });
+
+    document.querySelectorAll(".btn-remove-sheet").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sIdx = parseInt(btn.dataset.sheet);
+        unassignedProducts.push(...sheets[sIdx].products);
+        sheets.splice(sIdx, 1);
+        renderWorkbench();
+      });
+    });
+
+    document.querySelectorAll(".btn-move-prev").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sIdx = parseInt(btn.dataset.sheet);
+        const pIdx = parseInt(btn.dataset.pidx);
+        if (sIdx > 0) {
+          const item = sheets[sIdx].products.splice(pIdx, 1)[0];
+          sheets[sIdx - 1].products.push(item);
+          renderWorkbench();
+        }
+      });
+    });
+
+    document.querySelectorAll(".btn-move-next").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sIdx = parseInt(btn.dataset.sheet);
+        const pIdx = parseInt(btn.dataset.pidx);
+        if (sIdx < sheets.length - 1) {
+          const item = sheets[sIdx].products.splice(pIdx, 1)[0];
+          sheets[sIdx + 1].products.push(item);
+          renderWorkbench();
+        }
+      });
+    });
+
+    document.querySelectorAll(".btn-exclude-prod").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sIdx = parseInt(btn.dataset.sheet);
+        const pIdx = parseInt(btn.dataset.pidx);
+        const item = sheets[sIdx].products.splice(pIdx, 1)[0];
+        unassignedProducts.push(item);
+        renderWorkbench();
+      });
+    });
+  }
+
+  function attachUnassignedEvents() {
+    document.querySelectorAll(".btn-assign-to-sheet").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const uIdx = parseInt(btn.dataset.uidx);
+        const sIdx = parseInt(btn.dataset.sheet);
+        const item = unassignedProducts.splice(uIdx, 1)[0];
+        if (sheets[sIdx]) {
+          sheets[sIdx].products.push(item);
+          renderWorkbench();
+        }
+      });
+    });
+  }
+
+  document.querySelectorAll(".inpub-grid-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".inpub-grid-btn").forEach(b => {
+        b.classList.remove("active", "btn-primary", "text-white");
+        b.classList.add("btn-outline-secondary");
+      });
+      btn.classList.add("active", "btn-primary", "text-white");
+      btn.classList.remove("btn-outline-secondary");
+
+      currentGrid.cols = parseInt(btn.dataset.cols);
+      currentGrid.rows = parseInt(btn.dataset.rows);
+      sheets.forEach(s => {
+        s.cols = currentGrid.cols;
+        s.rows = currentGrid.rows;
+      });
+      renderWorkbench();
+    });
+  });
+
+  if (btnGroupCategory) {
+    btnGroupCategory.addEventListener("click", () => {
+      const allActiveProducts = [];
+      sheets.forEach(s => allActiveProducts.push(...s.products));
+      allActiveProducts.push(...unassignedProducts);
+      initWorkbenchWithProducts(allActiveProducts);
+    });
+  }
+
+  if (btnDistribute) {
+    btnDistribute.addEventListener("click", () => {
+      const allActiveProducts = [];
+      sheets.forEach(s => allActiveProducts.push(...s.products));
+      allActiveProducts.push(...unassignedProducts);
+
+      const maxPerSheet = currentGrid.cols * currentGrid.rows;
+      const numSheets = Math.ceil(allActiveProducts.length / maxPerSheet) || 1;
+
+      sheets = [];
+      unassignedProducts = [];
+
+      for (let i = 0; i < numSheets; i++) {
+        sheets.push({
+          cols: currentGrid.cols,
+          rows: currentGrid.rows,
+          gap: 12,
+          categoryTitle: `OFFERTE SELEZIONATE - PARTE ${i + 1}`,
+          categoryBannerColor: "#4f46e5",
+          bgUrl: "",
+          products: allActiveProducts.slice(i * maxPerSheet, (i + 1) * maxPerSheet)
+        });
+      }
+      renderWorkbench();
+    });
+  }
+
+  if (btnAddSheet) {
+    btnAddSheet.addEventListener("click", () => {
+      sheets.push({
+        cols: currentGrid.cols,
+        rows: currentGrid.rows,
+        gap: 12,
+        categoryTitle: `NUOVA SEZIONE ${sheets.length + 1}`,
+        categoryBannerColor: "#0f172a",
+        bgUrl: "",
+        products: []
+      });
+      renderWorkbench();
+    });
+  }
+
+  if (btnAddAllUnassigned) {
+    btnAddAllUnassigned.addEventListener("click", () => {
+      if (unassignedProducts.length === 0) return;
+      const maxPerSheet = currentGrid.cols * currentGrid.rows;
+      while (unassignedProducts.length > 0) {
+        const chunk = unassignedProducts.splice(0, maxPerSheet);
+        sheets.push({
+          cols: currentGrid.cols,
+          rows: currentGrid.rows,
+          gap: 12,
+          categoryTitle: "ALTRE OFFERTE",
+          categoryBannerColor: "#d97706",
+          bgUrl: "",
+          products: chunk
+        });
+      }
+      renderWorkbench();
+    });
+  }
+
+  if (btnGenerateFinal) {
+    btnGenerateFinal.addEventListener("click", async () => {
+      if (sheets.length === 0) {
+        alert("Configura almeno un foglio con prodotti!");
+        return;
+      }
+
+      btnGenerateFinal.disabled = true;
+      btnGenerateFinal.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Generazione Volantino in corso...`;
+
+      const payload = {
+        nome: inputNomeVolantino.value.trim() || "Volantino InPublish",
+        tipo: selectTipoVolantino.value,
+        sheets: sheets
+      };
+
+      try {
+        const resp = await fetch("/api/crea-volantino-wizard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+
+        if (data.success && data.url) {
+          window.location.href = data.url;
+        } else {
+          alert(data.message || "Errore durante la creazione del volantino.");
+          btnGenerateFinal.disabled = false;
+          btnGenerateFinal.innerHTML = `<i class="bi bi-rocket-takeoff-fill fs-5"></i> <span>Genera Volantino & Apri Editor</span>`;
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Errore di comunicazione col server.");
+        btnGenerateFinal.disabled = false;
+        btnGenerateFinal.innerHTML = `<i class="bi bi-rocket-takeoff-fill fs-5"></i> <span>Genera Volantino & Apri Editor</span>`;
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

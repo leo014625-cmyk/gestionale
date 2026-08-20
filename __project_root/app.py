@@ -6860,6 +6860,145 @@ def api_importa_pdf_volantino():
     })
 
 # ----------------------------------------------------------------------
+#  CREA VOLANTINO DA WIZARD INPUBLISH (Multi-Foglio, Sfondi & Categorie)
+# ----------------------------------------------------------------------
+@app.route('/api/crea-volantino-wizard', methods=['POST'])
+@login_required
+def api_crea_volantino_wizard():
+    try:
+        data = request.get_json(silent=True) or {}
+        titolo = data.get("nome", "").strip() or f"Volantino - {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        tipo = data.get("tipo", "promo_mensile")
+        sheets = data.get("sheets", [])
+        
+        if not sheets:
+            return jsonify({"success": False, "message": "Nessun foglio configurato"}), 400
+            
+        doc_pages = []
+        for s_idx, s in enumerate(sheets):
+            cols = int(s.get("cols", 3))
+            rows = int(s.get("rows", 3))
+            gap = int(s.get("gap", 12))
+            bg_url = s.get("bgUrl", "")
+            cat_title = s.get("categoryTitle", "").strip()
+            cat_color = s.get("categoryBannerColor", "#0f172a")
+            
+            header_h = "85" if cat_title else "70"
+            
+            page_dict = {
+                "cols": cols,
+                "rows": rows,
+                "gap": gap,
+                "larghezza": "800",
+                "altezza": "1100",
+                "padTop": "10",
+                "padBottom": "10",
+                "padSides": "10",
+                "headerH": header_h,
+                "footerH": "0",
+                "headerFit": "contain",
+                "headerZoom": "1",
+                "bgImg": bg_url,
+                "bgWidth": "100",
+                "bgHeight": "100",
+                "bgPosX": "50",
+                "bgPosY": "50",
+                "categoryTitle": cat_title,
+                "categoryBannerColor": cat_color,
+                "cells": []
+            }
+            
+            tot_cells = cols * rows
+            sheet_products = s.get("products", [])
+            
+            for c_idx in range(tot_cells):
+                if c_idx < len(sheet_products):
+                    p = sheet_products[c_idx]
+                    prezzo_val = str(p.get("prezzo", "")).replace("€", "").strip()
+                    um_val = str(p.get("um", "PZ")).strip().upper()
+                    full_price = f"€ {prezzo_val} / {um_val}" if um_val else f"€ {prezzo_val}"
+                    
+                    price_color = "#e11d48"
+                    if "pesce" in cat_title.lower() or "pesce" in tipo:
+                        price_color = "#0284c7"
+                    elif "carne" in cat_title.lower() or "carne" in tipo:
+                        price_color = "#e11d48"
+                        
+                    cell_data = {
+                        "codice": str(p.get("codice", "")),
+                        "nome": str(p.get("nome", "")),
+                        "prezzo": full_price,
+                        "oldPrice": "",
+                        "priceStyle": "base",
+                        "priceSize": "26",
+                        "priceColor": price_color,
+                        "priceBg": "#ffffff",
+                        "priceCurrency": "€",
+                        "priceWeight": "800",
+                        "layout": "modern-split",
+                        "textAlign": "start",
+                        "fontFamily": "inherit",
+                        "fontColor": "#0f172a",
+                        "titleSize": "16",
+                        "titleWeight": "700",
+                        "titleSpacing": "0",
+                        "titleHeight": "1.2",
+                        "codeSize": "9",
+                        "descSize": "10",
+                        "scadenza": str(p.get("scadenza", "")),
+                        "scadenzaSize": "12",
+                        "descItalic": "0",
+                        "textUpper": "1",
+                        "borderStyle": "solid",
+                        "borderColor": "#cbd5e1",
+                        "radius": "8",
+                        "bgColor": "#ffffff",
+                        "bgTransparent": "0",
+                        "shadow": "1",
+                        "imageFilter": "none",
+                        "imageZoom": str(p.get("imageZoom", "1.0")),
+                        "imagePosX": str(p.get("imagePosX", "50")),
+                        "imagePosY": str(p.get("imagePosY", "50")),
+                        "imageRadius": "6",
+                        "imagePadding": "4",
+                        "imageAspect": "contain",
+                        "imgOriginal": str(p.get("immagine", "")),
+                        "imgNoBg": str(p.get("immagine", "")),
+                        "useNoBg": "1",
+                        "showDesc": "0"
+                    }
+                else:
+                    cell_data = {
+                        "codice": "",
+                        "nome": "",
+                        "prezzo": "",
+                        "imgOriginal": "",
+                        "bgTransparent": "1"
+                    }
+                page_dict["cells"].append(cell_data)
+                
+            doc_pages.append(page_dict)
+            
+        nuovo = VolantinoBeta(
+            nome=titolo,
+            layout_json=json.dumps(doc_pages, ensure_ascii=False),
+            tipo=tipo
+        )
+        db.session.add(nuovo)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "id": nuovo.id,
+            "url": url_for("beta_volantino_modifica", id=nuovo.id)
+        })
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Errore creazione volantino: {str(e)}"}), 500
+
+# ----------------------------------------------------------------------
 #  SALVA / AGGIORNA VOLANTINO  (con miniatura)
 # ----------------------------------------------------------------------
 @app.route('/salva-volantino-beta', methods=['POST'])
