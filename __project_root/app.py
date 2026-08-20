@@ -6555,14 +6555,13 @@ def api_salva_immagine_volantino_prodotto():
 @login_required
 def api_importa_pdf_volantino():
     print("--- [PDF IMPORT] Endpoint triggered ---", flush=True)
-    if 'pdf' not in request.files:
-        print("--- [PDF IMPORT] Error: No 'pdf' key in request.files ---", flush=True)
-        return jsonify({"status": "error", "message": "Nessun file inviato"}), 400
+    file = request.files.get('pdf') or request.files.get('file') or request.files.get('pdf_file')
+    if not file:
+        print("--- [PDF IMPORT] Error: No file in request.files ---", flush=True)
+        return jsonify({"status": "error", "message": "Nessun file PDF inviato"}), 400
         
-    file = request.files['pdf']
     print(f"--- [PDF IMPORT] Received file: {file.filename} ---", flush=True)
     if file.filename == '':
-        print("--- [PDF IMPORT] Error: Empty filename ---", flush=True)
         return jsonify({"status": "error", "message": "Nessun file selezionato"}), 400
         
     import tempfile
@@ -6571,15 +6570,15 @@ def api_importa_pdf_volantino():
     import werkzeug.utils
     
     temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, werkzeug.utils.secure_filename(file.filename))
+    temp_path = os.path.join(temp_dir, f"import_{int(time.time())}_{werkzeug.utils.secure_filename(file.filename)}")
     file.save(temp_path)
     
     products = []
     current_category = "FRESCO"
-    
-    regex = re.compile(r"^(\d{4,10})\s+(.+?)\s+([A-Za-z]{2,3})\s+(?:€\s*)?(\d+[\.,]\d{2})")
+    regex = re.compile(r"^\s*(\d{4,10})\s+(.+?)\s+([A-Za-z]{2,3})\s+(?:€\s*)?(\d+[\.,]\d{2})")
     
     try:
+        # 1. Prova prima con il parser standard a righe
         with pdfplumber.open(temp_path) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
@@ -6600,16 +6599,65 @@ def api_importa_pdf_volantino():
                     if m:
                         code, name, um, price_str = m.groups()
                         price_dot = price_str.replace(',', '.')
-                        price_val = float(price_dot)
-                        price_display = price_dot.replace('.', ',')
+                        try: price_val = float(price_dot)
+                        except: price_val = 0.0
                         products.append({
                             "codice": code,
                             "nome": name.strip(),
                             "um": um.upper(),
                             "prezzo": price_val,
-                            "prezzo_str": price_display,
+                            "prezzo_str": price_dot.replace('.', ','),
                             "categoria": current_category
                         })
+                        
+        # 2. Fallback: Se non trova con regex riga singola, prova con parse_offers_from_pdf
+        if not products:
+            print("--- [PDF IMPORT] Fallback to parse_offers_from_pdf ---", flush=True)
+            offers = parse_offers_from_pdf(temp_path)
+            for off in offers:
+                try: p_float = float(str(off.get("price", "0")).replace(",", "."))
+                except: p_float = 0.0
+                products.append({
+                    "codice": str(off.get("code", "")),
+                    "nome": str(off.get("name", "")).strip(),
+                    "um": str(off.get("um", "PZ")).upper(),
+                    "prezzo": p_float,
+                    "prezzo_str": f"{p_float:.2f}".replace(".", ","),
+                    "categoria": "OFFERTE"
+                })
+
+        # 3. Fallback: Se ancora vuoto, prova con parser tabellare scadenze
+        if not products:
+            print("--- [PDF IMPORT] Fallback to parse_promo_scadenze_from_pdf ---", flush=True)
+            scad_offers = parse_promo_scadenze_from_pdf(temp_path)
+            for off in scad_offers:
+                products.append({
+                    "codice": str(off.get("code", "")),
+                    "nome": str(off.get("name", "")).strip(),
+                    "um": str(off.get("um", "PZ")).upper(),
+                    "prezzo": float(off.get("price", 0.0)),
+                    "prezzo_str": str(off.get("price_str", "")).replace("€", "").strip() or f"{off.get('price', 0.0):.2f}".replace(".", ","),
+                    "categoria": str(off.get("categoria", "SCADENZE")),
+                    "scadenza": str(off.get("scadenza", ""))
+                })
+
+        # 4. Fallback: Se ancora vuoto, prova con regex scadenze
+        if not products:
+            print("--- [PDF IMPORT] Fallback to parse_scadenze_from_pdf ---", flush=True)
+            reg_scad = parse_scadenze_from_pdf(temp_path)
+            for off in reg_scad:
+                p_val = 0.0
+                try: p_val = float(str(off.get("price", "0")).replace("€", "").replace(",", ".").strip())
+                except: p_val = 0.0
+                products.append({
+                    "codice": str(off.get("code", "")),
+                    "nome": str(off.get("name", "")).strip(),
+                    "um": "PZ",
+                    "prezzo": p_val,
+                    "prezzo_str": f"{p_val:.2f}".replace(".", ","),
+                    "categoria": "SCADENZE",
+                    "scadenza": str(off.get("scadenza", ""))
+                })
     except Exception as e:
         print(f"--- [PDF IMPORT] Error scanning PDF: {e} ---", flush=True)
         import traceback
@@ -6619,6 +6667,9 @@ def api_importa_pdf_volantino():
         if os.path.exists(temp_path):
             try: os.remove(temp_path)
             except: pass
+
+    if not products:
+        return jsonify({"status": "error", "message": "Nessun prodotto trovato nel PDF. Assicurati che il PDF contenga codici numerici e prezzi."}), 400
 
     print(f"--- [PDF IMPORT] Parsed {len(products)} products from PDF. Starting DB sync ---", flush=True)
     imported_products = []
