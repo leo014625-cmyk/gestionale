@@ -7030,7 +7030,9 @@ def api_crea_volantino_wizard():
                         
                     cell_data = {
                         "codice": str(p.get("codice", "")),
+                        "titolo": str(p.get("nome", "")),
                         "nome": str(p.get("nome", "")),
+                        "descrizione": str(p.get("descrizione", "")),
                         "prezzo": full_price,
                         "oldPrice": "",
                         "priceStyle": "base",

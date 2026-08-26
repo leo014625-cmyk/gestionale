@@ -2851,26 +2851,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function visualizzaPaginaCorrente() {
+    if (!pagine.length || !pagine[paginaCorrente]) return;
     pagineContainer.innerHTML = "";
     pagineContainer.appendChild(pagine[paginaCorrente]);
 
     const page = pagine[paginaCorrente];
-    controlLarghezza.value = page.dataset.larghezza;
-    controlAltezza.value = page.dataset.altezza;
-    controlPadTop.value = page.dataset.padTop;
-    controlPadBottom.value = page.dataset.padBottom;
-    controlPadSides.value = page.dataset.padSides;
-    controlHeaderH.value = page.dataset.headerH;
-    controlFooterH.value = page.dataset.footerH;
-    controlHeaderFit.value = page.dataset.headerFit || "contain";
-    controlHeaderZoom.value = page.dataset.headerZoom || "1";
-    controlCols.value = page.dataset.cols;
-    controlRows.value = page.dataset.rows;
-    controlGap.value = page.dataset.gap;
+    if (controlLarghezza) controlLarghezza.value = page.dataset.larghezza || "800";
+    if (controlAltezza) controlAltezza.value = page.dataset.altezza || "1100";
+    if (controlPadTop) controlPadTop.value = page.dataset.padTop || "10";
+    if (controlPadBottom) controlPadBottom.value = page.dataset.padBottom || "10";
+    if (controlPadSides) controlPadSides.value = page.dataset.padSides || "10";
+    if (controlHeaderH) controlHeaderH.value = page.dataset.headerH || "80";
+    if (controlFooterH) controlFooterH.value = page.dataset.footerH || "80";
+    if (controlHeaderFit) controlHeaderFit.value = page.dataset.headerFit || "contain";
+    if (controlHeaderZoom) controlHeaderZoom.value = page.dataset.headerZoom || "1";
+    if (controlCols) controlCols.value = page.dataset.cols || "3";
+    if (controlRows) controlRows.value = page.dataset.rows || "3";
+    if (controlGap) controlGap.value = page.dataset.gap || "10";
+    if (controlCellaW) controlCellaW.value = page.dataset.cellWidth || "380";
+    if (controlCellaH) controlCellaH.value = page.dataset.cellHeight || "500";
 
-    valLarghezza.textContent = controlLarghezza.value;
-    valAltezza.textContent = controlAltezza.value;
-    valGap.textContent = controlGap.value;
+    if (valLarghezza) valLarghezza.textContent = controlLarghezza ? controlLarghezza.value : (page.dataset.larghezza || "800");
+    if (valAltezza) valAltezza.textContent = controlAltezza ? controlAltezza.value : (page.dataset.altezza || "1100");
+    if (valGap) valGap.textContent = controlGap ? controlGap.value : (page.dataset.gap || "10");
+    if (valCellaW) valCellaW.textContent = controlCellaW ? controlCellaW.value : (page.dataset.cellWidth || "380");
+    if (valCellaH) valCellaH.textContent = controlCellaH ? controlCellaH.value : (page.dataset.cellHeight || "500");
 
     const controlCatTitle = document.getElementById("foglio-cat-title");
     const controlBgPreset = document.getElementById("foglio-bg-preset-select");
@@ -2878,33 +2883,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (controlCatTitle) controlCatTitle.value = page.dataset.categoryTitle || "";
     if (controlBgPreset) controlBgPreset.value = page.dataset.bgImg || "";
 
+    applicaDimensioniFoglio(page);
+    applicaZoomLogoHeader(page);
     applicaBannerCategoria(page);
     applicaSfondoFoglio(page);
     aggiornaIspettoreSfondoControlli(page);
-  }
-    controlPadTop.value = page.dataset.padTop;
-    controlPadBottom.value = page.dataset.padBottom;
-    controlPadSides.value = page.dataset.padSides;
-    controlHeaderH.value = page.dataset.headerH;
-    controlFooterH.value = page.dataset.footerH;
-    controlHeaderFit.value = page.dataset.headerFit || "contain";
-    controlHeaderZoom.value = page.dataset.headerZoom || "1";
-    controlCols.value = page.dataset.cols;
-    controlRows.value = page.dataset.rows;
-    controlGap.value = page.dataset.gap;
-    controlCellaW.value = page.dataset.cellWidth || "380";
-    controlCellaH.value = page.dataset.cellHeight || "500";
-
-    valLarghezza.textContent = page.dataset.larghezza;
-    valAltezza.textContent = page.dataset.altezza;
-    valGap.textContent = page.dataset.gap;
-    valCellaW.textContent = controlCellaW.value;
-    valCellaH.textContent = controlCellaH.value;
-
-    applicaDimensioniFoglio(page);
-    applicaZoomLogoHeader(page);
-    aggiornaIspettoreSfondoControlli(page);
-    applicaSfondoFoglio(page);
   }
 
   function aggiornaListaPagineNav() {
@@ -3130,9 +3113,24 @@ document.addEventListener("DOMContentLoaded", () => {
        RICOSTRUZIONE DALLO STATO SALVATO (BACKEND DATABASE)
      ------------------------------------------------------------------- */
   {% if layout_json %}
-    const salvato = {{ layout_json | safe }};
+    let salvato = null;
+    try {
+      salvato = {{ layout_json | safe }};
+    } catch(e) {
+      console.warn("Parsing layout_json failed:", e);
+    }
+    
+    let pagesArray = [];
     if (Array.isArray(salvato)) {
-      salvato.forEach(pData => {
+      pagesArray = salvato;
+    } else if (salvato && Array.isArray(salvato.pages)) {
+      pagesArray = salvato.pages;
+    } else if (salvato && typeof salvato === 'object' && salvato.cols) {
+      pagesArray = [salvato];
+    }
+    
+    if (pagesArray.length > 0) {
+      pagesArray.forEach(pData => {
         const cols = parseInt(pData.cols || "3", 10);
         const rows = parseInt(pData.rows || "3", 10);
         const gap = parseInt(pData.gap || "10", 10);
@@ -3238,8 +3236,8 @@ document.addEventListener("DOMContentLoaded", () => {
             imgBox.innerHTML = `<img src="${imgToUse}">`;
           }
 
-          cell.querySelector(".titolo").innerText = item.titolo || "PRODOTTO";
-          cell.querySelector(".descrizione").innerText = item.descrizione || "Fai click per selezionare";
+          cell.querySelector(".titolo").innerText = item.titolo || item.nome || "";
+          cell.querySelector(".descrizione").innerText = item.descrizione || "";
           const sTag = cell.querySelector(".scadenza-tag");
           if (sTag) {
             sTag.innerText = item.scadenza || "";
