@@ -409,6 +409,12 @@ def init_db():
                 nome TEXT NOT NULL,
                 immagine TEXT NOT NULL,
                 data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS volantini_impostazioni (
+                id SERIAL PRIMARY KEY,
+                chiave TEXT UNIQUE NOT NULL,
+                valore TEXT,
+                aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )"""
         ]:
             try:
@@ -5946,6 +5952,147 @@ def delete_sfondo_volantino(sfondo_id):
     finally:
         cur.close()
         conn.close()
+
+# ============================
+# IMPOSTAZIONI VOLANTINI: LOGO FISSO & REGOLE SFONDI PER CATEGORIA
+# ============================
+UPLOAD_FOLDER_LOGHI_VOLANTINO = os.path.join(STATIC_DIR, "uploads", "volantini_loghi")
+os.makedirs(UPLOAD_FOLDER_LOGHI_VOLANTINO, exist_ok=True)
+
+DEFAULT_CATEGORY_RULES = [
+    { "keyword": "carne", "nome": "Carne", "sfondo_url": "/static/uploads/volantini_sfondi/sfondo_carne.png", "colore": "#e11d48", "titolo": "CARNE SCELTA & SPECIALITÀ" },
+    { "keyword": "pesce", "nome": "Pesce / Mare", "sfondo_url": "/static/uploads/volantini_sfondi/sfondo_pesce.png", "colore": "#0284c7", "titolo": "PROMOZIONI FRESCO MARE" },
+    { "keyword": "mare", "nome": "Pescheria", "sfondo_url": "/static/uploads/volantini_sfondi/sfondo_pesce.png", "colore": "#0284c7", "titolo": "PROMOZIONI FRESCO MARE" },
+    { "keyword": "gelo", "nome": "Gelo / Surgelati", "sfondo_url": "", "colore": "#06b6d4", "titolo": "SURGELATI & GELO" },
+    { "keyword": "surgelat", "nome": "Surgelati", "sfondo_url": "", "colore": "#06b6d4", "titolo": "SURGELATI & GELO" },
+    { "keyword": "orto", "nome": "Ortofrutta / Bio", "sfondo_url": "", "colore": "#16a34a", "titolo": "ORTOFRUTTA & BIO" },
+    { "keyword": "bio", "nome": "Biologico", "sfondo_url": "", "colore": "#16a34a", "titolo": "PRODOTTI BIO" },
+    { "keyword": "scadenz", "nome": "Promo Scadenze", "sfondo_url": "", "colore": "#d97706", "titolo": "PROMOZIONI SCADENZE BREVI" },
+    { "keyword": "fresco", "nome": "Fresco / Gastronomia", "sfondo_url": "", "colore": "#4f46e5", "titolo": "SPECIALITÀ FRESCO & GASTRONOMIA" },
+    { "keyword": "default", "nome": "Standard / Tutte le altre", "sfondo_url": "", "colore": "#0f172a", "titolo": "I NOSTRI PRODOTTI IN OFFERTA" }
+]
+
+def get_volantini_impostazioni_dict():
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT chiave, valore FROM volantini_impostazioni")
+        rows = cur.fetchall()
+        res = {}
+        for r in rows:
+            res[r["chiave"]] = r["valore"]
+        
+        default_logo = res.get("default_header_logo", "")
+        category_rules_str = res.get("category_rules", "")
+        category_rules = DEFAULT_CATEGORY_RULES
+        if category_rules_str:
+            try:
+                category_rules = json.loads(category_rules_str)
+            except:
+                pass
+        return {
+            "default_header_logo": default_logo,
+            "category_rules": category_rules
+        }
+    except Exception as e:
+        print(f"Error getting volantini impostazioni: {e}", flush=True)
+        return {
+            "default_header_logo": "",
+            "category_rules": DEFAULT_CATEGORY_RULES
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/volantini_impostazioni', methods=['GET', 'POST'])
+@login_required
+def api_volantini_impostazioni():
+    if request.method == 'GET':
+        data = get_volantini_impostazioni_dict()
+        return jsonify({"success": True, **data})
+    
+    payload = request.get_json(silent=True) or {}
+    default_logo = payload.get("default_header_logo", None)
+    category_rules = payload.get("category_rules", None)
+    
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        if default_logo is not None:
+            cur.execute("""
+                INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
+                VALUES ('default_header_logo', %s, NOW())
+                ON CONFLICT (chiave) DO UPDATE SET valore = EXCLUDED.valore, aggiornato_il = NOW()
+            """, (default_logo,))
+            
+        if category_rules is not None:
+            rules_str = json.dumps(category_rules, ensure_ascii=False)
+            cur.execute("""
+                INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
+                VALUES ('category_rules', %s, NOW())
+                ON CONFLICT (chiave) DO UPDATE SET valore = EXCLUDED.valore, aggiornato_il = NOW()
+            """, (rules_str,))
+            
+        conn.commit()
+        return jsonify({"success": True, "message": "Impostazioni e regole sfondi salvate con successo!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/upload_logo_volantino', methods=['POST'])
+@login_required
+def api_upload_logo_volantino():
+    file = request.files.get('logo') or request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({"success": False, "message": "Nessun file selezionato"}), 400
+        
+    filename = secure_filename(file.filename)
+    save_name = f"logo_{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+    file_path = os.path.join(UPLOAD_FOLDER_LOGHI_VOLANTINO, save_name)
+    file.save(file_path)
+    
+    logo_url = url_for('static', filename=f'uploads/volantini_loghi/{save_name}')
+    
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
+            VALUES ('default_header_logo', %s, NOW())
+            ON CONFLICT (chiave) DO UPDATE SET valore = EXCLUDED.valore, aggiornato_il = NOW()
+        """, (logo_url,))
+        conn.commit()
+        return jsonify({"success": True, "logo_url": logo_url, "message": "Logo fisso caricato e impostato con successo!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/rimuovi_logo_volantino', methods=['POST'])
+@login_required
+def api_rimuovi_logo_volantino():
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
+            VALUES ('default_header_logo', '', NOW())
+            ON CONFLICT (chiave) DO UPDATE SET valore = '', aggiornato_il = NOW()
+        """)
+        conn.commit()
+        return jsonify({"success": True, "message": "Logo fisso rimosso!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
 # ============================
 # LISTA VOLANTINI + PROMO LAMPO
 # ============================
@@ -6978,6 +7125,9 @@ def api_crea_volantino_wizard():
         if not sheets:
             return jsonify({"success": False, "message": "Nessun foglio configurato"}), 400
             
+        cfg = get_volantini_impostazioni_dict()
+        default_logo = cfg.get("default_header_logo", "")
+
         doc_pages = []
         for s_idx, s in enumerate(sheets):
             cols = int(s.get("cols", 3))
@@ -6986,8 +7136,9 @@ def api_crea_volantino_wizard():
             bg_url = s.get("bgUrl", "")
             cat_title = s.get("categoryTitle", "").strip()
             cat_color = s.get("categoryBannerColor", "#0f172a")
+            header_img = s.get("headerImg", "") or default_logo
             
-            header_h = "85" if cat_title else "70"
+            header_h = "90" if (header_img or cat_title) else "70"
             
             page_dict = {
                 "cols": cols,
@@ -6999,6 +7150,7 @@ def api_crea_volantino_wizard():
                 "padBottom": "10",
                 "padSides": "10",
                 "headerH": header_h,
+                "headerImg": header_img,
                 "footerH": "0",
                 "headerFit": "contain",
                 "headerZoom": "1",

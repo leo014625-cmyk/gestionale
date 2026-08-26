@@ -185,6 +185,11 @@
         <i class="bi bi-magic fs-5"></i> <span>Crea da PDF (InPublish Studio)</span>
       </button>
 
+      <!-- Pulsante Gestione Sfondi Categorie & Logo Fisso -->
+      <button type="button" class="btn btn-outline-dark rounded-4 px-3 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalImpostazioniVolantini">
+        <i class="bi bi-sliders text-primary fs-5"></i> <span>Sfondi Categorie & Logo Fisso</span>
+      </button>
+
       <!-- Pulsante Promo Mensili -->
       <button type="button" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCaricaPromoMensili">
         <i class="bi bi-file-earmark-pdf-fill"></i> Carica Promo Mensili
@@ -936,6 +941,130 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <!-- ========================================================================= -->
+<!-- MODAL IMPOSTAZIONI: SFONDI CATEGORIE & LOGO FISSO -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalImpostazioniVolantini" tabindex="-1" aria-labelledby="modalImpostazioniVolantiniLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden" style="background-color: var(--bg-color, #ffffff); color: var(--text-color, #0f172a);">
+      
+      <!-- Modal Header -->
+      <div class="modal-header border-bottom px-4 py-3 bg-light d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-2 rounded-3 text-white d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); width: 40px; height: 40px;">
+            <i class="bi bi-sliders fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold mb-0 text-dark">Impostazioni Volantini: Logo & Sfondi Categorie</h5>
+            <p class="text-muted small mb-0">Configura il logo fisso predefinito e l'assegnazione automatica di sfondi e colori per ogni categoria</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body p-4">
+        
+        <!-- Nav Tabs -->
+        <ul class="nav nav-pills mb-4 gap-2" id="cfg-pills-tab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-pill px-4 fw-semibold" id="pills-logo-tab" data-bs-toggle="pill" data-bs-target="#pills-logo" type="button" role="tab">
+              <i class="bi bi-image me-1.5"></i> 1. Logo Fisso Intestazione
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 fw-semibold" id="pills-sfondi-tab" data-bs-toggle="pill" data-bs-target="#pills-sfondi" type="button" role="tab">
+              <i class="bi bi-palette-fill me-1.5"></i> 2. Regole Sfondi & Colori Categoria
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="cfg-pills-tabContent">
+          
+          <!-- TAB 1: LOGO FISSO -->
+          <div class="tab-pane fade show active" id="pills-logo" role="tabpanel">
+            <div class="card border rounded-4 p-4 mb-3 bg-white" style="border-color: #e2e8f0;">
+              <h6 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-star-fill text-warning"></i> Logo Fisso Predefinito
+              </h6>
+              <p class="text-muted small mb-3">Questo logo apparirà automaticamente in cima a ogni foglio creato da PDF o dall'editor senza doverlo ricaricare ogni volta.</p>
+              
+              <!-- Logo Preview Box -->
+              <div class="d-flex flex-column flex-md-row align-items-center gap-4 p-3 rounded-3 border bg-light mb-3" style="min-height: 120px;">
+                <div id="cfg-logo-preview-box" class="rounded-3 border bg-white d-flex align-items-center justify-content-center p-2 shadow-xs" style="width: 220px; height: 90px; overflow: hidden;">
+                  <span class="text-muted small fst-italic" id="cfg-logo-placeholder">Nessun logo impostato</span>
+                  <img id="cfg-logo-img" src="" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;">
+                </div>
+
+                <div class="d-flex flex-column gap-2 flex-grow-1">
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary btn-sm rounded-3 fw-semibold px-3" id="cfg-btn-upload-logo">
+                      <i class="bi bi-upload me-1"></i> Carica Nuovo Logo
+                    </button>
+                    <input type="file" id="cfg-logo-file-input" accept="image/*" class="d-none">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-3 fw-semibold px-3 d-none" id="cfg-btn-rimuovi-logo">
+                      <i class="bi bi-trash me-1"></i> Rimuovi Logo
+                    </button>
+                  </div>
+                  <span class="text-muted small">Formati supportati: PNG trasparente, JPG, WEBP, SVG (Risoluzione consigliata: almeno 500px in larghezza).</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: REGOLE SFONDI CATEGORIE -->
+          <div class="tab-pane fade" id="pills-sfondi" role="tabpanel">
+            <div class="card border rounded-4 p-4 bg-white" style="border-color: #e2e8f0;">
+              <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                  <h6 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-diagram-3-fill text-primary"></i> Associazione Automatica Sfondi e Colori
+                  </h6>
+                  <p class="text-muted small mb-0">Quando carichi un PDF, il sistema assegna subito a ogni categoria lo sfondo e il colore qui configurati.</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-3 fw-semibold" id="cfg-btn-add-rule">
+                  <i class="bi bi-plus-circle-fill me-1"></i> Aggiungi Nuova Regola
+                </button>
+              </div>
+
+              <!-- Rules Table -->
+              <div class="table-responsive">
+                <table class="table table-hover align-middle border mb-3 rounded-3 overflow-hidden">
+                  <thead class="table-light">
+                    <tr class="small text-uppercase text-muted" style="font-size: 0.75rem;">
+                      <th style="width: 25%;">Categoria / Parola Chiave</th>
+                      <th style="width: 35%;">Sfondo Associato</th>
+                      <th style="width: 25%;">Titolo Fascia Predefinito</th>
+                      <th style="width: 10%;">Colore</th>
+                      <th style="width: 5%; text-align: center;">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cfg-rules-tbody">
+                    <!-- Loaded dynamically via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between align-items-center">
+        <button type="button" class="btn btn-outline-secondary rounded-3 px-3 fw-semibold btn-sm" data-bs-dismiss="modal">
+          Chiudi
+        </button>
+        <button type="button" class="btn btn-primary rounded-3 px-4 fw-bold shadow-sm" id="cfg-btn-save-all" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: none;">
+          <i class="bi bi-check-circle-fill me-1.5"></i> Salva Impostazioni
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
 <!-- MODAL INPUBLISH STUDIO: WIZARD MULTI-FOGLIO & GESTIONE CATEGORIE / SFONDI -->
 <!-- ========================================================================= -->
 <div class="modal fade" id="modalInPublishStudio" tabindex="-1" aria-labelledby="modalInPublishStudioLabel" aria-hidden="true" data-bs-backdrop="static">
@@ -1123,20 +1252,222 @@ document.addEventListener("DOMContentLoaded", () => {
   let allExtractedProducts = [];
   let sheets = [];
   let unassignedProducts = [];
+  let defaultHeaderLogo = "";
+  let savedCategoryRules = [];
 
-  // 1. Fetch available backgrounds on init
-  async function loadAvailableSfondi() {
+  // 1. Fetch available backgrounds & settings on init
+  async function loadAvailableSfondiAndSettings() {
     try {
-      const resp = await fetch("/api/sfondi_volantino");
-      const data = await resp.json();
-      if (data.success) {
-        availableSfondi = data.sfondi || [];
+      const [respSfondi, respSettings] = await Promise.all([
+        fetch("/api/sfondi_volantino").then(r => r.json()),
+        fetch("/api/volantini_impostazioni").then(r => r.json())
+      ]);
+
+      if (respSfondi.success) {
+        availableSfondi = respSfondi.sfondi || [];
+      }
+
+      if (respSettings.success) {
+        defaultHeaderLogo = respSettings.default_header_logo || "";
+        savedCategoryRules = respSettings.category_rules || [];
+        updateLogoPreviewInModal();
+        renderCategoryRulesTable();
       }
     } catch (e) {
-      console.warn("Impossibile caricare gli sfondi:", e);
+      console.warn("Impossibile caricare impostazioni o sfondi:", e);
     }
   }
-  loadAvailableSfondi();
+  loadAvailableSfondiAndSettings();
+
+  // ==========================================
+  // SETTINGS MODAL LOGIC (LOGO FISSO & REGOLE)
+  // ==========================================
+  const cfgLogoImg = document.getElementById("cfg-logo-img");
+  const cfgLogoPlaceholder = document.getElementById("cfg-logo-placeholder");
+  const cfgBtnUploadLogo = document.getElementById("cfg-btn-upload-logo");
+  const cfgLogoFileInput = document.getElementById("cfg-logo-file-input");
+  const cfgBtnRimuoviLogo = document.getElementById("cfg-btn-rimuovi-logo");
+  const cfgRulesTbody = document.getElementById("cfg-rules-tbody");
+  const cfgBtnAddRule = document.getElementById("cfg-btn-add-rule");
+  const cfgBtnSaveAll = document.getElementById("cfg-btn-save-all");
+
+  function updateLogoPreviewInModal() {
+    if (defaultHeaderLogo) {
+      cfgLogoImg.src = defaultHeaderLogo;
+      cfgLogoImg.style.display = "block";
+      cfgLogoPlaceholder.style.display = "none";
+      cfgBtnRimuoviLogo.classList.remove("d-none");
+    } else {
+      cfgLogoImg.src = "";
+      cfgLogoImg.style.display = "none";
+      cfgLogoPlaceholder.style.display = "inline";
+      cfgBtnRimuoviLogo.classList.add("d-none");
+    }
+  }
+
+  if (cfgBtnUploadLogo && cfgLogoFileInput) {
+    cfgBtnUploadLogo.addEventListener("click", () => cfgLogoFileInput.click());
+    cfgLogoFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const fd = new FormData();
+      fd.append("logo", file);
+
+      cfgBtnUploadLogo.disabled = true;
+      cfgBtnUploadLogo.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Caricamento...`;
+
+      try {
+        const resp = await fetch("/api/upload_logo_volantino", { method: "POST", body: fd });
+        const data = await resp.json();
+        if (data.success) {
+          defaultHeaderLogo = data.logo_url;
+          updateLogoPreviewInModal();
+          alert("Logo fisso impostato con successo!");
+        } else {
+          alert(data.message || "Errore durante il caricamento del logo.");
+        }
+      } catch (err) {
+        alert("Errore di connessione durante il caricamento.");
+      } finally {
+        cfgBtnUploadLogo.disabled = false;
+        cfgBtnUploadLogo.innerHTML = `<i class="bi bi-upload me-1"></i> Carica Nuovo Logo`;
+        cfgLogoFileInput.value = "";
+      }
+    });
+  }
+
+  if (cfgBtnRimuoviLogo) {
+    cfgBtnRimuoviLogo.addEventListener("click", async () => {
+      if (!confirm("Sei sicuro di voler rimuovere il logo fisso predefinito?")) return;
+      try {
+        const resp = await fetch("/api/rimuovi_logo_volantino", { method: "POST" });
+        const data = await resp.json();
+        if (data.success) {
+          defaultHeaderLogo = "";
+          updateLogoPreviewInModal();
+          alert("Logo fisso rimosso.");
+        }
+      } catch (e) {
+        alert("Errore durante la rimozione del logo.");
+      }
+    });
+  }
+
+  function renderCategoryRulesTable() {
+    if (!cfgRulesTbody) return;
+    cfgRulesTbody.innerHTML = "";
+
+    savedCategoryRules.forEach((rule, rIdx) => {
+      const tr = document.createElement("tr");
+
+      let sfondiOpts = `<option value="">-- Nessuno sfondo (Bianco) --</option>`;
+      availableSfondi.forEach(s => {
+        const sel = rule.sfondo_url === s.url ? "selected" : "";
+        sfondiOpts += `<option value="${s.url}" ${sel}>${s.nome}</option>`;
+      });
+
+      tr.innerHTML = `
+        <td>
+          <input type="text" class="form-control form-control-sm fw-bold rule-keyword" data-ridx="${rIdx}" value="${rule.keyword || ''}" placeholder="es. CARNE, PESCE">
+        </td>
+        <td>
+          <select class="form-select form-select-sm rule-sfondo" data-ridx="${rIdx}">
+            ${sfondiOpts}
+          </select>
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm rule-titolo" data-ridx="${rIdx}" value="${rule.titolo || ''}" placeholder="Titolo fascia (es. PROMO CARNE)">
+        </td>
+        <td>
+          <input type="color" class="form-control form-control-color form-control-sm p-0 border-0 rounded-circle rule-colore" data-ridx="${rIdx}" value="${rule.colore || '#0f172a'}" title="Colore Fascia" style="width: 32px; height: 32px; cursor: pointer;">
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm border-0 btn-remove-rule" data-ridx="${rIdx}" title="Elimina regola">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+      cfgRulesTbody.appendChild(tr);
+    });
+
+    document.querySelectorAll(".btn-remove-rule").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.ridx);
+        savedCategoryRules.splice(idx, 1);
+        renderCategoryRulesTable();
+      });
+    });
+
+    document.querySelectorAll(".rule-keyword").forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        savedCategoryRules[parseInt(e.target.dataset.ridx)].keyword = e.target.value;
+      });
+    });
+
+    document.querySelectorAll(".rule-sfondo").forEach(sel => {
+      sel.addEventListener("change", (e) => {
+        savedCategoryRules[parseInt(e.target.dataset.ridx)].sfondo_url = e.target.value;
+      });
+    });
+
+    document.querySelectorAll(".rule-titolo").forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        savedCategoryRules[parseInt(e.target.dataset.ridx)].titolo = e.target.value;
+      });
+    });
+
+    document.querySelectorAll(".rule-colore").forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        savedCategoryRules[parseInt(e.target.dataset.ridx)].colore = e.target.value;
+      });
+    });
+  }
+
+  if (cfgBtnAddRule) {
+    cfgBtnAddRule.addEventListener("click", () => {
+      savedCategoryRules.push({
+        keyword: "NUOVA",
+        nome: "Nuova Categoria",
+        sfondo_url: "",
+        colore: "#0f172a",
+        titolo: "OFFERTE SPECIALI"
+      });
+      renderCategoryRulesTable();
+    });
+  }
+
+  if (cfgBtnSaveAll) {
+    cfgBtnSaveAll.addEventListener("click", async () => {
+      cfgBtnSaveAll.disabled = true;
+      cfgBtnSaveAll.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvataggio...`;
+
+      try {
+        const resp = await fetch("/api/volantini_impostazioni", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            default_header_logo: defaultHeaderLogo,
+            category_rules: savedCategoryRules
+          })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          alert("Impostazioni e regole sfondi salvate con successo!");
+          const modalEl = document.getElementById("modalImpostazioniVolantini");
+          const modalInstance = bootstrap.Modal.getInstance(modalEl);
+          if (modalInstance) modalInstance.hide();
+        } else {
+          alert(data.message || "Errore durante il salvataggio.");
+        }
+      } catch (err) {
+        alert("Errore di connessione durante il salvataggio.");
+      } finally {
+        cfgBtnSaveAll.disabled = false;
+        cfgBtnSaveAll.innerHTML = `<i class="bi bi-check-circle-fill me-1.5"></i> Salva Impostazioni`;
+      }
+    });
+  }
 
   // Dropzone click & drag handlers
   if (dropzone && fileInput) {
@@ -1226,7 +1557,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Initialize sheets
+  // Initialize sheets matching configured category rules
   function initWorkbenchWithProducts(products) {
     const maxPerSheet = currentGrid.cols * currentGrid.rows;
     sheets = [];
@@ -1251,29 +1582,25 @@ document.addEventListener("DOMContentLoaded", () => {
           
           let bannerColor = "#0f172a";
           let bgUrl = "";
+          let bannerTitle = cat;
           const catLower = cat.toLowerCase();
 
-          if (catLower.includes("carne")) {
-            bannerColor = "#e11d48";
-            const sCarne = availableSfondi.find(s => s.nome && s.nome.toLowerCase().includes("carne"));
-            if (sCarne) bgUrl = sCarne.url || "";
-          } else if (catLower.includes("pesce") || catLower.includes("mare") || catLower.includes("ittic")) {
-            bannerColor = "#0284c7";
-            const sPesce = availableSfondi.find(s => s.nome && s.nome.toLowerCase().includes("pesce"));
-            if (sPesce) bgUrl = sPesce.url || "";
-          } else if (catLower.includes("gelo") || catLower.includes("surgelat")) {
-            bannerColor = "#06b6d4";
-          } else if (catLower.includes("orto") || catLower.includes("bio") || catLower.includes("verdura")) {
-            bannerColor = "#16a34a";
+          // Match with savedCategoryRules
+          const rule = savedCategoryRules.find(r => r.keyword && (catLower.includes(r.keyword.toLowerCase()) || r.keyword.toLowerCase() === catLower));
+          if (rule) {
+            if (rule.sfondo_url) bgUrl = rule.sfondo_url;
+            if (rule.colore) bannerColor = rule.colore;
+            if (rule.titolo) bannerTitle = rule.titolo;
           }
 
           sheets.push({
             cols: currentGrid.cols,
             rows: currentGrid.rows,
             gap: 12,
-            categoryTitle: cat,
+            categoryTitle: bannerTitle,
             categoryBannerColor: bannerColor,
             bgUrl: bgUrl,
+            headerImg: defaultHeaderLogo || "",
             products: chunk
           });
         }
@@ -1281,13 +1608,25 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       // Chunk evenly
       for (let i = 0; i < products.length; i += maxPerSheet) {
+        let defBg = "";
+        let defColor = "#4f46e5";
+        let defTitle = `OFFERTE DEL MESE - PARTE ${i + 1}`;
+
+        const defRule = savedCategoryRules.find(r => r.keyword === "default");
+        if (defRule) {
+          if (defRule.sfondo_url) defBg = defRule.sfondo_url;
+          if (defRule.colore) defColor = defRule.colore;
+          if (defRule.titolo) defTitle = `${defRule.titolo} - PARTE ${i + 1}`;
+        }
+
         sheets.push({
           cols: currentGrid.cols,
           rows: currentGrid.rows,
           gap: 12,
-          categoryTitle: "I NOSTRI PRODOTTI IN OFFERTA",
-          categoryBannerColor: "#4f46e5",
-          bgUrl: "",
+          categoryTitle: defTitle,
+          categoryBannerColor: defColor,
+          bgUrl: defBg,
+          headerImg: defaultHeaderLogo || "",
           products: products.slice(i, i + maxPerSheet)
         });
       }

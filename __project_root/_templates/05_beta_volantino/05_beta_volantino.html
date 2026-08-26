@@ -4187,19 +4187,29 @@ document.addEventListener("DOMContentLoaded", () => {
   let allExtractedProducts = [];
   let sheets = [];
   let unassignedProducts = [];
+  let defaultHeaderLogo = "";
+  let savedCategoryRules = [];
 
-  async function loadAvailableSfondi() {
+  async function loadAvailableSfondiAndSettings() {
     try {
-      const resp = await fetch("/api/sfondi_volantino");
-      const data = await resp.json();
-      if (data.success) {
-        availableSfondi = data.sfondi || [];
+      const [respSfondi, respSettings] = await Promise.all([
+        fetch("/api/sfondi_volantino").then(r => r.json()),
+        fetch("/api/volantini_impostazioni").then(r => r.json())
+      ]);
+
+      if (respSfondi.success) {
+        availableSfondi = respSfondi.sfondi || [];
+      }
+
+      if (respSettings.success) {
+        defaultHeaderLogo = respSettings.default_header_logo || "";
+        savedCategoryRules = respSettings.category_rules || [];
       }
     } catch (e) {
-      console.warn("Impossibile caricare sfondi:", e);
+      console.warn("Impossibile caricare sfondi/impostazioni:", e);
     }
   }
-  loadAvailableSfondi();
+  loadAvailableSfondiAndSettings();
 
   if (dropzone && fileInput) {
     dropzone.addEventListener("click", () => fileInput.click());
@@ -4283,42 +4293,49 @@ document.addEventListener("DOMContentLoaded", () => {
           const chunk = catProds.slice(i, i + maxPerSheet);
           let bannerColor = "#0f172a";
           let bgUrl = "";
+          let bannerTitle = cat;
           const catLower = cat.toLowerCase();
 
-          if (catLower.includes("carne")) {
-            bannerColor = "#e11d48";
-            const sCarne = availableSfondi.find(s => s.nome && s.nome.toLowerCase().includes("carne"));
-            if (sCarne) bgUrl = sCarne.url || "";
-          } else if (catLower.includes("pesce") || catLower.includes("mare") || catLower.includes("ittic")) {
-            bannerColor = "#0284c7";
-            const sPesce = availableSfondi.find(s => s.nome && s.nome.toLowerCase().includes("pesce"));
-            if (sPesce) bgUrl = sPesce.url || "";
-          } else if (catLower.includes("gelo") || catLower.includes("surgelat")) {
-            bannerColor = "#06b6d4";
-          } else if (catLower.includes("orto") || catLower.includes("bio") || catLower.includes("verdura")) {
-            bannerColor = "#16a34a";
+          const rule = savedCategoryRules.find(r => r.keyword && (catLower.includes(r.keyword.toLowerCase()) || r.keyword.toLowerCase() === catLower));
+          if (rule) {
+            if (rule.sfondo_url) bgUrl = rule.sfondo_url;
+            if (rule.colore) bannerColor = rule.colore;
+            if (rule.titolo) bannerTitle = rule.titolo;
           }
 
           sheets.push({
             cols: currentGrid.cols,
             rows: currentGrid.rows,
             gap: 12,
-            categoryTitle: cat,
+            categoryTitle: bannerTitle,
             categoryBannerColor: bannerColor,
             bgUrl: bgUrl,
+            headerImg: defaultHeaderLogo || "",
             products: chunk
           });
         }
       });
     } else {
       for (let i = 0; i < products.length; i += maxPerSheet) {
+        let defBg = "";
+        let defColor = "#4f46e5";
+        let defTitle = `OFFERTE DEL MESE - PARTE ${i + 1}`;
+
+        const defRule = savedCategoryRules.find(r => r.keyword === "default");
+        if (defRule) {
+          if (defRule.sfondo_url) defBg = defRule.sfondo_url;
+          if (defRule.colore) defColor = defRule.colore;
+          if (defRule.titolo) defTitle = `${defRule.titolo} - PARTE ${i + 1}`;
+        }
+
         sheets.push({
           cols: currentGrid.cols,
           rows: currentGrid.rows,
           gap: 12,
-          categoryTitle: "I NOSTRI PRODOTTI IN OFFERTA",
-          categoryBannerColor: "#4f46e5",
-          bgUrl: "",
+          categoryTitle: defTitle,
+          categoryBannerColor: defColor,
+          bgUrl: defBg,
+          headerImg: defaultHeaderLogo || "",
           products: products.slice(i, i + maxPerSheet)
         });
       }
