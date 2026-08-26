@@ -4287,12 +4287,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (catLower.includes("carne")) {
             bannerColor = "#e11d48";
-            const sCarne = availableSfondi.find(s => s.nome.toLowerCase().includes("carne"));
-            if (sCarne) bgUrl = s.url;
+            const sCarne = availableSfondi.find(s => s.nome && s.nome.toLowerCase().includes("carne"));
+            if (sCarne) bgUrl = sCarne.url || "";
           } else if (catLower.includes("pesce") || catLower.includes("mare") || catLower.includes("ittic")) {
             bannerColor = "#0284c7";
-            const sPesce = availableSfondi.find(s => s.nome.toLowerCase().includes("pesce"));
-            if (sPesce) bgUrl = s.url;
+            const sPesce = availableSfondi.find(s => s.nome && s.nome.toLowerCase().includes("pesce"));
+            if (sPesce) bgUrl = sPesce.url || "";
           } else if (catLower.includes("gelo") || catLower.includes("surgelat")) {
             bannerColor = "#06b6d4";
           } else if (catLower.includes("orto") || catLower.includes("bio") || catLower.includes("verdura")) {
