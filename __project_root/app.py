@@ -6849,11 +6849,13 @@ def api_importa_pdf_volantino():
         return jsonify({"status": "error", "message": "Nessun prodotto trovato nel PDF. Assicurati che il PDF contenga codici numerici e prezzi."}), 400
 
     print(f"--- [PDF IMPORT] Parsed {len(products)} products from PDF. Starting DB sync ---", flush=True)
-    imported_products = []
-    
+    # Sincronizzazione Database e Creazione automatica del Volantino
+    volantino_id = None
+    redirect_url = ""
+
     try:
-        with get_db() as db:
-            cur = db.cursor()
+        with get_db() as db_conn:
+            cur = db_conn.cursor()
             
             # 1. Pre-fetch all categories to map name -> id
             cur.execute("SELECT id, nome FROM categorie")
@@ -6973,7 +6975,6 @@ def api_importa_pdf_volantino():
                     prod_id = p_info["id"]
                     existing_img = p_info["immagine"] or ""
                     
-                    # Check if UPDATE is actually needed
                     needs_update = (
                         p_info["nome"] != name or
                         p_info["prezzo"] != price or
@@ -7009,7 +7010,6 @@ def api_importa_pdf_volantino():
                                 WHERE id = %s
                             """, (code, price, f"{price_str} *", True, cat_id, prod_id))
                         
-                        # Update local cache mapping for code
                         if code:
                             p_info["codice"] = code
                             products_by_code[code] = p_info
@@ -7029,7 +7029,6 @@ def api_importa_pdf_volantino():
                             if row_new:
                                 prod_id = row_new['id'] if isinstance(row_new, dict) else row_new[0]
                         
-                        # Add to local cache mapping dynamically
                         p_info = {
                             "id": prod_id, 
                             "nome": name, 
@@ -7081,11 +7080,174 @@ def api_importa_pdf_volantino():
                     "imagePosX": str(img_pos_x) if img_pos_x is not None else "50",
                     "imagePosY": str(img_pos_y) if img_pos_y is not None else "50"
                 })
+
+            # Costruzione Pagine Volantino
+            cfg = get_volantini_impostazioni_dict()
+            category_rules = cfg.get("category_rules", DEFAULT_CATEGORY_RULES)
+            default_logo = cfg.get("default_header_logo", "")
+
+            cat_groups = {}
+            for p in imported_products:
+                c_name = (p.get("categoria") or "OFFERTE").strip().upper()
+                if c_name not in cat_groups:
+                    cat_groups[c_name] = []
+                cat_groups[c_name].append(p)
+
+            doc_pages = []
+            for cat_name, p_list in cat_groups.items():
+                cat_lower = cat_name.lower()
+                cat_rule = None
+                for r in category_rules:
+                    kw = r.get("keyword", "").strip().lower()
+                    if kw and kw != "default" and kw in cat_lower:
+                        cat_rule = r
+                        break
+                if not cat_rule:
+                    for r in category_rules:
+                        if r.get("keyword", "").strip().lower() == "default":
+                            cat_rule = r
+                            break
+                if not cat_rule:
+                    cat_rule = {
+                        "sfondo_url": "",
+                        "colore": "#0f172a",
+                        "titolo": cat_name
+                    }
+
+                bg_url = cat_rule.get("sfondo_url", "")
+                cat_color = cat_rule.get("colore", "#0f172a")
+                cat_title = cat_rule.get("titolo") or cat_name
+
+                price_color = "#e11d48"
+                if "pesce" in cat_lower or "mare" in cat_lower:
+                    price_color = "#0284c7"
+                elif "orto" in cat_lower or "bio" in cat_lower:
+                    price_color = "#16a34a"
+                elif "gelo" in cat_lower or "surgelat" in cat_lower:
+                    price_color = "#06b6d4"
+                elif "scadenz" in cat_lower:
+                    price_color = "#d97706"
+
+                chunk_size = 6 if len(p_list) <= 6 else 9
+                cols = 3 if chunk_size == 9 else 2
+                rows = 3
+
+                for i in range(0, len(p_list), chunk_size):
+                    chunk = p_list[i:i + chunk_size]
+                    header_h = "90" if (default_logo or cat_title) else "70"
+
+                    page_dict = {
+                        "cols": cols,
+                        "rows": rows,
+                        "gap": 12,
+                        "larghezza": "800",
+                        "altezza": "1100",
+                        "padTop": "10",
+                        "padBottom": "10",
+                        "padSides": "10",
+                        "headerH": header_h,
+                        "headerImg": default_logo,
+                        "footerH": "0",
+                        "headerFit": "contain",
+                        "headerZoom": "1",
+                        "bgImg": bg_url,
+                        "bgWidth": "100",
+                        "bgHeight": "100",
+                        "bgPosX": "50",
+                        "bgPosY": "50",
+                        "categoryTitle": cat_title,
+                        "categoryBannerColor": cat_color,
+                        "cells": []
+                    }
+
+                    tot_cells = cols * rows
+                    for c_idx in range(tot_cells):
+                        if c_idx < len(chunk):
+                            prod_item = chunk[c_idx]
+                            prezzo_val = str(prod_item.get("prezzo", "")).replace("€", "").strip()
+                            um_val = str(prod_item.get("um", "PZ")).strip().upper()
+                            full_price = f"€ {prezzo_val} / {um_val}" if um_val else f"€ {prezzo_val}"
+                            img_path = str(prod_item.get("immagine", ""))
+
+                            cell_data = {
+                                "codice": str(prod_item.get("codice", "")),
+                                "titolo": str(prod_item.get("nome", "")),
+                                "nome": str(prod_item.get("nome", "")),
+                                "descrizione": "",
+                                "prezzo": full_price,
+                                "oldPrice": "",
+                                "priceStyle": "base",
+                                "priceSize": "26",
+                                "priceColor": price_color,
+                                "priceBg": "#ffffff",
+                                "priceCurrency": "€",
+                                "priceWeight": "800",
+                                "layout": "modern-split",
+                                "textAlign": "start",
+                                "fontFamily": "inherit",
+                                "fontColor": "#0f172a",
+                                "titleSize": "14",
+                                "titleWeight": "700",
+                                "titleSpacing": "0",
+                                "titleHeight": "1.2",
+                                "codeSize": "9",
+                                "descSize": "10",
+                                "scadenza": str(prod_item.get("scadenza", "")),
+                                "scadenzaSize": "12",
+                                "descItalic": "0",
+                                "textUpper": "1",
+                                "borderStyle": "solid",
+                                "borderColor": "#cbd5e1",
+                                "radius": "8",
+                                "bgColor": "#ffffff",
+                                "bgTransparent": "0",
+                                "shadow": "1",
+                                "imageFilter": "none",
+                                "imageZoom": str(prod_item.get("imageZoom", "1.0")),
+                                "imagePosX": str(prod_item.get("imagePosX", "50")),
+                                "imagePosY": str(prod_item.get("imagePosY", "50")),
+                                "imageRadius": "6",
+                                "imagePadding": "4",
+                                "imageAspect": "contain",
+                                "imgOriginal": img_path,
+                                "imgNoBg": img_path,
+                                "useNoBg": "1",
+                                "showDesc": "0"
+                            }
+                        else:
+                            cell_data = {
+                                "codice": "",
+                                "nome": "",
+                                "prezzo": "",
+                                "imgOriginal": "",
+                                "bgTransparent": "1"
+                            }
+                        page_dict["cells"].append(cell_data)
+
+                    doc_pages.append(page_dict)
+
+            if doc_pages:
+                vol_title = f"Promo Mensile {scadenza}" if (scadenza) else f"Promo Mensile {datetime.now().strftime('%m/%Y')}"
+                cur.execute("""
+                    INSERT INTO volantini_beta (nome, layout_json, tipo, creato_il)
+                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                    RETURNING id
+                """, (vol_title, json.dumps(doc_pages, ensure_ascii=False), "promo_mensile"))
+                try:
+                    row_v = cur.fetchone()
+                    if row_v:
+                        volantino_id = row_v['id'] if isinstance(row_v, dict) else row_v[0]
+                except Exception:
+                    volantino_id = cur.lastrowid
                 
-            db.commit()
+                if volantino_id:
+                    redirect_url = f"/beta-volantino/{volantino_id}"
+                    print(f"--- [PDF IMPORT] Auto-created VolantinoBeta id={volantino_id} with {len(doc_pages)} pages. Redirect URL: {redirect_url} ---", flush=True)
+
+            db_conn.commit()
             print(f"--- [PDF IMPORT] Successfully synced {len(imported_products)} products to database and committed ---", flush=True)
     except Exception as db_err:
-        print(f"--- [PDF IMPORT] Non-fatal DB Sync warning: {db_err} ---", flush=True)
+        print(f"--- [PDF IMPORT] DB Sync / Volantino Error: {db_err} ---", flush=True)
         import traceback
         traceback.print_exc()
         if not imported_products:
@@ -7102,176 +7264,6 @@ def api_importa_pdf_volantino():
                     "imagePosX": "50",
                     "imagePosY": "50"
                 })
-
-    # Creazione automatica del Volantino con i prodotti sincronizzati
-    volantino_id = None
-    redirect_url = ""
-    try:
-        cfg = get_volantini_impostazioni_dict()
-        category_rules = cfg.get("category_rules", DEFAULT_CATEGORY_RULES)
-        default_logo = cfg.get("default_header_logo", "")
-
-        # Raggruppa i prodotti per categoria mantenendo l'ordine
-        cat_groups = {}
-        for p in imported_products:
-            c_name = (p.get("categoria") or "OFFERTE").strip().upper()
-            if c_name not in cat_groups:
-                cat_groups[c_name] = []
-            cat_groups[c_name].append(p)
-
-        doc_pages = []
-        for cat_name, p_list in cat_groups.items():
-            cat_lower = cat_name.lower()
-            cat_rule = None
-            for r in category_rules:
-                kw = r.get("keyword", "").strip().lower()
-                if kw and kw != "default" and kw in cat_lower:
-                    cat_rule = r
-                    break
-            if not cat_rule:
-                for r in category_rules:
-                    if r.get("keyword", "").strip().lower() == "default":
-                        cat_rule = r
-                        break
-            if not cat_rule:
-                cat_rule = {
-                    "sfondo_url": "",
-                    "colore": "#0f172a",
-                    "titolo": cat_name
-                }
-
-            bg_url = cat_rule.get("sfondo_url", "")
-            cat_color = cat_rule.get("colore", "#0f172a")
-            cat_title = cat_rule.get("titolo") or cat_name
-
-            price_color = "#e11d48"
-            if "pesce" in cat_lower or "mare" in cat_lower:
-                price_color = "#0284c7"
-            elif "orto" in cat_lower or "bio" in cat_lower:
-                price_color = "#16a34a"
-            elif "gelo" in cat_lower or "surgelat" in cat_lower:
-                price_color = "#06b6d4"
-            elif "scadenz" in cat_lower:
-                price_color = "#d97706"
-
-            chunk_size = 6 if len(p_list) <= 6 else 9
-            cols = 3 if chunk_size == 9 else 2
-            rows = 3
-
-            for i in range(0, len(p_list), chunk_size):
-                chunk = p_list[i:i + chunk_size]
-                header_h = "90" if (default_logo or cat_title) else "70"
-
-                page_dict = {
-                    "cols": cols,
-                    "rows": rows,
-                    "gap": 12,
-                    "larghezza": "800",
-                    "altezza": "1100",
-                    "padTop": "10",
-                    "padBottom": "10",
-                    "padSides": "10",
-                    "headerH": header_h,
-                    "headerImg": default_logo,
-                    "footerH": "0",
-                    "headerFit": "contain",
-                    "headerZoom": "1",
-                    "bgImg": bg_url,
-                    "bgWidth": "100",
-                    "bgHeight": "100",
-                    "bgPosX": "50",
-                    "bgPosY": "50",
-                    "categoryTitle": cat_title,
-                    "categoryBannerColor": cat_color,
-                    "cells": []
-                }
-
-                tot_cells = cols * rows
-                for c_idx in range(tot_cells):
-                    if c_idx < len(chunk):
-                        prod_item = chunk[c_idx]
-                        prezzo_val = str(prod_item.get("prezzo", "")).replace("€", "").strip()
-                        um_val = str(prod_item.get("um", "PZ")).strip().upper()
-                        full_price = f"€ {prezzo_val} / {um_val}" if um_val else f"€ {prezzo_val}"
-                        img_path = str(prod_item.get("immagine", ""))
-
-                        cell_data = {
-                            "codice": str(prod_item.get("codice", "")),
-                            "titolo": str(prod_item.get("nome", "")),
-                            "nome": str(prod_item.get("nome", "")),
-                            "descrizione": "",
-                            "prezzo": full_price,
-                            "oldPrice": "",
-                            "priceStyle": "base",
-                            "priceSize": "26",
-                            "priceColor": price_color,
-                            "priceBg": "#ffffff",
-                            "priceCurrency": "€",
-                            "priceWeight": "800",
-                            "layout": "modern-split",
-                            "textAlign": "start",
-                            "fontFamily": "inherit",
-                            "fontColor": "#0f172a",
-                            "titleSize": "14",
-                            "titleWeight": "700",
-                            "titleSpacing": "0",
-                            "titleHeight": "1.2",
-                            "codeSize": "9",
-                            "descSize": "10",
-                            "scadenza": str(prod_item.get("scadenza", "")),
-                            "scadenzaSize": "12",
-                            "descItalic": "0",
-                            "textUpper": "1",
-                            "borderStyle": "solid",
-                            "borderColor": "#cbd5e1",
-                            "radius": "8",
-                            "bgColor": "#ffffff",
-                            "bgTransparent": "0",
-                            "shadow": "1",
-                            "imageFilter": "none",
-                            "imageZoom": str(prod_item.get("imageZoom", "1.0")),
-                            "imagePosX": str(prod_item.get("imagePosX", "50")),
-                            "imagePosY": str(prod_item.get("imagePosY", "50")),
-                            "imageRadius": "6",
-                            "imagePadding": "4",
-                            "imageAspect": "contain",
-                            "imgOriginal": img_path,
-                            "imgNoBg": img_path,
-                            "useNoBg": "1",
-                            "showDesc": "0"
-                        }
-                    else:
-                        cell_data = {
-                            "codice": "",
-                            "nome": "",
-                            "prezzo": "",
-                            "imgOriginal": "",
-                            "bgTransparent": "1"
-                        }
-                    page_dict["cells"].append(cell_data)
-
-                doc_pages.append(page_dict)
-
-        if doc_pages:
-            vol_title = f"Promo Mensile {scadenza}" if (locals().get('scadenza') and scadenza) else f"Promo Mensile {datetime.now().strftime('%m/%Y')}"
-            nuovo_vol = VolantinoBeta(
-                nome=vol_title,
-                layout_json=json.dumps(doc_pages, ensure_ascii=False),
-                tipo="promo_mensile"
-            )
-            db.session.add(nuovo_vol)
-            db.session.commit()
-            volantino_id = nuovo_vol.id
-            redirect_url = url_for("beta_volantino_modifica", id=nuovo_vol.id)
-            print(f"--- [PDF IMPORT] Auto-created VolantinoBeta id={volantino_id} with {len(doc_pages)} pages ---", flush=True)
-    except Exception as vol_err:
-        print(f"--- [PDF IMPORT] Auto-volantino creation warning: {vol_err} ---", flush=True)
-        import traceback
-        traceback.print_exc()
-        try:
-            db.session.rollback()
-        except:
-            pass
 
     return jsonify({
         "status": "ok",
