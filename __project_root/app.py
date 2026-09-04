@@ -1,4 +1,12 @@
 import os
+from dotenv import load_dotenv
+
+# ============================
+# PATH STATIC E PLACEHOLDER
+# ============================
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # __project_root
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
 import json
 import sqlite3
 from functools import wraps
@@ -20,10 +28,6 @@ from pathlib import Path
 import requests
 import pdfplumber
 
-# ============================
-# PATH STATIC E PLACEHOLDER
-# ============================
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # __project_root
 TEMPLATES_DIR = os.path.join(BASE_DIR, "_templates")  # cartella _templates dentro __project_root
 
 # Static si trova in ../gestionale/static
@@ -5007,7 +5011,13 @@ def ordini_settimanali():
     return render_template('01_clienti/07_ordini.html', ordini_per_giorno=ordini_per_giorno)
 
 
-from fpdf import FPDF
+try:
+    from fpdf import FPDF
+except ImportError:
+    try:
+        from fpdf2 import FPDF
+    except ImportError:
+        FPDF = object
 
 class WeeklyOrdersPDF(FPDF):
     def header(self):
@@ -6725,6 +6735,243 @@ def api_salva_immagine_volantino_prodotto():
         print("Errore nel salvataggio dell'immagine sul DB:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
+def extract_products_from_pdf_robust(pdf_path: str) -> list:
+    """Estrae prodotti da PDF promozionali, fatture, ordini e volantini con fallback multi-livello."""
+    products = []
+    seen_codes = set()
+    current_category = "OFFERTE"
+
+    um_list = ['KG', 'PZ', 'CT', 'BT', 'LT', 'CF', 'VAS', 'CONF', 'GR', 'BL', 'FL', 'SC', 'BAN', 'SEC', 'CART', 'L', 'ML', 'CL', 'PASTE', 'FORMA', 'PEZZO', 'PEZZI']
+    um_pattern = r'\b(' + '|'.join(um_list) + r')\b'
+
+    # 1. Analisi riga per riga
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_idx, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                if not text:
+                    continue
+                for raw_line in text.split('\n'):
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+
+                    # Rilevamento intestazioni categoria
+                    if line.isupper() and not any(c.isdigit() for c in line) and len(line) < 50:
+                        words = line.split()
+                        if 1 <= len(words) <= 4 and not any(w in ['CODICE', 'DESCRIZIONE', 'UM', 'PREZZO', 'PAGINA', 'PAG.', 'TOTALE', 'IVA', 'QUANTITA', 'Q.TA', 'ARTICOLO', 'IMPORTO', 'SCONTO', 'NOTE', 'NOTE:'] for w in words):
+                            current_category = line
+                            continue
+
+                    # Verifica se la riga inizia con un codice (4-14 caratteri alfanumerici)
+                    m_code = re.match(r'^\s*([A-Za-z0-9]{4,14})\s+(.+)', line)
+                    if not m_code:
+                        continue
+
+                    code = m_code.group(1).strip()
+                    if code.upper() in ['DESCRIZIONE', 'PAGINA', 'CODICE', 'CLIENTE', 'FATTURA', 'DOCUMENTO', 'TOTALE', 'VETTORE', 'SCADENZA']:
+                        continue
+                    if not any(c.isdigit() for c in code):
+                        continue
+
+                    rest = m_code.group(2).strip()
+                    price_val = None
+                    price_str = ''
+                    um_val = 'PZ'
+                    name_val = ''
+
+                    # Caso A: Simbolo euro esplicito
+                    m_euro = re.search(r'(?:€\s*(\d+[\.,]\d{2}))|(?:(\d+[\.,]\d{2})\s*€)', rest)
+                    if m_euro:
+                        p_raw = m_euro.group(1) or m_euro.group(2)
+                        p_dot = p_raw.replace(',', '.')
+                        try:
+                            price_val = float(p_dot)
+                            price_str = f"{price_val:.2f}".replace('.', ',')
+                        except:
+                            pass
+                        before_euro = rest[:m_euro.start()].strip()
+                        m_um = re.search(um_pattern, before_euro, re.IGNORECASE)
+                        if m_um:
+                            um_val = m_um.group(1).upper()
+                            name_val = (before_euro[:m_um.start()] + " " + before_euro[m_um.end():]).strip()
+                        else:
+                            name_val = before_euro
+                    else:
+                        # Caso B: Formato fattura con Qta (3 dec) + Prezzo (2 dec)
+                        m_inv = re.search(r'\b(\d+[\.,]\d{3})\s+(\d+[\.,]\d{2})\b', rest)
+                        if m_inv:
+                            p_raw = m_inv.group(2)
+                            p_dot = p_raw.replace(',', '.')
+                            try:
+                                price_val = float(p_dot)
+                                price_str = f"{price_val:.2f}".replace('.', ',')
+                                before_inv = rest[:m_inv.start()].strip()
+                                m_um = re.search(um_pattern, before_inv, re.IGNORECASE)
+                                if m_um:
+                                    um_val = m_um.group(1).upper()
+                                    name_val = (before_inv[:m_um.start()] + " " + before_inv[m_um.end():]).strip()
+                                else:
+                                    name_val = before_inv
+                            except:
+                                pass
+
+                        # Caso C: Prezzo decimale a fine riga
+                        if price_val is None:
+                            matches = list(re.finditer(r'\b(\d+[\.,]\d{2})\b', rest))
+                            if matches:
+                                m_cand = matches[-1]
+                                p_raw = m_cand.group(1)
+                                p_dot = p_raw.replace(',', '.')
+                                try:
+                                    price_val = float(p_dot)
+                                    price_str = f"{price_val:.2f}".replace('.', ',')
+                                    before_cand = rest[:m_cand.start()].strip()
+                                    m_um = re.search(um_pattern, before_cand, re.IGNORECASE)
+                                    if m_um:
+                                        um_val = m_um.group(1).upper()
+                                        name_val = (before_cand[:m_um.start()] + " " + before_cand[m_um.end():]).strip()
+                                    else:
+                                        name_val = before_cand
+                                except:
+                                    pass
+
+                    name_val = " ".join(name_val.split())
+                    if code and name_val and price_val is not None and code not in seen_codes:
+                        seen_codes.add(code)
+                        products.append({
+                            "codice": code,
+                            "nome": name_val,
+                            "um": um_val,
+                            "prezzo": price_val,
+                            "prezzo_str": price_str,
+                            "categoria": current_category
+                        })
+    except Exception as e:
+        print(f"--- [PDF IMPORT] Errore analisi a righe: {e} ---", flush=True)
+
+    # 2. Se non ha trovato nulla, prova con estrazione tabelle
+    if len(products) == 0:
+        print("--- [PDF IMPORT] Tentativo con extract_tables() ---", flush=True)
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                for page in pdf.pages:
+                    tables = page.extract_tables()
+                    if not tables:
+                        tables = page.extract_tables({
+                            "vertical_strategy": "text",
+                            "horizontal_strategy": "text",
+                            "snap_tolerance": 3,
+                        })
+                    for table in (tables or []):
+                        for row in table:
+                            if not row or len(row) < 2:
+                                continue
+                            row_clean = [str(cell or "").strip() for cell in row]
+                            code_val = ""
+                            desc_val = ""
+                            price_val = None
+                            price_str = ""
+                            um_val = "PZ"
+
+                            for cell in row_clean:
+                                if not code_val and re.match(r'^\d{4,14}$', cell):
+                                    code_val = cell
+                                elif not desc_val and len(cell) > 3 and not re.match(r'^[\d\.,\s€]+$', cell):
+                                    desc_val = cell
+                                elif price_val is None:
+                                    m_p = re.search(r'(\d+[\.,]\d{2})', cell)
+                                    if m_p:
+                                        try:
+                                            price_val = float(m_p.group(1).replace(',', '.'))
+                                            price_str = f"{price_val:.2f}".replace('.', ',')
+                                        except:
+                                            pass
+                                elif cell.upper() in um_list:
+                                    um_val = cell.upper()
+
+                            if code_val and desc_val and price_val is not None and code_val not in seen_codes:
+                                seen_codes.add(code_val)
+                                products.append({
+                                    "codice": code_val,
+                                    "nome": desc_val,
+                                    "um": um_val,
+                                    "prezzo": price_val,
+                                    "prezzo_str": price_str,
+                                    "categoria": "OFFERTE"
+                                })
+        except Exception as e:
+            print(f"--- [PDF IMPORT] Errore analisi tabelle: {e} ---", flush=True)
+
+    # 3. Fallback a parse_offers_from_pdf
+    if len(products) == 0:
+        print("--- [PDF IMPORT] Tentativo fallback parse_offers_from_pdf ---", flush=True)
+        try:
+            offers = parse_offers_from_pdf(pdf_path)
+            for off in offers:
+                c = str(off.get("code", "")).strip()
+                if c and c not in seen_codes:
+                    seen_codes.add(c)
+                    try: p_float = float(str(off.get("price", "0")).replace(",", "."))
+                    except: p_float = 0.0
+                    products.append({
+                        "codice": c,
+                        "nome": str(off.get("name", "")).strip(),
+                        "um": str(off.get("um", "PZ")).upper(),
+                        "prezzo": p_float,
+                        "prezzo_str": f"{p_float:.2f}".replace(".", ","),
+                        "categoria": "OFFERTE"
+                    })
+        except Exception as e:
+            print(f"--- [PDF IMPORT] Errore parse_offers_from_pdf: {e} ---", flush=True)
+
+    # 4. Fallback a parse_promo_scadenze_from_pdf
+    if len(products) == 0:
+        print("--- [PDF IMPORT] Tentativo fallback parse_promo_scadenze_from_pdf ---", flush=True)
+        try:
+            scad_offers = parse_promo_scadenze_from_pdf(pdf_path)
+            for off in scad_offers:
+                c = str(off.get("code", "")).strip()
+                if c and c not in seen_codes:
+                    seen_codes.add(c)
+                    products.append({
+                        "codice": c,
+                        "nome": str(off.get("name", "")).strip(),
+                        "um": str(off.get("um", "PZ")).upper(),
+                        "prezzo": float(off.get("price", 0.0)),
+                        "prezzo_str": str(off.get("price_str", "")).replace("€", "").strip() or f"{off.get('price', 0.0):.2f}".replace(".", ","),
+                        "categoria": str(off.get("categoria", "SCADENZE")),
+                        "scadenza": str(off.get("scadenza", ""))
+                    })
+        except Exception as e:
+            print(f"--- [PDF IMPORT] Errore parse_promo_scadenze_from_pdf: {e} ---", flush=True)
+
+    # 5. Fallback a parse_scadenze_from_pdf
+    if len(products) == 0:
+        print("--- [PDF IMPORT] Tentativo fallback parse_scadenze_from_pdf ---", flush=True)
+        try:
+            reg_scad = parse_scadenze_from_pdf(pdf_path)
+            for off in reg_scad:
+                c = str(off.get("code", "")).strip()
+                if c and c not in seen_codes:
+                    seen_codes.add(c)
+                    p_val = 0.0
+                    try: p_val = float(str(off.get("price", "0")).replace("€", "").replace(",", ".").strip())
+                    except: p_val = 0.0
+                    products.append({
+                        "codice": c,
+                        "nome": str(off.get("name", "")).strip(),
+                        "um": "PZ",
+                        "prezzo": p_val,
+                        "prezzo_str": f"{p_val:.2f}".replace(".", ","),
+                        "categoria": "SCADENZE",
+                        "scadenza": str(off.get("scadenza", ""))
+                    })
+        except Exception as e:
+            print(f"--- [PDF IMPORT] Errore parse_scadenze_from_pdf: {e} ---", flush=True)
+
+    return products
+
 # ============================
 # ROUTE: api_importa_pdf_volantino
 # ============================
@@ -6742,8 +6989,6 @@ def api_importa_pdf_volantino():
         return jsonify({"status": "error", "message": "Nessun file selezionato"}), 400
         
     import tempfile
-    import pdfplumber
-    import re
     import werkzeug.utils
     
     temp_dir = tempfile.gettempdir()
@@ -6751,90 +6996,12 @@ def api_importa_pdf_volantino():
     file.save(temp_path)
     
     products = []
-    current_category = "FRESCO"
-    regex = re.compile(r"^\s*(\d{4,10})\s+(.+?)\s+([A-Za-z]{2,3})\s+(?:€\s*)?(\d+[\.,]\d{2})")
+    imported_products = []
+    volantino_id = None
+    redirect_url = ""
     
     try:
-        # 1. Prova prima con il parser standard a righe
-        with pdfplumber.open(temp_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if not text:
-                    continue
-                for line in text.split('\n'):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    if line.isupper() and not any(c.isdigit() for c in line) and len(line) < 50:
-                        words = line.split()
-                        if len(words) <= 4 and not any(w in ["CODICE", "DESCRIZIONE", "UM", "PREZZO", "PAGINA", "PAG."] for w in words):
-                            current_category = line
-                            continue
-                            
-                    m = regex.match(line)
-                    if m:
-                        code, name, um, price_str = m.groups()
-                        price_dot = price_str.replace(',', '.')
-                        try: price_val = float(price_dot)
-                        except: price_val = 0.0
-                        products.append({
-                            "codice": code,
-                            "nome": name.strip(),
-                            "um": um.upper(),
-                            "prezzo": price_val,
-                            "prezzo_str": price_dot.replace('.', ','),
-                            "categoria": current_category
-                        })
-                        
-        # 2. Fallback: Se non trova con regex riga singola, prova con parse_offers_from_pdf
-        if not products:
-            print("--- [PDF IMPORT] Fallback to parse_offers_from_pdf ---", flush=True)
-            offers = parse_offers_from_pdf(temp_path)
-            for off in offers:
-                try: p_float = float(str(off.get("price", "0")).replace(",", "."))
-                except: p_float = 0.0
-                products.append({
-                    "codice": str(off.get("code", "")),
-                    "nome": str(off.get("name", "")).strip(),
-                    "um": str(off.get("um", "PZ")).upper(),
-                    "prezzo": p_float,
-                    "prezzo_str": f"{p_float:.2f}".replace(".", ","),
-                    "categoria": "OFFERTE"
-                })
-
-        # 3. Fallback: Se ancora vuoto, prova con parser tabellare scadenze
-        if not products:
-            print("--- [PDF IMPORT] Fallback to parse_promo_scadenze_from_pdf ---", flush=True)
-            scad_offers = parse_promo_scadenze_from_pdf(temp_path)
-            for off in scad_offers:
-                products.append({
-                    "codice": str(off.get("code", "")),
-                    "nome": str(off.get("name", "")).strip(),
-                    "um": str(off.get("um", "PZ")).upper(),
-                    "prezzo": float(off.get("price", 0.0)),
-                    "prezzo_str": str(off.get("price_str", "")).replace("€", "").strip() or f"{off.get('price', 0.0):.2f}".replace(".", ","),
-                    "categoria": str(off.get("categoria", "SCADENZE")),
-                    "scadenza": str(off.get("scadenza", ""))
-                })
-
-        # 4. Fallback: Se ancora vuoto, prova con regex scadenze
-        if not products:
-            print("--- [PDF IMPORT] Fallback to parse_scadenze_from_pdf ---", flush=True)
-            reg_scad = parse_scadenze_from_pdf(temp_path)
-            for off in reg_scad:
-                p_val = 0.0
-                try: p_val = float(str(off.get("price", "0")).replace("€", "").replace(",", ".").strip())
-                except: p_val = 0.0
-                products.append({
-                    "codice": str(off.get("code", "")),
-                    "nome": str(off.get("name", "")).strip(),
-                    "um": "PZ",
-                    "prezzo": p_val,
-                    "prezzo_str": f"{p_val:.2f}".replace(".", ","),
-                    "categoria": "SCADENZE",
-                    "scadenza": str(off.get("scadenza", ""))
-                })
+        products = extract_products_from_pdf_robust(temp_path)
     except Exception as e:
         print(f"--- [PDF IMPORT] Error scanning PDF: {e} ---", flush=True)
         import traceback
@@ -6849,9 +7016,6 @@ def api_importa_pdf_volantino():
         return jsonify({"status": "error", "message": "Nessun prodotto trovato nel PDF. Assicurati che il PDF contenga codici numerici e prezzi."}), 400
 
     print(f"--- [PDF IMPORT] Parsed {len(products)} products from PDF. Starting DB sync ---", flush=True)
-    # Sincronizzazione Database e Creazione automatica del Volantino
-    volantino_id = None
-    redirect_url = ""
 
     try:
         from psycopg2.extras import execute_batch, execute_values
