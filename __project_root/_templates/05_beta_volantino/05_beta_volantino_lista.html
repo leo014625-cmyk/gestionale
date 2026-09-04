@@ -896,8 +896,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.status === "ok") {
           // Successo
-          alertBox.className = "alert alert-success rounded-4 mb-4 d-block";
-          alertBox.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i> ${data.message}`;
+          alertBox.className = "alert alert-success rounded-4 mb-4 d-block shadow-sm border-0";
+          alertBox.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                <div class="fw-bold"><i class="bi bi-check-circle-fill text-success me-2"></i> ${data.message}</div>
+                ${data.redirect_url ? '<div class="small text-muted mt-1"><i class="bi bi-hourglass-split me-1"></i> Apertura editor volantino in corso...</div>' : ''}
+              </div>
+              ${data.redirect_url ? `<a href="${data.redirect_url}" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold"><i class="bi bi-pencil-square me-1"></i> Apri Editor</a>` : ''}
+            </div>
+          `;
           
           if (data.products && data.products.length > 0) {
             tbody.innerHTML = data.products.map(p => `
@@ -914,9 +922,16 @@ document.addEventListener("DOMContentLoaded", () => {
             resultsDiv.classList.remove("d-none");
           }
           fileInput.value = ""; // reset
+
+          // Redirect automatico all'editor con i prodotti del volantino
+          if (data.redirect_url) {
+            setTimeout(() => {
+              window.location.href = data.redirect_url;
+            }, 900);
+          }
         } else {
           // Errore
-          alertBox.className = "alert alert-danger rounded-4 mb-4 d-block";
+          alertBox.className = "alert alert-danger rounded-4 mb-4 d-block shadow-sm border-0";
           alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${data.message || "Errore sconosciuto"}`;
         }
       })
