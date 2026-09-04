@@ -6854,38 +6854,23 @@ def api_importa_pdf_volantino():
     redirect_url = ""
 
     try:
+        from psycopg2.extras import execute_batch, execute_values
         with get_db() as db_conn:
             cur = db_conn.cursor()
             
-            # 1. Pre-fetch all categories to map name -> id
+            # 1. Pre-fetch all categories
             cur.execute("SELECT id, nome FROM categorie")
-            categories_map = {}
-            for row in cur.fetchall():
-                cat_id = row['id'] if isinstance(row, dict) else row[0]
-                cat_nome = row['nome'] if isinstance(row, dict) else row[1]
-                categories_map[cat_nome.upper()] = cat_id
-                
-            def get_or_create_category_optimized(cat_name):
-                cat_upper = cat_name.upper()
-                if cat_upper in categories_map:
-                    return categories_map[cat_upper]
-                
-                cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
-                try:
-                    row = cur.fetchone()
-                    if row:
-                        cat_id = row['id'] if isinstance(row, dict) else row[0]
-                        categories_map[cat_upper] = cat_id
-                        return cat_id
-                except Exception:
-                    pass
-                cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
-                row = cur.fetchone()
-                cat_id = row['id'] if isinstance(row, dict) else row[0]
-                categories_map[cat_upper] = cat_id
-                return cat_id
+            categories_map = {r['nome'].upper(): r['id'] for r in cur.fetchall()}
+            
+            # Pre-insert any missing categories in one shot
+            unique_cats = set((p.get("categoria") or "OFFERTE").strip().upper() for p in products)
+            missing_cats = [c for c in unique_cats if c and c not in categories_map]
+            if missing_cats:
+                execute_values(cur, "INSERT INTO categorie (nome) VALUES %s RETURNING id, nome", [(c,) for c in missing_cats])
+                for r in cur.fetchall():
+                    categories_map[r['nome'].upper()] = r['id']
 
-            # Estrazione data scadenza dal nome del file (es: PROMO P0 D250 RM_01.06-30.06.2026.pdf)
+            # Estrazione data scadenza dal nome del file
             scadenza = None
             date_patterns = re.findall(r'(\d{2})[./-](\d{2})[./-](\d{4})', file.filename)
             if date_patterns:
@@ -6904,182 +6889,120 @@ def api_importa_pdf_volantino():
                 last_day = next_month - dt.timedelta(days=next_month.day)
                 scadenza = last_day.strftime("%d/%m/%Y")
 
-            # 2. Pre-fetch all products with columns to check if update is needed
+            # 2. Pre-fetch all products
             cur.execute("SELECT id, nome, codice, immagine, prezzo, prezzo_con_simbolo, is_promo_mensile, categoria_id, img_zoom, img_pos_x, img_pos_y FROM prodotti")
             products_by_code = {}
             products_by_name = {}
             for row in cur.fetchall():
-                p_id = row['id'] if isinstance(row, dict) else row[0]
-                p_nome = row['nome'] if isinstance(row, dict) else row[1]
-                p_codice = row['codice'] if isinstance(row, dict) else row[2]
-                p_immagine = row['immagine'] if isinstance(row, dict) else row[3]
-                p_prezzo = row['prezzo'] if isinstance(row, dict) else row[4]
-                p_prezzo_con_simbolo = row['prezzo_con_simbolo'] if isinstance(row, dict) else row[5]
-                p_is_promo_mensile = row['is_promo_mensile'] if isinstance(row, dict) else row[6]
-                p_categoria_id = row['categoria_id'] if isinstance(row, dict) else row[7]
-                p_img_zoom = row['img_zoom'] if isinstance(row, dict) else row[8]
-                p_img_pos_x = row['img_pos_x'] if isinstance(row, dict) else row[9]
-                p_img_pos_y = row['img_pos_y'] if isinstance(row, dict) else row[10]
-                
-                is_promo_bool = True if (p_is_promo_mensile is True or p_is_promo_mensile == 1) else False
-                
-                p_info = {
-                    "id": p_id, 
-                    "nome": p_nome, 
-                    "codice": p_codice, 
-                    "immagine": p_immagine,
-                    "prezzo": p_prezzo,
-                    "prezzo_con_simbolo": p_prezzo_con_simbolo,
-                    "is_promo_mensile": is_promo_bool,
-                    "categoria_id": p_categoria_id,
-                    "img_zoom": p_img_zoom,
-                    "img_pos_x": p_img_pos_x,
-                    "img_pos_y": p_img_pos_y
-                }
-                if p_codice:
-                    products_by_code[p_codice] = p_info
-                if p_nome:
-                    products_by_name[p_nome.upper()] = p_info
+                p_info = dict(row)
+                if row['codice']:
+                    products_by_code[str(row['codice']).strip()] = p_info
+                if row['nome']:
+                    products_by_name[str(row['nome']).strip().upper()] = p_info
 
             # 3. Pre-fetch existing monthly promos
             cur.execute("SELECT id, prodotto_id, prezzo, scadenza FROM promozioni_pdf WHERE tipo IN ('mensile', 'promo_mensile')")
-            promos_by_prod_id = {}
-            for row in cur.fetchall():
-                pr_id = row['id'] if isinstance(row, dict) else row[0]
-                pr_prod_id = row['prodotto_id'] if isinstance(row, dict) else row[1]
-                pr_prezzo = row['prezzo'] if isinstance(row, dict) else row[2]
-                pr_scadenza = row['scadenza'] if isinstance(row, dict) else row[3]
-                promos_by_prod_id[pr_prod_id] = {
-                    "id": pr_id,
-                    "prezzo": pr_prezzo,
-                    "scadenza": pr_scadenza
-                }
+            promos_by_prod_id = {r['prodotto_id']: dict(r) for r in cur.fetchall()}
 
-            # Process all products
+            # Batch lists
+            to_update_prodotti = []
+            to_insert_prodotti = []
+            new_prods_tracker = []
+
             for prod in products:
-                code = prod["codice"]
-                name = prod["nome"]
-                price = prod["prezzo"]
-                price_str = prod["prezzo_str"]
+                code = str(prod.get("codice", "")).strip()
+                name = str(prod.get("nome", "")).strip()
+                price = prod.get("prezzo", 0.0)
+                price_str = prod.get("prezzo_str", "0,00")
                 um = prod.get("um", "PZ")
-                cat_name = prod.get("categoria", "OFFERTE")
-                
-                cat_id = get_or_create_category_optimized(cat_name)
-                
-                prod_id = None
-                existing_img = ""
-                
-                # Cerca per codice
+                cat_name = (prod.get("categoria") or "OFFERTE").strip()
+                cat_id = categories_map.get(cat_name.upper())
+
+                p_info = None
                 if code and code in products_by_code:
                     p_info = products_by_code[code]
-                    prod_id = p_info["id"]
-                    existing_img = p_info["immagine"] or ""
+                elif name.upper() in products_by_name:
+                    p_info = products_by_name[name.upper()]
+
+                if p_info:
+                    prod_id = p_info['id']
+                    to_update_prodotti.append((name, price, f"{price_str} *", True, cat_id, prod_id))
                     
-                    needs_update = (
-                        p_info["nome"] != name or
-                        p_info["prezzo"] != price or
-                        p_info["prezzo_con_simbolo"] != f"{price_str} *" or
-                        p_info["is_promo_mensile"] is not True or
-                        p_info["categoria_id"] != cat_id
-                    )
-                    if needs_update:
-                        cur.execute("""
-                            UPDATE prodotti 
-                            SET nome = %s, prezzo = %s, prezzo_con_simbolo = %s, is_promo_mensile = %s, categoria_id = %s
-                            WHERE id = %s
-                        """, (name, price, f"{price_str} *", True, cat_id, prod_id))
+                    img_val = p_info.get("immagine") or ""
+                    img_url = url_for('static', filename=f'uploads/volantino_prodotti/{img_val}') if img_val else ""
+                    img_zoom = p_info.get("img_zoom")
+                    img_pos_x = p_info.get("img_pos_x")
+                    img_pos_y = p_info.get("img_pos_y")
+                    
+                    imported_products.append({
+                        "id": prod_id,
+                        "codice": code,
+                        "nome": name,
+                        "prezzo": price_str,
+                        "um": um,
+                        "immagine": img_url,
+                        "categoria": cat_name,
+                        "imageZoom": str(img_zoom) if img_zoom is not None else "1.0",
+                        "imagePosX": str(img_pos_x) if img_pos_x is not None else "50",
+                        "imagePosY": str(img_pos_y) if img_pos_y is not None else "50"
+                    })
                 else:
-                    # Cerca per nome
-                    name_upper = name.upper()
-                    if name_upper in products_by_name:
-                        p_info = products_by_name[name_upper]
-                        prod_id = p_info["id"]
-                        existing_img = p_info["immagine"] or ""
-                        
-                        needs_update = (
-                            p_info["codice"] != code or
-                            p_info["prezzo"] != price or
-                            p_info["prezzo_con_simbolo"] != f"{price_str} *" or
-                            p_info["is_promo_mensile"] is not True or
-                            p_info["categoria_id"] != cat_id
-                        )
-                        if needs_update:
-                            cur.execute("""
-                                UPDATE prodotti 
-                                SET codice = %s, prezzo = %s, prezzo_con_simbolo = %s, is_promo_mensile = %s, categoria_id = %s
-                                WHERE id = %s
-                            """, (code, price, f"{price_str} *", True, cat_id, prod_id))
-                        
-                        if code:
-                            p_info["codice"] = code
-                            products_by_code[code] = p_info
-                    else:
-                        # Inserisci nuovo
-                        cur.execute("""
-                            INSERT INTO prodotti (codice, nome, prezzo, prezzo_con_simbolo, is_promo_mensile, categoria_id) 
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (code, name, price, f"{price_str} *", True, cat_id))
-                        try:
-                            prod_id = cur.lastrowid
-                        except:
-                            pass
-                        if not prod_id and code:
-                            cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (code,))
-                            row_new = cur.fetchone()
-                            if row_new:
-                                prod_id = row_new['id'] if isinstance(row_new, dict) else row_new[0]
-                        
-                        p_info = {
-                            "id": prod_id, 
-                            "nome": name, 
-                            "codice": code, 
-                            "immagine": "",
-                            "prezzo": price,
-                            "prezzo_con_simbolo": f"{price_str} *",
-                            "is_promo_mensile": True,
-                            "categoria_id": cat_id
-                        }
-                        if code:
-                            products_by_code[code] = p_info
-                        products_by_name[name_upper] = p_info
-                
-                # Aggiorna promozioni_pdf
-                if prod_id:
-                    if prod_id in promos_by_prod_id:
-                        promo_info = promos_by_prod_id[prod_id]
-                        new_prezzo = f"€ {price_str} *"
-                        if promo_info["prezzo"] != new_prezzo or promo_info["scadenza"] != scadenza:
-                            cur.execute("""
-                                UPDATE promozioni_pdf 
-                                SET prezzo = %s, data_caricamento = %s, scadenza = %s
-                                WHERE id = %s
-                            """, (new_prezzo, datetime.utcnow(), scadenza, promo_info["id"]))
-                    else:
-                        cur.execute("""
-                            INSERT INTO promozioni_pdf (prodotto_id, tipo, prezzo, data_caricamento, scadenza)
-                            VALUES (%s, 'promo_mensile', %s, %s, %s)
-                        """, (prod_id, f"€ {price_str} *", datetime.utcnow(), scadenza))
-                    
-                img_url = ""
-                if existing_img:
-                    img_url = url_for('static', filename=f'uploads/volantino_prodotti/{existing_img}')
-                    
-                img_zoom = p_info.get("img_zoom") if 'p_info' in locals() and p_info else None
-                img_pos_x = p_info.get("img_pos_x") if 'p_info' in locals() and p_info else None
-                img_pos_y = p_info.get("img_pos_y") if 'p_info' in locals() and p_info else None
-                
-                imported_products.append({
-                    "id": prod_id,
-                    "codice": code,
-                    "nome": name,
-                    "prezzo": price_str,
-                    "um": um,
-                    "immagine": img_url,
-                    "categoria": cat_name,
-                    "imageZoom": str(img_zoom) if img_zoom is not None else "1.0",
-                    "imagePosX": str(img_pos_x) if img_pos_x is not None else "50",
-                    "imagePosY": str(img_pos_y) if img_pos_y is not None else "50"
-                })
+                    to_insert_prodotti.append((code, name, price, f"{price_str} *", True, cat_id))
+                    new_prods_tracker.append((code, name, price_str, um, cat_name))
+
+            # Execute bulk updates (fast in 1-2 network roundtrips)
+            if to_update_prodotti:
+                execute_batch(cur, """
+                    UPDATE prodotti 
+                    SET nome = %s, prezzo = %s, prezzo_con_simbolo = %s, is_promo_mensile = %s, categoria_id = %s
+                    WHERE id = %s
+                """, to_update_prodotti, page_size=100)
+
+            # Execute bulk inserts
+            if to_insert_prodotti:
+                execute_values(cur, """
+                    INSERT INTO prodotti (codice, nome, prezzo, prezzo_con_simbolo, is_promo_mensile, categoria_id)
+                    VALUES %s RETURNING id, codice, nome
+                """, to_insert_prodotti)
+                inserted_rows = cur.fetchall()
+                for idx, row_ins in enumerate(inserted_rows):
+                    code_val, name_val, price_str_val, um_val, cat_name_val = new_prods_tracker[idx]
+                    imported_products.append({
+                        "id": row_ins['id'],
+                        "codice": code_val,
+                        "nome": name_val,
+                        "prezzo": price_str_val,
+                        "um": um_val,
+                        "immagine": "",
+                        "categoria": cat_name_val,
+                        "imageZoom": "1.0",
+                        "imagePosX": "50",
+                        "imagePosY": "50"
+                    })
+
+            # Bulk promozioni_pdf
+            to_update_promos = []
+            to_insert_promos = []
+            now_ts = datetime.utcnow()
+            for p in imported_products:
+                p_id = p["id"]
+                p_price_str = p["prezzo"]
+                new_price_label = f"€ {p_price_str} *"
+                if p_id in promos_by_prod_id:
+                    pr_id = promos_by_prod_id[p_id]["id"]
+                    to_update_promos.append((new_price_label, now_ts, scadenza, pr_id))
+                else:
+                    to_insert_promos.append((p_id, 'promo_mensile', new_price_label, now_ts, scadenza))
+
+            if to_update_promos:
+                execute_batch(cur, """
+                    UPDATE promozioni_pdf SET prezzo = %s, data_caricamento = %s, scadenza = %s WHERE id = %s
+                """, to_update_promos, page_size=100)
+
+            if to_insert_promos:
+                execute_values(cur, """
+                    INSERT INTO promozioni_pdf (prodotto_id, tipo, prezzo, data_caricamento, scadenza) VALUES %s
+                """, to_insert_promos)
 
             # Costruzione Pagine Volantino
             cfg = get_volantini_impostazioni_dict()
@@ -7245,7 +7168,7 @@ def api_importa_pdf_volantino():
                     print(f"--- [PDF IMPORT] Auto-created VolantinoBeta id={volantino_id} with {len(doc_pages)} pages. Redirect URL: {redirect_url} ---", flush=True)
 
             db_conn.commit()
-            print(f"--- [PDF IMPORT] Successfully synced {len(imported_products)} products to database and committed ---", flush=True)
+            print(f"--- [PDF IMPORT] Successfully synced {len(imported_products)} products and created volantino in DB ---", flush=True)
     except Exception as db_err:
         print(f"--- [PDF IMPORT] DB Sync / Volantino Error: {db_err} ---", flush=True)
         import traceback
@@ -7267,7 +7190,7 @@ def api_importa_pdf_volantino():
 
     return jsonify({
         "status": "ok",
-        "message": f"Scansionati e sincronizzati {len(imported_products)} prodotti correttamente!",
+        "message": f"Scansionati e sincronizzati {len(imported_products)} prodotti correttamente! Apertura editor in corso...",
         "products": imported_products,
         "volantino_id": volantino_id,
         "redirect_url": redirect_url

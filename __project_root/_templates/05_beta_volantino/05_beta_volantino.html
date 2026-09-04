@@ -3115,7 +3115,10 @@ document.addEventListener("DOMContentLoaded", () => {
   {% if layout_json %}
     let salvato = null;
     try {
-      salvato = {{ layout_json | safe }};
+      salvato = {{ layout_json | tojson | safe }};
+      if (typeof salvato === 'string') {
+        salvato = JSON.parse(salvato);
+      }
     } catch(e) {
       console.warn("Parsing layout_json failed:", e);
     }
