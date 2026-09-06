@@ -1338,9 +1338,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!pagine.length) return;
     const srcPage = pagine[paginaCorrente];
 
+    // Sincronizza prima la pagina sorgente con i valori attuali dei controlli dell'interfaccia
+    if (controlLarghezza) srcPage.dataset.larghezza = controlLarghezza.value;
+    if (controlAltezza) srcPage.dataset.altezza = controlAltezza.value;
+    if (controlPadTop) srcPage.dataset.padTop = controlPadTop.value;
+    if (controlPadBottom) srcPage.dataset.padBottom = controlPadBottom.value;
+    if (controlPadSides) srcPage.dataset.padSides = controlPadSides.value;
+    if (controlHeaderH) srcPage.dataset.headerH = controlHeaderH.value;
+    if (controlFooterH) srcPage.dataset.footerH = controlFooterH.value;
+    if (controlHeaderFit) srcPage.dataset.headerFit = controlHeaderFit.value;
+    if (controlCols) srcPage.dataset.cols = controlCols.value;
+    if (controlRows) srcPage.dataset.rows = controlRows.value;
+    if (controlGap) srcPage.dataset.gap = controlGap.value;
+    if (controlCellaW) srcPage.dataset.cellWidth = controlCellaW.value;
+    if (controlCellaH) srcPage.dataset.cellHeight = controlCellaH.value;
+
     const srcCols = parseInt(srcPage.dataset.cols, 10);
     const srcRows = parseInt(srcPage.dataset.rows, 10);
     const srcGap = parseInt(srcPage.dataset.gap, 10);
+    const srcCellW = srcPage.dataset.cellWidth || (controlCellaW ? controlCellaW.value : "380");
+    const srcCellH = srcPage.dataset.cellHeight || (controlCellaH ? controlCellaH.value : "500");
 
     const srcHeader = srcPage.querySelector(".page-header");
     const srcFooter = srcPage.querySelector(".page-footer");
@@ -1361,6 +1378,10 @@ document.addEventListener("DOMContentLoaded", () => {
       page.dataset.cols = srcPage.dataset.cols;
       page.dataset.rows = srcPage.dataset.rows;
       page.dataset.gap = srcPage.dataset.gap;
+
+      // Copia larghezza e altezza celle
+      page.dataset.cellWidth = srcCellW;
+      page.dataset.cellHeight = srcCellH;
       
       // Copia parametri sfondo
       page.dataset.bgImg = srcPage.dataset.bgImg || "";
@@ -1425,7 +1446,7 @@ document.addEventListener("DOMContentLoaded", () => {
       applicaSfondoFoglio(page);
     });
 
-    showToast("Layout, intestazione (logo), pié di pagina e stili delle celle copiati su tutti i fogli!");
+    showToast("Layout, dimensioni celle (larghezza/altezza), griglia, sfondo e stili applicati a tutti i fogli!");
   }
 
   const btnAdattaTutti = document.getElementById("adatta-tutti");

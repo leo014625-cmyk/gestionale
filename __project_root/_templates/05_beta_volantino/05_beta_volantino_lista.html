@@ -896,14 +896,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.status === "ok") {
           // Successo
+          const prodsCount = (data.products && data.products.length) || 0;
+          const fileNameClean = file ? file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") : "";
+          const promoTitle = "Promo Mensile " + (fileNameClean || "");
+
           alertBox.className = "alert alert-success rounded-4 mb-4 d-block shadow-sm border-0";
           alertBox.innerHTML = `
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
               <div>
                 <div class="fw-bold"><i class="bi bi-check-circle-fill text-success me-2"></i> ${data.message}</div>
-                ${data.redirect_url ? '<div class="small text-muted mt-1"><i class="bi bi-hourglass-split me-1"></i> Apertura editor volantino in corso...</div>' : ''}
+                <div class="small text-muted mt-1"><i class="bi bi-hourglass-split me-1"></i> Apertura organizzazione fogli e posizionamento prodotti...</div>
               </div>
-              ${data.redirect_url ? `<a href="${data.redirect_url}" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold"><i class="bi bi-pencil-square me-1"></i> Apri Editor</a>` : ''}
+              <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="window.apriWorkbenchPromo && window.apriWorkbenchPromo()"><i class="bi bi-layout-text-window-reverse me-1"></i> Posiziona nei Fogli</button>
             </div>
           `;
           
@@ -923,12 +927,25 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           fileInput.value = ""; // reset
 
-          // Redirect automatico all'editor con i prodotti del volantino
-          if (data.redirect_url) {
-            setTimeout(() => {
+          // Transizione al Workbench per posizionare i prodotti sui fogli prima di aprire l'editor
+          window.apriWorkbenchPromo = function() {
+            const modalPromoEl = document.getElementById("modalCaricaPromoMensili");
+            if (modalPromoEl) {
+              const modalPromo = bootstrap.Modal.getInstance(modalPromoEl);
+              if (modalPromo) modalPromo.hide();
+            }
+            if (typeof window.apriInPublishStudioConProdotti === "function") {
+              window.apriInPublishStudioConProdotti(data.products, promoTitle, "promo_mensile");
+            } else if (data.redirect_url) {
               window.location.href = data.redirect_url;
-            }, 900);
-          }
+            }
+          };
+
+          setTimeout(() => {
+            if (window.apriWorkbenchPromo) {
+              window.apriWorkbenchPromo();
+            }
+          }, 950);
         } else {
           // Errore
           alertBox.className = "alert alert-danger rounded-4 mb-4 d-block shadow-sm border-0";
@@ -1612,6 +1629,8 @@ document.addEventListener("DOMContentLoaded", () => {
             cols: currentGrid.cols,
             rows: currentGrid.rows,
             gap: 12,
+            cellWidth: 380,
+            cellHeight: 500,
             categoryTitle: bannerTitle,
             categoryBannerColor: bannerColor,
             bgUrl: bgUrl,
@@ -1638,6 +1657,8 @@ document.addEventListener("DOMContentLoaded", () => {
           cols: currentGrid.cols,
           rows: currentGrid.rows,
           gap: 12,
+          cellWidth: 380,
+          cellHeight: 500,
           categoryTitle: defTitle,
           categoryBannerColor: defColor,
           bgUrl: defBg,
@@ -1986,6 +2007,8 @@ document.addEventListener("DOMContentLoaded", () => {
         cols: currentGrid.cols,
         rows: currentGrid.rows,
         gap: 12,
+        cellWidth: 380,
+        cellHeight: 500,
         categoryTitle: `NUOVA SEZIONE ${sheets.length + 1}`,
         categoryBannerColor: "#0f172a",
         bgUrl: "",
@@ -2006,6 +2029,8 @@ document.addEventListener("DOMContentLoaded", () => {
           cols: currentGrid.cols,
           rows: currentGrid.rows,
           gap: 12,
+          cellWidth: 380,
+          cellHeight: 500,
           categoryTitle: "ALTRE OFFERTE",
           categoryBannerColor: "#d97706",
           bgUrl: "",
@@ -2056,6 +2081,33 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // Metodo globale per aprire lo studio con prodotti precaricati (es. da upload promo mensile)
+  window.apriInPublishStudioConProdotti = async function(products, volantinoNome = "", tipoVolantino = "promo_mensile") {
+    if (!products || !products.length) return;
+
+    // Assicurati che sfondi e impostazioni siano caricati
+    await loadAvailableSfondiAndSettings();
+
+    allExtractedProducts = products;
+    if (inputNomeVolantino) {
+      inputNomeVolantino.value = volantinoNome || "Volantino Promo";
+    }
+    if (selectTipoVolantino) {
+      selectTipoVolantino.value = tipoVolantino || "promo_mensile";
+    }
+
+    // Inizializza fogli e griglie con categorizzazione e sfondi
+    initWorkbenchWithProducts(allExtractedProducts);
+
+    // Mostra subito il Workbench escludendo lo step upload
+    stepUpload.classList.add("d-none");
+    stepWorkbench.classList.remove("d-none");
+
+    // Mostra il modal InPublish Studio a schermo intero
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+  };
 });
 </script>
 {% endblock %}
