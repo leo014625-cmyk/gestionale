@@ -62,11 +62,12 @@ app.secret_key = 'la_tua_chiave_segreta_sicura'
 db_url = os.environ.get("DATABASE_URL", "")
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
-# In locale usa SQLite, su Render usa PostgreSQL
-if os.environ.get("ON_RENDER") and db_url:
+
+# Se DATABASE_URL è presente usa PostgreSQL (su Render e locale), altrimenti SQLite locale
+if db_url:
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "local.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "gestionale.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -7315,17 +7316,31 @@ def api_importa_pdf_volantino():
 
             if doc_pages:
                 vol_title = f"Promo Mensile {scadenza}" if (scadenza) else f"Promo Mensile {datetime.now().strftime('%m/%Y')}"
-                cur.execute("""
-                    INSERT INTO volantini_beta (nome, layout_json, tipo, creato_il)
-                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-                    RETURNING id
-                """, (vol_title, json.dumps(doc_pages, ensure_ascii=False), "promo_mensile"))
+                layout_str = json.dumps(doc_pages, ensure_ascii=False)
+                
                 try:
-                    row_v = cur.fetchone()
-                    if row_v:
-                        volantino_id = row_v['id'] if isinstance(row_v, dict) else row_v[0]
-                except Exception:
-                    volantino_id = cur.lastrowid
+                    nuovo_v = VolantinoBeta(
+                        nome=vol_title,
+                        layout_json=layout_str,
+                        tipo="promo_mensile"
+                    )
+                    db.session.add(nuovo_v)
+                    db.session.commit()
+                    volantino_id = nuovo_v.id
+                except Exception as sa_err:
+                    print(f"--- [PDF IMPORT] Errore salvataggio SQLAlchemy: {sa_err}, fallback raw SQL ---", flush=True)
+                    db.session.rollback()
+                    cur.execute("""
+                        INSERT INTO volantino_beta (nome, layout_json, tipo, creato_il)
+                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                        RETURNING id
+                    """, (vol_title, layout_str, "promo_mensile"))
+                    try:
+                        row_v = cur.fetchone()
+                        if row_v:
+                            volantino_id = row_v['id'] if isinstance(row_v, dict) else row_v[0]
+                    except Exception:
+                        volantino_id = cur.lastrowid
                 
                 if volantino_id:
                     redirect_url = f"/beta-volantino/{volantino_id}"
@@ -7591,7 +7606,30 @@ def salva_volantino_beta():
 # ============================
 @app.route('/beta-volantino/<int:id>')
 def beta_volantino_modifica(id):
-    vol = VolantinoBeta.query.get_or_404(id)
+    vol = VolantinoBeta.query.get(id)
+    if not vol:
+        # Fallback di sicurezza: prova query diretta su database sia su volantino_beta che volantini_beta
+        try:
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id, nome, layout_json, thumbnail, tipo FROM volantino_beta WHERE id = %s", (id,))
+                row = cur.fetchone()
+                if not row:
+                    cur.execute("SELECT id, nome, layout_json, thumbnail, tipo FROM volantini_beta WHERE id = %s", (id,))
+                    row = cur.fetchone()
+                if row:
+                    return render_template(
+                        '05_beta_volantino/05_beta_volantino.html',
+                        volantino_id=row['id'],
+                        nome_volantino=row['nome'],
+                        layout_json=row['layout_json'],
+                        thumbnail=row.get('thumbnail') if isinstance(row, dict) else None,
+                        tipo_volantino=row.get('tipo', 'promo_mensile') if isinstance(row, dict) else 'promo_mensile'
+                    )
+        except Exception as fb_err:
+            print(f"Errore fallback caricamento volantino: {fb_err}", flush=True)
+        abort(404)
+
     return render_template(
         '05_beta_volantino/05_beta_volantino.html',
         volantino_id=id,
