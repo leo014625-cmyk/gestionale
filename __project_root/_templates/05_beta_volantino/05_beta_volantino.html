@@ -3808,128 +3808,162 @@ document.addEventListener("DOMContentLoaded", () => {
   let volantinoID = "{{ volantino_id or '' }}";
 
   document.getElementById("save-layout").addEventListener("click", () => {
-    const data = pagine.map(page => {
-      const grid = page.querySelector(".page-grid");
-      const header = page.querySelector(".page-header");
-      const footer = page.querySelector(".page-footer");
+    const saveBtn = document.getElementById("save-layout");
+    const oldHtml = saveBtn ? saveBtn.innerHTML : "Salva";
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Salvataggio...`;
+    }
 
-      const headerImg = header.querySelector("img")?.src || "";
-      const footerImg = "";
-      
-      const imgOriginal = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.imgOriginal || "") : "";
-      const imgNoBg = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.imgNoBg || "") : "";
-      const useNoBg = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.useNoBg || "0") : "0";
-      const showDesc = page.querySelector(".cella-prodotto") ? (page.querySelector(".cella-prodotto").dataset.showDesc || "1") : "1";
-      
-      const cols = parseInt(page.dataset.cols || "3", 10);
-      const rows = parseInt(page.dataset.rows || "3", 10);
-      const gap = parseInt(page.dataset.gap || "10", 10);
-      const larghezza = page.dataset.larghezza || "800";
-      const altezza = page.dataset.altezza || "1100";
-      const padTop = page.dataset.padTop || "10";
-      const padBottom = page.dataset.padBottom || "10";
-      const padSides = page.dataset.padSides || "10";
-      const headerH = page.dataset.headerH || "80";
-      const footerH = page.dataset.footerH || "80";
-      const headerFit = page.dataset.headerFit || "contain";
-      const headerZoom = page.dataset.headerZoom || "1";
+    try {
+      const data = pagine.map(page => {
+        const grid = page.querySelector(".page-grid");
+        const header = page.querySelector(".page-header");
+        const footer = page.querySelector(".page-footer");
 
-      const cells = [];
-      grid.querySelectorAll(".cella-prodotto").forEach(c => {
-        cells.push({
-          img: c.querySelector(".img-box img")?.src || (c.dataset.useNoBg === "1" ? c.dataset.imgNoBg : c.dataset.imgOriginal) || c.dataset.imgOriginal || c.dataset.imgNoBg || "",
-          imgOriginal: c.dataset.imgOriginal || "",
-          imgNoBg: c.dataset.imgNoBg || "",
-          useNoBg: c.dataset.useNoBg || "0",
-          showDesc: c.dataset.showDesc || "1",
-          titolo: c.querySelector(".titolo")?.innerText || "",
-          descrizione: c.querySelector(".descrizione")?.innerText || "",
-          prezzo: c.querySelector(".prezzo")?.innerText || "",
-          codice: c.dataset.codice || "",
-          oldPrice: c.dataset.oldPrice || "",
-          priceStyle: c.dataset.priceStyle || "base",
-          priceSize: c.dataset.priceSize || "26",
-          priceColor: c.dataset.priceColor || "#e11d48",
-          priceBg: c.dataset.priceBg || "#ffffff",
-          priceCurrency: c.dataset.priceCurrency || "€",
-          priceWeight: c.dataset.priceWeight || "800",
-          layout: c.dataset.layout || "image-top",
-          textAlign: c.dataset.textAlign || "start",
-          fontFamily: c.dataset.fontFamily || "inherit",
-          fontColor: c.dataset.fontColor || "#222222",
-          titleSize: c.dataset.titleSize || "13",
-          titleWeight: c.dataset.titleWeight || "700",
-          titleSpacing: c.dataset.titleSpacing || "0",
-          titleHeight: c.dataset.titleHeight || "1.2",
-          codeSize: c.dataset.codeSize || "9",
-          descSize: c.dataset.descSize || "10",
-          scadenza: c.dataset.scadenza || "",
-          scadenzaSize: c.dataset.scadenzaSize || "12",
-          scadenzaY: c.dataset.scadenzaY || "-4",
-          descItalic: c.dataset.descItalic || "0",
-          textUpper: c.dataset.textUpper || "0",
-          borderStyle: c.dataset.borderStyle || "solid",
-          borderColor: c.dataset.borderColor || "#cbd5e1",
-          radius: c.dataset.radius || "6",
-          bgColor: c.dataset.bgColor || "#ffffff",
-          bgTransparent: c.dataset.bgTransparent || "0",
-          shadow: c.dataset.shadow || "0",
-          imageFilter: c.dataset.imageFilter || "none",
-          imageZoom: c.dataset.imageZoom || "1.0",
-          imagePosX: c.dataset.imagePosX || "50",
-          imagePosY: c.dataset.imagePosY || "50",
-          imageRadius: c.dataset.imageRadius || "4",
-          imagePadding: c.dataset.imagePadding || "0",
-          imageAspect: c.dataset.imageAspect || "auto"
+        const headerImg = header ? (header.querySelector("img")?.src || "") : "";
+        const footerImg = footer ? (footer.querySelector("img")?.src || "") : "";
+        
+        const firstCell = page.querySelector(".cella-prodotto");
+        const imgOriginal = firstCell ? (firstCell.dataset.imgOriginal || "") : "";
+        const imgNoBg = firstCell ? (firstCell.dataset.imgNoBg || "") : "";
+        const useNoBg = firstCell ? (firstCell.dataset.useNoBg || "0") : "0";
+        const showDesc = firstCell ? (firstCell.dataset.showDesc || "1") : "1";
+        
+        const cols = parseInt(page.dataset.cols || "3", 10);
+        const rows = parseInt(page.dataset.rows || "3", 10);
+        const gap = parseInt(page.dataset.gap || "10", 10);
+        const larghezza = page.dataset.larghezza || "800";
+        const altezza = page.dataset.altezza || "1100";
+        const padTop = page.dataset.padTop || "10";
+        const padBottom = page.dataset.padBottom || "10";
+        const padSides = page.dataset.padSides || "10";
+        const headerH = page.dataset.headerH || "80";
+        const footerH = page.dataset.footerH || "80";
+        const headerFit = page.dataset.headerFit || "contain";
+        const headerZoom = page.dataset.headerZoom || "1";
+
+        const cells = [];
+        const cellEls = grid ? grid.querySelectorAll(".cella-prodotto") : page.querySelectorAll(".cella-prodotto");
+        cellEls.forEach(c => {
+          const imgEl = c.querySelector(".img-box img");
+          const titEl = c.querySelector(".titolo");
+          const descEl = c.querySelector(".descrizione");
+          const prezEl = c.querySelector(".prezzo");
+          cells.push({
+            img: imgEl?.src || (c.dataset.useNoBg === "1" ? c.dataset.imgNoBg : c.dataset.imgOriginal) || c.dataset.imgOriginal || c.dataset.imgNoBg || "",
+            imgOriginal: c.dataset.imgOriginal || "",
+            imgNoBg: c.dataset.imgNoBg || "",
+            useNoBg: c.dataset.useNoBg || "0",
+            showDesc: c.dataset.showDesc || "1",
+            titolo: titEl ? titEl.innerText : "",
+            descrizione: descEl ? descEl.innerText : "",
+            prezzo: prezEl ? prezEl.innerText : "",
+            codice: c.dataset.codice || "",
+            oldPrice: c.dataset.oldPrice || "",
+            priceStyle: c.dataset.priceStyle || "base",
+            priceSize: c.dataset.priceSize || "26",
+            priceColor: c.dataset.priceColor || "#e11d48",
+            priceBg: c.dataset.priceBg || "#ffffff",
+            priceCurrency: c.dataset.priceCurrency || "€",
+            priceWeight: c.dataset.priceWeight || "800",
+            layout: c.dataset.layout || "image-top",
+            textAlign: c.dataset.textAlign || "start",
+            fontFamily: c.dataset.fontFamily || "inherit",
+            fontColor: c.dataset.fontColor || "#222222",
+            titleSize: c.dataset.titleSize || "13",
+            titleWeight: c.dataset.titleWeight || "700",
+            titleSpacing: c.dataset.titleSpacing || "0",
+            titleHeight: c.dataset.titleHeight || "1.2",
+            codeSize: c.dataset.codeSize || "9",
+            descSize: c.dataset.descSize || "10",
+            scadenza: c.dataset.scadenza || "",
+            scadenzaSize: c.dataset.scadenzaSize || "12",
+            scadenzaY: c.dataset.scadenzaY || "-4",
+            descItalic: c.dataset.descItalic || "0",
+            textUpper: c.dataset.textUpper || "0",
+            borderStyle: c.dataset.borderStyle || "solid",
+            borderColor: c.dataset.borderColor || "#cbd5e1",
+            radius: c.dataset.radius || "6",
+            bgColor: c.dataset.bgColor || "#ffffff",
+            bgTransparent: c.dataset.bgTransparent || "0",
+            shadow: c.dataset.shadow || "0",
+            imageFilter: c.dataset.imageFilter || "none",
+            imageZoom: c.dataset.imageZoom || "1.0",
+            imagePosX: c.dataset.imagePosX || "50",
+            imagePosY: c.dataset.imagePosY || "50",
+            imageRadius: c.dataset.imageRadius || "4",
+            imagePadding: c.dataset.imagePadding || "0",
+            imageAspect: c.dataset.imageAspect || "auto"
+          });
         });
+
+        const bgImg = page.dataset.bgImg || "";
+        const bgWidth = page.dataset.bgWidth || "100";
+        const bgHeight = page.dataset.bgHeight || "100";
+        const bgPosX = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "0";
+        const bgPosY = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "0";
+        const bgFit = page.dataset.bgFit || "originale";
+        const cellWidth = page.dataset.cellWidth || "380";
+        const cellHeight = page.dataset.cellHeight || "500";
+        const gridX = page.dataset.gridX !== undefined ? page.dataset.gridX : (controlGridX ? controlGridX.value : "40");
+        const gridY = page.dataset.gridY !== undefined ? page.dataset.gridY : (controlGridY ? controlGridY.value : "100");
+        const gridWidth = page.dataset.gridWidth || (controlGridW ? controlGridW.value : "");
+        const gridHeight = page.dataset.gridHeight || (controlGridH ? controlGridH.value : "");
+        const categoryTitle = page.dataset.categoryTitle || "";
+        const categoryBannerColor = page.dataset.categoryBannerColor || "#0f172a";
+
+        return { 
+          cols, rows, gap, larghezza, altezza, padTop, padBottom, padSides, headerH, footerH, headerFit, headerZoom,
+          headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, bgFit, cellWidth, cellHeight,
+          gridX, gridY, gridWidth, gridHeight, categoryTitle, categoryBannerColor
+        };
       });
 
-      const bgImg = page.dataset.bgImg || "";
-      const bgWidth = page.dataset.bgWidth || "100";
-      const bgHeight = page.dataset.bgHeight || "100";
-      const bgPosX = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "0";
-      const bgPosY = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "0";
-      const bgFit = page.dataset.bgFit || "originale";
-      const cellWidth = page.dataset.cellWidth || "380";
-      const cellHeight = page.dataset.cellHeight || "500";
-      const gridX = page.dataset.gridX !== undefined ? page.dataset.gridX : (controlGridX ? controlGridX.value : "40");
-      const gridY = page.dataset.gridY !== undefined ? page.dataset.gridY : (controlGridY ? controlGridY.value : "100");
-      const gridWidth = page.dataset.gridWidth || (controlGridW ? controlGridW.value : "");
-      const gridHeight = page.dataset.gridHeight || (controlGridH ? controlGridH.value : "");
-      const categoryTitle = page.dataset.categoryTitle || "";
-      const categoryBannerColor = page.dataset.categoryBannerColor || "#0f172a";
-
-      return { 
-        cols, rows, gap, larghezza, altezza, padTop, padBottom, padSides, headerH, footerH, headerFit, headerZoom,
-        headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, bgFit, cellWidth, cellHeight,
-        gridX, gridY, gridWidth, gridHeight, categoryTitle, categoryBannerColor
-      };
-    });
-
-    fetch("/salva-volantino-beta", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: volantinoID || null,
-        nome: inputNome.value || "Volantino Pro",
-        layout: data,
-        tipo: selectTipo ? selectTipo.value : "promo_mensile"
+      fetch("/salva-volantino-beta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: (volantinoID && volantinoID !== "None") ? volantinoID : null,
+          nome: (inputNome && inputNome.value) ? inputNome.value : "Volantino Pro",
+          layout: data,
+          tipo: selectTipo ? selectTipo.value : "promo_mensile"
+        })
       })
-    })
-    .then(r => r.json())
-    .then(d => {
-      showToast("Progetto Volantino salvato correttamente!");
-      if (d.id) {
-        volantinoID = d.id;
-        try {
-          window.history.replaceState({}, '', '/beta-volantino/' + d.id);
-        } catch(e) {}
+      .then(r => r.json())
+      .then(d => {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = oldHtml;
+        }
+        if (d.ok) {
+          showToast("Progetto Volantino salvato correttamente!");
+          if (d.id) {
+            volantinoID = d.id;
+            try {
+              window.history.replaceState({}, '', '/beta-volantino/' + d.id);
+            } catch(e) {}
+          }
+        } else {
+          showToast(d.message || "Errore nel salvataggio del volantino");
+        }
+      })
+      .catch(err => {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = oldHtml;
+        }
+        console.error("Errore salvataggio:", err);
+        showToast("Errore di connessione o salvataggio volantino");
+      });
+    } catch(err) {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = oldHtml;
       }
-    })
-    .catch(err => {
-      console.error("Errore salvataggio:", err);
-      showToast("Errore nel salvataggio del volantino");
-    });
+      console.error("Errore lettura dati volantino:", err);
+      showToast("Errore durante la preparazione del salvataggio: " + err.message);
+    }
   });
 
   /* -------------------------------------------------------------------

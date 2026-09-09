@@ -7694,11 +7694,36 @@ def salva_volantino_beta():
             except Exception as dberr:
                 print(f"Errore aggiornamento coordinate prodotti nel db di produzione: {dberr}")
             
-        db.session.commit()
-        return jsonify({"ok": True, "id": vol.id})
+        try:
+            db.session.commit()
+            return jsonify({"ok": True, "id": vol.id})
+        except Exception as sa_err:
+            db.session.rollback()
+            print(f"Salvataggio SQLAlchemy fallito ({sa_err}), provo raw SQL...", flush=True)
+            with get_db() as conn:
+                cur = conn.cursor()
+                target_id = getattr(vol, 'id', None)
+                if target_id:
+                    cur.execute("""
+                        UPDATE volantino_beta 
+                        SET nome = %s, layout_json = %s, tipo = %s, aggiornato_il = CURRENT_TIMESTAMP 
+                        WHERE id = %s
+                    """, (nome, layout_json, tipo, target_id))
+                    conn.commit()
+                    return jsonify({"ok": True, "id": target_id})
+                else:
+                    cur.execute("""
+                        INSERT INTO volantino_beta (nome, layout_json, tipo, creato_il)
+                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                        RETURNING id
+                    """, (nome, layout_json, tipo))
+                    row_res = cur.fetchone()
+                    new_id = row_res['id'] if row_res else 1
+                    conn.commit()
+                    return jsonify({"ok": True, "id": new_id})
     except Exception as e:
         db.session.rollback()
-        print(f"Errore salvataggio volantino beta: {e}")
+        print(f"Errore salvataggio volantino beta: {e}", flush=True)
         return jsonify({"ok": False, "message": f"Errore server: {str(e)}"}), 500
 
 # ============================
