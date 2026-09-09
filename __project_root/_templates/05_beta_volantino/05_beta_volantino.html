@@ -1953,22 +1953,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const header = pageEl.querySelector(".page-header");
     
     if (header) {
-      const baseH = parseInt(headerH, 10);
-      if (isNaN(baseH) || baseH <= 0) {
-        header.style.display = "none";
-        header.style.height = "0px";
-        header.style.margin = "0px";
-        header.style.padding = "0px";
-        header.style.border = "none";
+      if (!header.querySelector("img")) {
+        header.remove();
       } else {
-        header.style.display = "flex";
-        header.style.height = (baseH * z) + "px";
-        header.style.alignItems = "center";
-        header.style.justifyContent = "center";
-        header.style.overflow = "hidden";
-        header.style.margin = "";
-        header.style.padding = "";
-        header.style.border = "";
+        const baseH = parseInt(headerH, 10);
+        if (isNaN(baseH) || baseH <= 0) {
+          header.style.display = "none";
+          header.style.height = "0px";
+          header.style.margin = "0px";
+          header.style.padding = "0px";
+          header.style.border = "none";
+        } else {
+          header.style.display = "flex";
+          header.style.height = (baseH * z) + "px";
+          header.style.alignItems = "center";
+          header.style.justifyContent = "center";
+          header.style.overflow = "hidden";
+          header.style.margin = "";
+          header.style.padding = "";
+          header.style.border = "";
+        }
       }
     }
 
@@ -3589,16 +3593,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     page.innerHTML = `
-      <div class="page-header border border-dashed rounded-3 mb-2 bg-light bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="cursor: pointer; overflow: hidden; height: ${controlHeaderH.value}px;">
-        <div class="text-center small"><i class="bi bi-image fs-5 d-block mb-1"></i>Clicca per caricare il LOGO in alto</div>
-      </div>
       <div class="page-grid"></div>
     `;
 
-    const header = page.querySelector(".page-header");
     const grid = page.querySelector(".page-grid");
-
-    abilitaUploadImmagineHeaderFooter(header);
 
     applicaDimensioniFoglio(page);
     applicaStrutturaGriglia(page, cols, rows, gap);
@@ -3980,26 +3978,22 @@ document.addEventListener("DOMContentLoaded", () => {
           categoryBannerColor: pData.categoryBannerColor || "#0f172a"
         });
 
-        const isHeaderHidden = parseInt(pData.headerH, 10) <= 0;
-
-        page.innerHTML = `
-          <div class="page-header border border-dashed rounded-3 mb-2 bg-light bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="cursor: pointer; overflow: hidden; height: ${page.dataset.headerH}px; ${isHeaderHidden ? 'display: none !important;' : ''}">
-            <div class="text-center small"><i class="bi bi-image fs-5 d-block mb-1"></i>Clicca per caricare il LOGO in alto</div>
-          </div>
-          <div class="page-grid"></div>
-        `;
-
-        const header = page.querySelector(".page-header");
-        const grid = page.querySelector(".page-grid");
-
-        abilitaUploadImmagineHeaderFooter(header);
-
         if (pData.headerImg) {
-          header.innerHTML = `<img src="${pData.headerImg}">`;
+          page.innerHTML = `
+            <div class="page-header" style="overflow: hidden; height: ${page.dataset.headerH || 0}px;">
+              <img src="${pData.headerImg}">
+            </div>
+            <div class="page-grid"></div>
+          `;
+          const header = page.querySelector(".page-header");
+          abilitaUploadImmagineHeaderFooter(header);
+        } else {
+          page.innerHTML = `
+            <div class="page-grid"></div>
+          `;
         }
-        if (pData.footerImg) {
-          footer.innerHTML = `<img src="${pData.footerImg}">`;
-        }
+
+        const grid = page.querySelector(".page-grid");
 
         applicaDimensioniFoglio(page);
         applicaStrutturaGriglia(page, cols, rows, gap);
@@ -4587,6 +4581,14 @@ document.addEventListener("DOMContentLoaded", () => {
   overflow: hidden;
   transition: all 0.2s ease;
   background-color: #f8fafc;
+}
+
+.page-header:not(:has(img)) {
+  display: none !important;
+  height: 0px !important;
+  margin: 0px !important;
+  padding: 0px !important;
+  border: none !important;
 }
 
 .page-header img, .page-footer img {
