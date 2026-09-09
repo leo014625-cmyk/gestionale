@@ -7227,9 +7227,13 @@ def api_importa_pdf_volantino():
             p_bg_img = str(preset.get("bgImg", ""))
             p_bg_w = str(preset.get("bgWidth", "100"))
             p_bg_h = str(preset.get("bgHeight", "100"))
-            p_bg_x = str(preset.get("bgPosX", "50"))
-            p_bg_y = str(preset.get("bgPosY", "50"))
-            p_bg_fit = str(preset.get("bgFit", "cover"))
+            p_bg_x = str(preset.get("bgPosX", "0"))
+            p_bg_y = str(preset.get("bgPosY", "0"))
+            p_bg_fit = str(preset.get("bgFit", "originale"))
+            p_grid_x = str(preset.get("gridX", "40"))
+            p_grid_y = str(preset.get("gridY", "100"))
+            p_grid_w = str(preset.get("gridWidth", ""))
+            p_grid_h = str(preset.get("gridHeight", ""))
 
             chunk_size = p_cols * p_rows
             doc_pages = []
@@ -7258,6 +7262,10 @@ def api_importa_pdf_volantino():
                     "bgPosX": p_bg_x,
                     "bgPosY": p_bg_y,
                     "bgFit": p_bg_fit,
+                    "gridX": p_grid_x,
+                    "gridY": p_grid_y,
+                    "gridWidth": p_grid_w,
+                    "gridHeight": p_grid_h,
                     "categoryTitle": "",
                     "categoryBannerColor": "transparent",
                     "cells": []
@@ -7450,9 +7458,13 @@ def api_crea_volantino_wizard():
                 "bgImg": bg_url,
                 "bgWidth": str(preset.get("bgWidth", "100")),
                 "bgHeight": str(preset.get("bgHeight", "100")),
-                "bgPosX": str(preset.get("bgPosX", "50")),
-                "bgPosY": str(preset.get("bgPosY", "50")),
-                "bgFit": str(preset.get("bgFit", "cover")),
+                "bgPosX": str(s.get("bgPosX") or preset.get("bgPosX") or "0"),
+                "bgPosY": str(s.get("bgPosY") or preset.get("bgPosY") or "0"),
+                "bgFit": str(s.get("bgFit") or preset.get("bgFit") or "originale"),
+                "gridX": str(s.get("gridX") or preset.get("gridX") or "40"),
+                "gridY": str(s.get("gridY") or preset.get("gridY") or "100"),
+                "gridWidth": str(s.get("gridWidth") or preset.get("gridWidth") or ""),
+                "gridHeight": str(s.get("gridHeight") or preset.get("gridHeight") or ""),
                 "categoryTitle": cat_title,
                 "categoryBannerColor": cat_color,
                 "cells": []

@@ -143,66 +143,123 @@
               </div>
             </div>
 
-            <!-- CONFIGURAZIONE INTESTAZIONE (HEADER) -->
+            <!-- PARAMETRI INTESTAZIONE NASCOSTI (GESTIONE HEADER RIMOSSA) -->
+            <input type="hidden" id="header-altezza" value="0">
+            <input type="hidden" id="footer-altezza" value="0">
+            <input type="hidden" id="header-fit" value="contain">
+            <input type="hidden" id="header-zoom" value="1">
+
+            <!-- POSIZIONE E DIMENSIONI GRIGLIA PRODOTTI -->
             <div class="border-top pt-3 mt-3">
-              <h7 class="fw-bold d-block text-dark mb-2 small">Intestazione (Header)</h7>
-              <div class="mb-3">
-                <label class="form-label small text-muted">Alt. Header (px)</label>
-                <input type="number" id="header-altezza" class="form-control form-control-sm bg-white border text-dark" value="80">
-                <input type="hidden" id="footer-altezza" value="0">
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label small text-muted">Adattamento Logo Header</label>
-                <select id="header-fit" class="form-select form-select-sm bg-white border text-dark">
-                  <option value="contain" selected>Conserva Proporzioni (Consigliato per Loghi)</option>
-                  <option value="cover">Riempi Interamente (Consigliato per Sfondi)</option>
-                </select>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h7 class="fw-bold text-dark mb-0 small"><i class="bi bi-grid-3x3-gap-fill text-primary me-1"></i>Posizione e Griglia Prodotti</h7>
+                <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">Spostabile</span>
               </div>
 
-              <div class="mb-3">
-                <label class="form-label small text-muted">Zoom Logo Header</label>
-                <input type="range" id="header-zoom" class="form-range" min="0.5" max="3" step="0.05" value="1">
-              </div>
-            </div>
-
-            <!-- GRIGLIA PRODOTTI CON SLIDER -->
-            <div class="border-top pt-3 mt-3">
-              <h7 class="fw-bold d-block text-dark mb-2 small">Griglia Prodotti</h7>
-              
-              <div class="mb-3">
-                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
-                  <span>Distanza Celle (Gap)</span>
-                  <span class="text-primary"><span id="val-gap">10</span>px</span>
-                </label>
-                <input type="range" id="griglia-gap" class="form-range" min="0" max="40" step="1" value="10">
-              </div>
-
-              <div class="row g-2 mb-3">
+              <!-- Posizione X e Y nel Foglio -->
+              <div class="row g-2 mb-2">
                 <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Posizione X</span>
+                    <span class="text-primary"><span id="val-griglia-x">10</span>px</span>
+                  </label>
+                  <input type="number" id="griglia-pos-x" class="form-control form-control-sm bg-white border text-dark" value="10">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Posizione Y</span>
+                    <span class="text-primary"><span id="val-griglia-y">10</span>px</span>
+                  </label>
+                  <input type="number" id="griglia-pos-y" class="form-control form-control-sm bg-white border text-dark" value="10">
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <input type="range" id="slider-griglia-x" class="form-range" min="0" max="1500" step="5" value="10">
+              </div>
+              <div class="mb-2">
+                <input type="range" id="slider-griglia-y" class="form-range" min="0" max="2000" step="5" value="10">
+              </div>
+
+              <!-- Pulsanti Rapidi Posizionamento -->
+              <div class="d-flex gap-1 mb-3">
+                <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" id="btn-centra-griglia-x" title="Centra orizzontalmente nel foglio">
+                  <i class="bi bi-align-center"></i> Centra X
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" id="btn-centra-griglia-y" title="Centra verticalmente nel foglio">
+                  <i class="bi bi-align-middle"></i> Centra Y
+                </button>
+                <button type="button" class="btn btn-light btn-sm border text-dark flex-grow-1" id="btn-centra-griglia-tutto" title="Centra perfettamente nel foglio">
+                  <i class="bi bi-aspect-ratio"></i> Centra Tutto
+                </button>
+              </div>
+
+              <!-- Larghezza e Altezza Totale Griglia -->
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Larghezza Griglia</span>
+                    <span class="text-primary"><span id="val-griglia-w">Auto</span></span>
+                  </label>
+                  <input type="number" id="griglia-larghezza" class="form-control form-control-sm bg-white border text-dark" placeholder="Auto (px)">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Altezza Griglia</span>
+                    <span class="text-primary"><span id="val-griglia-h">Auto</span></span>
+                  </label>
+                  <input type="number" id="griglia-altezza" class="form-control form-control-sm bg-white border text-dark" placeholder="Auto (px)">
+                </div>
+              </div>
+
+              <div class="d-flex gap-1 mb-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" id="btn-griglia-adatta-celle" title="Calcola larghezza e altezza griglia da celle e gap">
+                  <i class="bi bi-calculator me-1"></i>Adatta a Celle
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" id="btn-celle-adatta-griglia" title="Ricalcola dimensione celle in base a larghezza e altezza griglia">
+                  <i class="bi bi-arrows-angle-expand me-1"></i>Adatta Celle
+                </button>
+              </div>
+
+              <!-- Colonne, Righe, Gap -->
+              <div class="row g-2 mb-2">
+                <div class="col-4">
                   <label class="form-label small text-muted">Colonne</label>
                   <input type="number" id="griglia-colonne" class="form-control form-control-sm bg-white border text-dark" value="3" min="1" max="6">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                   <label class="form-label small text-muted">Righe</label>
                   <input type="number" id="griglia-righe" class="form-control form-control-sm bg-white border text-dark" value="3" min="1" max="10">
                 </div>
+                <div class="col-4">
+                  <label class="form-label small text-muted">Distanza (Gap)</label>
+                  <input type="number" id="griglia-gap" class="form-control form-control-sm bg-white border text-dark" value="10" min="0" max="60">
+                </div>
               </div>
 
-              <div class="mb-3">
-                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
-                  <span>Larghezza Celle (px)</span>
-                  <span class="text-primary"><span id="val-cella-w">380</span>px</span>
-                </label>
-                <input type="range" id="griglia-cella-w" class="form-range" min="150" max="600" step="5" value="380">
+              <!-- Dimensioni Singola Cella -->
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Larghezza Cella</span>
+                    <span class="text-primary"><span id="val-cella-w">380</span>px</span>
+                  </label>
+                  <input type="number" id="griglia-cella-w" class="form-control form-control-sm bg-white border text-dark" value="380">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Altezza Cella</span>
+                    <span class="text-primary"><span id="val-cella-h">500</span>px</span>
+                  </label>
+                  <input type="number" id="griglia-cella-h" class="form-control form-control-sm bg-white border text-dark" value="500">
+                </div>
               </div>
 
-              <div class="mb-3">
-                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
-                  <span>Altezza Celle (px)</span>
-                  <span class="text-primary"><span id="val-cella-h">500</span>px</span>
-                </label>
-                <input type="range" id="griglia-cella-h" class="form-range" min="150" max="800" step="5" value="500">
+              <div class="mb-2">
+                <input type="range" id="slider-cella-w" class="form-range" min="120" max="700" step="5" value="380">
+              </div>
+              <div class="mb-2">
+                <input type="range" id="slider-cella-h" class="form-range" min="120" max="900" step="5" value="500">
               </div>
             </div>
 
@@ -211,7 +268,7 @@
               <h7 class="fw-bold d-block text-dark mb-2 small"><i class="bi bi-bookmark-star-fill text-primary me-1"></i>Banner Categoria Foglio</h7>
               <div class="mb-2">
                 <input type="text" id="foglio-cat-title" class="form-control form-control-sm bg-white border text-dark fw-bold" 
-                       placeholder="Titolo Sezione (es. CARNE SCELTA)">
+                       placeholder="Titolo Sezione (opzionale)">
               </div>
               <div class="d-flex align-items-center justify-content-between">
                 <span class="small text-muted" style="font-size: 0.75rem;">Colore Fascia:</span>
@@ -226,9 +283,12 @@
               </div>
             </div>
 
-            <!-- SFONDO DIETRO LE CELLE -->
+            <!-- SFONDO DEL FOGLIO -->
             <div class="border-top pt-3 mt-3">
-              <h7 class="fw-bold d-block text-dark mb-2 small"><i class="bi bi-image text-success me-1"></i>Sfondo Griglia Prodotti</h7>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h7 class="fw-bold text-dark mb-0 small"><i class="bi bi-image text-success me-1"></i>Sfondo Foglio</h7>
+                <span class="badge bg-success-subtle text-success" style="font-size: 0.7rem;">Canvas</span>
+              </div>
               
               <!-- Sfondi Precaricati Dropdown -->
               <div class="mb-2">
@@ -241,19 +301,33 @@
 
               <div class="d-flex gap-1 mb-2">
                 <button class="btn btn-light btn-sm flex-grow-1 border text-dark d-flex align-items-center justify-content-center gap-1" id="foglio-bg-file-btn">
-                  <i class="bi bi-upload"></i> Carica Immagine
+                  <i class="bi bi-upload"></i> Carica Immagine Sfondo
                 </button>
                 <input type="file" id="foglio-bg-file-input" class="d-none" accept="image/*">
                 <button class="btn btn-outline-danger btn-sm" id="foglio-bg-rimuovi" title="Rimuovi sfondo"><i class="bi bi-trash"></i></button>
               </div>
 
-              <!-- Quick Fit & Multi-sheet buttons -->
-              <div class="d-flex gap-1 mb-2">
-                <button class="btn btn-outline-secondary btn-sm flex-grow-1" id="foglio-bg-fit-cover-btn" title="Adatta lo sfondo al 100% del foglio">
-                  <i class="bi bi-aspect-ratio me-1"></i>Adatta (100% Cover)
+              <!-- Opzioni di Adattamento Sfondo -->
+              <div class="mb-2">
+                <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Modalità Adattamento Sfondo</label>
+                <div class="btn-group w-100 btn-group-sm mb-1" role="group">
+                  <button type="button" class="btn btn-outline-secondary" id="btn-bg-fit-originale" title="Mostra l'immagine nella sua dimensione reale in pixel">Originale</button>
+                  <button type="button" class="btn btn-outline-secondary" id="btn-bg-fit-exact" title="Adatta esattamente ai bordi del foglio (100% 100%)">100% Foglio</button>
+                  <button type="button" class="btn btn-outline-secondary" id="btn-bg-fit-cover" title="Riempi il foglio conservando le proporzioni">Cover</button>
+                  <button type="button" class="btn btn-outline-secondary" id="btn-bg-fit-contain" title="Mostra intera immagine proporzionata">Contain</button>
+                </div>
+              </div>
+
+              <!-- Adatta Foglio a Sfondo -->
+              <div class="mb-2">
+                <button type="button" class="btn btn-sm btn-outline-success w-100 fw-semibold d-flex align-items-center justify-content-center gap-1" id="btn-adatta-foglio-a-sfondo" title="Imposta la larghezza e l'altezza del foglio identiche a quelle dell'immagine di sfondo caricata">
+                  <i class="bi bi-aspect-ratio-fill"></i> Imposta Dimensioni Foglio come Sfondo
                 </button>
-                <button class="btn btn-outline-primary btn-sm flex-grow-1" id="foglio-bg-applica-tutti-btn" title="Copia questo sfondo su tutti i fogli">
-                  <i class="bi bi-images me-1"></i>Sfondo su Tutti
+              </div>
+
+              <div class="d-flex gap-1 mb-2">
+                <button class="btn btn-outline-primary btn-sm w-100" id="foglio-bg-applica-tutti-btn" title="Copia questo sfondo su tutti i fogli">
+                  <i class="bi bi-images me-1"></i>Applica Sfondo a Tutti i Fogli
                 </button>
               </div>
 
@@ -263,30 +337,38 @@
                 </button>
               </div>
 
-              <div class="mb-2">
-                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
-                  <span>Larghezza Sfondo (%)</span>
-                  <span class="text-primary"><span id="val-bg-width">100</span>%</span>
-                </label>
-                <input type="range" id="foglio-bg-width" class="form-range" min="10" max="250" step="5" value="100">
-              </div>
-
-              <div class="mb-2">
-                <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
-                  <span>Altezza Sfondo (%)</span>
-                  <span class="text-primary"><span id="val-bg-height">100</span>%</span>
-                </label>
-                <input type="range" id="foglio-bg-height" class="form-range" min="10" max="250" step="5" value="100">
+              <!-- Posizione X e Y Sfondo -->
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Pos. Sfondo X</span>
+                    <span class="text-primary"><span id="val-bg-pos-x">50</span>%</span>
+                  </label>
+                  <input type="range" id="foglio-bg-pos-x" class="form-range" min="0" max="100" step="1" value="50">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Pos. Sfondo Y</span>
+                    <span class="text-primary"><span id="val-bg-pos-y">50</span>%</span>
+                  </label>
+                  <input type="range" id="foglio-bg-pos-y" class="form-range" min="0" max="100" step="1" value="50">
+                </div>
               </div>
 
               <div class="row g-2 mb-2">
                 <div class="col-6">
-                  <label class="form-label small text-muted">Posizione X (%)</label>
-                  <input type="range" id="foglio-bg-pos-x" class="form-range" min="0" max="100" step="1" value="50">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Zoom Sfondo W</span>
+                    <span class="text-primary"><span id="val-bg-width">100</span>%</span>
+                  </label>
+                  <input type="range" id="foglio-bg-width" class="form-range" min="10" max="250" step="5" value="100">
                 </div>
                 <div class="col-6">
-                  <label class="form-label small text-muted">Posizione Y (%)</label>
-                  <input type="range" id="foglio-bg-pos-y" class="form-range" min="0" max="100" step="1" value="50">
+                  <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
+                    <span>Zoom Sfondo H</span>
+                    <span class="text-primary"><span id="val-bg-height">100</span>%</span>
+                  </label>
+                  <input type="range" id="foglio-bg-height" class="form-range" min="10" max="250" step="5" value="100">
                 </div>
               </div>
             </div>
@@ -792,11 +874,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const valBgWidth = document.getElementById("val-bg-width");
   const valBgHeight = document.getElementById("val-bg-height");
+  const valBgPosX = document.getElementById("val-bg-pos-x");
+  const valBgPosY = document.getElementById("val-bg-pos-y");
+  const btnBgFitOriginale = document.getElementById("btn-bg-fit-originale");
+  const btnBgFitExact = document.getElementById("btn-bg-fit-exact");
+  const btnBgFitCover = document.getElementById("btn-bg-fit-cover");
+  const btnBgFitContain = document.getElementById("btn-bg-fit-contain");
+  const btnAdattaFoglioASfondo = document.getElementById("btn-adatta-foglio-a-sfondo");
+
+  // Grid position & dimensions controls
+  const controlGridX = document.getElementById("griglia-pos-x");
+  const sliderGridX = document.getElementById("slider-griglia-x");
+  const valGridX = document.getElementById("val-griglia-x");
+
+  const controlGridY = document.getElementById("griglia-pos-y");
+  const sliderGridY = document.getElementById("slider-griglia-y");
+  const valGridY = document.getElementById("val-griglia-y");
+
+  const controlGridW = document.getElementById("griglia-larghezza");
+  const valGridW = document.getElementById("val-griglia-w");
+  const controlGridH = document.getElementById("griglia-altezza");
+  const valGridH = document.getElementById("val-griglia-h");
+
+  const btnCentraGrigliaX = document.getElementById("btn-centra-griglia-x");
+  const btnCentraGrigliaY = document.getElementById("btn-centra-griglia-y");
+  const btnCentraGrigliaTutto = document.getElementById("btn-centra-griglia-tutto");
+  const btnGrigliaAdattaCelle = document.getElementById("btn-griglia-adatta-celle");
+  const btnCelleAdattaGriglia = document.getElementById("btn-celle-adatta-griglia");
 
   // Cell dimensions controls
   const controlCellaW = document.getElementById("griglia-cella-w");
-  const controlCellaH = document.getElementById("griglia-cella-h");
+  const sliderCellaW = document.getElementById("slider-cella-w");
   const valCellaW = document.getElementById("val-cella-w");
+  const controlCellaH = document.getElementById("griglia-cella-h");
+  const sliderCellaH = document.getElementById("slider-cella-h");
   const valCellaH = document.getElementById("val-cella-h");
 
   // Range value displays
@@ -1079,6 +1190,10 @@ document.addEventListener("DOMContentLoaded", () => {
       curPage.dataset.padTop = controlPadTop.value;
       curPage.dataset.padBottom = controlPadBottom.value;
       curPage.dataset.padSides = controlPadSides.value;
+      if (controlGridX) curPage.dataset.gridX = controlGridX.value;
+      if (controlGridY) curPage.dataset.gridY = controlGridY.value;
+      if (controlGridW) curPage.dataset.gridWidth = controlGridW.value;
+      if (controlGridH) curPage.dataset.gridHeight = controlGridH.value;
     }
 
     const headerImg = pagine[0]?.querySelector(".page-header img")?.src || "";
@@ -1086,9 +1201,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const bgImg = curPage?.dataset.bgImg || "";
     const bgWidth = curPage?.dataset.bgWidth || "100";
     const bgHeight = curPage?.dataset.bgHeight || "100";
-    const bgPosX = curPage?.dataset.bgPosX !== undefined ? curPage.dataset.bgPosX : "50";
-    const bgPosY = curPage?.dataset.bgPosY !== undefined ? curPage.dataset.bgPosY : "50";
-    const bgFit = curPage?.dataset.bgFit || "cover";
+    const bgPosX = curPage?.dataset.bgPosX !== undefined ? curPage.dataset.bgPosX : "0";
+    const bgPosY = curPage?.dataset.bgPosY !== undefined ? curPage.dataset.bgPosY : "0";
+    const bgFit = curPage?.dataset.bgFit || "originale";
 
     const preset = {
       larghezza: controlLarghezza.value,
@@ -1111,7 +1226,11 @@ document.addEventListener("DOMContentLoaded", () => {
       bgPosY: bgPosY,
       bgFit: bgFit,
       cellWidth: controlCellaW.value,
-      cellHeight: controlCellaH.value
+      cellHeight: controlCellaH.value,
+      gridX: curPage?.dataset.gridX || (controlGridX ? controlGridX.value : "40"),
+      gridY: curPage?.dataset.gridY || (controlGridY ? controlGridY.value : "100"),
+      gridWidth: curPage?.dataset.gridWidth || (controlGridW ? controlGridW.value : ""),
+      gridHeight: curPage?.dataset.gridHeight || (controlGridH ? controlGridH.value : "")
     };
 
     localStorage.setItem("horeca_volantino_preset", JSON.stringify(preset));
@@ -1124,7 +1243,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(r => r.json())
     .then(data => {
       if (data.status === "ok") {
-        showToast("Dimensioni foglio, celle, stili e sfondo salvati come Default per i prossimi volantini!");
+        showToast("Dimensioni foglio, griglia prodotti, celle, stili e sfondo salvati come Default per i prossimi volantini!");
       } else {
         showToast("Salvato localmente. Errore server: " + data.message);
       }
@@ -1188,6 +1307,32 @@ document.addEventListener("DOMContentLoaded", () => {
     valCellaW.textContent = controlCellaW.value;
     valCellaH.textContent = controlCellaH.value;
 
+    if (preset.gridX !== undefined) {
+      if (controlGridX) controlGridX.value = preset.gridX;
+      if (sliderGridX) sliderGridX.value = preset.gridX;
+      if (valGridX) valGridX.textContent = preset.gridX;
+    }
+    if (preset.gridY !== undefined) {
+      if (controlGridY) controlGridY.value = preset.gridY;
+      if (sliderGridY) sliderGridY.value = preset.gridY;
+      if (valGridY) valGridY.textContent = preset.gridY;
+    }
+    if (preset.gridWidth !== undefined) {
+      if (controlGridW) controlGridW.value = preset.gridWidth;
+      if (valGridW) valGridW.textContent = preset.gridWidth ? preset.gridWidth + "px" : "Auto";
+    }
+    if (preset.gridHeight !== undefined) {
+      if (controlGridH) controlGridH.value = preset.gridHeight;
+      if (valGridH) valGridH.textContent = preset.gridHeight ? preset.gridHeight + "px" : "Auto";
+    }
+
+    pagine.forEach(page => {
+      if (preset.gridX !== undefined) page.dataset.gridX = preset.gridX;
+      if (preset.gridY !== undefined) page.dataset.gridY = preset.gridY;
+      if (preset.gridWidth !== undefined) page.dataset.gridWidth = preset.gridWidth;
+      if (preset.gridHeight !== undefined) page.dataset.gridHeight = preset.gridHeight;
+    });
+
     applicaDimensioniFoglio(pagine[paginaCorrente]);
 
     if (preset.headerImg) {
@@ -1205,9 +1350,9 @@ document.addEventListener("DOMContentLoaded", () => {
           bgImg: preset.bgImg,
           bgWidth: preset.bgWidth || "100",
           bgHeight: preset.bgHeight || "100",
-          bgPosX: preset.bgPosX !== undefined ? preset.bgPosX : "50",
-          bgPosY: preset.bgPosY !== undefined ? preset.bgPosY : "50",
-          bgFit: preset.bgFit || "cover",
+          bgPosX: preset.bgPosX !== undefined ? preset.bgPosX : "0",
+          bgPosY: preset.bgPosY !== undefined ? preset.bgPosY : "0",
+          bgFit: preset.bgFit || "originale",
           cellWidth: preset.cellWidth || "380",
           cellHeight: preset.cellHeight || "500"
         });
@@ -1238,11 +1383,15 @@ document.addEventListener("DOMContentLoaded", () => {
       page.style.backgroundImage = `url("${bgImg}")`;
       page.style.backgroundRepeat = "no-repeat";
       
+      const fit = page.dataset.bgFit || "originale";
       const w = page.dataset.bgWidth || "100";
       const h = page.dataset.bgHeight || "100";
-      const fit = page.dataset.bgFit || "cover";
 
-      if (fit === "cover" || (w === "100" && h === "100")) {
+      if (fit === "originale" || fit === "auto") {
+        page.style.backgroundSize = "auto";
+      } else if (fit === "exact") {
+        page.style.backgroundSize = "100% 100%";
+      } else if (fit === "cover") {
         page.style.backgroundSize = "cover";
       } else if (fit === "contain") {
         page.style.backgroundSize = "contain";
@@ -1250,8 +1399,8 @@ document.addEventListener("DOMContentLoaded", () => {
         page.style.backgroundSize = `${w}% ${h}%`;
       }
       
-      const x = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "50";
-      const y = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "50";
+      const x = page.dataset.bgPosX !== undefined && page.dataset.bgPosX !== "" ? page.dataset.bgPosX : "0";
+      const y = page.dataset.bgPosY !== undefined && page.dataset.bgPosY !== "" ? page.dataset.bgPosY : "0";
       page.style.backgroundPosition = `${x}% ${y}%`;
     } else {
       page.style.backgroundImage = "";
@@ -1262,13 +1411,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function aggiornaIspettoreSfondoControlli(page) {
     if (!page) return;
-    controlBgWidth.value = page.dataset.bgWidth || "100";
-    controlBgHeight.value = page.dataset.bgHeight || "100";
-    controlBgPosX.value = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "50";
-    controlBgPosY.value = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "50";
+    if (controlBgWidth) controlBgWidth.value = page.dataset.bgWidth || "100";
+    if (controlBgHeight) controlBgHeight.value = page.dataset.bgHeight || "100";
+    if (controlBgPosX) controlBgPosX.value = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "0";
+    if (controlBgPosY) controlBgPosY.value = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "0";
 
-    valBgWidth.textContent = controlBgWidth.value;
-    valBgHeight.textContent = controlBgHeight.value;
+    if (valBgWidth && controlBgWidth) valBgWidth.textContent = controlBgWidth.value;
+    if (valBgHeight && controlBgHeight) valBgHeight.textContent = controlBgHeight.value;
+    if (valBgPosX && controlBgPosX) valBgPosX.textContent = controlBgPosX.value;
+    if (valBgPosY && controlBgPosY) valBgPosY.textContent = controlBgPosY.value;
+
+    const fit = page.dataset.bgFit || "originale";
+    [btnBgFitOriginale, btnBgFitExact, btnBgFitCover, btnBgFitContain].forEach(b => {
+      if (b) {
+        b.classList.remove("active", "btn-secondary");
+        b.classList.add("btn-outline-secondary");
+      }
+    });
+    if (fit === "originale" && btnBgFitOriginale) {
+      btnBgFitOriginale.classList.add("active", "btn-secondary");
+      btnBgFitOriginale.classList.remove("btn-outline-secondary");
+    } else if (fit === "exact" && btnBgFitExact) {
+      btnBgFitExact.classList.add("active", "btn-secondary");
+      btnBgFitExact.classList.remove("btn-outline-secondary");
+    } else if (fit === "cover" && btnBgFitCover) {
+      btnBgFitCover.classList.add("active", "btn-secondary");
+      btnBgFitCover.classList.remove("btn-outline-secondary");
+    } else if (fit === "contain" && btnBgFitContain) {
+      btnBgFitContain.classList.add("active", "btn-secondary");
+      btnBgFitContain.classList.remove("btn-outline-secondary");
+    }
+  }
+
+  function applicaDimensioniSfondoAFoglio(page, w, h) {
+    if (!w || !h) return;
+    page.dataset.larghezza = w;
+    page.dataset.altezza = h;
+    if (controlLarghezza) controlLarghezza.value = w;
+    if (controlAltezza) controlAltezza.value = h;
+    if (valLarghezza) valLarghezza.textContent = w;
+    if (valAltezza) valAltezza.textContent = h;
+
+    page.dataset.bgFit = "originale";
+    page.dataset.bgPosX = "0";
+    page.dataset.bgPosY = "0";
+
+    applicaDimensioniFoglio(page);
+    applicaSfondoFoglio(page);
+    aggiornaIspettoreSfondoControlli(page);
+    autoFitZoom();
+    showToast(`Dimensioni foglio impostate a ${w}x${h}px (identiche allo sfondo originale)!`);
   }
 
   if (controlBgFileBtn && controlBgFileInput) {
@@ -1282,14 +1474,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const page = pagine[paginaCorrente];
         if (page) {
           page.dataset.bgImg = reader.result;
-          page.dataset.bgWidth = "100";
-          page.dataset.bgHeight = "100";
-          page.dataset.bgFit = "cover";
-          page.dataset.bgPosX = "50";
-          page.dataset.bgPosY = "50";
-          applicaSfondoFoglio(page);
-          aggiornaIspettoreSfondoControlli(page);
-          showToast("Sfondo caricato e adattato al volantino (100% Cover)!");
+          const testImg = new Image();
+          testImg.onload = () => {
+            page.dataset.bgNatWidth = testImg.naturalWidth;
+            page.dataset.bgNatHeight = testImg.naturalHeight;
+            page.dataset.bgWidth = "100";
+            page.dataset.bgHeight = "100";
+            page.dataset.bgFit = "originale";
+            page.dataset.bgPosX = "0";
+            page.dataset.bgPosY = "0";
+            applicaSfondoFoglio(page);
+            aggiornaIspettoreSfondoControlli(page);
+            showToast(`Sfondo caricato (${testImg.naturalWidth}x${testImg.naturalHeight}px) a Grandezza Originale!`);
+          };
+          testImg.src = reader.result;
         }
       };
       reader.readAsDataURL(file);
@@ -1302,6 +1500,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (page) {
         page.dataset.bgImg = "";
         page.dataset.bgFit = "";
+        page.dataset.bgNatWidth = "";
+        page.dataset.bgNatHeight = "";
         applicaSfondoFoglio(page);
         aggiornaIspettoreSfondoControlli(page);
         showToast("Sfondo rimosso dal foglio!");
@@ -1309,20 +1509,83 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Helper buttons per sfondo e contrasto card
-  const btnBgFitCover = document.getElementById("foglio-bg-fit-cover-btn");
+  if (btnBgFitOriginale) {
+    btnBgFitOriginale.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.bgFit = "originale";
+        page.dataset.bgPosX = "0";
+        page.dataset.bgPosY = "0";
+        applicaSfondoFoglio(page);
+        aggiornaIspettoreSfondoControlli(page);
+        showToast("Sfondo impostato a Grandezza Originale!");
+      }
+    });
+  }
+
+  if (btnBgFitExact) {
+    btnBgFitExact.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.bgFit = "exact";
+        page.dataset.bgPosX = "0";
+        page.dataset.bgPosY = "0";
+        applicaSfondoFoglio(page);
+        aggiornaIspettoreSfondoControlli(page);
+        showToast("Sfondo adattato al 100% esatto del foglio!");
+      }
+    });
+  }
+
   if (btnBgFitCover) {
     btnBgFitCover.addEventListener("click", () => {
       const page = pagine[paginaCorrente];
       if (page) {
-        page.dataset.bgWidth = "100";
-        page.dataset.bgHeight = "100";
         page.dataset.bgFit = "cover";
         page.dataset.bgPosX = "50";
         page.dataset.bgPosY = "50";
         applicaSfondoFoglio(page);
         aggiornaIspettoreSfondoControlli(page);
-        showToast("Sfondo adattato al 100% del foglio!");
+        showToast("Sfondo adattato in modalità Cover!");
+      }
+    });
+  }
+
+  if (btnBgFitContain) {
+    btnBgFitContain.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.bgFit = "contain";
+        page.dataset.bgPosX = "50";
+        page.dataset.bgPosY = "50";
+        applicaSfondoFoglio(page);
+        aggiornaIspettoreSfondoControlli(page);
+        showToast("Sfondo adattato in modalità Contain!");
+      }
+    });
+  }
+
+  if (btnAdattaFoglioASfondo) {
+    btnAdattaFoglioASfondo.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (!page) return;
+      const bgImg = page.dataset.bgImg;
+      if (!bgImg) {
+        showToast("Nessuna immagine di sfondo presente!");
+        return;
+      }
+      const natW = parseInt(page.dataset.bgNatWidth, 10);
+      const natH = parseInt(page.dataset.bgNatHeight, 10);
+      if (natW && natH) {
+        applicaDimensioniSfondoAFoglio(page, natW, natH);
+      } else {
+        const tmpImg = new Image();
+        tmpImg.onload = () => {
+          page.dataset.bgNatWidth = tmpImg.naturalWidth;
+          page.dataset.bgNatHeight = tmpImg.naturalHeight;
+          applicaDimensioniSfondoAFoglio(page, tmpImg.naturalWidth, tmpImg.naturalHeight);
+        };
+        tmpImg.src = bgImg;
       }
     });
   }
@@ -1335,9 +1598,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const srcBg = srcPage.dataset.bgImg || "";
       const srcW = srcPage.dataset.bgWidth || "100";
       const srcH = srcPage.dataset.bgHeight || "100";
-      const srcX = srcPage.dataset.bgPosX || "50";
-      const srcY = srcPage.dataset.bgPosY || "50";
-      const srcFit = srcPage.dataset.bgFit || "cover";
+      const srcX = srcPage.dataset.bgPosX || "0";
+      const srcY = srcPage.dataset.bgPosY || "0";
+      const srcFit = srcPage.dataset.bgFit || "originale";
+      const srcNatW = srcPage.dataset.bgNatWidth || "";
+      const srcNatH = srcPage.dataset.bgNatHeight || "";
 
       pagine.forEach(page => {
         page.dataset.bgImg = srcBg;
@@ -1346,6 +1611,8 @@ document.addEventListener("DOMContentLoaded", () => {
         page.dataset.bgPosX = srcX;
         page.dataset.bgPosY = srcY;
         page.dataset.bgFit = srcFit;
+        page.dataset.bgNatWidth = srcNatW;
+        page.dataset.bgNatHeight = srcNatH;
         applicaSfondoFoglio(page);
       });
       showToast("Sfondo applicato a tutti i " + pagine.length + " fogli!");
@@ -1378,13 +1645,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const page = pagine[paginaCorrente];
     if (!page) return;
 
-    page.dataset.bgWidth = controlBgWidth.value;
-    page.dataset.bgHeight = controlBgHeight.value;
-    page.dataset.bgPosX = controlBgPosX.value;
-    page.dataset.bgPosY = controlBgPosY.value;
+    page.dataset.bgWidth = controlBgWidth ? controlBgWidth.value : "100";
+    page.dataset.bgHeight = controlBgHeight ? controlBgHeight.value : "100";
+    page.dataset.bgPosX = controlBgPosX ? controlBgPosX.value : "0";
+    page.dataset.bgPosY = controlBgPosY ? controlBgPosY.value : "0";
 
-    valBgWidth.textContent = controlBgWidth.value;
-    valBgHeight.textContent = controlBgHeight.value;
+    if (valBgWidth && controlBgWidth) valBgWidth.textContent = controlBgWidth.value;
+    if (valBgHeight && controlBgHeight) valBgHeight.textContent = controlBgHeight.value;
+    if (valBgPosX && controlBgPosX) valBgPosX.textContent = controlBgPosX.value;
+    if (valBgPosY && controlBgPosY) valBgPosY.textContent = controlBgPosY.value;
 
     applicaSfondoFoglio(page);
   }
@@ -1417,8 +1686,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const page = pagine[paginaCorrente];
       if (page) {
         page.dataset.bgImg = e.target.value;
-        applicaSfondoFoglio(page);
-        aggiornaIspettoreSfondoControlli(page);
+        const testImg = new Image();
+        testImg.onload = () => {
+          page.dataset.bgNatWidth = testImg.naturalWidth;
+          page.dataset.bgNatHeight = testImg.naturalHeight;
+          page.dataset.bgFit = "originale";
+          page.dataset.bgPosX = "0";
+          page.dataset.bgPosY = "0";
+          applicaSfondoFoglio(page);
+          aggiornaIspettoreSfondoControlli(page);
+        };
+        testImg.src = e.target.value;
       }
     });
   }
@@ -1466,6 +1744,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (controlGap) srcPage.dataset.gap = controlGap.value;
     if (controlCellaW) srcPage.dataset.cellWidth = controlCellaW.value;
     if (controlCellaH) srcPage.dataset.cellHeight = controlCellaH.value;
+    if (controlGridX) srcPage.dataset.gridX = controlGridX.value;
+    if (controlGridY) srcPage.dataset.gridY = controlGridY.value;
+    if (controlGridW) srcPage.dataset.gridWidth = controlGridW.value;
+    if (controlGridH) srcPage.dataset.gridHeight = controlGridH.value;
 
     const srcCols = parseInt(srcPage.dataset.cols, 10);
     const srcRows = parseInt(srcPage.dataset.rows, 10);
@@ -1493,6 +1775,12 @@ document.addEventListener("DOMContentLoaded", () => {
       page.dataset.rows = srcPage.dataset.rows;
       page.dataset.gap = srcPage.dataset.gap;
 
+      // Copia parametri posizione e dimensioni griglia
+      page.dataset.gridX = srcPage.dataset.gridX !== undefined ? srcPage.dataset.gridX : "40";
+      page.dataset.gridY = srcPage.dataset.gridY !== undefined ? srcPage.dataset.gridY : "100";
+      page.dataset.gridWidth = srcPage.dataset.gridWidth || "";
+      page.dataset.gridHeight = srcPage.dataset.gridHeight || "";
+
       // Copia larghezza e altezza celle
       page.dataset.cellWidth = srcCellW;
       page.dataset.cellHeight = srcCellH;
@@ -1501,8 +1789,11 @@ document.addEventListener("DOMContentLoaded", () => {
       page.dataset.bgImg = srcPage.dataset.bgImg || "";
       page.dataset.bgWidth = srcPage.dataset.bgWidth || "100";
       page.dataset.bgHeight = srcPage.dataset.bgHeight || "100";
-      page.dataset.bgPosX = srcPage.dataset.bgPosX !== undefined ? srcPage.dataset.bgPosX : "50";
-      page.dataset.bgPosY = srcPage.dataset.bgPosY !== undefined ? srcPage.dataset.bgPosY : "50";
+      page.dataset.bgPosX = srcPage.dataset.bgPosX !== undefined ? srcPage.dataset.bgPosX : "0";
+      page.dataset.bgPosY = srcPage.dataset.bgPosY !== undefined ? srcPage.dataset.bgPosY : "0";
+      page.dataset.bgFit = srcPage.dataset.bgFit || "originale";
+      page.dataset.bgNatWidth = srcPage.dataset.bgNatWidth || "";
+      page.dataset.bgNatHeight = srcPage.dataset.bgNatHeight || "";
 
       // Copia header e footer (contenenti loghi, testi, immagini di sfondo)
       const targetHeader = page.querySelector(".page-header");
@@ -1798,20 +2089,368 @@ document.addEventListener("DOMContentLoaded", () => {
   /* -------------------------------------------------------------------
        GESTIONE GRIGLIE E RIGHE FISSE
      ------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------
+       GESTIONE GRIGLIE E RIGHE FISSE (CON POSIZIONAMENTO LIBERO X/Y E DRAG)
+     ------------------------------------------------------------------- */
   function applicaStrutturaGriglia(pageEl, cols, rows, gap) {
+    if (!pageEl) return;
     const grid = pageEl.querySelector(".page-grid");
-    const header = pageEl.querySelector(".page-header");
+    if (!grid) return;
 
     const cellW = pageEl.dataset.cellWidth || "380";
     const cellH = pageEl.dataset.cellHeight || "500";
+
+    // Posizionamento assoluto della griglia sul foglio
+    grid.style.position = "absolute";
+    grid.style.boxSizing = "border-box";
+
+    const gx = pageEl.dataset.gridX !== undefined && pageEl.dataset.gridX !== "" ? pageEl.dataset.gridX : "40";
+    const gy = pageEl.dataset.gridY !== undefined && pageEl.dataset.gridY !== "" ? pageEl.dataset.gridY : "100";
+    grid.style.left = gx + "px";
+    grid.style.top = gy + "px";
+
+    const gw = parseInt(pageEl.dataset.gridWidth, 10);
+    if (gw && gw > 0) {
+      grid.style.width = gw + "px";
+    } else {
+      grid.style.width = "auto";
+    }
+
+    const gh = parseInt(pageEl.dataset.gridHeight, 10);
+    if (gh && gh > 0) {
+      grid.style.height = gh + "px";
+    } else {
+      grid.style.height = "auto";
+    }
 
     grid.style.display = "grid";
     grid.style.gap = gap + "px";
     grid.style.gridTemplateColumns = `repeat(${cols}, ${cellW}px)`;
     grid.style.gridTemplateRows = `repeat(${rows}, ${cellH}px)`;
-    grid.style.justifyContent = "center";
+    grid.style.justifyContent = "start";
     grid.style.alignContent = "start";
     grid.style.alignItems = "stretch";
+
+    // Assicura la presenza della barra di spostamento rapido griglia direttamente sul canvas
+    assicuraGridMoveToolbar(grid, pageEl);
+  }
+
+  function assicuraGridMoveToolbar(grid, pageEl) {
+    if (!grid) return;
+    let toolbar = grid.querySelector(".grid-move-toolbar");
+    if (!toolbar) {
+      toolbar = document.createElement("div");
+      toolbar.className = "grid-move-toolbar no-export";
+      toolbar.innerHTML = `
+        <div class="grid-drag-handle" title="Tieni premuto e trascina per spostare l'intera griglia ovunque sul foglio">
+          <i class="bi bi-arrows-move"></i> Muovi Griglia
+        </div>
+        <div class="grid-move-btn-group">
+          <button type="button" class="btn-grid-nudge" data-dir="left" title="Sposta a sinistra (10px)">◀</button>
+          <button type="button" class="btn-grid-nudge" data-dir="up" title="Sposta in alto (10px)">▲</button>
+          <button type="button" class="btn-grid-nudge" data-dir="down" title="Sposta in basso (10px)">▼</button>
+          <button type="button" class="btn-grid-nudge" data-dir="right" title="Sposta a destra (10px)">▶</button>
+          <button type="button" class="btn-grid-center" title="Centra orizzontalmente nel foglio">☩ Centra</button>
+        </div>
+      `;
+      grid.prepend(toolbar);
+      initGridDrag(grid, pageEl, toolbar);
+    }
+  }
+
+  function initGridDrag(grid, pageEl, toolbar) {
+    const handle = toolbar.querySelector(".grid-drag-handle");
+    if (!handle) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initLeft = 0;
+    let initTop = 0;
+
+    handle.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initLeft = parseInt(pageEl.dataset.gridX || grid.offsetLeft || 40, 10);
+      initTop = parseInt(pageEl.dataset.gridY || grid.offsetTop || 100, 10);
+      grid.classList.add("grid-is-dragging");
+      document.body.style.cursor = "grabbing";
+
+      function onMouseMove(ev) {
+        if (!isDragging) return;
+        const zoom = (parseFloat(controlVistaZoom?.value || "100") || 100) / 100;
+        const dx = (ev.clientX - startX) / zoom;
+        const dy = (ev.clientY - startY) / zoom;
+        const newX = Math.round(initLeft + dx);
+        const newY = Math.round(initTop + dy);
+
+        grid.style.left = newX + "px";
+        grid.style.top = newY + "px";
+        pageEl.dataset.gridX = newX;
+        pageEl.dataset.gridY = newY;
+
+        if (controlGridX) {
+          controlGridX.value = newX;
+          if (sliderGridX) sliderGridX.value = newX;
+          if (valGridX) valGridX.textContent = newX;
+        }
+        if (controlGridY) {
+          controlGridY.value = newY;
+          if (sliderGridY) sliderGridY.value = newY;
+          if (valGridY) valGridY.textContent = newY;
+        }
+      }
+
+      function onMouseUp() {
+        if (!isDragging) return;
+        isDragging = false;
+        grid.classList.remove("grid-is-dragging");
+        document.body.style.cursor = "";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      }
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    });
+
+    toolbar.querySelectorAll(".btn-grid-nudge").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const dir = btn.dataset.dir;
+        const step = e.shiftKey ? 1 : 10;
+        let gx = parseInt(pageEl.dataset.gridX || grid.offsetLeft || 40, 10);
+        let gy = parseInt(pageEl.dataset.gridY || grid.offsetTop || 100, 10);
+        if (dir === "left") gx -= step;
+        if (dir === "right") gx += step;
+        if (dir === "up") gy -= step;
+        if (dir === "down") gy += step;
+
+        pageEl.dataset.gridX = gx;
+        pageEl.dataset.gridY = gy;
+        grid.style.left = gx + "px";
+        grid.style.top = gy + "px";
+
+        if (controlGridX) {
+          controlGridX.value = gx;
+          if (sliderGridX) sliderGridX.value = gx;
+          if (valGridX) valGridX.textContent = gx;
+        }
+        if (controlGridY) {
+          controlGridY.value = gy;
+          if (sliderGridY) sliderGridY.value = gy;
+          if (valGridY) valGridY.textContent = gy;
+        }
+      });
+    });
+
+    const centerBtn = toolbar.querySelector(".btn-grid-center");
+    if (centerBtn) {
+      centerBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        centraGrigliaNelFoglio(pageEl, true, false);
+      });
+    }
+  }
+
+  function centraGrigliaNelFoglio(pageEl, centraX = true, centraY = false) {
+    if (!pageEl) return;
+    const grid = pageEl.querySelector(".page-grid");
+    if (!grid) return;
+
+    const pageW = parseInt(pageEl.dataset.larghezza || pageEl.offsetWidth || 1200, 10);
+    const pageH = parseInt(pageEl.dataset.altezza || pageEl.offsetHeight || 1600, 10);
+
+    const cols = parseInt(pageEl.dataset.cols || "3", 10);
+    const rows = parseInt(pageEl.dataset.rows || "3", 10);
+    const gap = parseInt(pageEl.dataset.gap || "10", 10);
+    const cellW = parseInt(pageEl.dataset.cellWidth || "380", 10);
+    const cellH = parseInt(pageEl.dataset.cellHeight || "500", 10);
+
+    let gridW = parseInt(pageEl.dataset.gridWidth || 0, 10);
+    if (!gridW || gridW <= 0) {
+      gridW = (cols * cellW) + ((cols - 1) * gap);
+    }
+    let gridH = parseInt(pageEl.dataset.gridHeight || 0, 10);
+    if (!gridH || gridH <= 0) {
+      gridH = (rows * cellH) + ((rows - 1) * gap);
+    }
+
+    if (centraX) {
+      const newX = Math.max(0, Math.round((pageW - gridW) / 2));
+      pageEl.dataset.gridX = newX;
+      grid.style.left = newX + "px";
+      if (controlGridX) {
+        controlGridX.value = newX;
+        if (sliderGridX) sliderGridX.value = newX;
+        if (valGridX) valGridX.textContent = newX;
+      }
+    }
+
+    if (centraY) {
+      const newY = Math.max(0, Math.round((pageH - gridH) / 2));
+      pageEl.dataset.gridY = newY;
+      grid.style.top = newY + "px";
+      if (controlGridY) {
+        controlGridY.value = newY;
+        if (sliderGridY) sliderGridY.value = newY;
+        if (valGridY) valGridY.textContent = newY;
+      }
+    }
+  }
+
+  function adattaGrigliaACelle(pageEl) {
+    if (!pageEl) return;
+    const cols = parseInt(pageEl.dataset.cols || "3", 10);
+    const rows = parseInt(pageEl.dataset.rows || "3", 10);
+    const gap = parseInt(pageEl.dataset.gap || "10", 10);
+    const cellW = parseInt(pageEl.dataset.cellWidth || "380", 10);
+    const cellH = parseInt(pageEl.dataset.cellHeight || "500", 10);
+
+    const totalW = (cols * cellW) + ((cols - 1) * gap);
+    const totalH = (rows * cellH) + ((rows - 1) * gap);
+
+    pageEl.dataset.gridWidth = totalW;
+    pageEl.dataset.gridHeight = totalH;
+
+    if (controlGridW) controlGridW.value = totalW;
+    if (controlGridH) controlGridH.value = totalH;
+    if (valGridW) valGridW.textContent = totalW + "px";
+    if (valGridH) valGridH.textContent = totalH + "px";
+
+    applicaStrutturaGriglia(pageEl, cols, rows, gap);
+    showToast(`Griglia adattata esattamente alle celle: ${totalW}x${totalH}px`);
+  }
+
+  function adattaCelleAGriglia(pageEl) {
+    if (!pageEl) return;
+    const cols = parseInt(pageEl.dataset.cols || "3", 10);
+    const rows = parseInt(pageEl.dataset.rows || "3", 10);
+    const gap = parseInt(pageEl.dataset.gap || "10", 10);
+
+    const gridW = parseInt(pageEl.dataset.gridWidth || controlGridW?.value || 0, 10);
+    const gridH = parseInt(pageEl.dataset.gridHeight || controlGridH?.value || 0, 10);
+
+    if (!gridW || !gridH) {
+      showToast("Imposta prima una larghezza e altezza griglia in px!");
+      return;
+    }
+
+    const newCellW = Math.max(50, Math.floor((gridW - (cols - 1) * gap) / cols));
+    const newCellH = Math.max(50, Math.floor((gridH - (rows - 1) * gap) / rows));
+
+    pageEl.dataset.cellWidth = newCellW;
+    pageEl.dataset.cellHeight = newCellH;
+
+    if (controlCellaW) controlCellaW.value = newCellW;
+    if (sliderCellaW) sliderCellaW.value = newCellW;
+    if (valCellaW) valCellaW.textContent = newCellW;
+
+    if (controlCellaH) controlCellaH.value = newCellH;
+    if (sliderCellaH) sliderCellaH.value = newCellH;
+    if (valCellaH) valCellaH.textContent = newCellH;
+
+    applicaStrutturaGriglia(pageEl, cols, rows, gap);
+    showToast(`Dimensioni celle ricalcolate per riempire la griglia: ${newCellW}x${newCellH}px`);
+  }
+
+  function aggiornaPosizioneGrigliaDaControlli() {
+    const page = pagine[paginaCorrente];
+    if (!page) return;
+    const grid = page.querySelector(".page-grid");
+    if (!grid) return;
+
+    const gx = controlGridX ? controlGridX.value : "40";
+    const gy = controlGridY ? controlGridY.value : "100";
+    const gw = controlGridW ? controlGridW.value.trim() : "";
+    const gh = controlGridH ? controlGridH.value.trim() : "";
+
+    page.dataset.gridX = gx;
+    page.dataset.gridY = gy;
+    page.dataset.gridWidth = gw;
+    page.dataset.gridHeight = gh;
+
+    grid.style.left = gx + "px";
+    grid.style.top = gy + "px";
+    grid.style.width = gw ? gw + "px" : "auto";
+    grid.style.height = gh ? gh + "px" : "auto";
+
+    if (valGridX) valGridX.textContent = gx;
+    if (valGridY) valGridY.textContent = gy;
+    if (valGridW) valGridW.textContent = gw ? gw + "px" : "Auto";
+    if (valGridH) valGridH.textContent = gh ? gh + "px" : "Auto";
+  }
+
+  if (controlGridX) {
+    controlGridX.addEventListener("input", () => {
+      if (sliderGridX) sliderGridX.value = controlGridX.value;
+      aggiornaPosizioneGrigliaDaControlli();
+    });
+  }
+  if (sliderGridX) {
+    sliderGridX.addEventListener("input", () => {
+      if (controlGridX) controlGridX.value = sliderGridX.value;
+      aggiornaPosizioneGrigliaDaControlli();
+    });
+  }
+  if (controlGridY) {
+    controlGridY.addEventListener("input", () => {
+      if (sliderGridY) sliderGridY.value = controlGridY.value;
+      aggiornaPosizioneGrigliaDaControlli();
+    });
+  }
+  if (sliderGridY) {
+    sliderGridY.addEventListener("input", () => {
+      if (controlGridY) controlGridY.value = sliderGridY.value;
+      aggiornaPosizioneGrigliaDaControlli();
+    });
+  }
+  if (controlGridW) {
+    controlGridW.addEventListener("input", aggiornaPosizioneGrigliaDaControlli);
+  }
+  if (controlGridH) {
+    controlGridH.addEventListener("input", aggiornaPosizioneGrigliaDaControlli);
+  }
+
+  if (btnCentraGrigliaX) {
+    btnCentraGrigliaX.addEventListener("click", () => centraGrigliaNelFoglio(pagine[paginaCorrente], true, false));
+  }
+  if (btnCentraGrigliaY) {
+    btnCentraGrigliaY.addEventListener("click", () => centraGrigliaNelFoglio(pagine[paginaCorrente], false, true));
+  }
+  if (btnCentraGrigliaTutto) {
+    btnCentraGrigliaTutto.addEventListener("click", () => centraGrigliaNelFoglio(pagine[paginaCorrente], true, true));
+  }
+  if (btnGrigliaAdattaCelle) {
+    btnGrigliaAdattaCelle.addEventListener("click", () => adattaGrigliaACelle(pagine[paginaCorrente]));
+  }
+  if (btnCelleAdattaGriglia) {
+    btnCelleAdattaGriglia.addEventListener("click", () => adattaCelleAGriglia(pagine[paginaCorrente]));
+  }
+
+  function sincronizzaControlliGrigliaDaDataset(page) {
+    if (!page) return;
+    const gx = page.dataset.gridX !== undefined && page.dataset.gridX !== "" ? page.dataset.gridX : "40";
+    const gy = page.dataset.gridY !== undefined && page.dataset.gridY !== "" ? page.dataset.gridY : "100";
+    const gw = page.dataset.gridWidth || "";
+    const gh = page.dataset.gridHeight || "";
+
+    if (controlGridX) controlGridX.value = gx;
+    if (sliderGridX) sliderGridX.value = gx;
+    if (valGridX) valGridX.textContent = gx;
+
+    if (controlGridY) controlGridY.value = gy;
+    if (sliderGridY) sliderGridY.value = gy;
+    if (valGridY) valGridY.textContent = gy;
+
+    if (controlGridW) controlGridW.value = gw;
+    if (valGridW) valGridW.textContent = gw ? gw + "px" : "Auto";
+
+    if (controlGridH) controlGridH.value = gh;
+    if (valGridH) valGridH.textContent = gh ? gh + "px" : "Auto";
   }
 
   function rigeneraGrigliaCorrente() {
@@ -1854,14 +2493,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function aggiornaDimensioniCelleCorrente() {
     const page = pagine[paginaCorrente];
     if (!page) return;
-    const w = controlCellaW.value;
-    const h = controlCellaH.value;
+    const w = controlCellaW ? controlCellaW.value : "380";
+    const h = controlCellaH ? controlCellaH.value : "500";
 
     page.dataset.cellWidth = w;
     page.dataset.cellHeight = h;
 
-    valCellaW.textContent = w;
-    valCellaH.textContent = h;
+    if (valCellaW) valCellaW.textContent = w;
+    if (valCellaH) valCellaH.textContent = h;
+    if (sliderCellaW) sliderCellaW.value = w;
+    if (sliderCellaH) sliderCellaH.value = h;
 
     const cols = parseInt(page.dataset.cols || "3", 10);
     const rows = parseInt(page.dataset.rows || "3", 10);
@@ -1876,6 +2517,19 @@ document.addEventListener("DOMContentLoaded", () => {
       ctrl.addEventListener("change", aggiornaDimensioniCelleCorrente);
     }
   });
+
+  if (sliderCellaW) {
+    sliderCellaW.addEventListener("input", () => {
+      if (controlCellaW) controlCellaW.value = sliderCellaW.value;
+      aggiornaDimensioniCelleCorrente();
+    });
+  }
+  if (sliderCellaH) {
+    sliderCellaH.addEventListener("input", () => {
+      if (controlCellaH) controlCellaH.value = sliderCellaH.value;
+      aggiornaDimensioniCelleCorrente();
+    });
+  }
 
   /* -------------------------------------------------------------------
        CREAZIONE DI UNA SINGOLA CELLA PRODOTTO
@@ -2955,6 +3609,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     Sortable.create(grid, {
+      draggable: ".cella-prodotto",
+      filter: ".no-export, .grid-move-toolbar",
       animation: 180,
       ghostClass: "sortable-ghost",
       dragClass: "sortable-drag"
@@ -3034,6 +3690,7 @@ document.addEventListener("DOMContentLoaded", () => {
     applicaBannerCategoria(page);
     applicaSfondoFoglio(page);
     aggiornaIspettoreSfondoControlli(page);
+    sincronizzaControlliGrigliaDaDataset(page);
   }
 
   function aggiornaListaPagineNav() {
@@ -3123,6 +3780,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const grid = clone.querySelector(".page-grid");
     Sortable.create(grid, {
+      draggable: ".cella-prodotto",
+      filter: ".no-export, .grid-move-toolbar",
       animation: 180,
       ghostClass: "sortable-ghost",
       dragClass: "sortable-drag"
@@ -3220,17 +3879,22 @@ document.addEventListener("DOMContentLoaded", () => {
       const bgImg = page.dataset.bgImg || "";
       const bgWidth = page.dataset.bgWidth || "100";
       const bgHeight = page.dataset.bgHeight || "100";
-      const bgPosX = page.dataset.bgPosX || "50";
-      const bgPosY = page.dataset.bgPosY || "50";
+      const bgPosX = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "0";
+      const bgPosY = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "0";
+      const bgFit = page.dataset.bgFit || "originale";
       const cellWidth = page.dataset.cellWidth || "380";
       const cellHeight = page.dataset.cellHeight || "500";
+      const gridX = page.dataset.gridX !== undefined ? page.dataset.gridX : (controlGridX ? controlGridX.value : "40");
+      const gridY = page.dataset.gridY !== undefined ? page.dataset.gridY : (controlGridY ? controlGridY.value : "100");
+      const gridWidth = page.dataset.gridWidth || (controlGridW ? controlGridW.value : "");
+      const gridHeight = page.dataset.gridHeight || (controlGridH ? controlGridH.value : "");
       const categoryTitle = page.dataset.categoryTitle || "";
       const categoryBannerColor = page.dataset.categoryBannerColor || "#0f172a";
 
       return { 
         cols, rows, gap, larghezza, altezza, padTop, padBottom, padSides, headerH, footerH, headerFit, headerZoom,
-        headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, cellWidth, cellHeight,
-        categoryTitle, categoryBannerColor
+        headerImg, footerImg, cells, bgImg, bgWidth, bgHeight, bgPosX, bgPosY, bgFit, cellWidth, cellHeight,
+        gridX, gridY, gridWidth, gridHeight, categoryTitle, categoryBannerColor
       };
     });
 
@@ -3296,18 +3960,22 @@ document.addEventListener("DOMContentLoaded", () => {
           padTop: pData.padTop || "10",
           padBottom: pData.padBottom || "10",
           padSides: pData.padSides || "10",
-          headerH: pData.headerH !== undefined ? String(pData.headerH) : "80",
-          footerH: pData.footerH || "80",
+          headerH: pData.headerH !== undefined ? String(pData.headerH) : "0",
+          footerH: pData.footerH || "0",
           headerFit: pData.headerFit || "contain",
           headerZoom: pData.headerZoom || "1",
           bgImg: pData.bgImg || "",
           bgWidth: pData.bgWidth || "100",
           bgHeight: pData.bgHeight || "100",
-          bgPosX: pData.bgPosX !== undefined ? pData.bgPosX : "50",
-          bgPosY: pData.bgPosY !== undefined ? pData.bgPosY : "50",
-          bgFit: pData.bgFit || "cover",
+          bgPosX: pData.bgPosX !== undefined ? pData.bgPosX : "0",
+          bgPosY: pData.bgPosY !== undefined ? pData.bgPosY : "0",
+          bgFit: pData.bgFit || "originale",
           cellWidth: pData.cellWidth || "380",
           cellHeight: pData.cellHeight || "500",
+          gridX: pData.gridX !== undefined ? String(pData.gridX) : "40",
+          gridY: pData.gridY !== undefined ? String(pData.gridY) : "100",
+          gridWidth: pData.gridWidth || "",
+          gridHeight: pData.gridHeight || "",
           categoryTitle: pData.categoryTitle || "",
           categoryBannerColor: pData.categoryBannerColor || "#0f172a"
         });
@@ -3406,6 +4074,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         Sortable.create(grid, {
+          draggable: ".cella-prodotto",
+          filter: ".no-export, .grid-move-toolbar",
           animation: 180,
           ghostClass: "sortable-ghost",
           dragClass: "sortable-drag"
@@ -3480,6 +4150,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       clone.classList.remove("cella-selezionata");
       clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
+      clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
 
       // Append clone to the DOM first so clientWidth / clientHeight calculations are accurate
       document.body.appendChild(clone);
@@ -3614,6 +4285,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       clone.classList.remove("cella-selezionata");
       clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
+      clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
 
       // Append clone to the DOM first so clientWidth / clientHeight calculations are accurate
       document.body.appendChild(clone);
@@ -3925,10 +4597,117 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .page-grid {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  padding: 4px 0;
+  position: absolute;
+  box-sizing: border-box;
+  overflow: visible;
+  padding: 0;
+  transition: outline 0.15s ease;
+  z-index: 10;
+}
+
+.page-grid.grid-is-dragging {
+  outline: 2px dashed #0284c7 !important;
+  outline-offset: 4px;
+}
+
+.grid-move-toolbar {
+  position: absolute;
+  top: -42px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  padding: 5px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  z-index: 999;
+  user-select: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+}
+
+.grid-drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  font-weight: 700;
+  color: #38bdf8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  transition: all 0.15s ease;
+}
+
+.grid-drag-handle:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+}
+
+.grid-drag-handle:active {
+  cursor: grabbing;
+}
+
+.grid-move-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.btn-grid-nudge {
+  background: #334155;
+  color: #f1f5f9;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.btn-grid-nudge:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.btn-grid-center {
+  background: rgba(255,255,255,0.1);
+  color: #f8fafc;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-grid-center:hover {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+@media print {
+  .grid-move-toolbar, .no-export {
+    display: none !important;
+  }
 }
 
 /* BOX PRODOTTI */

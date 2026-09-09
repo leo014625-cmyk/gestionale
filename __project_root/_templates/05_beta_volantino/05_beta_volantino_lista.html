@@ -1611,6 +1611,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const defPadBottom = (defaultPreset && defaultPreset.padBottom) ? defaultPreset.padBottom : "10";
     const defPadSides = (defaultPreset && defaultPreset.padSides) ? defaultPreset.padSides : "10";
     const defBg = (defaultPreset && defaultPreset.bgImg) ? defaultPreset.bgImg : "";
+    const defBgFit = (defaultPreset && defaultPreset.bgFit) ? defaultPreset.bgFit : "originale";
+    const defGridX = (defaultPreset && defaultPreset.gridX !== undefined) ? defaultPreset.gridX : "40";
+    const defGridY = (defaultPreset && defaultPreset.gridY !== undefined) ? defaultPreset.gridY : "100";
+    const defGridW = (defaultPreset && defaultPreset.gridWidth) ? defaultPreset.gridWidth : "";
+    const defGridH = (defaultPreset && defaultPreset.gridHeight) ? defaultPreset.gridHeight : "";
 
     const maxPerSheet = isPromoMensile ? (defCols * defRows) : (currentGrid.cols * currentGrid.rows);
     sheets = [];
@@ -1630,6 +1635,11 @@ document.addEventListener("DOMContentLoaded", () => {
           padTop: defPadTop,
           padBottom: defPadBottom,
           padSides: defPadSides,
+          gridX: defGridX,
+          gridY: defGridY,
+          gridWidth: defGridW,
+          gridHeight: defGridH,
+          bgFit: defBgFit,
           categoryTitle: "",
           categoryBannerColor: "transparent",
           bgUrl: defBg,
@@ -1679,6 +1689,11 @@ document.addEventListener("DOMContentLoaded", () => {
               padTop: defPadTop,
               padBottom: defPadBottom,
               padSides: defPadSides,
+              gridX: defGridX,
+              gridY: defGridY,
+              gridWidth: defGridW,
+              gridHeight: defGridH,
+              bgFit: defBgFit,
               categoryTitle: bannerTitle,
               categoryBannerColor: bannerColor,
               bgUrl: bgUrl,
@@ -1701,6 +1716,11 @@ document.addEventListener("DOMContentLoaded", () => {
             padTop: defPadTop,
             padBottom: defPadBottom,
             padSides: defPadSides,
+            gridX: defGridX,
+            gridY: defGridY,
+            gridWidth: defGridW,
+            gridHeight: defGridH,
+            bgFit: defBgFit,
             categoryTitle: "",
             categoryBannerColor: "transparent",
             bgUrl: "",
@@ -2057,6 +2077,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const defLarg = (defaultPreset && defaultPreset.larghezza) ? defaultPreset.larghezza : "800";
       const defAlt = (defaultPreset && defaultPreset.altezza) ? defaultPreset.altezza : "1100";
       const defBg = (defaultPreset && defaultPreset.bgImg) ? defaultPreset.bgImg : "";
+      const defBgFit = (defaultPreset && defaultPreset.bgFit) ? defaultPreset.bgFit : "originale";
+      const defGridX = (defaultPreset && defaultPreset.gridX !== undefined) ? defaultPreset.gridX : "40";
+      const defGridY = (defaultPreset && defaultPreset.gridY !== undefined) ? defaultPreset.gridY : "100";
+      const defGridW = (defaultPreset && defaultPreset.gridWidth) ? defaultPreset.gridWidth : "";
+      const defGridH = (defaultPreset && defaultPreset.gridHeight) ? defaultPreset.gridHeight : "";
 
       sheets.push({
         cols: currentGrid.cols,
@@ -2066,6 +2091,11 @@ document.addEventListener("DOMContentLoaded", () => {
         cellHeight: defCellH,
         larghezza: defLarg,
         altezza: defAlt,
+        gridX: defGridX,
+        gridY: defGridY,
+        gridWidth: defGridW,
+        gridHeight: defGridH,
+        bgFit: defBgFit,
         categoryTitle: `NUOVA SEZIONE ${sheets.length + 1}`,
         categoryBannerColor: "#0f172a",
         bgUrl: defBg,
@@ -2090,6 +2120,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const defLarg = (defaultPreset && defaultPreset.larghezza) ? defaultPreset.larghezza : "800";
       const defAlt = (defaultPreset && defaultPreset.altezza) ? defaultPreset.altezza : "1100";
       const defBg = (defaultPreset && defaultPreset.bgImg) ? defaultPreset.bgImg : "";
+      const defBgFit = (defaultPreset && defaultPreset.bgFit) ? defaultPreset.bgFit : "originale";
+      const defGridX = (defaultPreset && defaultPreset.gridX !== undefined) ? defaultPreset.gridX : "40";
+      const defGridY = (defaultPreset && defaultPreset.gridY !== undefined) ? defaultPreset.gridY : "100";
+      const defGridW = (defaultPreset && defaultPreset.gridWidth) ? defaultPreset.gridWidth : "";
+      const defGridH = (defaultPreset && defaultPreset.gridHeight) ? defaultPreset.gridHeight : "";
 
       const maxPerSheet = currentGrid.cols * currentGrid.rows;
       while (unassignedProducts.length > 0) {
@@ -2102,6 +2137,11 @@ document.addEventListener("DOMContentLoaded", () => {
           cellHeight: defCellH,
           larghezza: defLarg,
           altezza: defAlt,
+          gridX: defGridX,
+          gridY: defGridY,
+          gridWidth: defGridW,
+          gridHeight: defGridH,
+          bgFit: defBgFit,
           categoryTitle: "ALTRE OFFERTE",
           categoryBannerColor: "#d97706",
           bgUrl: defBg,
