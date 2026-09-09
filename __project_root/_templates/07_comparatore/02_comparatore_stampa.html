@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ comp.titolo or 'Proposta Comparativa Prodotti Lavorati' }} - Horeca Suite</title>
+  <title>{{ comp.titolo or 'Proposta Comparativa Listino Prodotti' }} - {{ impostazioni_pdf.get('azienda_nome', 'Horeca Suite') }}</title>
 
   <!-- Google Fonts: Outfit & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +14,7 @@
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm;
+      margin: 10mm 14mm 12mm 14mm;
     }
 
     * {
@@ -24,7 +24,7 @@
     body {
       font-family: 'Inter', sans-serif;
       color: #0f172a;
-      background-color: #ffffff;
+      background-color: #f8fafc;
       margin: 0;
       padding: 0;
       font-size: 13px;
@@ -32,44 +32,81 @@
     }
 
     .page-container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px 0;
+      max-width: 820px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 32px 36px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      position: relative;
     }
 
-    /* Header styling */
+    /* Editable inline elements */
+    [contenteditable="true"] {
+      outline: none;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      cursor: text;
+    }
+    @media screen {
+      [contenteditable="true"]:hover {
+        background-color: rgba(99, 102, 241, 0.08);
+        box-shadow: 0 0 0 1.5px rgba(99, 102, 241, 0.25);
+      }
+      [contenteditable="true"]:focus {
+        background-color: rgba(99, 102, 241, 0.12);
+        box-shadow: 0 0 0 2px #4f46e5;
+      }
+    }
+
+    /* Header styling (Parte in Alto) */
     .header-box {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       border-bottom: 2.5px solid #4f46e5;
       padding-bottom: 18px;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
+    }
+
+    .company-brand-area {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .company-logo-img {
+      max-height: 52px;
+      max-width: 140px;
+      object-fit: contain;
+      border-radius: 6px;
     }
 
     .company-title {
       font-family: 'Outfit', sans-serif;
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 800;
       color: #1e1b4b;
-      margin: 0 0 4px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      margin: 0 0 3px 0;
+      letter-spacing: -0.01em;
     }
 
     .company-sub {
       font-size: 11px;
       color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       font-weight: 600;
+    }
+
+    .header-right {
+      text-align: right;
     }
 
     .doc-badge {
       background-color: #e0e7ff;
       color: #4338ca;
-      padding: 6px 14px;
+      padding: 5px 14px;
       border-radius: 20px;
       font-weight: 700;
       font-size: 11px;
@@ -80,18 +117,23 @@
     }
 
     .doc-meta {
-      font-size: 12px;
+      font-size: 11.5px;
       color: #475569;
-      text-align: right;
+    }
+
+    .doc-contacts {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
     }
 
     /* Client info grid */
     .client-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin-bottom: 22px;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -99,7 +141,7 @@
 
     .client-name {
       font-family: 'Outfit', sans-serif;
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 700;
       color: #0f172a;
       margin: 0 0 2px 0;
@@ -108,16 +150,16 @@
     .proposal-title {
       color: #4f46e5;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 12.5px;
     }
 
-    /* Hero savings callout */
+    /* Hero savings callout (Parte in Alto personalizzabile) */
     .savings-hero-box {
       background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
       border: 2px solid #10b981;
-      border-radius: 14px;
-      padding: 18px 24px;
-      margin-bottom: 24px;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -125,17 +167,17 @@
 
     .savings-hero-left h3 {
       font-family: 'Outfit', sans-serif;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: #065f46;
-      margin: 0 0 4px 0;
+      margin: 0 0 3px 0;
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
 
     .savings-hero-left p {
       margin: 0;
-      font-size: 12px;
+      font-size: 11.5px;
       color: #047857;
     }
 
@@ -145,7 +187,7 @@
 
     .savings-hero-amount {
       font-family: 'Outfit', sans-serif;
-      font-size: 30px;
+      font-size: 28px;
       font-weight: 800;
       color: #047857;
       line-height: 1;
@@ -156,34 +198,34 @@
       color: #ffffff;
       padding: 3px 10px;
       border-radius: 12px;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
       display: inline-block;
-      margin-top: 4px;
+      margin-top: 3px;
     }
 
-    /* Table styling */
+    /* Table styling (Senza Lavorazioni) */
     table.print-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 24px;
+      margin-bottom: 22px;
     }
 
     table.print-table th {
       background: #f1f5f9;
       color: #334155;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 9px 8px;
+      padding: 8px 8px;
       border-top: 1px solid #cbd5e1;
       border-bottom: 2px solid #cbd5e1;
       text-align: left;
     }
 
     table.print-table td {
-      padding: 9px 8px;
+      padding: 8px 8px;
       border-bottom: 1px solid #e2e8f0;
       font-size: 12px;
       vertical-align: middle;
@@ -194,7 +236,7 @@
       border-top: 2px solid #0f172a;
       border-bottom: 2px solid #0f172a;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
     }
 
     .col-right {
@@ -213,14 +255,14 @@
       font-size: 11px;
     }
 
-    /* Notes & terms */
+    /* Notes & terms (Parte in Basso) */
     .terms-box {
       background: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
       padding: 14px 18px;
-      margin-bottom: 30px;
-      font-size: 12px;
+      margin-bottom: 24px;
+      font-size: 11.5px;
       color: #475569;
     }
 
@@ -232,12 +274,12 @@
       color: #0f172a;
     }
 
-    /* Signatures */
+    /* Signatures (Parte in Basso) */
     .signatures-row {
       display: flex;
       justify-content: space-between;
-      margin-top: 36px;
-      padding-top: 20px;
+      margin-top: 28px;
+      padding-top: 16px;
       page-break-inside: avoid;
     }
 
@@ -246,11 +288,21 @@
       text-align: center;
       border-top: 1px dashed #94a3b8;
       padding-top: 8px;
-      font-size: 12px;
+      font-size: 11.5px;
       color: #64748b;
     }
 
-    /* No-print controls */
+    /* Footer note in basso */
+    .footer-note-box {
+      text-align: center;
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 22px;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 8px;
+    }
+
+    /* Top Floating Action Bar (Non-Printable) */
     .no-print-bar {
       position: fixed;
       top: 0;
@@ -258,29 +310,12 @@
       right: 0;
       background: #1e1b4b;
       color: white;
-      padding: 12px 24px;
+      padding: 10px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       z-index: 9999;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    .no-print-bar button {
-      background: #10b981;
-      color: white;
-      border: none;
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-weight: 700;
-      cursor: pointer;
-      font-size: 14px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .no-print-bar button:hover {
-      background: #059669;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
     }
 
     .no-print-bar a {
@@ -288,73 +323,385 @@
       text-decoration: none;
       font-weight: 600;
       font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .no-print-bar a:hover {
+      color: #ffffff;
     }
 
+    .btn-top-bar {
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-top-bar-tool {
+      background: #f59e0b;
+      color: #1e1b4b;
+    }
+    .btn-top-bar-tool:hover {
+      background: #d97706;
+      color: white;
+    }
+    .btn-top-bar-save {
+      background: #4f46e5;
+      color: white;
+    }
+    .btn-top-bar-save:hover {
+      background: #4338ca;
+    }
+    .btn-top-bar-print {
+      background: #10b981;
+      color: white;
+    }
+    .btn-top-bar-print:hover {
+      background: #059669;
+    }
+
+    /* Slide-Over Tool Drawer for Final PDF customization */
+    .tool-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .tool-drawer-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .tool-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 440px;
+      max-width: 92vw;
+      background: #ffffff;
+      box-shadow: -8px 0 25px rgba(0, 0, 0, 0.2);
+      z-index: 10001;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    .tool-drawer.active {
+      transform: translateX(0);
+    }
+
+    .tool-drawer-header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tool-drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .tool-drawer-footer {
+      padding: 14px 20px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .drawer-section-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #4f46e5;
+      margin: 16px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .form-group-drawer {
+      margin-bottom: 12px;
+    }
+    .form-group-drawer label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .form-group-drawer input,
+    .form-group-drawer textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      color: #0f172a;
+    }
+    .form-group-drawer input:focus,
+    .form-group-drawer textarea:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f1f5f9;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .switch-row label {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+
+    /* Print media overrides */
     @media print {
-      .no-print-bar {
+      .no-print-bar,
+      .tool-drawer,
+      .tool-drawer-backdrop {
         display: none !important;
       }
       body {
+        background-color: #ffffff !important;
         padding-top: 0 !important;
       }
       .page-container {
+        max-width: 100% !important;
+        margin: 0 !important;
         padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+      }
+      [contenteditable="true"] {
+        outline: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
     }
   </style>
 </head>
 <body style="padding-top: 60px;">
 
-  <!-- Non-printable top action bar -->
+  <!-- Non-printable top action bar with Tool controls -->
   <div class="no-print-bar">
     <div style="display: flex; align-items: center; gap: 14px;">
-      <a href="/comparatore?id={{ comp.id }}">← Torna all'Editor Comparatore</a>
+      <a href="/comparatore?id={{ comp.id }}">
+        <i class="bi bi-arrow-left"></i> Torna all'Editor
+      </a>
       <span style="color: #6366f1;">|</span>
-      <span>Proposta per: <strong>{{ comp.cliente_nome }}</strong></span>
+      <span style="font-size: 13px;">Proposta: <strong>{{ comp.cliente_nome }}</strong></span>
+      <span style="background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 12px; font-size: 11px; color: #fde047;">
+        <i class="bi bi-pencil-fill"></i> Clicca su qualsiasi testo sul foglio per modificarlo!
+      </span>
     </div>
-    <button onclick="window.print()">
-      <i class="bi bi-printer-fill"></i> Stampa / Salva come PDF
-    </button>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button type="button" class="btn-top-bar btn-top-bar-tool" id="btnOpenToolDrawer">
+        <i class="bi bi-sliders2-vertical"></i> Tool Parti Foglio
+      </button>
+
+      <button type="button" class="btn-top-bar btn-top-bar-save" id="btnSavePdfEdits">
+        <i class="bi bi-cloud-check-fill"></i> Salva Modifiche
+      </button>
+
+      <button type="button" class="btn-top-bar btn-top-bar-print" onclick="window.print()">
+        <i class="bi bi-printer-fill"></i> Stampa / Salva in PDF
+      </button>
+    </div>
   </div>
 
-  <div class="page-container">
-
-    <!-- HEADER AZIENDA -->
-    <div class="header-box">
-      <div>
-        <div class="company-title">
-          <i class="bi bi-box-seam-fill" style="color: #4f46e5;"></i>
-          <span>HORECA SUITE</span>
+  <!-- Slide-over Drawer Tool for Header & Footer Management -->
+  <div class="tool-drawer-backdrop" id="toolDrawerBackdrop"></div>
+  <div class="tool-drawer" id="toolDrawer">
+    <div class="tool-drawer-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i class="bi bi-sliders2 text-warning fs-5"></i>
+        <div>
+          <h4 style="margin: 0; font-size: 15px; font-weight: 700;">Tool Gestione Foglio PDF</h4>
+          <span style="font-size: 11px; opacity: 0.8;">Modifica parti in alto e in basso</span>
         </div>
-        <div class="company-sub">Forniture Professionali & Prodotti Lavorati per la Ristorazione</div>
       </div>
-      <div class="doc-meta">
-        <div class="doc-badge">Prospetto Economico Comparativo</div>
-        <div>Data: <strong>{{ comp.creato_il.strftime('%d/%m/%Y') if comp.creato_il else '' }}</strong></div>
-        <div>Rif. Offerta: <strong>#CMP-{{ "%04d"|format(comp.id) }}</strong></div>
+      <button type="button" id="btnCloseToolDrawer" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+    </div>
+
+    <div class="tool-drawer-body">
+      
+      <!-- PARTE IN ALTO (HEADER) -->
+      <div class="drawer-section-title">
+        <i class="bi bi-arrow-up-circle-fill"></i> 1. PARTE IN ALTO (HEADER & LOGO)
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Nome Azienda / Intestazione:</label>
+        <input type="text" id="drawerAziendaNome" value="{{ impostazioni_pdf.get('azienda_nome', 'HORECA SUITE') }}">
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Sottotitolo / Settore:</label>
+        <input type="text" id="drawerAziendaSub" value="{{ impostazioni_pdf.get('azienda_sub', 'Forniture Professionali & Listini Dedicati per la Ristorazione') }}">
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Recapiti, P.IVA & Contatti:</label>
+        <input type="text" id="drawerContatti" value="{{ impostazioni_pdf.get('contatti', 'Tel. +39 071 123456 • info@horecasuite.it') }}">
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Badge Tipo Documento:</label>
+        <input type="text" id="drawerDocBadge" value="{{ impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo') }}">
+      </div>
+
+      <div class="form-group-drawer">
+        <label>URL Immagine Logo (opzionale):</label>
+        <input type="text" id="drawerLogoUrl" placeholder="https://.../logo.png" value="{{ impostazioni_pdf.get('logo_url', '') }}">
+      </div>
+
+      <div class="switch-row">
+        <label for="drawerMostraHero">Mostra Box Risparmio Hero</label>
+        <input type="checkbox" id="drawerMostraHero" {% if impostazioni_pdf.get('mostra_hero_risparmio', True) %}checked{% endif %}>
+      </div>
+
+      <div class="form-group-drawer" id="groupTitoloHero">
+        <label>Titolo Box Risparmio:</label>
+        <input type="text" id="drawerTitoloHero" value="{{ impostazioni_pdf.get('titolo_hero_risparmio', 'Risparmio Economico Totale Garantito') }}">
+      </div>
+
+      <div class="form-group-drawer" id="groupSubHero">
+        <label>Sottotitolo Box Risparmio:</label>
+        <input type="text" id="drawerSubHero" value="{{ impostazioni_pdf.get('sub_hero_risparmio', 'A parità di consumi stimati sui prodotti selezionati') }}">
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+
+      <!-- PARTE IN BASSO (FOOTER & CONDIZIONI) -->
+      <div class="drawer-section-title" style="color: #059669;">
+        <i class="bi bi-arrow-down-circle-fill"></i> 2. PARTE IN BASSO (CONDIZIONI & FIRME)
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Titolo Box Condizioni:</label>
+        <input type="text" id="drawerTitoloCondizioni" value="{{ impostazioni_pdf.get('titolo_condizioni', 'Condizioni di Fornitura & Servizi Inclusi:') }}">
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Condizioni & Note di Fornitura (una per riga):</label>
+        <textarea id="drawerNoteCondizioni" rows="4">{{ impostazioni_pdf.get('note_condizioni') or comp.note or '• Consegne programmate con automezzi a temperatura controllata.\n• Grammatura costante e massima resa per azzerare lo scarto in cucina.\n• Tracciabilità certificata di ogni lotto con scheda tecnica allegata.' }}</textarea>
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Validità Offerta Commerciale:</label>
+        <input type="text" id="drawerValiditaOfferta" value="{{ impostazioni_pdf.get('validita_offerta', 'Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.') }}">
+      </div>
+
+      <div class="switch-row">
+        <label for="drawerMostraFirme">Mostra Sezione Firme in Calce</label>
+        <input type="checkbox" id="drawerMostraFirme" {% if impostazioni_pdf.get('mostra_firme', True) %}checked{% endif %}>
+      </div>
+
+      <div class="form-group-drawer" id="groupFirmaCliente">
+        <label>Dicitura Firma Cliente (Sinistra):</label>
+        <input type="text" id="drawerFirmaCliente" value="{{ impostazioni_pdf.get('firma_cliente_label', 'Per Accettazione il Cliente (Timbro e Firma)') }}">
+      </div>
+
+      <div class="form-group-drawer" id="groupFirmaNostra">
+        <label>Dicitura Firma Nostra (Destra):</label>
+        <input type="text" id="drawerFirmaNostra" value="{{ impostazioni_pdf.get('firma_nostra_label', 'Horeca Suite - Consulente Commerciale') }}">
+      </div>
+
+      <div class="form-group-drawer">
+        <label>Nota a Piè di Pagina:</label>
+        <input type="text" id="drawerFooterNote" value="{{ impostazioni_pdf.get('footer_note', 'Documento ad uso commerciale confidenziale redatto su misura per il cliente.') }}">
+      </div>
+
+    </div>
+
+    <div class="tool-drawer-footer">
+      <button type="button" class="btn-top-bar" id="btnDrawerCloseOnly" style="background: #e2e8f0; color: #334155;">Chiudi</button>
+      <button type="button" class="btn-top-bar btn-top-bar-save" id="btnDrawerSaveAndApply">
+        <i class="bi bi-check2-circle"></i> Salva Modifiche
+      </button>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MAIN PRINTABLE PAGE CONTAINER                            -->
+  <!-- ======================================================== -->
+  <div class="page-container" id="printableSheet">
+
+    <!-- 1. HEADER AZIENDA (PARTE IN ALTO) -->
+    <div class="header-box">
+      <div class="company-brand-area">
+        <div id="printLogoContainer">
+          {% if impostazioni_pdf.get('logo_url') %}
+            <img src="{{ impostazioni_pdf.get('logo_url') }}" alt="Logo" class="company-logo-img" id="printLogoImg">
+          {% else %}
+            <i class="bi bi-box-seam-fill" id="printLogoIcon" style="font-size: 34px; color: #4f46e5;"></i>
+          {% endif %}
+        </div>
+        <div>
+          <h1 class="company-title" id="printAziendaNome" contenteditable="true" title="Clicca per modificare nome azienda">{{ impostazioni_pdf.get('azienda_nome', 'HORECA SUITE') }}</h1>
+          <div class="company-sub" id="printAziendaSub" contenteditable="true" title="Clicca per modificare sottotitolo">{{ impostazioni_pdf.get('azienda_sub', 'Forniture Professionali & Listini Dedicati per la Ristorazione') }}</div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="doc-badge" id="printDocBadge" contenteditable="true" title="Clicca per modificare badge">{{ impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo') }}</div>
+        <div class="doc-meta">
+          <div>Data: <strong>{{ comp.creato_il.strftime('%d/%m/%Y') if comp.creato_il else '' }}</strong></div>
+          <div>Rif. Offerta: <strong>#CMP-{{ "%04d"|format(comp.id) }}</strong></div>
+        </div>
+        <div class="doc-contacts" id="printContatti" contenteditable="true" title="Clicca per modificare recapiti">
+          {{ impostazioni_pdf.get('contatti', 'Tel. +39 071 123456 • info@horecasuite.it') }}
+        </div>
       </div>
     </div>
 
-    <!-- CLIENTE CARD -->
+    <!-- 2. CLIENTE CARD -->
     <div class="client-card">
       <div>
         <div class="company-sub" style="margin-bottom: 3px;">Spettabile Cliente</div>
-        <h2 class="client-name">{{ comp.cliente_nome }}</h2>
-        <div class="proposal-title">{{ comp.titolo }}</div>
+        <h2 class="client-name" id="printClienteNome" contenteditable="true">{{ comp.cliente_nome }}</h2>
+        <div class="proposal-title" id="printTitoloDoc" contenteditable="true">{{ comp.titolo }}</div>
       </div>
       <div style="text-align: right;">
-        <div style="font-size: 11px; color: #64748b;">Volume Mensile Lavorato:</div>
-        <div style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: #4f46e5;">
+        <div style="font-size: 11px; color: #64748b;">Volume Mensile Stimato:</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 700; color: #4f46e5;">
           {{ "%.1f"|format(comp.totale_volume_kg or 0) }} KG / Mese
         </div>
       </div>
     </div>
 
-    <!-- SAVINGS HERO HIGHLIGHT -->
-    <div class="savings-hero-box">
+    <!-- 3. SAVINGS HERO HIGHLIGHT (PARTE IN ALTO - OPZIONALE) -->
+    <div class="savings-hero-box" id="printHeroBox" style="display: {{ 'flex' if impostazioni_pdf.get('mostra_hero_risparmio', True) else 'none' }};">
       <div class="savings-hero-left">
-        <h3>Risparmio Economico Totale Garantito</h3>
-        <p>A parità di consumi stimati sui prodotti lavorati e porzionati selezionati</p>
+        <h3 id="printTitoloHero" contenteditable="true" title="Clicca per modificare">{{ impostazioni_pdf.get('titolo_hero_risparmio', 'Risparmio Economico Totale Garantito') }}</h3>
+        <p id="printSubHero" contenteditable="true" title="Clicca per modificare">{{ impostazioni_pdf.get('sub_hero_risparmio', 'A parità di consumi stimati sui prodotti selezionati') }}</p>
       </div>
       <div class="savings-hero-right">
         <div class="savings-hero-amount">€ {{ "%.2f"|format(comp.risparmio_anno or 0) }}</div>
@@ -364,20 +711,19 @@
       </div>
     </div>
 
-    <!-- TABELLA DETTAGLIATA PRODOTTI LAVORATI -->
+    <!-- 4. TABELLA DETTAGLIATA PRODOTTI (SENZA COLONNA LAVORAZIONI) -->
     <table class="print-table">
       <thead>
         <tr>
-          <th style="width: 25px;">#</th>
-          <th>Prodotto Lavorato / Taglio</th>
-          <th style="width: 95px;">Lavorazione</th>
-          <th class="col-right" style="width: 75px;">Vol. KG/M</th>
-          <th class="col-right" style="width: 80px;">Attuale</th>
-          <th class="col-right" style="width: 80px;">Offerta</th>
-          <th class="col-right" style="width: 75px;">Diff. KG</th>
-          <th class="col-right" style="width: 85px;">Spesa Mese</th>
-          <th class="col-right" style="width: 90px; color: #059669;">Risp. Anno</th>
-          <th class="col-center" style="width: 60px;">%</th>
+          <th style="width: 28px;">#</th>
+          <th>Prodotto / Descrizione</th>
+          <th class="col-right" style="width: 85px;">Vol. KG/M</th>
+          <th class="col-right" style="width: 90px;">Attuale</th>
+          <th class="col-right" style="width: 90px;">Nostra Offerta</th>
+          <th class="col-right" style="width: 85px;">Diff. KG</th>
+          <th class="col-right" style="width: 95px;">Spesa Mese</th>
+          <th class="col-right" style="width: 105px; color: #059669;">Risp. Anno</th>
+          <th class="col-center" style="width: 65px;">%</th>
         </tr>
       </thead>
       <tbody>
@@ -401,55 +747,286 @@
           <tr>
             <td style="color: #94a3b8; font-weight: 600;">{{ loop.index }}</td>
             <td>
-              <strong>{{ p.nome }}</strong>
+              <strong contenteditable="true">{{ p.nome }}</strong>
               {% if p.codice %}<br><small style="color: #64748b; font-family: monospace;">{{ p.codice }}</small>{% endif %}
             </td>
-            <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{{ p.lavorazione or '–' }}</span></td>
-            <td class="col-right font-monospace">{{ "%.1f"|format(vol) }}</td>
+            <td class="col-right font-monospace">{{ "%.1f"|format(vol) }} kg</td>
             <td class="col-right font-monospace" style="color: #64748b;">€ {{ "%.2f"|format(pa) }}</td>
             <td class="col-right font-monospace" style="color: #4338ca; font-weight: 600;">€ {{ "%.2f"|format(pn) }}</td>
-            <td class="col-right font-monospace" style="color: #059669; font-weight: 600;">-€ {{ "%.2f"|format(diff) }}</td>
+            <td class="col-right font-monospace" style="color: #059669; font-weight: 600;">{{ '-' if diff >= 0 else '+' }}€ {{ "%.2f"|format(diff|abs) }}</td>
             <td class="col-right font-monospace">€ {{ "%.2f"|format(spesa_nos) }}</td>
             <td class="col-right font-monospace" style="color: #059669; font-weight: 700;">€ {{ "%.2f"|format(risp_a) }}</td>
             <td class="col-center">
-              <span class="badge-diff">-{{ "%.1f"|format(perc) }}%</span>
+              <span class="badge-diff">{{ '-' if perc >= 0 else '+' }}{{ "%.1f"|format(perc|abs) }}%</span>
             </td>
           </tr>
         {% endfor %}
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3">TOTALE RIEPILOGATIVO:</td>
+          <td colspan="2">TOTALE GENERALE RIEPILOGATIVO:</td>
           <td class="col-right" style="color: #4f46e5;">{{ "%.1f"|format(ns.tot_vol) }} kg</td>
-          <td class="col-right" colspan="3" style="font-size: 11px; color: #64748b;">(Attuale: € {{ "%.2f"|format(ns.tot_att) }}/m)</td>
+          <td class="col-right" colspan="3" style="font-size: 11px; color: #64748b;">(Attuale Cliente: € {{ "%.2f"|format(ns.tot_att) }}/m)</td>
           <td class="col-right">€ {{ "%.2f"|format(ns.tot_nos) }}</td>
-          <td class="col-right" style="color: #059669; font-size: 14px;">€ {{ "%.2f"|format(ns.tot_risp_m * 12) }}</td>
-          <td class="col-center" style="color: #059669;">-{{ "%.1f"|format(((ns.tot_risp_m / ns.tot_att) * 100) if ns.tot_att > 0 else 0) }}%</td>
+          <td class="col-right" style="color: #059669; font-size: 13.5px;">€ {{ "%.2f"|format(ns.tot_risp_m * 12) }}</td>
+          <td class="col-center" style="color: #059669;">{{ '-' if ns.tot_risp_m >= 0 else '+' }}{{ "%.1f"|format((((ns.tot_risp_m / ns.tot_att) * 100) if ns.tot_att > 0 else 0)|abs) }}%</td>
         </tr>
       </tfoot>
     </table>
 
-    <!-- CONDIZIONI FORNITURA E SERVIZI INCLUSI -->
+    <!-- 5. CONDIZIONI FORNITURA E NOTE (PARTE IN BASSO) -->
     <div class="terms-box">
-      <h4>Condizioni di Fornitura & Servizi Inclusi sui Lavorati:</h4>
-      <div>
-        {{ comp.note if comp.note else '• Consegne programmate con automezzi a temperatura controllata.\n• Tagli di carne e pesce porzionati a grammatura costante in sottovuoto per azzerare lo scarto e la manodopera in cucina.\n• Frollatura controllata e tracciabilità certificata di ogni lotto.' | replace('\n', '<br>') | safe }}
+      <h4 id="printTitoloCondizioni" contenteditable="true" title="Clicca per modificare titolo">{{ impostazioni_pdf.get('titolo_condizioni', 'Condizioni di Fornitura & Servizi Inclusi:') }}</h4>
+      <div id="printNoteCondizioni" contenteditable="true" title="Clicca per modificare condizioni">
+        {{ (impostazioni_pdf.get('note_condizioni') or comp.note or '• Consegne programmate con automezzi a temperatura controllata.\n• Grammatura costante e massima resa per azzerare lo scarto in cucina.\n• Tracciabilità certificata di ogni lotto con scheda tecnica allegata.') | replace('\n', '<br>') | safe }}
+      </div>
+      <div id="printValiditaOfferta" contenteditable="true" title="Clicca per modificare validità" style="margin-top: 8px; font-style: italic; color: #64748b;">
+        {{ impostazioni_pdf.get('validita_offerta', 'Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.') }}
       </div>
     </div>
 
-    <!-- FIRME -->
-    <div class="signatures-row">
+    <!-- 6. FIRME IN CALCE (PARTE IN BASSO - OPZIONALE) -->
+    <div class="signatures-row" id="printSignaturesRow" style="display: {{ 'flex' if impostazioni_pdf.get('mostra_firme', True) else 'none' }};">
       <div class="sig-box">
-        Per Accettazione il Cliente (Timbro e Firma)<br><br><br>
+        <span id="printFirmaCliente" contenteditable="true" title="Clicca per modificare">{{ impostazioni_pdf.get('firma_cliente_label', 'Per Accettazione il Cliente (Timbro e Firma)') }}</span><br><br><br>
         __________________________________________
       </div>
       <div class="sig-box">
-        Horeca Suite - Consulente Commerciale<br><br><br>
+        <span id="printFirmaNostra" contenteditable="true" title="Clicca per modificare">{{ impostazioni_pdf.get('firma_nostra_label', 'Horeca Suite - Consulente Commerciale') }}</span><br><br><br>
         __________________________________________
       </div>
+    </div>
+
+    <!-- 7. PIÈ DI PAGINA / RISERVATEZZA (PARTE IN BASSO) -->
+    <div class="footer-note-box" id="printFooterNote" contenteditable="true" title="Clicca per modificare piè di pagina">
+      {{ impostazioni_pdf.get('footer_note', 'Documento ad uso commerciale confidenziale redatto su misura per il cliente.') }}
     </div>
 
   </div>
+
+  <script>
+    // Stato dati comparazione e impostazioni PDF
+    const compId = {{ comp.id }};
+    let currentSettings = {
+      azienda_nome: {{ impostazioni_pdf.get('azienda_nome', 'HORECA SUITE') | tojson }},
+      azienda_sub: {{ impostazioni_pdf.get('azienda_sub', 'Forniture Professionali & Listini Dedicati per la Ristorazione') | tojson }},
+      contatti: {{ impostazioni_pdf.get('contatti', 'Tel. +39 071 123456 • info@horecasuite.it') | tojson }},
+      doc_badge: {{ impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo') | tojson }},
+      logo_url: {{ impostazioni_pdf.get('logo_url', '') | tojson }},
+      mostra_hero_risparmio: {{ 'true' if impostazioni_pdf.get('mostra_hero_risparmio', True) else 'false' }},
+      titolo_hero_risparmio: {{ impostazioni_pdf.get('titolo_hero_risparmio', 'Risparmio Economico Totale Garantito') | tojson }},
+      sub_hero_risparmio: {{ impostazioni_pdf.get('sub_hero_risparmio', 'A parità di consumi stimati sui prodotti selezionati') | tojson }},
+      titolo_condizioni: {{ impostazioni_pdf.get('titolo_condizioni', 'Condizioni di Fornitura & Servizi Inclusi:') | tojson }},
+      note_condizioni: {{ (impostazioni_pdf.get('note_condizioni') or comp.note or '• Consegne programmate con automezzi a temperatura controllata.\n• Grammatura costante e massima resa per azzerare lo scarto in cucina.\n• Tracciabilità certificata di ogni lotto con scheda tecnica allegata.') | tojson }},
+      validita_offerta: {{ impostazioni_pdf.get('validita_offerta', 'Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.') | tojson }},
+      mostra_firme: {{ 'true' if impostazioni_pdf.get('mostra_firme', True) else 'false' }},
+      firma_cliente_label: {{ impostazioni_pdf.get('firma_cliente_label', 'Per Accettazione il Cliente (Timbro e Firma)') | tojson }},
+      firma_nostra_label: {{ impostazioni_pdf.get('firma_nostra_label', 'Horeca Suite - Consulente Commerciale') | tojson }},
+      footer_note: {{ impostazioni_pdf.get('footer_note', 'Documento ad uso commerciale confidenziale redatto su misura per il cliente.') | tojson }}
+    };
+
+    const existingProducts = {{ prodotti | tojson | safe }};
+
+    // Tool Drawer DOM Elements
+    const toolDrawer = document.getElementById("toolDrawer");
+    const toolDrawerBackdrop = document.getElementById("toolDrawerBackdrop");
+    const btnOpenToolDrawer = document.getElementById("btnOpenToolDrawer");
+    const btnCloseToolDrawer = document.getElementById("btnCloseToolDrawer");
+    const btnDrawerCloseOnly = document.getElementById("btnDrawerCloseOnly");
+
+    function openDrawer() {
+      toolDrawer.classList.add("active");
+      toolDrawerBackdrop.classList.add("active");
+    }
+    function closeDrawer() {
+      toolDrawer.classList.remove("active");
+      toolDrawerBackdrop.classList.remove("active");
+    }
+
+    btnOpenToolDrawer.addEventListener("click", openDrawer);
+    btnCloseToolDrawer.addEventListener("click", closeDrawer);
+    btnDrawerCloseOnly.addEventListener("click", closeDrawer);
+    toolDrawerBackdrop.addEventListener("click", closeDrawer);
+
+    // Live update from drawer inputs to sheet DOM elements
+    function bindDrawerLiveUpdates() {
+      // 1. Parte in alto
+      document.getElementById("drawerAziendaNome").addEventListener("input", (e) => {
+        document.getElementById("printAziendaNome").textContent = e.target.value;
+        currentSettings.azienda_nome = e.target.value;
+      });
+
+      document.getElementById("drawerAziendaSub").addEventListener("input", (e) => {
+        document.getElementById("printAziendaSub").textContent = e.target.value;
+        currentSettings.azienda_sub = e.target.value;
+      });
+
+      document.getElementById("drawerContatti").addEventListener("input", (e) => {
+        document.getElementById("printContatti").textContent = e.target.value;
+        currentSettings.contatti = e.target.value;
+      });
+
+      document.getElementById("drawerDocBadge").addEventListener("input", (e) => {
+        document.getElementById("printDocBadge").textContent = e.target.value;
+        currentSettings.doc_badge = e.target.value;
+      });
+
+      document.getElementById("drawerLogoUrl").addEventListener("input", (e) => {
+        const url = e.target.value.trim();
+        currentSettings.logo_url = url;
+        const container = document.getElementById("printLogoContainer");
+        if (url) {
+          container.innerHTML = `<img src="${url}" alt="Logo" class="company-logo-img">`;
+        } else {
+          container.innerHTML = `<i class="bi bi-box-seam-fill" style="font-size: 34px; color: #4f46e5;"></i>`;
+        }
+      });
+
+      document.getElementById("drawerMostraHero").addEventListener("change", (e) => {
+        document.getElementById("printHeroBox").style.display = e.target.checked ? "flex" : "none";
+        currentSettings.mostra_hero_risparmio = e.target.checked;
+      });
+
+      document.getElementById("drawerTitoloHero").addEventListener("input", (e) => {
+        document.getElementById("printTitoloHero").textContent = e.target.value;
+        currentSettings.titolo_hero_risparmio = e.target.value;
+      });
+
+      document.getElementById("drawerSubHero").addEventListener("input", (e) => {
+        document.getElementById("printSubHero").textContent = e.target.value;
+        currentSettings.sub_hero_risparmio = e.target.value;
+      });
+
+      // 2. Parte in basso
+      document.getElementById("drawerTitoloCondizioni").addEventListener("input", (e) => {
+        document.getElementById("printTitoloCondizioni").textContent = e.target.value;
+        currentSettings.titolo_condizioni = e.target.value;
+      });
+
+      document.getElementById("drawerNoteCondizioni").addEventListener("input", (e) => {
+        document.getElementById("printNoteCondizioni").innerHTML = e.target.value.replace(/\n/g, '<br>');
+        currentSettings.note_condizioni = e.target.value;
+      });
+
+      document.getElementById("drawerValiditaOfferta").addEventListener("input", (e) => {
+        document.getElementById("printValiditaOfferta").textContent = e.target.value;
+        currentSettings.validita_offerta = e.target.value;
+      });
+
+      document.getElementById("drawerMostraFirme").addEventListener("change", (e) => {
+        document.getElementById("printSignaturesRow").style.display = e.target.checked ? "flex" : "none";
+        currentSettings.mostra_firme = e.target.checked;
+      });
+
+      document.getElementById("drawerFirmaCliente").addEventListener("input", (e) => {
+        document.getElementById("printFirmaCliente").textContent = e.target.value;
+        currentSettings.firma_cliente_label = e.target.value;
+      });
+
+      document.getElementById("drawerFirmaNostra").addEventListener("input", (e) => {
+        document.getElementById("printFirmaNostra").textContent = e.target.value;
+        currentSettings.firma_nostra_label = e.target.value;
+      });
+
+      document.getElementById("drawerFooterNote").addEventListener("input", (e) => {
+        document.getElementById("printFooterNote").textContent = e.target.value;
+        currentSettings.footer_note = e.target.value;
+      });
+    }
+    bindDrawerLiveUpdates();
+
+    // Raccoglie i dati aggiornati sia dal tool che da eventuali modifiche inline contenteditable
+    function gatherAllUpdatedSettings() {
+      // Sincronizza testi modificati direttamente cliccando sul foglio
+      const inlineAziendaNome = document.getElementById("printAziendaNome").textContent.trim();
+      if (inlineAziendaNome) currentSettings.azienda_nome = inlineAziendaNome;
+
+      const inlineAziendaSub = document.getElementById("printAziendaSub").textContent.trim();
+      if (inlineAziendaSub) currentSettings.azienda_sub = inlineAziendaSub;
+
+      const inlineContatti = document.getElementById("printContatti").textContent.trim();
+      if (inlineContatti) currentSettings.contatti = inlineContatti;
+
+      const inlineDocBadge = document.getElementById("printDocBadge").textContent.trim();
+      if (inlineDocBadge) currentSettings.doc_badge = inlineDocBadge;
+
+      const inlineTitoloHero = document.getElementById("printTitoloHero").textContent.trim();
+      if (inlineTitoloHero) currentSettings.titolo_hero_risparmio = inlineTitoloHero;
+
+      const inlineSubHero = document.getElementById("printSubHero").textContent.trim();
+      if (inlineSubHero) currentSettings.sub_hero_risparmio = inlineSubHero;
+
+      const inlineTitoloCond = document.getElementById("printTitoloCondizioni").textContent.trim();
+      if (inlineTitoloCond) currentSettings.titolo_condizioni = inlineTitoloCond;
+
+      const inlineValidita = document.getElementById("printValiditaOfferta").textContent.trim();
+      if (inlineValidita) currentSettings.validita_offerta = inlineValidita;
+
+      const inlineFirmaCliente = document.getElementById("printFirmaCliente").textContent.trim();
+      if (inlineFirmaCliente) currentSettings.firma_cliente_label = inlineFirmaCliente;
+
+      const inlineFirmaNostra = document.getElementById("printFirmaNostra").textContent.trim();
+      if (inlineFirmaNostra) currentSettings.firma_nostra_label = inlineFirmaNostra;
+
+      const inlineFooterNote = document.getElementById("printFooterNote").textContent.trim();
+      if (inlineFooterNote) currentSettings.footer_note = inlineFooterNote;
+
+      return currentSettings;
+    }
+
+    // Salva le modifiche sul database
+    function saveEditsToServer(btnElement) {
+      const originalText = btnElement.innerHTML;
+      btnElement.disabled = true;
+      btnElement.innerHTML = `<i class="bi bi-hourglass-split"></i> Salvataggio...`;
+
+      const settings = gatherAllUpdatedSettings();
+
+      const payload = {
+        id: compId,
+        cliente_id: {{ comp.cliente_id or 'null' }},
+        cliente_nome: document.getElementById("printClienteNome").textContent.trim() || {{ comp.cliente_nome | tojson }},
+        titolo: document.getElementById("printTitoloDoc").textContent.trim() || {{ comp.titolo | tojson }},
+        note: settings.note_condizioni || "",
+        totale_volume_kg: {{ comp.totale_volume_kg or 0 }},
+        totale_attuale_mese: {{ comp.totale_attuale_mese or 0 }},
+        totale_nuovo_mese: {{ comp.totale_nuovo_mese or 0 }},
+        risparmio_mese: {{ comp.risparmio_mese or 0 }},
+        risparmio_anno: {{ comp.risparmio_anno or 0 }},
+        percentuale_risparmio: {{ comp.percentuale_risparmio or 0 }},
+        prodotti: existingProducts,
+        impostazioni_pdf: settings
+      };
+
+      fetch("/api/comparatore/salva", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(data => {
+        btnElement.disabled = false;
+        btnElement.innerHTML = `<i class="bi bi-check-lg"></i> Salvato!`;
+        setTimeout(() => {
+          btnElement.innerHTML = originalText;
+        }, 2000);
+        closeDrawer();
+      })
+      .catch(err => {
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalText;
+        alert("Errore salvataggio: " + err);
+      });
+    }
+
+    document.getElementById("btnSavePdfEdits").addEventListener("click", function() {
+      saveEditsToServer(this);
+    });
+
+    document.getElementById("btnDrawerSaveAndApply").addEventListener("click", function() {
+      saveEditsToServer(this);
+    });
+  </script>
 
 </body>
 </html>

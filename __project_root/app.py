@@ -8575,9 +8575,19 @@ def comparatore_listino():
                     comparazione_caricata = dict(row)
                     if isinstance(comparazione_caricata.get('dati_json'), str):
                         try:
-                            comparazione_caricata['prodotti_dettaglio'] = json.loads(comparazione_caricata['dati_json'])
+                            parsed = json.loads(comparazione_caricata['dati_json'])
+                            if isinstance(parsed, dict):
+                                comparazione_caricata['prodotti_dettaglio'] = parsed.get('prodotti', [])
+                                comparazione_caricata['impostazioni_pdf'] = parsed.get('impostazioni_pdf', {})
+                            elif isinstance(parsed, list):
+                                comparazione_caricata['prodotti_dettaglio'] = parsed
+                                comparazione_caricata['impostazioni_pdf'] = {}
+                            else:
+                                comparazione_caricata['prodotti_dettaglio'] = []
+                                comparazione_caricata['impostazioni_pdf'] = {}
                         except Exception:
                             comparazione_caricata['prodotti_dettaglio'] = []
+                            comparazione_caricata['impostazioni_pdf'] = {}
             except Exception as _e:
                 print(f"Errore caricamento comparazione {load_id_param}: {_e}")
 
@@ -8619,8 +8629,13 @@ def api_comparatore_salva():
         risparmio_anno = float(data.get('risparmio_anno', 0) or 0)
         percentuale_risparmio = float(data.get('percentuale_risparmio', 0) or 0)
         prodotti = data.get('prodotti', [])
+        impostazioni_pdf = data.get('impostazioni_pdf', {})
 
-        dati_json = json.dumps(prodotti, ensure_ascii=False)
+        payload_dati = {
+            'prodotti': prodotti,
+            'impostazioni_pdf': impostazioni_pdf
+        }
+        dati_json = json.dumps(payload_dati, ensure_ascii=False)
 
         with get_db() as db:
             cur = db.cursor()
@@ -8712,11 +8727,22 @@ def api_comparatore_dettaglio(id):
             data = dict(row)
             if isinstance(data.get('dati_json'), str):
                 try:
-                    data['prodotti'] = json.loads(data['dati_json'])
+                    parsed = json.loads(data['dati_json'])
+                    if isinstance(parsed, dict):
+                        data['prodotti'] = parsed.get('prodotti', [])
+                        data['impostazioni_pdf'] = parsed.get('impostazioni_pdf', {})
+                    elif isinstance(parsed, list):
+                        data['prodotti'] = parsed
+                        data['impostazioni_pdf'] = {}
+                    else:
+                        data['prodotti'] = []
+                        data['impostazioni_pdf'] = {}
                 except Exception:
                     data['prodotti'] = []
+                    data['impostazioni_pdf'] = {}
             else:
                 data['prodotti'] = []
+                data['impostazioni_pdf'] = {}
             
             return jsonify({"ok": True, "comparazione": data})
     except Exception as e:
@@ -8748,15 +8774,24 @@ def comparatore_stampa(id):
             return redirect(url_for('comparatore_listino'))
         
         comp = dict(row)
+        impostazioni_pdf = {}
         try:
-            prodotti = json.loads(comp.get('dati_json', '[]'))
+            parsed = json.loads(comp.get('dati_json', '{}'))
+            if isinstance(parsed, dict):
+                prodotti = parsed.get('prodotti', [])
+                impostazioni_pdf = parsed.get('impostazioni_pdf', {})
+            elif isinstance(parsed, list):
+                prodotti = parsed
+            else:
+                prodotti = []
         except Exception:
             prodotti = []
 
     return render_template(
         '07_comparatore/02_comparatore_stampa.html',
         comp=comp,
-        prodotti=prodotti
+        prodotti=prodotti,
+        impostazioni_pdf=impostazioni_pdf
     )
 
 # ============================

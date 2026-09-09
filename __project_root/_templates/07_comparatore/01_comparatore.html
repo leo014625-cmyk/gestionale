@@ -197,12 +197,17 @@
           Comparatore Listino & Calcolo Risparmio
         </h1>
         <p class="text-white-50 mb-0 small" style="max-width: 650px;">
-          Confronta i prodotti lavorati (carni, porzionati, gastronomia) con i prezzi pagati oggi dal cliente e la tua offerta. Calcola i volumi in KG, il risparmio mensile ed annuale con impatto immediato.
+          Confronta i tuoi prodotti con i prezzi pagati oggi dal cliente e la tua offerta. Calcola i volumi in KG, il risparmio mensile ed annuale con impatto immediato.
         </p>
       </div>
 
       <!-- Action buttons -->
       <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-warning rounded-pill px-3 fw-bold d-flex align-items-center gap-2 shadow-sm text-dark" data-bs-toggle="modal" data-bs-target="#modalToolPdf" id="btnApriToolPdf" title="Personalizza le sezioni in alto e in basso del PDF">
+          <i class="bi bi-sliders2-vertical"></i>
+          <span>Personalizza PDF</span>
+        </button>
+
         <button type="button" class="btn btn-light rounded-pill px-3 fw-bold d-flex align-items-center gap-2 shadow-sm text-dark" id="btnSalvaComparazione">
           <i class="bi bi-cloud-check-fill text-primary"></i>
           <span>Salva Offerta</span>
@@ -223,7 +228,7 @@
             <i class="bi bi-three-dots-vertical"></i> Altro
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-            <li><a class="dropdown-item py-2" href="#" id="btnCaricaEsempio"><i class="bi bi-magic text-warning me-2"></i>Carica Esempio Lavorati (Carni/Pesce)</a></li>
+            <li><a class="dropdown-item py-2" href="#" id="btnCaricaEsempio"><i class="bi bi-magic text-warning me-2"></i>Carica Prodotti d'Esempio</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnNuovaComparazione"><i class="bi bi-plus-circle text-primary me-2"></i>Nuovo Prospetto Vuoto</a></li>
             <li><a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalStorico"><i class="bi bi-clock-history text-info me-2"></i>Storico Preventivi Salvati</a></li>
             <li><hr class="dropdown-divider"></li>
@@ -367,7 +372,7 @@
     <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: rgba(15, 23, 42, 0.02);">
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-table text-primary fs-5"></i>
-        <h5 class="fw-bold mb-0 display-brand text-color">Dettaglio Prodotti Lavorati & Comparazione Prezzi</h5>
+        <h5 class="fw-bold mb-0 display-brand text-color">Dettaglio Prodotti & Comparazione Prezzi</h5>
         <span class="badge rounded-pill bg-primary-light text-primary fw-bold ms-2" id="badgeConteggioProdotti">0 Prodotti</span>
       </div>
 
@@ -387,11 +392,10 @@
         <thead>
           <tr>
             <th style="width: 40px;" class="text-center">#</th>
-            <th style="min-width: 220px;">Prodotto Lavorato / Taglio</th>
-            <th style="width: 140px;">Lavorazione</th>
-            <th style="width: 110px;" class="col-num">Volume KG <small class="text-muted">/Mese</small></th>
-            <th style="width: 120px;" class="col-num">Prezzo Attuale <small class="text-muted">€/KG</small></th>
-            <th style="width: 120px;" class="col-num">Nostro Prezzo <small class="text-muted">€/KG</small></th>
+            <th style="min-width: 240px;">Prodotto / Descrizione</th>
+            <th style="width: 115px;" class="col-num">Volume KG <small class="text-muted">/Mese</small></th>
+            <th style="width: 125px;" class="col-num">Prezzo Attuale <small class="text-muted">€/KG</small></th>
+            <th style="width: 125px;" class="col-num">Nostro Prezzo <small class="text-muted">€/KG</small></th>
             <th style="width: 110px;" class="col-num">Risparmio <small class="text-muted">€/KG</small></th>
             <th style="width: 120px;" class="col-num">Spesa Attuale <small class="text-muted">€/Mese</small></th>
             <th style="width: 120px;" class="col-num">Nostra Spesa <small class="text-muted">€/Mese</small></th>
@@ -406,7 +410,7 @@
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="3" class="text-uppercase fw-bold text-dark">
+            <td colspan="2" class="text-uppercase fw-bold text-dark">
               <i class="bi bi-calculator me-1 text-primary"></i> TOTALE GENERALE COMPARATIVO:
             </td>
             <td class="col-num fw-bold text-primary" id="footTotVolume">0.0 kg</td>
@@ -433,7 +437,7 @@
           <i class="bi bi-plus-circle me-1"></i> Aggiungi un altro prodotto
         </button>
         <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold" id="btnPrecaricaLavorati">
-          <i class="bi bi-box2-heart me-1"></i> Suggerisci Tagli Lavorati Horeca
+          <i class="bi bi-box2-heart me-1"></i> Suggerisci Prodotti Horeca
         </button>
       </div>
       
@@ -639,6 +643,176 @@
   </div>
 </div>
 
+<!-- ======================================================== -->
+<!-- MODAL TOOL: GESTIONE & PERSONALIZZAZIONE PDF             -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalToolPdf" tabindex="-1" aria-labelledby="modalToolPdfLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: white;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-file-earmark-pdf-fill text-warning fs-4"></i>
+          <div>
+            <h5 class="modal-title fw-bold display-brand mb-0 text-white" id="modalToolPdfLabel">Tool Gestione Foglio PDF & Stampa</h5>
+            <small class="text-white-50">Personalizza le parti preimpostate in alto (Intestazione/Logo) e in basso (Condizioni/Firme)</small>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      
+      <div class="modal-body p-4">
+        
+        <!-- Nav Tabs -->
+        <ul class="nav nav-pills nav-fill mb-4 p-1 bg-light rounded-3" id="toolPdfTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold py-2 rounded-3" id="tab-alto-tab" data-bs-toggle="pill" data-bs-target="#tab-alto" type="button" role="tab">
+              <i class="bi bi-arrow-up-circle-fill text-primary me-1"></i> 1. Parte in Alto (Intestazione & Header)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-2 rounded-3" id="tab-basso-tab" data-bs-toggle="pill" data-bs-target="#tab-basso" type="button" role="tab">
+              <i class="bi bi-arrow-down-circle-fill text-success me-1"></i> 2. Parte in Basso (Condizioni & Firme)
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="toolPdfTabsContent">
+          
+          <!-- TAB 1: PARTE IN ALTO -->
+          <div class="tab-pane fade show active" id="tab-alto" role="tabpanel">
+            
+            <div class="card border rounded-3 mb-3 p-3 bg-light bg-opacity-50">
+              <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-building"></i> Dati Aziendali & Intestazione Foglio
+              </h6>
+              <div class="row g-3">
+                <div class="col-md-7">
+                  <label class="form-label small fw-bold text-muted">Nome Azienda / Insegna:</label>
+                  <input type="text" class="form-control fw-bold" id="toolAziendaNome" placeholder="Es. HORECA SUITE">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label small fw-bold text-muted">Badge Superiore:</label>
+                  <input type="text" class="form-control fw-semibold" id="toolDocBadge" placeholder="Es. Prospetto Economico Comparativo">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-muted">Sottotitolo / Settore Aziendale:</label>
+                  <input type="text" class="form-control" id="toolAziendaSub" placeholder="Es. Forniture Professionali & Prodotti per la Ristorazione">
+                </div>
+                <div class="col-md-8">
+                  <label class="form-label small fw-bold text-muted">Recapiti, P.IVA & Contatti (riga a destra dell'header):</label>
+                  <input type="text" class="form-control" id="toolContatti" placeholder="Es. Tel. +39 071 123456 • info@horecasuite.it • P.IVA 01234567890">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted">URL Logo Immagine (opzionale):</label>
+                  <input type="text" class="form-control" id="toolLogoUrl" placeholder="https://.../logo.png">
+                </div>
+              </div>
+            </div>
+
+            <!-- Box Risparmio Hero In Alto -->
+            <div class="card border rounded-3 p-3 bg-light bg-opacity-50">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold text-success mb-0 d-flex align-items-center gap-2">
+                  <i class="bi bi-trophy-fill text-warning"></i> Box Hero Risparmio (In alto sul foglio)
+                </h6>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toolMostraHero" checked>
+                  <label class="form-check-label fw-semibold small" for="toolMostraHero">Mostra Box</label>
+                </div>
+              </div>
+              
+              <div class="row g-3" id="containerHeroSettings">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Titolo Box Risparmio:</label>
+                  <input type="text" class="form-control fw-semibold" id="toolTitoloHero" placeholder="Risparmio Economico Totale Garantito">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Sottotitolo Spiegazione:</label>
+                  <input type="text" class="form-control" id="toolSubHero" placeholder="A parità di consumi stimati sui prodotti selezionati">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 2: PARTE IN BASSO -->
+          <div class="tab-pane fade" id="tab-basso" role="tabpanel">
+            
+            <!-- Note & Condizioni -->
+            <div class="card border rounded-3 mb-3 p-3 bg-light bg-opacity-50">
+              <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-card-checklist text-primary"></i> Condizioni di Fornitura & Servizi Inclusi
+              </h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Titolo Box Condizioni:</label>
+                  <input type="text" class="form-control fw-semibold" id="toolTitoloCondizioni" placeholder="Condizioni di Fornitura & Servizi Inclusi:">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Validità Offerta Commerciale:</label>
+                  <input type="text" class="form-control fw-semibold" id="toolValiditaOfferta" placeholder="Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-muted">Elenco Note / Punti di Forza (una per riga):</label>
+                  <textarea class="form-control font-monospace small" id="toolNoteCondizioni" rows="4" placeholder="• Consegne programmate con automezzi a temperatura controllata..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Firme & Footer -->
+            <div class="card border rounded-3 p-3 bg-light bg-opacity-50">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                  <i class="bi bi-pen text-secondary"></i> Sezione Firme & Accettazione in Calce
+                </h6>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toolMostraFirme" checked>
+                  <label class="form-check-label fw-semibold small" for="toolMostraFirme">Mostra Firme</label>
+                </div>
+              </div>
+
+              <div class="row g-3" id="containerFirmeSettings">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Dicitura Firma Cliente (Sinistra):</label>
+                  <input type="text" class="form-control" id="toolFirmaCliente" placeholder="Per Accettazione il Cliente (Timbro e Firma)">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Dicitura Firma Nostra (Destra):</label>
+                  <input type="text" class="form-control" id="toolFirmaNostra" placeholder="Horeca Suite - Consulente Commerciale">
+                </div>
+                <div class="col-12 mt-2">
+                  <label class="form-label small fw-bold text-muted">Nota Piè di Pagina / Riservatezza (in fondo al foglio):</label>
+                  <input type="text" class="form-control small" id="toolFooterNote" placeholder="Documento ad uso commerciale confidenziale redatto su misura per il cliente.">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer border-top py-2.5 d-flex justify-content-between">
+        <div>
+          <button type="button" class="btn btn-outline-secondary rounded-pill btn-sm px-3" id="btnRipristinaStandardPdf">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Ripristina Standard
+          </button>
+          <button type="button" class="btn btn-outline-primary rounded-pill btn-sm px-3 ms-1" id="btnSalvaComeDefaultPdf" title="Salva questi dati per tutte le future comparazioni">
+            <i class="bi bi-bookmark-check me-1"></i> Ricorda come Predefinito
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Chiudi</button>
+          <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" id="btnApplicaToolPdf">
+            <i class="bi bi-check2-circle me-1"></i> Salva Modifiche
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -713,31 +887,133 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Array dei prodotti attualmente nella tabella
+  // ==========================================
+  // GESTIONE IMPOSTAZIONI PDF (TOOL ALTO / BASSO)
+  // ==========================================
+  const DEFAULT_PDF_SETTINGS = {
+    azienda_nome: "HORECA SUITE",
+    azienda_sub: "Forniture Professionali & Listini Dedicati per la Ristorazione",
+    contatti: "Tel. +39 071 123456 • info@horecasuite.it • P.IVA 01234567890",
+    doc_badge: "Prospetto Economico Comparativo",
+    logo_url: "",
+    mostra_hero_risparmio: true,
+    titolo_hero_risparmio: "Risparmio Economico Totale Garantito",
+    sub_hero_risparmio: "A parità di consumi stimati sui prodotti selezionati",
+    titolo_condizioni: "Condizioni di Fornitura & Servizi Inclusi:",
+    note_condizioni: "• Consegne programmate con automezzi a temperatura controllata.\n• Porzionatura a grammatura controllata per azzerare lo scarto e la manodopera.\n• Tracciabilità certificata di ogni lotto con scheda tecnica allegata.",
+    validita_offerta: "Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.",
+    mostra_firme: true,
+    firma_cliente_label: "Per Accettazione il Cliente (Timbro e Firma)",
+    firma_nostra_label: "Horeca Suite - Consulente Commerciale",
+    footer_note: "Documento ad uso commerciale confidenziale redatto su misura per il cliente."
+  };
+
+  let savedLocalDefaults = {};
+  try {
+    const rawLocal = localStorage.getItem("horeca_pdf_settings");
+    if (rawLocal) savedLocalDefaults = JSON.parse(rawLocal);
+  } catch(e) {}
+
+  let impostazioniPdfState = Object.assign({}, DEFAULT_PDF_SETTINGS, savedLocalDefaults);
+  {% if comparazione_caricata and comparazione_caricata.impostazioni_pdf %}
+    impostazioniPdfState = Object.assign(impostazioniPdfState, {{ comparazione_caricata.impostazioni_pdf | tojson | safe }});
+  {% endif %}
+
+  // Popola i campi del Modal Tool PDF dallo stato attuale
+  function syncToolPdfModalFromState() {
+    document.getElementById("toolAziendaNome").value = impostazioniPdfState.azienda_nome || "";
+    document.getElementById("toolAziendaSub").value = impostazioniPdfState.azienda_sub || "";
+    document.getElementById("toolContatti").value = impostazioniPdfState.contatti || "";
+    document.getElementById("toolDocBadge").value = impostazioniPdfState.doc_badge || "";
+    document.getElementById("toolLogoUrl").value = impostazioniPdfState.logo_url || "";
+    
+    document.getElementById("toolMostraHero").checked = impostazioniPdfState.mostra_hero_risparmio !== false;
+    document.getElementById("toolTitoloHero").value = impostazioniPdfState.titolo_hero_risparmio || "";
+    document.getElementById("toolSubHero").value = impostazioniPdfState.sub_hero_risparmio || "";
+    
+    document.getElementById("toolTitoloCondizioni").value = impostazioniPdfState.titolo_condizioni || "";
+    document.getElementById("toolValiditaOfferta").value = impostazioniPdfState.validita_offerta || "";
+    document.getElementById("toolNoteCondizioni").value = impostazioniPdfState.note_condizioni || "";
+    
+    document.getElementById("toolMostraFirme").checked = impostazioniPdfState.mostra_firme !== false;
+    document.getElementById("toolFirmaCliente").value = impostazioniPdfState.firma_cliente_label || "";
+    document.getElementById("toolFirmaNostra").value = impostazioniPdfState.firma_nostra_label || "";
+    document.getElementById("toolFooterNote").value = impostazioniPdfState.footer_note || "";
+  }
+
+  // Legge dai campi del Modal Tool PDF e aggiorna lo stato
+  function syncStateFromToolPdfModal() {
+    impostazioniPdfState.azienda_nome = document.getElementById("toolAziendaNome").value.trim() || DEFAULT_PDF_SETTINGS.azienda_nome;
+    impostazioniPdfState.azienda_sub = document.getElementById("toolAziendaSub").value.trim();
+    impostazioniPdfState.contatti = document.getElementById("toolContatti").value.trim();
+    impostazioniPdfState.doc_badge = document.getElementById("toolDocBadge").value.trim() || DEFAULT_PDF_SETTINGS.doc_badge;
+    impostazioniPdfState.logo_url = document.getElementById("toolLogoUrl").value.trim();
+    
+    impostazioniPdfState.mostra_hero_risparmio = document.getElementById("toolMostraHero").checked;
+    impostazioniPdfState.titolo_hero_risparmio = document.getElementById("toolTitoloHero").value.trim() || DEFAULT_PDF_SETTINGS.titolo_hero_risparmio;
+    impostazioniPdfState.sub_hero_risparmio = document.getElementById("toolSubHero").value.trim();
+    
+    impostazioniPdfState.titolo_condizioni = document.getElementById("toolTitoloCondizioni").value.trim() || DEFAULT_PDF_SETTINGS.titolo_condizioni;
+    impostazioniPdfState.validita_offerta = document.getElementById("toolValiditaOfferta").value.trim() || DEFAULT_PDF_SETTINGS.validita_offerta;
+    impostazioniPdfState.note_condizioni = document.getElementById("toolNoteCondizioni").value.trim();
+    
+    impostazioniPdfState.mostra_firme = document.getElementById("toolMostraFirme").checked;
+    impostazioniPdfState.firma_cliente_label = document.getElementById("toolFirmaCliente").value.trim() || DEFAULT_PDF_SETTINGS.firma_cliente_label;
+    impostazioniPdfState.firma_nostra_label = document.getElementById("toolFirmaNostra").value.trim() || DEFAULT_PDF_SETTINGS.firma_nostra_label;
+    impostazioniPdfState.footer_note = document.getElementById("toolFooterNote").value.trim();
+  }
+
+  syncToolPdfModalFromState();
+
+  // Azioni pulsanti Modal Tool PDF
+  document.getElementById("btnApplicaToolPdf").addEventListener("click", () => {
+    syncStateFromToolPdfModal();
+    const modalEl = document.getElementById("modalToolPdf");
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+    showToastNotification("Impostazioni parti Foglio PDF salvate!");
+  });
+
+  document.getElementById("btnSalvaComeDefaultPdf").addEventListener("click", () => {
+    syncStateFromToolPdfModal();
+    try {
+      localStorage.setItem("horeca_pdf_settings", JSON.stringify(impostazioniPdfState));
+      showToastNotification("Impostazioni memorizzate come predefinite per i nuovi preventivi!");
+    } catch(e) {
+      alert("Errore nel salvataggio in memoria locale.");
+    }
+  });
+
+  document.getElementById("btnRipristinaStandardPdf").addEventListener("click", () => {
+    if (confirm("Vuoi ripristinare i testi e le impostazioni PDF standard?")) {
+      impostazioniPdfState = Object.assign({}, DEFAULT_PDF_SETTINGS);
+      syncToolPdfModalFromState();
+      showToastNotification("Testi standard ripristinati!");
+    }
+  });
+
+  // Array dei prodotti attualmente nella tabella (Senza colonna lavorazione)
   let prodottiState = [];
 
-  // Esempio tipico di prodotti lavorati Horeca (Carni / Pesce)
-  const ESEMPIO_LAVORATI = [
+  // Esempio tipico di prodotti Horeca (Carni / Pesce)
+  const ESEMPIO_PRODOTTI = [
     {
-      nome: "Tagliata di Scottona Nazionale porzionata",
+      nome: "Tagliata di Scottona Nazionale",
       codice: "CAR-01",
-      lavorazione: "Porzionata 250g SV",
       volume_kg: 80,
       prezzo_attuale: 21.50,
       prezzo_nostro: 18.90
     },
     {
-      nome: "Filetto di Manzo Selezione Extra pulito",
+      nome: "Filetto di Manzo Selezione Extra",
       codice: "CAR-02",
-      lavorazione: "Defilato a cuore SV",
       volume_kg: 40,
       prezzo_attuale: 34.00,
       prezzo_nostro: 29.50
     },
     {
-      nome: "Tartare di Fassona battuta a coltello",
+      nome: "Tartare di Fassona Piemontese",
       codice: "CAR-03",
-      lavorazione: "Monoporzione 150g",
       volume_kg: 35,
       prezzo_attuale: 19.80,
       prezzo_nostro: 16.50
@@ -745,34 +1021,31 @@ document.addEventListener("DOMContentLoaded", () => {
     {
       nome: "Hamburger Gourmet Black Angus 200g",
       codice: "CAR-04",
-      lavorazione: "Macinato scelto porz.",
       volume_kg: 60,
       prezzo_attuale: 14.50,
       prezzo_nostro: 12.80
     },
     {
-      nome: "Filetti di Orata Fresca deliscati e squamati",
+      nome: "Filetti di Orata Fresca deliscati",
       codice: "PES-01",
-      lavorazione: "Filettati a mano",
       volume_kg: 50,
       prezzo_attuale: 18.20,
       prezzo_nostro: 15.90
     },
     {
-      nome: "Calamaro Atlantico pulito ad anelli e ciuffi",
+      nome: "Calamaro Atlantico pulito",
       codice: "PES-02",
-      lavorazione: "Pulito IQF",
       volume_kg: 45,
       prezzo_attuale: 13.90,
       prezzo_nostro: 11.80
     }
   ];
 
-  // Inizializzazione: se abbiamo dati da comparazione_caricata, caricali, altrimenti carica esempio o riga vuota
+  // Inizializzazione prodotti
   {% if comparazione_caricata and comparazione_caricata.prodotti_dettaglio %}
     prodottiState = {{ comparazione_caricata.prodotti_dettaglio | tojson | safe }};
   {% else %}
-    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_LAVORATI));
+    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
   {% endif %}
 
   renderTable();
@@ -797,7 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (prodottiState.length === 0) {
       tbodyProdotti.innerHTML = `
         <tr>
-          <td colspan="13" class="text-center py-5 text-muted">
+          <td colspan="12" class="text-center py-5 text-muted">
             <i class="bi bi-cart-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
             Nessun prodotto in tabella. Clicca su <strong>"Aggiungi Riga"</strong> o <strong>"Scegli da Catalogo"</strong> per iniziare.
           </td>
@@ -839,12 +1112,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="text-center text-muted fw-bold small">${idx + 1}</td>
           
           <td>
-            <input type="text" class="form-control form-control-sm input-row-change fw-bold text-dark" data-field="nome" value="${escapeHtml(item.nome || '')}" placeholder="Nome taglio / prodotto lavorato">
+            <input type="text" class="form-control form-control-sm input-row-change fw-bold text-dark" data-field="nome" value="${escapeHtml(item.nome || '')}" placeholder="Nome prodotto / taglio">
             <input type="text" class="form-control form-control-sm input-row-change text-muted mt-1 font-monospace" style="font-size: 0.75rem;" data-field="codice" value="${escapeHtml(item.codice || '')}" placeholder="Cod. art. opzionale">
-          </td>
-
-          <td>
-            <input type="text" class="form-control form-control-sm input-row-change" data-field="lavorazione" value="${escapeHtml(item.lavorazione || '')}" placeholder="Es. Porzionato, SV, ecc.">
           </td>
 
           <td class="col-num">
@@ -948,10 +1217,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const clientName = getClientName();
     if (totRisparmioAnno > 0) {
       boxArgomentazioneTitolo.innerHTML = `🎉 Con la nostra fornitura, <span class="text-primary">${escapeHtml(clientName)}</span> risparmia ben <span class="text-success">${formatMoney(totRisparmioAnno)}</span> all'anno!`;
-      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese di prodotti lavorati), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
+      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
     } else if (totRisparmioAnno === 0) {
       boxArgomentazioneTitolo.textContent = `Listino a parità economica per ${clientName}`;
-      boxArgomentazioneTesto.textContent = `I prezzi proposti eguagliano quelli attuali del cliente. È possibile valorizzare l'alta qualità della lavorazione e i servizi logistici.`;
+      boxArgomentazioneTesto.textContent = `I prezzi proposti eguagliano quelli attuali del cliente. È possibile valorizzare l'alta qualità della fornitura e i servizi logistici.`;
     } else {
       boxArgomentazioneTitolo.innerHTML = `La proposta supera di ${formatMoney(Math.abs(totRisparmioAnno))} all'anno il prezzo attuale`;
       boxArgomentazioneTesto.textContent = `Verifica i prezzi unitari inseriti per evidenziare il margine competitivo per il cliente.`;
@@ -1010,26 +1279,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const percRisp = (pAtt > 0) ? ((diffKg / pAtt) * 100) : 0;
 
     const tds = tr.querySelectorAll("td");
-    if (tds.length >= 12) {
-      // Risparmio €/kg
-      tds[6].className = `col-num font-monospace fw-semibold ${diffKg >= 0 ? 'text-success' : 'text-danger'}`;
-      tds[6].textContent = `${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/kg`;
+    if (tds.length >= 11) {
+      // Risparmio €/kg (colonna 5)
+      tds[5].className = `col-num font-monospace fw-semibold ${diffKg >= 0 ? 'text-success' : 'text-danger'}`;
+      tds[5].textContent = `${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/kg`;
       
-      // Spesa Attuale
-      tds[7].textContent = formatMoney(spesaAttMese);
+      // Spesa Attuale (colonna 6)
+      tds[6].textContent = formatMoney(spesaAttMese);
       
-      // Nostra Spesa
-      tds[8].textContent = formatMoney(spesaNosMese);
+      // Nostra Spesa (colonna 7)
+      tds[7].textContent = formatMoney(spesaNosMese);
       
-      // Risparmio Mese
-      tds[9].className = `col-num font-monospace fw-bold ${rispMese >= 0 ? 'text-success' : 'text-danger'}`;
-      tds[9].textContent = formatMoney(rispMese);
+      // Risparmio Mese (colonna 8)
+      tds[8].className = `col-num font-monospace fw-bold ${rispMese >= 0 ? 'text-success' : 'text-danger'}`;
+      tds[8].textContent = formatMoney(rispMese);
       
-      // Risparmio Anno
-      tds[10].className = `col-num font-monospace fw-bold ${rispAnno >= 0 ? 'text-success' : 'text-danger'} fs-6`;
-      tds[10].textContent = formatMoney(rispAnno);
+      // Risparmio Anno (colonna 9)
+      tds[9].className = `col-num font-monospace fw-bold ${rispAnno >= 0 ? 'text-success' : 'text-danger'} fs-6`;
+      tds[9].textContent = formatMoney(rispAnno);
       
-      // % Badge
+      // % Badge (colonna 10)
       let badgeHtml = "";
       if (percRisp > 0) {
         badgeHtml = `<span class="badge-risparmio"><i class="bi bi-arrow-down-short"></i>-${percRisp.toFixed(1)}%</span>`;
@@ -1038,7 +1307,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         badgeHtml = `<span class="badge-aumento"><i class="bi bi-arrow-up-short"></i>+${Math.abs(percRisp).toFixed(1)}%</span>`;
       }
-      tds[11].innerHTML = badgeHtml;
+      tds[10].innerHTML = badgeHtml;
     }
   }
 
@@ -1091,7 +1360,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const clientName = getClientName();
     if (totRisparmioAnno > 0) {
       boxArgomentazioneTitolo.innerHTML = `🎉 Con la nostra fornitura, <span class="text-primary">${escapeHtml(clientName)}</span> risparmia ben <span class="text-success">${formatMoney(totRisparmioAnno)}</span> all'anno!`;
-      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese di prodotti lavorati), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
+      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
     }
   }
 
@@ -1120,7 +1389,6 @@ document.addEventListener("DOMContentLoaded", () => {
     prodottiState.push({
       nome: "",
       codice: "",
-      lavorazione: "Porzionato SV",
       volume_kg: 20,
       prezzo_attuale: 15.00,
       prezzo_nostro: 13.50
@@ -1138,17 +1406,17 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnAggiungiRiga").addEventListener("click", aggiungiRigaVuota);
   document.getElementById("btnAggiungiRigaSotto").addEventListener("click", aggiungiRigaVuota);
 
-  // PRECARICA ESEMPI TAGLI LAVORATI
+  // PRECARICA ESEMPI PRODOTTI
   document.getElementById("btnCaricaEsempio").addEventListener("click", (e) => {
     e.preventDefault();
-    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_LAVORATI));
+    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
     renderTable();
-    showToastNotification("Caricati 6 prodotti lavorati d'esempio (Carni e Pesce)!");
+    showToastNotification("Caricati 6 prodotti d'esempio (Carni e Pesce)!");
   });
   document.getElementById("btnPrecaricaLavorati").addEventListener("click", () => {
-    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_LAVORATI));
+    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
     renderTable();
-    showToastNotification("Suggeriti tagli lavorati tipici Horeca!");
+    showToastNotification("Suggeriti prodotti tipici Horeca!");
   });
 
   // NUOVA COMPARAZIONE VUOTA
@@ -1158,7 +1426,7 @@ document.addEventListener("DOMContentLoaded", () => {
       currentComparisonId = null;
       prodottiState = [];
       aggiungiRigaVuota();
-      inputTitolo.value = "Offerta Prodotti Lavorati con Analisi Risparmio";
+      inputTitolo.value = "Offerta Prodotti con Analisi Risparmio";
       showToastNotification("Nuovo foglio di comparazione creato!");
     }
   });
@@ -1193,12 +1461,10 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => {
       const nome = btn.getAttribute("data-nome") || "";
       const codice = btn.getAttribute("data-codice") || "";
-      const cat = btn.getAttribute("data-cat") || "";
 
       prodottiState.push({
         nome: nome,
         codice: codice,
-        lavorazione: cat.includes("Pesce") ? "Filetto / Trancio" : "Porzionato SV",
         volume_kg: 30,
         prezzo_attuale: 18.00,
         prezzo_nostro: 15.50
@@ -1214,12 +1480,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // SALVATAGGIO COMPARAZIONE SUL DATABASE
-  document.getElementById("btnSalvaComparazione").addEventListener("click", () => {
+  // FUNZIONE DI SALVATAGGIO COMPARAZIONE (CON SUPPORTO CALLBACK)
+  function salvaComparazione(callback) {
     const btn = document.getElementById("btnSalvaComparazione");
-    const oldHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Salvataggio...`;
+    const oldHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Salvataggio...`;
+    }
 
     // Raccoglie totali attuali
     let totVolMese = 0;
@@ -1251,7 +1519,8 @@ document.addEventListener("DOMContentLoaded", () => {
       risparmio_mese: totRispMese,
       risparmio_anno: totRispMese * 12,
       percentuale_risparmio: totPerc,
-      prodotti: prodottiState
+      prodotti: prodottiState,
+      impostazioni_pdf: impostazioniPdfState
     };
 
     fetch("/api/comparatore/salva", {
@@ -1261,22 +1530,32 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .then(r => r.json())
     .then(data => {
-      btn.disabled = false;
-      btn.innerHTML = oldHtml;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
 
       if (data.ok) {
         currentComparisonId = data.id;
-        showToastNotification("Prospetto comparativo salvato con successo nel database!");
+        showToastNotification("Prospetto comparativo salvato con successo!");
+        if (typeof callback === "function") callback(data);
       } else {
         alert("Errore salvataggio: " + (data.message || "Riprova."));
       }
     })
     .catch(err => {
-      btn.disabled = false;
-      btn.innerHTML = oldHtml;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
       console.error(err);
       alert("Errore di connessione o salvataggio.");
     });
+  }
+
+  // SALVATAGGIO COMPARAZIONE TRAMITE PULSANTE
+  document.getElementById("btnSalvaComparazione").addEventListener("click", () => {
+    salvaComparazione();
   });
 
   // ELIMINA COMPARAZIONE DALLO STORICO
@@ -1296,22 +1575,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // STAMPA / PDF PREVENTIVO
+  // STAMPA / PDF PREVENTIVO (Salva prima in modo trasparente e poi apre)
   document.getElementById("btnStampaPdf").addEventListener("click", () => {
-    // Prima salva o sincronizza
-    if (currentComparisonId) {
-      window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
-    } else {
-      // Salva prima al volo poi apri
-      document.getElementById("btnSalvaComparazione").click();
-      setTimeout(() => {
-        if (currentComparisonId) {
-          window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
-        } else {
-          window.print();
-        }
-      }, 700);
-    }
+    salvaComparazione((res) => {
+      if (currentComparisonId) {
+        window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
+      } else {
+        window.print();
+      }
+    });
   });
 
   // WHATSAPP SHARE MODAL
@@ -1339,11 +1611,11 @@ document.addEventListener("DOMContentLoaded", () => {
       topProductsText += `• *${p.nome}*: nostro € ${Number(p.prezzo_nostro).toFixed(2)}/kg (vs attuale € ${Number(p.prezzo_attuale).toFixed(2)}/kg) ➔ Risparmi € ${diff.toFixed(2)}/kg\n`;
     });
 
-    const waText = `Gentile *${clientName}*,\nabbiamo elaborato la comparazione personalizzata sui *prodotti lavorati* in base ai vostri consumi mensili stimati (${totVolMese.toFixed(0)} kg/mese):\n\n` +
+    const waText = `Gentile *${clientName}*,\nabbiamo elaborato la comparazione personalizzata sul listino prodotti in base ai vostri consumi mensili stimati (${totVolMese.toFixed(0)} kg/mese):\n\n` +
       topProductsText +
       `\n💰 *RISPARMIO MENSILE:* € ${totRispMese.toFixed(2)}\n` +
       `🏆 *RISPARMIO ANNUALE GARANTITO:* € ${totRispAnno.toFixed(2)} (-${totPerc.toFixed(1)}%)\n\n` +
-      `Restiamo a disposizione per concordare le prime consegne di prova!\n_Horeca Suite_`;
+      `Restiamo a disposizione per concordare le prime consegne di prova!\n_${impostazioniPdfState.azienda_nome || 'Horeca Suite'}_`;
 
     document.getElementById("waMessaggio").value = waText;
     const modalWa = new bootstrap.Modal(document.getElementById("modalWhatsApp"));
