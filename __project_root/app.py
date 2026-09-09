@@ -2799,20 +2799,62 @@ def carica_promo_scadenze():
     return redirect(redirect_url)
 
 
+def get_preset_default_dict():
+    """Recupera il preset salvato come default dal database o da file locale."""
+    preset = {}
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT valore FROM volantini_impostazioni WHERE chiave = 'preset_default'")
+            row = cur.fetchone()
+            if row and row['valore']:
+                preset = json.loads(row['valore'])
+    except Exception as e:
+        print(f"Errore lettura preset default da DB: {e}", flush=True)
+
+    if not preset:
+        preset_path = os.path.join(app.root_path, 'preset_default.json')
+        if os.path.exists(preset_path):
+            try:
+                with open(preset_path, 'r', encoding='utf-8') as f:
+                    preset = json.load(f)
+            except Exception:
+                pass
+    return preset or {}
+
+
 @app.route('/api/salva_preset_default', methods=['POST'])
 @login_required
 def api_salva_preset_default():
     try:
         preset_data = request.json or {}
+        preset_str = json.dumps(preset_data, ensure_ascii=False)
         
-        # Salva in preset_default.json nella project root
-        preset_path = os.path.join(app.root_path, 'preset_default.json')
-        with open(preset_path, 'w', encoding='utf-8') as f:
-            json.dump(preset_data, f, ensure_ascii=False, indent=4)
+        # 1. Salva nel database (persistente su Render)
+        try:
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
+                    VALUES ('preset_default', %s, CURRENT_TIMESTAMP)
+                    ON CONFLICT (chiave) 
+                    DO UPDATE SET valore = EXCLUDED.valore, aggiornato_il = CURRENT_TIMESTAMP
+                """, (preset_str,))
+                conn.commit()
+        except Exception as db_e:
+            print(f"Errore salvataggio preset in DB: {db_e}", flush=True)
+
+        # 2. Salva in preset_default.json nella project root
+        try:
+            preset_path = os.path.join(app.root_path, 'preset_default.json')
+            with open(preset_path, 'w', encoding='utf-8') as f:
+                f.write(preset_str)
+        except Exception:
+            pass
             
-        return jsonify({"status": "ok", "message": "Preset salvato come Default sul server!"})
+        return jsonify({"status": "ok", "message": "Parametri completi, dimensioni e stili salvati come Default!"})
     except Exception as e:
-        print("Errore nel salvataggio del preset di default:", e)
+        print("Errore nel salvataggio del preset di default:", e, flush=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -2820,15 +2862,13 @@ def api_salva_preset_default():
 @login_required
 def api_carica_preset_default():
     try:
-        preset_path = os.path.join(app.root_path, 'preset_default.json')
-        if os.path.exists(preset_path):
-            with open(preset_path, 'r', encoding='utf-8') as f:
-                preset_data = json.load(f)
+        preset_data = get_preset_default_dict()
+        if preset_data:
             return jsonify({"status": "ok", "preset": preset_data})
         else:
             return jsonify({"status": "not_found", "message": "Nessun preset default salvato sul server"})
     except Exception as e:
-        print("Errore nel caricamento del preset di default:", e)
+        print("Errore nel caricamento del preset di default:", e, flush=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -7170,41 +7210,60 @@ def api_importa_pdf_volantino():
                 """, to_insert_promos)
 
             # Per Promo Mensili: NON dividiamo in categorie, nessun banner categoria, nessun logo
-            chunk_size = 9
-            cols = 3
-            rows = 3
+            # Carichiamo il preset di default salvato (larghezza, altezza foglio e celle, stili celle, sfondo)
+            preset = get_preset_default_dict()
+            cell_styles = preset.get("cellStyles", {}) if isinstance(preset.get("cellStyles"), dict) else {}
+
+            p_cols = int(preset.get("cols", 3)) if str(preset.get("cols", "3")).isdigit() else 3
+            p_rows = int(preset.get("rows", 3)) if str(preset.get("rows", "3")).isdigit() else 3
+            p_gap = int(preset.get("gap", 12)) if str(preset.get("gap", "12")).isdigit() else 12
+            p_cell_w = str(preset.get("cellWidth", "380"))
+            p_cell_h = str(preset.get("cellHeight", "500"))
+            p_larg = str(preset.get("larghezza", "800"))
+            p_alt = str(preset.get("altezza", "1100"))
+            p_pad_top = str(preset.get("padTop", "10"))
+            p_pad_bottom = str(preset.get("padBottom", "10"))
+            p_pad_sides = str(preset.get("padSides", "10"))
+            p_bg_img = str(preset.get("bgImg", ""))
+            p_bg_w = str(preset.get("bgWidth", "100"))
+            p_bg_h = str(preset.get("bgHeight", "100"))
+            p_bg_x = str(preset.get("bgPosX", "50"))
+            p_bg_y = str(preset.get("bgPosY", "50"))
+            p_bg_fit = str(preset.get("bgFit", "cover"))
+
+            chunk_size = p_cols * p_rows
             doc_pages = []
 
             for i in range(0, len(imported_products), chunk_size):
                 chunk = imported_products[i:i + chunk_size]
                 page_dict = {
-                    "cols": cols,
-                    "rows": rows,
-                    "gap": 12,
-                    "cellWidth": "380",
-                    "cellHeight": "500",
-                    "larghezza": "800",
-                    "altezza": "1100",
-                    "padTop": "10",
-                    "padBottom": "10",
-                    "padSides": "10",
+                    "cols": p_cols,
+                    "rows": p_rows,
+                    "gap": p_gap,
+                    "cellWidth": p_cell_w,
+                    "cellHeight": p_cell_h,
+                    "larghezza": p_larg,
+                    "altezza": p_alt,
+                    "padTop": p_pad_top,
+                    "padBottom": p_pad_bottom,
+                    "padSides": p_pad_sides,
                     "headerH": "0",
                     "headerImg": "",
                     "footerH": "0",
                     "headerFit": "contain",
                     "headerZoom": "1",
-                    "bgImg": "",
-                    "bgWidth": "100",
-                    "bgHeight": "100",
-                    "bgPosX": "50",
-                    "bgPosY": "50",
-                    "bgFit": "cover",
+                    "bgImg": p_bg_img,
+                    "bgWidth": p_bg_w,
+                    "bgHeight": p_bg_h,
+                    "bgPosX": p_bg_x,
+                    "bgPosY": p_bg_y,
+                    "bgFit": p_bg_fit,
                     "categoryTitle": "",
                     "categoryBannerColor": "transparent",
                     "cells": []
                 }
 
-                tot_cells = cols * rows
+                tot_cells = p_cols * p_rows
                 for c_idx in range(tot_cells):
                     if c_idx < len(chunk):
                         prod_item = chunk[c_idx]
@@ -7220,43 +7279,44 @@ def api_importa_pdf_volantino():
                             "descrizione": "",
                             "prezzo": full_price,
                             "oldPrice": "",
-                            "priceStyle": "base",
-                            "priceSize": "26",
-                            "priceColor": "#e11d48",
-                            "priceBg": "#ffffff",
-                            "priceCurrency": "€",
-                            "priceWeight": "800",
-                            "layout": "modern-split",
-                            "textAlign": "start",
-                            "fontFamily": "inherit",
-                            "fontColor": "#0f172a",
-                            "titleSize": "14",
-                            "titleWeight": "700",
-                            "titleSpacing": "0",
-                            "titleHeight": "1.2",
-                            "codeSize": "9",
-                            "descSize": "10",
+                            "priceStyle": str(cell_styles.get("priceStyle", "base")),
+                            "priceSize": str(cell_styles.get("priceSize", "26")),
+                            "priceColor": str(cell_styles.get("priceColor", "#e11d48")),
+                            "priceBg": str(cell_styles.get("priceBg", "#ffffff")),
+                            "priceCurrency": str(cell_styles.get("priceCurrency", "€")),
+                            "priceWeight": str(cell_styles.get("priceWeight", "800")),
+                            "layout": str(cell_styles.get("layout", "modern-split")),
+                            "textAlign": str(cell_styles.get("textAlign", "start")),
+                            "fontFamily": str(cell_styles.get("fontFamily", "inherit")),
+                            "fontColor": str(cell_styles.get("fontColor", "#0f172a")),
+                            "titleSize": str(cell_styles.get("titleSize", "14")),
+                            "titleWeight": str(cell_styles.get("titleWeight", "700")),
+                            "titleSpacing": str(cell_styles.get("titleSpacing", "0")),
+                            "titleHeight": str(cell_styles.get("titleHeight", "1.2")),
+                            "codeSize": str(cell_styles.get("codeSize", "9")),
+                            "descSize": str(cell_styles.get("descSize", "10")),
                             "scadenza": str(prod_item.get("scadenza", "")),
-                            "scadenzaSize": "12",
-                            "descItalic": "0",
-                            "textUpper": "1",
-                            "borderStyle": "solid",
-                            "borderColor": "#cbd5e1",
-                            "radius": "10",
-                            "bgColor": "#ffffff",
-                            "bgTransparent": "0",
-                            "shadow": "1",
-                            "imageFilter": "none",
-                            "imageZoom": str(prod_item.get("imageZoom", "1.0")),
-                            "imagePosX": str(prod_item.get("imagePosX", "50")),
-                            "imagePosY": str(prod_item.get("imagePosY", "50")),
-                            "imageRadius": "8",
-                            "imagePadding": "4",
-                            "imageAspect": "contain",
+                            "scadenzaSize": str(cell_styles.get("scadenzaSize", "12")),
+                            "scadenzaY": str(cell_styles.get("scadenzaY", "-2")),
+                            "descItalic": str(cell_styles.get("descItalic", "0")),
+                            "textUpper": str(cell_styles.get("textUpper", "1")),
+                            "borderStyle": str(cell_styles.get("borderStyle", "solid")),
+                            "borderColor": str(cell_styles.get("borderColor", "#cbd5e1")),
+                            "radius": str(cell_styles.get("radius", "10")),
+                            "bgColor": str(cell_styles.get("bgColor", "#ffffff")),
+                            "bgTransparent": str(cell_styles.get("bgTransparent", "0")),
+                            "shadow": str(cell_styles.get("shadow", "1")),
+                            "imageFilter": str(cell_styles.get("imageFilter", "none")),
+                            "imageZoom": str(prod_item.get("imageZoom", cell_styles.get("imageZoom", "1.0"))),
+                            "imagePosX": str(prod_item.get("imagePosX", cell_styles.get("imagePosX", "50"))),
+                            "imagePosY": str(prod_item.get("imagePosY", cell_styles.get("imagePosY", "50"))),
+                            "imageRadius": str(cell_styles.get("imageRadius", "8")),
+                            "imagePadding": str(cell_styles.get("imagePadding", "4")),
+                            "imageAspect": str(cell_styles.get("imageAspect", "contain")),
                             "imgOriginal": img_path,
                             "imgNoBg": img_path,
                             "useNoBg": "1",
-                            "showDesc": "0"
+                            "showDesc": str(cell_styles.get("showDesc", "0"))
                         }
                     else:
                         cell_data = {
@@ -7349,12 +7409,15 @@ def api_crea_volantino_wizard():
         cfg = get_volantini_impostazioni_dict()
         default_logo = cfg.get("default_header_logo", "")
 
+        preset = get_preset_default_dict()
+        cell_styles = preset.get("cellStyles", {}) if isinstance(preset.get("cellStyles"), dict) else {}
+
         doc_pages = []
         for s_idx, s in enumerate(sheets):
-            cols = int(s.get("cols", 3))
-            rows = int(s.get("rows", 3))
-            gap = int(s.get("gap", 12))
-            bg_url = s.get("bgUrl", "")
+            cols = int(s.get("cols") or preset.get("cols") or 3)
+            rows = int(s.get("rows") or preset.get("rows") or 3)
+            gap = int(s.get("gap") or preset.get("gap") or 12)
+            bg_url = s.get("bgUrl") or (preset.get("bgImg") if tipo == "promo_mensile" else "")
             cat_title = s.get("categoryTitle", "").strip()
             cat_color = s.get("categoryBannerColor", "#0f172a")
             header_img = s.get("headerImg", "")
@@ -7372,24 +7435,24 @@ def api_crea_volantino_wizard():
                 "cols": cols,
                 "rows": rows,
                 "gap": gap,
-                "larghezza": "800",
-                "altezza": "1100",
-                "cellWidth": str(s.get("cellWidth", "380")),
-                "cellHeight": str(s.get("cellHeight", "500")),
-                "padTop": "10",
-                "padBottom": "10",
-                "padSides": "10",
+                "larghezza": str(s.get("larghezza") or preset.get("larghezza") or "800"),
+                "altezza": str(s.get("altezza") or preset.get("altezza") or "1100"),
+                "cellWidth": str(s.get("cellWidth") or preset.get("cellWidth") or "380"),
+                "cellHeight": str(s.get("cellHeight") or preset.get("cellHeight") or "500"),
+                "padTop": str(s.get("padTop") or preset.get("padTop") or "10"),
+                "padBottom": str(s.get("padBottom") or preset.get("padBottom") or "10"),
+                "padSides": str(s.get("padSides") or preset.get("padSides") or "10"),
                 "headerH": header_h,
                 "headerImg": header_img,
                 "footerH": "0",
                 "headerFit": "contain",
                 "headerZoom": "1",
                 "bgImg": bg_url,
-                "bgWidth": "100",
-                "bgHeight": "100",
-                "bgPosX": "50",
-                "bgPosY": "50",
-                "bgFit": "cover",
+                "bgWidth": str(preset.get("bgWidth", "100")),
+                "bgHeight": str(preset.get("bgHeight", "100")),
+                "bgPosX": str(preset.get("bgPosX", "50")),
+                "bgPosY": str(preset.get("bgPosY", "50")),
+                "bgFit": str(preset.get("bgFit", "cover")),
                 "categoryTitle": cat_title,
                 "categoryBannerColor": cat_color,
                 "cells": []
@@ -7405,11 +7468,12 @@ def api_crea_volantino_wizard():
                     um_val = str(p.get("um", "PZ")).strip().upper()
                     full_price = f"€ {prezzo_val} / {um_val}" if um_val else f"€ {prezzo_val}"
                     
-                    price_color = "#e11d48"
-                    if "pesce" in cat_title.lower() or "pesce" in tipo:
-                        price_color = "#0284c7"
-                    elif "carne" in cat_title.lower() or "carne" in tipo:
-                        price_color = "#e11d48"
+                    price_color = cell_styles.get("priceColor", "#e11d48")
+                    if tipo != "promo_mensile":
+                        if "pesce" in cat_title.lower() or "pesce" in tipo:
+                            price_color = "#0284c7"
+                        elif "carne" in cat_title.lower() or "carne" in tipo:
+                            price_color = "#e11d48"
                         
                     cell_data = {
                         "codice": str(p.get("codice", "")),
@@ -7418,43 +7482,44 @@ def api_crea_volantino_wizard():
                         "descrizione": str(p.get("descrizione", "")),
                         "prezzo": full_price,
                         "oldPrice": "",
-                        "priceStyle": "base",
-                        "priceSize": "26",
-                        "priceColor": price_color,
-                        "priceBg": "#ffffff",
-                        "priceCurrency": "€",
-                        "priceWeight": "800",
-                        "layout": "modern-split",
-                        "textAlign": "start",
-                        "fontFamily": "inherit",
-                        "fontColor": "#0f172a",
-                        "titleSize": "16",
-                        "titleWeight": "700",
-                        "titleSpacing": "0",
-                        "titleHeight": "1.2",
-                        "codeSize": "9",
-                        "descSize": "10",
+                        "priceStyle": str(cell_styles.get("priceStyle", "base")),
+                        "priceSize": str(cell_styles.get("priceSize", "26")),
+                        "priceColor": str(price_color),
+                        "priceBg": str(cell_styles.get("priceBg", "#ffffff")),
+                        "priceCurrency": str(cell_styles.get("priceCurrency", "€")),
+                        "priceWeight": str(cell_styles.get("priceWeight", "800")),
+                        "layout": str(cell_styles.get("layout", "modern-split")),
+                        "textAlign": str(cell_styles.get("textAlign", "start")),
+                        "fontFamily": str(cell_styles.get("fontFamily", "inherit")),
+                        "fontColor": str(cell_styles.get("fontColor", "#0f172a")),
+                        "titleSize": str(cell_styles.get("titleSize", "16")),
+                        "titleWeight": str(cell_styles.get("titleWeight", "700")),
+                        "titleSpacing": str(cell_styles.get("titleSpacing", "0")),
+                        "titleHeight": str(cell_styles.get("titleHeight", "1.2")),
+                        "codeSize": str(cell_styles.get("codeSize", "9")),
+                        "descSize": str(cell_styles.get("descSize", "10")),
                         "scadenza": str(p.get("scadenza", "")),
-                        "scadenzaSize": "12",
-                        "descItalic": "0",
-                        "textUpper": "1",
-                        "borderStyle": "solid",
-                        "borderColor": "#cbd5e1",
-                        "radius": "8",
-                        "bgColor": "#ffffff",
-                        "bgTransparent": "0",
-                        "shadow": "1",
-                        "imageFilter": "none",
-                        "imageZoom": str(p.get("imageZoom", "1.0")),
-                        "imagePosX": str(p.get("imagePosX", "50")),
-                        "imagePosY": str(p.get("imagePosY", "50")),
-                        "imageRadius": "6",
-                        "imagePadding": "4",
-                        "imageAspect": "contain",
+                        "scadenzaSize": str(cell_styles.get("scadenzaSize", "12")),
+                        "scadenzaY": str(cell_styles.get("scadenzaY", "0")),
+                        "descItalic": str(cell_styles.get("descItalic", "0")),
+                        "textUpper": str(cell_styles.get("textUpper", "1")),
+                        "borderStyle": str(cell_styles.get("borderStyle", "solid")),
+                        "borderColor": str(cell_styles.get("borderColor", "#cbd5e1")),
+                        "radius": str(cell_styles.get("radius", "8")),
+                        "bgColor": str(cell_styles.get("bgColor", "#ffffff")),
+                        "bgTransparent": str(cell_styles.get("bgTransparent", "0")),
+                        "shadow": str(cell_styles.get("shadow", "1")),
+                        "imageFilter": str(cell_styles.get("imageFilter", "none")),
+                        "imageZoom": str(p.get("imageZoom", cell_styles.get("imageZoom", "1.0"))),
+                        "imagePosX": str(p.get("imagePosX", cell_styles.get("imagePosX", "50"))),
+                        "imagePosY": str(p.get("imagePosY", cell_styles.get("imagePosY", "50"))),
+                        "imageRadius": str(cell_styles.get("imageRadius", "6")),
+                        "imagePadding": str(cell_styles.get("imagePadding", "4")),
+                        "imageAspect": str(cell_styles.get("imageAspect", "contain")),
                         "imgOriginal": str(p.get("immagine", "")),
                         "imgNoBg": str(p.get("immagine", "")),
                         "useNoBg": "1",
-                        "showDesc": "0"
+                        "showDesc": str(cell_styles.get("showDesc", "0"))
                     }
                 else:
                     cell_data = {

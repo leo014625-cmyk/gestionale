@@ -1049,13 +1049,13 @@ document.addEventListener("DOMContentLoaded", () => {
        GESTIONE PRESET (LOCALSTORAGE)
      ------------------------------------------------------------------- */
   document.getElementById("salva-preset").addEventListener("click", () => {
-    let sampleCell = cellaSelezionata || document.querySelector(".cella-prodotto");
+    let sampleCell = cellaSelezionata || document.querySelector(".cella-prodotto[data-codice]:not([data-codice=''])") || document.querySelector(".cella-prodotto");
     const cellStyles = {};
     const cellStylesKeys = [
       'titleSize', 'titleWeight', 'titleSpacing', 'titleHeight', 'codeSize', 'descSize', 'scadenzaSize', 'scadenzaY',
       'priceSize', 'priceColor', 'priceBg', 'priceCurrency', 'priceWeight', 'descItalic', 
       'textUpper', 'priceStyle', 'layout', 'textAlign', 'fontFamily', 'fontColor', 
-      'borderStyle', 'borderColor', 'radius', 'bgColor', 'shadow', 'imageFilter', 
+      'borderStyle', 'borderColor', 'radius', 'bgColor', 'bgTransparent', 'shadow', 'imageFilter', 
       'imageZoom', 'imagePosX', 'imagePosY', 'imageRadius', 'imagePadding', 'imageAspect', 'showDesc'
     ];
 
@@ -1067,13 +1067,28 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    const curPage = paginaAttiva || pagine[paginaCorrente] || pagine[0];
+    if (curPage) {
+      curPage.dataset.cellWidth = controlCellaW.value;
+      curPage.dataset.cellHeight = controlCellaH.value;
+      curPage.dataset.larghezza = controlLarghezza.value;
+      curPage.dataset.altezza = controlAltezza.value;
+      curPage.dataset.gap = controlGap.value;
+      curPage.dataset.cols = controlCols.value;
+      curPage.dataset.rows = controlRows.value;
+      curPage.dataset.padTop = controlPadTop.value;
+      curPage.dataset.padBottom = controlPadBottom.value;
+      curPage.dataset.padSides = controlPadSides.value;
+    }
+
     const headerImg = pagine[0]?.querySelector(".page-header img")?.src || "";
 
-    const bgImg = pagine[0]?.dataset.bgImg || "";
-    const bgWidth = pagine[0]?.dataset.bgWidth || "100";
-    const bgHeight = pagine[0]?.dataset.bgHeight || "100";
-    const bgPosX = pagine[0]?.dataset.bgPosX !== undefined ? pagine[0]?.dataset.bgPosX : "50";
-    const bgPosY = pagine[0]?.dataset.bgPosY !== undefined ? pagine[0]?.dataset.bgPosY : "50";
+    const bgImg = curPage?.dataset.bgImg || "";
+    const bgWidth = curPage?.dataset.bgWidth || "100";
+    const bgHeight = curPage?.dataset.bgHeight || "100";
+    const bgPosX = curPage?.dataset.bgPosX !== undefined ? curPage.dataset.bgPosX : "50";
+    const bgPosY = curPage?.dataset.bgPosY !== undefined ? curPage.dataset.bgPosY : "50";
+    const bgFit = curPage?.dataset.bgFit || "cover";
 
     const preset = {
       larghezza: controlLarghezza.value,
@@ -1094,6 +1109,7 @@ document.addEventListener("DOMContentLoaded", () => {
       bgHeight: bgHeight,
       bgPosX: bgPosX,
       bgPosY: bgPosY,
+      bgFit: bgFit,
       cellWidth: controlCellaW.value,
       cellHeight: controlCellaH.value
     };
@@ -1108,7 +1124,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(r => r.json())
     .then(data => {
       if (data.status === "ok") {
-        showToast("Parametri completi, logo e layout salvati come Default!");
+        showToast("Dimensioni foglio, celle, stili e sfondo salvati come Default per i prossimi volantini!");
       } else {
         showToast("Salvato localmente. Errore server: " + data.message);
       }
@@ -1191,6 +1207,7 @@ document.addEventListener("DOMContentLoaded", () => {
           bgHeight: preset.bgHeight || "100",
           bgPosX: preset.bgPosX !== undefined ? preset.bgPosX : "50",
           bgPosY: preset.bgPosY !== undefined ? preset.bgPosY : "50",
+          bgFit: preset.bgFit || "cover",
           cellWidth: preset.cellWidth || "380",
           cellHeight: preset.cellHeight || "500"
         });

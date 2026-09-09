@@ -1591,24 +1591,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize sheets matching configured category rules
   function initWorkbenchWithProducts(products) {
-    const maxPerSheet = currentGrid.cols * currentGrid.rows;
+    const isPromoMensile = (selectTipoVolantino && selectTipoVolantino.value === "promo_mensile");
+
+    // Leggiamo preset default salvato
+    let defaultPreset = null;
+    try {
+      const rawPreset = localStorage.getItem("horeca_volantino_preset");
+      if (rawPreset) defaultPreset = JSON.parse(rawPreset);
+    } catch(e) {}
+
+    const defCols = (defaultPreset && defaultPreset.cols) ? parseInt(defaultPreset.cols) : currentGrid.cols;
+    const defRows = (defaultPreset && defaultPreset.rows) ? parseInt(defaultPreset.rows) : currentGrid.rows;
+    const defGap = (defaultPreset && defaultPreset.gap) ? parseInt(defaultPreset.gap) : 12;
+    const defCellW = (defaultPreset && defaultPreset.cellWidth) ? parseInt(defaultPreset.cellWidth) : 380;
+    const defCellH = (defaultPreset && defaultPreset.cellHeight) ? parseInt(defaultPreset.cellHeight) : 500;
+    const defLarg = (defaultPreset && defaultPreset.larghezza) ? defaultPreset.larghezza : "800";
+    const defAlt = (defaultPreset && defaultPreset.altezza) ? defaultPreset.altezza : "1100";
+    const defPadTop = (defaultPreset && defaultPreset.padTop) ? defaultPreset.padTop : "10";
+    const defPadBottom = (defaultPreset && defaultPreset.padBottom) ? defaultPreset.padBottom : "10";
+    const defPadSides = (defaultPreset && defaultPreset.padSides) ? defaultPreset.padSides : "10";
+    const defBg = (defaultPreset && defaultPreset.bgImg) ? defaultPreset.bgImg : "";
+
+    const maxPerSheet = isPromoMensile ? (defCols * defRows) : (currentGrid.cols * currentGrid.rows);
     sheets = [];
     unassignedProducts = [];
-
-    const isPromoMensile = (selectTipoVolantino && selectTipoVolantino.value === "promo_mensile");
 
     if (isPromoMensile) {
       // In Promo Mensili: NON dividere in categorie, nessun banner categoria, nessun logo
       for (let i = 0; i < products.length; i += maxPerSheet) {
         sheets.push({
-          cols: currentGrid.cols,
-          rows: currentGrid.rows,
-          gap: 12,
-          cellWidth: 380,
-          cellHeight: 500,
+          cols: defCols,
+          rows: defRows,
+          gap: defGap,
+          cellWidth: defCellW,
+          cellHeight: defCellH,
+          larghezza: defLarg,
+          altezza: defAlt,
+          padTop: defPadTop,
+          padBottom: defPadBottom,
+          padSides: defPadSides,
           categoryTitle: "",
           categoryBannerColor: "transparent",
-          bgUrl: "",
+          bgUrl: defBg,
           headerImg: "",
           products: products.slice(i, i + maxPerSheet)
         });
@@ -1647,9 +1671,14 @@ document.addEventListener("DOMContentLoaded", () => {
             sheets.push({
               cols: currentGrid.cols,
               rows: currentGrid.rows,
-              gap: 12,
-              cellWidth: 380,
-              cellHeight: 500,
+              gap: defGap,
+              cellWidth: defCellW,
+              cellHeight: defCellH,
+              larghezza: defLarg,
+              altezza: defAlt,
+              padTop: defPadTop,
+              padBottom: defPadBottom,
+              padSides: defPadSides,
               categoryTitle: bannerTitle,
               categoryBannerColor: bannerColor,
               bgUrl: bgUrl,
@@ -1664,9 +1693,14 @@ document.addEventListener("DOMContentLoaded", () => {
           sheets.push({
             cols: currentGrid.cols,
             rows: currentGrid.rows,
-            gap: 12,
-            cellWidth: 380,
-            cellHeight: 500,
+            gap: defGap,
+            cellWidth: defCellW,
+            cellHeight: defCellH,
+            larghezza: defLarg,
+            altezza: defAlt,
+            padTop: defPadTop,
+            padBottom: defPadBottom,
+            padSides: defPadSides,
             categoryTitle: "",
             categoryBannerColor: "transparent",
             bgUrl: "",
@@ -2012,15 +2046,29 @@ document.addEventListener("DOMContentLoaded", () => {
   // Add Sheet
   if (btnAddSheet) {
     btnAddSheet.addEventListener("click", () => {
+      let defaultPreset = null;
+      try {
+        const rawPreset = localStorage.getItem("horeca_volantino_preset");
+        if (rawPreset) defaultPreset = JSON.parse(rawPreset);
+      } catch(e) {}
+      const defCellW = (defaultPreset && defaultPreset.cellWidth) ? parseInt(defaultPreset.cellWidth) : 380;
+      const defCellH = (defaultPreset && defaultPreset.cellHeight) ? parseInt(defaultPreset.cellHeight) : 500;
+      const defGap = (defaultPreset && defaultPreset.gap) ? parseInt(defaultPreset.gap) : 12;
+      const defLarg = (defaultPreset && defaultPreset.larghezza) ? defaultPreset.larghezza : "800";
+      const defAlt = (defaultPreset && defaultPreset.altezza) ? defaultPreset.altezza : "1100";
+      const defBg = (defaultPreset && defaultPreset.bgImg) ? defaultPreset.bgImg : "";
+
       sheets.push({
         cols: currentGrid.cols,
         rows: currentGrid.rows,
-        gap: 12,
-        cellWidth: 380,
-        cellHeight: 500,
+        gap: defGap,
+        cellWidth: defCellW,
+        cellHeight: defCellH,
+        larghezza: defLarg,
+        altezza: defAlt,
         categoryTitle: `NUOVA SEZIONE ${sheets.length + 1}`,
         categoryBannerColor: "#0f172a",
-        bgUrl: "",
+        bgUrl: defBg,
         products: []
       });
       renderWorkbench();
@@ -2031,18 +2079,32 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnAddAllUnassigned) {
     btnAddAllUnassigned.addEventListener("click", () => {
       if (unassignedProducts.length === 0) return;
+      let defaultPreset = null;
+      try {
+        const rawPreset = localStorage.getItem("horeca_volantino_preset");
+        if (rawPreset) defaultPreset = JSON.parse(rawPreset);
+      } catch(e) {}
+      const defCellW = (defaultPreset && defaultPreset.cellWidth) ? parseInt(defaultPreset.cellWidth) : 380;
+      const defCellH = (defaultPreset && defaultPreset.cellHeight) ? parseInt(defaultPreset.cellHeight) : 500;
+      const defGap = (defaultPreset && defaultPreset.gap) ? parseInt(defaultPreset.gap) : 12;
+      const defLarg = (defaultPreset && defaultPreset.larghezza) ? defaultPreset.larghezza : "800";
+      const defAlt = (defaultPreset && defaultPreset.altezza) ? defaultPreset.altezza : "1100";
+      const defBg = (defaultPreset && defaultPreset.bgImg) ? defaultPreset.bgImg : "";
+
       const maxPerSheet = currentGrid.cols * currentGrid.rows;
       while (unassignedProducts.length > 0) {
         const chunk = unassignedProducts.splice(0, maxPerSheet);
         sheets.push({
           cols: currentGrid.cols,
           rows: currentGrid.rows,
-          gap: 12,
-          cellWidth: 380,
-          cellHeight: 500,
+          gap: defGap,
+          cellWidth: defCellW,
+          cellHeight: defCellH,
+          larghezza: defLarg,
+          altezza: defAlt,
           categoryTitle: "ALTRE OFFERTE",
           categoryBannerColor: "#d97706",
-          bgUrl: "",
+          bgUrl: defBg,
           products: chunk
         });
       }
