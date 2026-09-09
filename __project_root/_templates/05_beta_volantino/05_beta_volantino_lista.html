@@ -1595,76 +1595,85 @@ document.addEventListener("DOMContentLoaded", () => {
     sheets = [];
     unassignedProducts = [];
 
-    // Categorized grouping by default if categories found
-    const byCategory = {};
-    products.forEach(p => {
-      const cat = (p.categoria || "OFFERTE").toUpperCase();
-      if (!byCategory[cat]) byCategory[cat] = [];
-      byCategory[cat].push(p);
-    });
+    const isPromoMensile = (selectTipoVolantino && selectTipoVolantino.value === "promo_mensile");
 
-    const catKeys = Object.keys(byCategory);
-
-    if (catKeys.length > 1) {
-      // Create sheets grouped by category
-      catKeys.forEach(cat => {
-        const catProds = byCategory[cat];
-        for (let i = 0; i < catProds.length; i += maxPerSheet) {
-          const chunk = catProds.slice(i, i + maxPerSheet);
-          
-          let bannerColor = "#0f172a";
-          let bgUrl = "";
-          let bannerTitle = cat;
-          const catLower = cat.toLowerCase();
-
-          // Match with savedCategoryRules
-          const rule = savedCategoryRules.find(r => r.keyword && (catLower.includes(r.keyword.toLowerCase()) || r.keyword.toLowerCase() === catLower));
-          if (rule) {
-            if (rule.sfondo_url) bgUrl = rule.sfondo_url;
-            if (rule.colore) bannerColor = rule.colore;
-            if (rule.titolo) bannerTitle = rule.titolo;
-          }
-
-          sheets.push({
-            cols: currentGrid.cols,
-            rows: currentGrid.rows,
-            gap: 12,
-            cellWidth: 380,
-            cellHeight: 500,
-            categoryTitle: bannerTitle,
-            categoryBannerColor: bannerColor,
-            bgUrl: bgUrl,
-            headerImg: defaultHeaderLogo || "",
-            products: chunk
-          });
-        }
-      });
-    } else {
-      // Chunk evenly
+    if (isPromoMensile) {
+      // In Promo Mensili: NON dividere in categorie, nessun banner categoria, nessun logo
       for (let i = 0; i < products.length; i += maxPerSheet) {
-        let defBg = "";
-        let defColor = "#4f46e5";
-        let defTitle = `OFFERTE DEL MESE - PARTE ${i + 1}`;
-
-        const defRule = savedCategoryRules.find(r => r.keyword === "default");
-        if (defRule) {
-          if (defRule.sfondo_url) defBg = defRule.sfondo_url;
-          if (defRule.colore) defColor = defRule.colore;
-          if (defRule.titolo) defTitle = `${defRule.titolo} - PARTE ${i + 1}`;
-        }
-
         sheets.push({
           cols: currentGrid.cols,
           rows: currentGrid.rows,
           gap: 12,
           cellWidth: 380,
           cellHeight: 500,
-          categoryTitle: defTitle,
-          categoryBannerColor: defColor,
-          bgUrl: defBg,
-          headerImg: defaultHeaderLogo || "",
+          categoryTitle: "",
+          categoryBannerColor: "transparent",
+          bgUrl: "",
+          headerImg: "",
           products: products.slice(i, i + maxPerSheet)
         });
+      }
+    } else {
+      // Categorized grouping se non è promo mensile
+      const byCategory = {};
+      products.forEach(p => {
+        const cat = (p.categoria || "OFFERTE").toUpperCase();
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(p);
+      });
+
+      const catKeys = Object.keys(byCategory);
+
+      if (catKeys.length > 1) {
+        // Create sheets grouped by category
+        catKeys.forEach(cat => {
+          const catProds = byCategory[cat];
+          for (let i = 0; i < catProds.length; i += maxPerSheet) {
+            const chunk = catProds.slice(i, i + maxPerSheet);
+            
+            let bannerColor = "#0f172a";
+            let bgUrl = "";
+            let bannerTitle = cat;
+            const catLower = cat.toLowerCase();
+
+            // Match with savedCategoryRules
+            const rule = savedCategoryRules.find(r => r.keyword && (catLower.includes(r.keyword.toLowerCase()) || r.keyword.toLowerCase() === catLower));
+            if (rule) {
+              if (rule.sfondo_url) bgUrl = rule.sfondo_url;
+              if (rule.colore) bannerColor = rule.colore;
+              if (rule.titolo) bannerTitle = rule.titolo;
+            }
+
+            sheets.push({
+              cols: currentGrid.cols,
+              rows: currentGrid.rows,
+              gap: 12,
+              cellWidth: 380,
+              cellHeight: 500,
+              categoryTitle: bannerTitle,
+              categoryBannerColor: bannerColor,
+              bgUrl: bgUrl,
+              headerImg: defaultHeaderLogo || "",
+              products: chunk
+            });
+          }
+        });
+      } else {
+        // Chunk evenly
+        for (let i = 0; i < products.length; i += maxPerSheet) {
+          sheets.push({
+            cols: currentGrid.cols,
+            rows: currentGrid.rows,
+            gap: 12,
+            cellWidth: 380,
+            cellHeight: 500,
+            categoryTitle: "",
+            categoryBannerColor: "transparent",
+            bgUrl: "",
+            headerImg: defaultHeaderLogo || "",
+            products: products.slice(i, i + maxPerSheet)
+          });
+        }
       }
     }
 

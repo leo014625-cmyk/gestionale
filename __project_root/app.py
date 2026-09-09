@@ -7169,152 +7169,106 @@ def api_importa_pdf_volantino():
                     INSERT INTO promozioni_pdf (prodotto_id, tipo, prezzo, data_caricamento, scadenza) VALUES %s
                 """, to_insert_promos)
 
-            # Costruzione Pagine Volantino
-            cfg = get_volantini_impostazioni_dict()
-            category_rules = cfg.get("category_rules", DEFAULT_CATEGORY_RULES)
-            default_logo = cfg.get("default_header_logo", "")
-
-            cat_groups = {}
-            for p in imported_products:
-                c_name = (p.get("categoria") or "OFFERTE").strip().upper()
-                if c_name not in cat_groups:
-                    cat_groups[c_name] = []
-                cat_groups[c_name].append(p)
-
+            # Per Promo Mensili: NON dividiamo in categorie, nessun banner categoria, nessun logo
+            chunk_size = 9
+            cols = 3
+            rows = 3
             doc_pages = []
-            for cat_name, p_list in cat_groups.items():
-                cat_lower = cat_name.lower()
-                cat_rule = None
-                for r in category_rules:
-                    kw = r.get("keyword", "").strip().lower()
-                    if kw and kw != "default" and kw in cat_lower:
-                        cat_rule = r
-                        break
-                if not cat_rule:
-                    for r in category_rules:
-                        if r.get("keyword", "").strip().lower() == "default":
-                            cat_rule = r
-                            break
-                if not cat_rule:
-                    cat_rule = {
-                        "sfondo_url": "",
-                        "colore": "#0f172a",
-                        "titolo": cat_name
-                    }
 
-                bg_url = cat_rule.get("sfondo_url", "")
-                cat_color = cat_rule.get("colore", "#0f172a")
-                cat_title = cat_rule.get("titolo") or cat_name
+            for i in range(0, len(imported_products), chunk_size):
+                chunk = imported_products[i:i + chunk_size]
+                page_dict = {
+                    "cols": cols,
+                    "rows": rows,
+                    "gap": 12,
+                    "cellWidth": "380",
+                    "cellHeight": "500",
+                    "larghezza": "800",
+                    "altezza": "1100",
+                    "padTop": "10",
+                    "padBottom": "10",
+                    "padSides": "10",
+                    "headerH": "0",
+                    "headerImg": "",
+                    "footerH": "0",
+                    "headerFit": "contain",
+                    "headerZoom": "1",
+                    "bgImg": "",
+                    "bgWidth": "100",
+                    "bgHeight": "100",
+                    "bgPosX": "50",
+                    "bgPosY": "50",
+                    "bgFit": "cover",
+                    "categoryTitle": "",
+                    "categoryBannerColor": "transparent",
+                    "cells": []
+                }
 
-                price_color = "#e11d48"
-                if "pesce" in cat_lower or "mare" in cat_lower:
-                    price_color = "#0284c7"
-                elif "orto" in cat_lower or "bio" in cat_lower:
-                    price_color = "#16a34a"
-                elif "gelo" in cat_lower or "surgelat" in cat_lower:
-                    price_color = "#06b6d4"
-                elif "scadenz" in cat_lower:
-                    price_color = "#d97706"
+                tot_cells = cols * rows
+                for c_idx in range(tot_cells):
+                    if c_idx < len(chunk):
+                        prod_item = chunk[c_idx]
+                        prezzo_val = str(prod_item.get("prezzo", "")).replace("€", "").strip()
+                        um_val = str(prod_item.get("um", "PZ")).strip().upper()
+                        full_price = f"€ {prezzo_val} / {um_val}" if um_val else f"€ {prezzo_val}"
+                        img_path = str(prod_item.get("immagine", ""))
 
-                chunk_size = 6 if len(p_list) <= 6 else 9
-                cols = 3 if chunk_size == 9 else 2
-                rows = 3
+                        cell_data = {
+                            "codice": str(prod_item.get("codice", "")),
+                            "titolo": str(prod_item.get("nome", "")),
+                            "nome": str(prod_item.get("nome", "")),
+                            "descrizione": "",
+                            "prezzo": full_price,
+                            "oldPrice": "",
+                            "priceStyle": "base",
+                            "priceSize": "26",
+                            "priceColor": "#e11d48",
+                            "priceBg": "#ffffff",
+                            "priceCurrency": "€",
+                            "priceWeight": "800",
+                            "layout": "modern-split",
+                            "textAlign": "start",
+                            "fontFamily": "inherit",
+                            "fontColor": "#0f172a",
+                            "titleSize": "14",
+                            "titleWeight": "700",
+                            "titleSpacing": "0",
+                            "titleHeight": "1.2",
+                            "codeSize": "9",
+                            "descSize": "10",
+                            "scadenza": str(prod_item.get("scadenza", "")),
+                            "scadenzaSize": "12",
+                            "descItalic": "0",
+                            "textUpper": "1",
+                            "borderStyle": "solid",
+                            "borderColor": "#cbd5e1",
+                            "radius": "10",
+                            "bgColor": "#ffffff",
+                            "bgTransparent": "0",
+                            "shadow": "1",
+                            "imageFilter": "none",
+                            "imageZoom": str(prod_item.get("imageZoom", "1.0")),
+                            "imagePosX": str(prod_item.get("imagePosX", "50")),
+                            "imagePosY": str(prod_item.get("imagePosY", "50")),
+                            "imageRadius": "8",
+                            "imagePadding": "4",
+                            "imageAspect": "contain",
+                            "imgOriginal": img_path,
+                            "imgNoBg": img_path,
+                            "useNoBg": "1",
+                            "showDesc": "0"
+                        }
+                    else:
+                        cell_data = {
+                            "codice": "",
+                            "nome": "",
+                            "prezzo": "",
+                            "imgOriginal": "",
+                            "bgTransparent": "1"
+                        }
+                    page_dict["cells"].append(cell_data)
 
-                for i in range(0, len(p_list), chunk_size):
-                    chunk = p_list[i:i + chunk_size]
-                    header_h = "90" if (default_logo or cat_title) else "70"
-
-                    page_dict = {
-                        "cols": cols,
-                        "rows": rows,
-                        "gap": 12,
-                        "cellWidth": "380",
-                        "cellHeight": "500",
-                        "larghezza": "800",
-                        "altezza": "1100",
-                        "padTop": "10",
-                        "padBottom": "10",
-                        "padSides": "10",
-                        "headerH": header_h,
-                        "headerImg": default_logo,
-                        "footerH": "0",
-                        "headerFit": "contain",
-                        "headerZoom": "1",
-                        "bgImg": bg_url,
-                        "bgWidth": "100",
-                        "bgHeight": "100",
-                        "bgPosX": "50",
-                        "bgPosY": "50",
-                        "categoryTitle": cat_title,
-                        "categoryBannerColor": cat_color,
-                        "cells": []
-                    }
-
-                    tot_cells = cols * rows
-                    for c_idx in range(tot_cells):
-                        if c_idx < len(chunk):
-                            prod_item = chunk[c_idx]
-                            prezzo_val = str(prod_item.get("prezzo", "")).replace("€", "").strip()
-                            um_val = str(prod_item.get("um", "PZ")).strip().upper()
-                            full_price = f"€ {prezzo_val} / {um_val}" if um_val else f"€ {prezzo_val}"
-                            img_path = str(prod_item.get("immagine", ""))
-
-                            cell_data = {
-                                "codice": str(prod_item.get("codice", "")),
-                                "titolo": str(prod_item.get("nome", "")),
-                                "nome": str(prod_item.get("nome", "")),
-                                "descrizione": "",
-                                "prezzo": full_price,
-                                "oldPrice": "",
-                                "priceStyle": "base",
-                                "priceSize": "26",
-                                "priceColor": price_color,
-                                "priceBg": "#ffffff",
-                                "priceCurrency": "€",
-                                "priceWeight": "800",
-                                "layout": "modern-split",
-                                "textAlign": "start",
-                                "fontFamily": "inherit",
-                                "fontColor": "#0f172a",
-                                "titleSize": "14",
-                                "titleWeight": "700",
-                                "titleSpacing": "0",
-                                "titleHeight": "1.2",
-                                "codeSize": "9",
-                                "descSize": "10",
-                                "scadenza": str(prod_item.get("scadenza", "")),
-                                "scadenzaSize": "12",
-                                "descItalic": "0",
-                                "textUpper": "1",
-                                "borderStyle": "solid",
-                                "borderColor": "#cbd5e1",
-                                "radius": "8",
-                                "bgColor": "#ffffff",
-                                "bgTransparent": "0",
-                                "shadow": "1",
-                                "imageFilter": "none",
-                                "imageZoom": str(prod_item.get("imageZoom", "1.0")),
-                                "imagePosX": str(prod_item.get("imagePosX", "50")),
-                                "imagePosY": str(prod_item.get("imagePosY", "50")),
-                                "imageRadius": "6",
-                                "imagePadding": "4",
-                                "imageAspect": "contain",
-                                "imgOriginal": img_path,
-                                "imgNoBg": img_path,
-                                "useNoBg": "1",
-                                "showDesc": "0"
-                            }
-                        else:
-                            cell_data = {
-                                "codice": "",
-                                "nome": "",
-                                "prezzo": "",
-                                "imgOriginal": "",
-                                "bgTransparent": "1"
-                            }
-                        page_dict["cells"].append(cell_data)
-
-                    doc_pages.append(page_dict)
+                doc_pages.append(page_dict)
 
             if doc_pages:
                 vol_title = f"Promo Mensile {scadenza}" if (scadenza) else f"Promo Mensile {datetime.now().strftime('%m/%Y')}"
@@ -7403,9 +7357,16 @@ def api_crea_volantino_wizard():
             bg_url = s.get("bgUrl", "")
             cat_title = s.get("categoryTitle", "").strip()
             cat_color = s.get("categoryBannerColor", "#0f172a")
-            header_img = s.get("headerImg", "") or default_logo
+            header_img = s.get("headerImg", "")
+            if tipo != "promo_mensile" and not header_img:
+                header_img = default_logo
             
-            header_h = "90" if (header_img or cat_title) else "70"
+            if tipo == "promo_mensile":
+                header_img = ""
+                header_h = "0"
+                cat_title = ""
+            else:
+                header_h = "90" if (header_img or cat_title) else "70"
             
             page_dict = {
                 "cols": cols,
@@ -7428,6 +7389,7 @@ def api_crea_volantino_wizard():
                 "bgHeight": "100",
                 "bgPosX": "50",
                 "bgPosY": "50",
+                "bgFit": "cover",
                 "categoryTitle": cat_title,
                 "categoryBannerColor": cat_color,
                 "cells": []

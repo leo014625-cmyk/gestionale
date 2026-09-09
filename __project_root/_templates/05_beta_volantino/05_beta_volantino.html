@@ -247,6 +247,22 @@
                 <button class="btn btn-outline-danger btn-sm" id="foglio-bg-rimuovi" title="Rimuovi sfondo"><i class="bi bi-trash"></i></button>
               </div>
 
+              <!-- Quick Fit & Multi-sheet buttons -->
+              <div class="d-flex gap-1 mb-2">
+                <button class="btn btn-outline-secondary btn-sm flex-grow-1" id="foglio-bg-fit-cover-btn" title="Adatta lo sfondo al 100% del foglio">
+                  <i class="bi bi-aspect-ratio me-1"></i>Adatta (100% Cover)
+                </button>
+                <button class="btn btn-outline-primary btn-sm flex-grow-1" id="foglio-bg-applica-tutti-btn" title="Copia questo sfondo su tutti i fogli">
+                  <i class="bi bi-images me-1"></i>Sfondo su Tutti
+                </button>
+              </div>
+
+              <div class="mb-2">
+                <button class="btn btn-sm btn-light border text-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-1" id="foglio-bg-ottimizza-card-btn" style="background: #f8fafc;" title="Rende le card bianche con ombreggiatura per massima leggibilità su qualsiasi sfondo">
+                  <i class="bi bi-stars text-warning"></i> Ottimizza Card per Sfondo
+                </button>
+              </div>
+
               <div class="mb-2">
                 <label class="form-label small text-muted fw-semibold d-flex justify-content-between mb-1">
                   <span>Larghezza Sfondo (%)</span>
@@ -1207,7 +1223,15 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const w = page.dataset.bgWidth || "100";
       const h = page.dataset.bgHeight || "100";
-      page.style.backgroundSize = `${w}% ${h}%`;
+      const fit = page.dataset.bgFit || "cover";
+
+      if (fit === "cover" || (w === "100" && h === "100")) {
+        page.style.backgroundSize = "cover";
+      } else if (fit === "contain") {
+        page.style.backgroundSize = "contain";
+      } else {
+        page.style.backgroundSize = `${w}% ${h}%`;
+      }
       
       const x = page.dataset.bgPosX !== undefined ? page.dataset.bgPosX : "50";
       const y = page.dataset.bgPosY !== undefined ? page.dataset.bgPosY : "50";
@@ -1241,8 +1265,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const page = pagine[paginaCorrente];
         if (page) {
           page.dataset.bgImg = reader.result;
+          page.dataset.bgWidth = "100";
+          page.dataset.bgHeight = "100";
+          page.dataset.bgFit = "cover";
+          page.dataset.bgPosX = "50";
+          page.dataset.bgPosY = "50";
           applicaSfondoFoglio(page);
           aggiornaIspettoreSfondoControlli(page);
+          showToast("Sfondo caricato e adattato al volantino (100% Cover)!");
         }
       };
       reader.readAsDataURL(file);
@@ -1254,9 +1284,76 @@ document.addEventListener("DOMContentLoaded", () => {
       const page = pagine[paginaCorrente];
       if (page) {
         page.dataset.bgImg = "";
+        page.dataset.bgFit = "";
         applicaSfondoFoglio(page);
         aggiornaIspettoreSfondoControlli(page);
+        showToast("Sfondo rimosso dal foglio!");
       }
+    });
+  }
+
+  // Helper buttons per sfondo e contrasto card
+  const btnBgFitCover = document.getElementById("foglio-bg-fit-cover-btn");
+  if (btnBgFitCover) {
+    btnBgFitCover.addEventListener("click", () => {
+      const page = pagine[paginaCorrente];
+      if (page) {
+        page.dataset.bgWidth = "100";
+        page.dataset.bgHeight = "100";
+        page.dataset.bgFit = "cover";
+        page.dataset.bgPosX = "50";
+        page.dataset.bgPosY = "50";
+        applicaSfondoFoglio(page);
+        aggiornaIspettoreSfondoControlli(page);
+        showToast("Sfondo adattato al 100% del foglio!");
+      }
+    });
+  }
+
+  const btnBgApplicaTutti = document.getElementById("foglio-bg-applica-tutti-btn");
+  if (btnBgApplicaTutti) {
+    btnBgApplicaTutti.addEventListener("click", () => {
+      const srcPage = pagine[paginaCorrente];
+      if (!srcPage) return;
+      const srcBg = srcPage.dataset.bgImg || "";
+      const srcW = srcPage.dataset.bgWidth || "100";
+      const srcH = srcPage.dataset.bgHeight || "100";
+      const srcX = srcPage.dataset.bgPosX || "50";
+      const srcY = srcPage.dataset.bgPosY || "50";
+      const srcFit = srcPage.dataset.bgFit || "cover";
+
+      pagine.forEach(page => {
+        page.dataset.bgImg = srcBg;
+        page.dataset.bgWidth = srcW;
+        page.dataset.bgHeight = srcH;
+        page.dataset.bgPosX = srcX;
+        page.dataset.bgPosY = srcY;
+        page.dataset.bgFit = srcFit;
+        applicaSfondoFoglio(page);
+      });
+      showToast("Sfondo applicato a tutti i " + pagine.length + " fogli!");
+    });
+  }
+
+  const btnOttimizzaCardSfondo = document.getElementById("foglio-bg-ottimizza-card-btn");
+  if (btnOttimizzaCardSfondo) {
+    btnOttimizzaCardSfondo.addEventListener("click", () => {
+      pagine.forEach(page => {
+        page.querySelectorAll(".cella-prodotto").forEach(cell => {
+          if (cell.dataset.titolo || cell.dataset.nome || cell.dataset.prezzo) {
+            cell.dataset.bgColor = "#ffffff";
+            cell.dataset.bgTransparent = "0";
+            cell.dataset.shadow = "1";
+            cell.dataset.radius = "10";
+            cell.dataset.borderColor = "#e2e8f0";
+            cell.dataset.borderStyle = "solid";
+            cell.dataset.fontColor = "#0f172a";
+            cell.dataset.priceColor = "#e11d48";
+            applicaCellaRendering(cell);
+          }
+        });
+      });
+      showToast("Card ottimizzate con sfondo bianco ad alto contrasto per risaltare su qualsiasi sfondo!");
     });
   }
 
@@ -1548,12 +1645,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const header = pageEl.querySelector(".page-header");
     
     if (header) {
-      const baseH = parseInt(headerH, 10) || 80;
-      header.style.height = (baseH * z) + "px";
-      header.style.display = "flex";
-      header.style.alignItems = "center";
-      header.style.justifyContent = "center";
-      header.style.overflow = "hidden";
+      const baseH = parseInt(headerH, 10);
+      if (isNaN(baseH) || baseH <= 0) {
+        header.style.display = "none";
+        header.style.height = "0px";
+        header.style.margin = "0px";
+        header.style.padding = "0px";
+        header.style.border = "none";
+      } else {
+        header.style.display = "flex";
+        header.style.height = (baseH * z) + "px";
+        header.style.alignItems = "center";
+        header.style.justifyContent = "center";
+        header.style.overflow = "hidden";
+        header.style.margin = "";
+        header.style.padding = "";
+        header.style.border = "";
+      }
     }
 
     // Adattamento immagine del logo (contain vs cover)
@@ -3171,7 +3279,7 @@ document.addEventListener("DOMContentLoaded", () => {
           padTop: pData.padTop || "10",
           padBottom: pData.padBottom || "10",
           padSides: pData.padSides || "10",
-          headerH: pData.headerH || "80",
+          headerH: pData.headerH !== undefined ? String(pData.headerH) : "80",
           footerH: pData.footerH || "80",
           headerFit: pData.headerFit || "contain",
           headerZoom: pData.headerZoom || "1",
@@ -3180,14 +3288,17 @@ document.addEventListener("DOMContentLoaded", () => {
           bgHeight: pData.bgHeight || "100",
           bgPosX: pData.bgPosX !== undefined ? pData.bgPosX : "50",
           bgPosY: pData.bgPosY !== undefined ? pData.bgPosY : "50",
+          bgFit: pData.bgFit || "cover",
           cellWidth: pData.cellWidth || "380",
           cellHeight: pData.cellHeight || "500",
           categoryTitle: pData.categoryTitle || "",
           categoryBannerColor: pData.categoryBannerColor || "#0f172a"
         });
 
+        const isHeaderHidden = parseInt(pData.headerH, 10) <= 0;
+
         page.innerHTML = `
-          <div class="page-header border border-dashed rounded-3 mb-2 bg-light bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="cursor: pointer; overflow: hidden; height: ${page.dataset.headerH}px;">
+          <div class="page-header border border-dashed rounded-3 mb-2 bg-light bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="cursor: pointer; overflow: hidden; height: ${page.dataset.headerH}px; ${isHeaderHidden ? 'display: none !important;' : ''}">
             <div class="text-center small"><i class="bi bi-image fs-5 d-block mb-1"></i>Clicca per caricare il LOGO in alto</div>
           </div>
           <div class="page-grid"></div>
