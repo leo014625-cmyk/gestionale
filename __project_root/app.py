@@ -2799,18 +2799,27 @@ def carica_promo_scadenze():
     return redirect(redirect_url)
 
 
-def get_preset_default_dict():
+def get_preset_default_dict(tipo="promo_mensile"):
     """Recupera il preset salvato come default dal database o da file locale."""
     preset = {}
-    try:
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT valore FROM volantini_impostazioni WHERE chiave = 'preset_default'")
-            row = cur.fetchone()
-            if row and row['valore']:
-                preset = json.loads(row['valore'])
-    except Exception as e:
-        print(f"Errore lettura preset default da DB: {e}", flush=True)
+    keys = []
+    if tipo:
+        keys.append(f"preset_{tipo}")
+    keys.append('preset_promo_mensile')
+    keys.append('preset_default')
+
+    for k in keys:
+        try:
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT valore FROM volantini_impostazioni WHERE chiave = %s", (k,))
+                row = cur.fetchone()
+                if row and row['valore']:
+                    preset = json.loads(row['valore'])
+                    if preset:
+                        return preset
+        except Exception as e:
+            print(f"Errore lettura preset default ({k}) da DB: {e}", flush=True)
 
     if not preset:
         preset_path = os.path.join(app.root_path, 'preset_default.json')
@@ -2829,17 +2838,20 @@ def api_salva_preset_default():
     try:
         preset_data = request.json or {}
         preset_str = json.dumps(preset_data, ensure_ascii=False)
+        tipo = preset_data.get("tipo") or "promo_mensile"
         
         # 1. Salva nel database (persistente su Render)
         try:
             with get_db() as conn:
                 cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
-                    VALUES ('preset_default', %s, CURRENT_TIMESTAMP)
-                    ON CONFLICT (chiave) 
-                    DO UPDATE SET valore = EXCLUDED.valore, aggiornato_il = CURRENT_TIMESTAMP
-                """, (preset_str,))
+                keys = ['preset_default', f'preset_{tipo}', 'preset_promo_mensile']
+                for k in set(keys):
+                    cur.execute("""
+                        INSERT INTO volantini_impostazioni (chiave, valore, aggiornato_il)
+                        VALUES (%s, %s, CURRENT_TIMESTAMP)
+                        ON CONFLICT (chiave) 
+                        DO UPDATE SET valore = EXCLUDED.valore, aggiornato_il = CURRENT_TIMESTAMP
+                    """, (k, preset_str))
                 conn.commit()
         except Exception as db_e:
             print(f"Errore salvataggio preset in DB: {db_e}", flush=True)
@@ -2852,7 +2864,7 @@ def api_salva_preset_default():
         except Exception:
             pass
             
-        return jsonify({"status": "ok", "message": "Parametri completi, dimensioni e stili salvati come Default!"})
+        return jsonify({"status": "ok", "message": "Coordinate, dimensioni foglio/celle e stili salvati come Default!"})
     except Exception as e:
         print("Errore nel salvataggio del preset di default:", e, flush=True)
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -7343,28 +7355,46 @@ def api_importa_pdf_volantino():
                 layout_str = json.dumps(doc_pages, ensure_ascii=False)
                 
                 try:
-                    nuovo_v = VolantinoBeta(
-                        nome=vol_title,
-                        layout_json=layout_str,
-                        tipo="promo_mensile"
-                    )
-                    db.session.add(nuovo_v)
-                    db.session.commit()
-                    volantino_id = nuovo_v.id
+                    esistente = VolantinoBeta.query.filter_by(tipo="promo_mensile").order_by(VolantinoBeta.id.desc()).first()
+                    if not esistente:
+                        esistente = VolantinoBeta.query.filter(VolantinoBeta.nome.ilike("%Promo Mensile%")).order_by(VolantinoBeta.id.desc()).first()
+
+                    if esistente:
+                        esistente.nome = vol_title
+                        esistente.layout_json = layout_str
+                        esistente.tipo = "promo_mensile"
+                        esistente.aggiornato_il = datetime.utcnow()
+                        db.session.commit()
+                        volantino_id = esistente.id
+                    else:
+                        nuovo_v = VolantinoBeta(
+                            nome=vol_title,
+                            layout_json=layout_str,
+                            tipo="promo_mensile"
+                        )
+                        db.session.add(nuovo_v)
+                        db.session.commit()
+                        volantino_id = nuovo_v.id
                 except Exception as sa_err:
                     print(f"--- [PDF IMPORT] Errore salvataggio SQLAlchemy: {sa_err}, fallback raw SQL ---", flush=True)
                     db.session.rollback()
-                    cur.execute("""
-                        INSERT INTO volantino_beta (nome, layout_json, tipo, creato_il)
-                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-                        RETURNING id
-                    """, (vol_title, layout_str, "promo_mensile"))
                     try:
-                        row_v = cur.fetchone()
-                        if row_v:
-                            volantino_id = row_v['id'] if isinstance(row_v, dict) else row_v[0]
-                    except Exception:
-                        volantino_id = cur.lastrowid
+                        cur.execute("SELECT id FROM volantino_beta WHERE tipo = 'promo_mensile' ORDER BY id DESC LIMIT 1")
+                        row_exist = cur.fetchone()
+                        if row_exist and row_exist.get('id'):
+                            volantino_id = row_exist['id']
+                            cur.execute("UPDATE volantino_beta SET nome = %s, layout_json = %s, aggiornato_il = CURRENT_TIMESTAMP WHERE id = %s", (vol_title, layout_str, volantino_id))
+                        else:
+                            cur.execute("""
+                                INSERT INTO volantino_beta (nome, layout_json, tipo, creato_il)
+                                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                                RETURNING id
+                            """, (vol_title, layout_str, "promo_mensile"))
+                            row_v = cur.fetchone()
+                            volantino_id = row_v['id'] if row_v else 1
+                    except Exception as raw_e:
+                        print(f"Errore fallback SQL: {raw_e}", flush=True)
+                        volantino_id = 1
                 
                 if volantino_id:
                     redirect_url = f"/beta-volantino/{volantino_id}"
@@ -7545,18 +7575,35 @@ def api_crea_volantino_wizard():
                 
             doc_pages.append(page_dict)
             
-        nuovo = VolantinoBeta(
-            nome=titolo,
-            layout_json=json.dumps(doc_pages, ensure_ascii=False),
-            tipo=tipo
-        )
-        db.session.add(nuovo)
-        db.session.commit()
+        volantino_target = None
+        if tipo == "promo_mensile":
+            volantino_target = VolantinoBeta.query.filter_by(tipo="promo_mensile").order_by(VolantinoBeta.id.desc()).first()
+            if not volantino_target:
+                volantino_target = VolantinoBeta.query.filter(VolantinoBeta.nome.ilike("%Promo Mensile%")).order_by(VolantinoBeta.id.desc()).first()
+        elif titolo:
+            volantino_target = VolantinoBeta.query.filter_by(nome=titolo).order_by(VolantinoBeta.id.desc()).first()
+
+        if volantino_target:
+            volantino_target.nome = titolo
+            volantino_target.layout_json = json.dumps(doc_pages, ensure_ascii=False)
+            volantino_target.tipo = tipo
+            volantino_target.aggiornato_il = datetime.utcnow()
+            db.session.commit()
+            target_id = volantino_target.id
+        else:
+            nuovo = VolantinoBeta(
+                nome=titolo,
+                layout_json=json.dumps(doc_pages, ensure_ascii=False),
+                tipo=tipo
+            )
+            db.session.add(nuovo)
+            db.session.commit()
+            target_id = nuovo.id
         
         return jsonify({
             "success": True,
-            "id": nuovo.id,
-            "url": url_for("beta_volantino_modifica", id=nuovo.id)
+            "id": target_id,
+            "url": url_for("beta_volantino_modifica", id=target_id)
         })
     except Exception as e:
         db.session.rollback()
@@ -7586,11 +7633,22 @@ def salva_volantino_beta():
             
         layout_json = json.dumps(layout)
         
+        vol = None
         if vol_id:
-            # Aggiorna esistente
-            vol = VolantinoBeta.query.get(int(vol_id))
-            if not vol:
-                return jsonify({"ok": False, "message": f"Volantino #{vol_id} non trovato."}), 404
+            try:
+                vol = VolantinoBeta.query.get(int(vol_id))
+            except Exception:
+                vol = None
+
+        if not vol:
+            if tipo == "promo_mensile":
+                vol = VolantinoBeta.query.filter_by(tipo="promo_mensile").order_by(VolantinoBeta.id.desc()).first()
+                if not vol:
+                    vol = VolantinoBeta.query.filter(VolantinoBeta.nome.ilike("%Promo Mensile%")).order_by(VolantinoBeta.id.desc()).first()
+            elif nome:
+                vol = VolantinoBeta.query.filter_by(nome=nome).order_by(VolantinoBeta.id.desc()).first()
+
+        if vol:
             vol.nome = nome
             vol.layout_json = layout_json
             vol.tipo = tipo
@@ -7598,7 +7656,6 @@ def salva_volantino_beta():
                 vol.thumbnail = thumbnail
             vol.aggiornato_il = datetime.utcnow()
         else:
-            # Nuovo volantino
             vol = VolantinoBeta(
                 nome=nome,
                 layout_json=layout_json,

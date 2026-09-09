@@ -1230,10 +1230,12 @@ document.addEventListener("DOMContentLoaded", () => {
       gridX: curPage?.dataset.gridX || (controlGridX ? controlGridX.value : "40"),
       gridY: curPage?.dataset.gridY || (controlGridY ? controlGridY.value : "100"),
       gridWidth: curPage?.dataset.gridWidth || (controlGridW ? controlGridW.value : ""),
-      gridHeight: curPage?.dataset.gridHeight || (controlGridH ? controlGridH.value : "")
+      gridHeight: curPage?.dataset.gridHeight || (controlGridH ? controlGridH.value : ""),
+      tipo: selectTipo ? selectTipo.value : "promo_mensile"
     };
 
     localStorage.setItem("horeca_volantino_preset", JSON.stringify(preset));
+    localStorage.setItem("horeca_preset_promo_mensile", JSON.stringify(preset));
 
     fetch("/api/salva_preset_default", {
       method: "POST",
@@ -1243,7 +1245,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(r => r.json())
     .then(data => {
       if (data.status === "ok") {
-        showToast("Dimensioni foglio, griglia prodotti, celle, stili e sfondo salvati come Default per i prossimi volantini!");
+        showToast("Coordinate, dimensioni e stili salvati come Default per i prossimi volantini!");
       } else {
         showToast("Salvato localmente. Errore server: " + data.message);
       }
@@ -1327,48 +1329,56 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     pagine.forEach(page => {
+      if (preset.larghezza) page.dataset.larghezza = preset.larghezza;
+      if (preset.altezza) page.dataset.altezza = preset.altezza;
+      if (preset.padTop) page.dataset.padTop = preset.padTop;
+      if (preset.padBottom) page.dataset.padBottom = preset.padBottom;
+      if (preset.padSides) page.dataset.padSides = preset.padSides;
+      if (preset.headerH !== undefined) page.dataset.headerH = preset.headerH;
+      if (preset.footerH !== undefined) page.dataset.footerH = preset.footerH;
+      if (preset.cols) page.dataset.cols = preset.cols;
+      if (preset.rows) page.dataset.rows = preset.rows;
+      if (preset.gap) page.dataset.gap = preset.gap;
+      if (preset.cellWidth) page.dataset.cellWidth = preset.cellWidth;
+      if (preset.cellHeight) page.dataset.cellHeight = preset.cellHeight;
       if (preset.gridX !== undefined) page.dataset.gridX = preset.gridX;
       if (preset.gridY !== undefined) page.dataset.gridY = preset.gridY;
       if (preset.gridWidth !== undefined) page.dataset.gridWidth = preset.gridWidth;
       if (preset.gridHeight !== undefined) page.dataset.gridHeight = preset.gridHeight;
-    });
 
-    applicaDimensioniFoglio(pagine[paginaCorrente]);
-
-    if (preset.headerImg) {
-      pagine.forEach(page => {
-        const header = page.querySelector(".page-header");
-        if (header) {
-          header.innerHTML = `<img src="${preset.headerImg}">`;
-        }
-      });
-    }
-
-    if (preset.bgImg !== undefined) {
-      pagine.forEach(page => {
+      if (preset.bgImg !== undefined) {
         Object.assign(page.dataset, {
           bgImg: preset.bgImg,
           bgWidth: preset.bgWidth || "100",
           bgHeight: preset.bgHeight || "100",
           bgPosX: preset.bgPosX !== undefined ? preset.bgPosX : "0",
           bgPosY: preset.bgPosY !== undefined ? preset.bgPosY : "0",
-          bgFit: preset.bgFit || "originale",
-          cellWidth: preset.cellWidth || "380",
-          cellHeight: preset.cellHeight || "500"
+          bgFit: preset.bgFit || "originale"
         });
-        applicaSfondoFoglio(page);
-        applicaStrutturaGriglia(page, parseInt(page.dataset.cols || "3", 10), parseInt(page.dataset.rows || "3", 10), parseInt(page.dataset.gap || "10", 10));
-      });
-      aggiornaIspettoreSfondoControlli(pagine[paginaCorrente]);
-    }
+      }
 
-    if (preset.cellStyles) {
-      pagine.forEach(page => {
+      applicaDimensioniFoglio(page);
+      applicaSfondoFoglio(page);
+      applicaStrutturaGriglia(page, parseInt(page.dataset.cols || "3", 10), parseInt(page.dataset.rows || "3", 10), parseInt(page.dataset.gap || "10", 10));
+
+      if (preset.headerImg) {
+        const header = page.querySelector(".page-header");
+        if (header) {
+          header.innerHTML = `<img src="${preset.headerImg}">`;
+        }
+      }
+
+      if (preset.cellStyles) {
         page.querySelectorAll(".cella-prodotto").forEach(cell => {
           Object.assign(cell.dataset, preset.cellStyles);
           applicaCellaRendering(cell);
         });
-      });
+      }
+    });
+
+    if (pagine[paginaCorrente]) {
+      aggiornaIspettoreSfondoControlli(pagine[paginaCorrente]);
+      sincronizzaControlliGrigliaDaDataset(pagine[paginaCorrente]);
     }
   }
 
@@ -3903,13 +3913,18 @@ document.addEventListener("DOMContentLoaded", () => {
         id: volantinoID || null,
         nome: inputNome.value || "Volantino Pro",
         layout: data,
-        tipo: selectTipo ? selectTipo.value : "volantino"
+        tipo: selectTipo ? selectTipo.value : "promo_mensile"
       })
     })
     .then(r => r.json())
     .then(d => {
       showToast("Progetto Volantino salvato correttamente!");
-      if (d.id) volantinoID = d.id;
+      if (d.id) {
+        volantinoID = d.id;
+        try {
+          window.history.replaceState({}, '', '/beta-volantino/' + d.id);
+        } catch(e) {}
+      }
     })
     .catch(err => {
       console.error("Errore salvataggio:", err);
@@ -4244,8 +4259,12 @@ document.addEventListener("DOMContentLoaded", () => {
       
       document.body.removeChild(clone);
       
-      // Renderizza a grandezza naturale 100% in formato PNG lossless ad altissima definizione (scale: 3)
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+      // Renderizza con zoom ridotto del 20% (scala 0.8) centrato sul foglio PDF per lasciare margini puliti
+      const printW = w * 0.8;
+      const printH = h * 0.8;
+      const offX = (w - printW) / 2;
+      const offY = (h - printH) / 2;
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", offX, offY, printW, printH);
     }
 
     paginaCorrente = originalPage;
@@ -4378,8 +4397,21 @@ document.addEventListener("DOMContentLoaded", () => {
       
       document.body.removeChild(clone);
       
+      // Riduzione zoom del 20% (scala 0.8) centrata nell'immagine PNG per lasciare margini puliti
+      const outCanvas = document.createElement("canvas");
+      outCanvas.width = canvas.width;
+      outCanvas.height = canvas.height;
+      const ctx = outCanvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+      const scaledW = canvas.width * 0.8;
+      const scaledH = canvas.height * 0.8;
+      const offX = (canvas.width - scaledW) / 2;
+      const offY = (canvas.height - scaledH) / 2;
+      ctx.drawImage(canvas, offX, offY, scaledW, scaledH);
+
       const a = document.createElement("a");
-      a.href = canvas.toDataURL("image/png");
+      a.href = outCanvas.toDataURL("image/png");
       a.download = (inputNome.value.trim() || "volantino") + "_foglio" + (i + 1) + ".png";
       a.click();
       
@@ -4402,14 +4434,62 @@ document.addEventListener("DOMContentLoaded", () => {
     // Rimuoviamo tutte le pagine esistenti
     pagine = [];
     paginaCorrente = 0;
+
+    // Carica il preset di default (promo mensile o standard) salvato
+    let preset = null;
+    try {
+      const raw = localStorage.getItem("horeca_preset_promo_mensile") || localStorage.getItem("horeca_volantino_preset");
+      if (raw) preset = JSON.parse(raw);
+    } catch(e) {}
+
+    const cols = (preset && preset.cols) ? parseInt(preset.cols, 10) : 3;
+    const rows = (preset && preset.rows) ? parseInt(preset.rows, 10) : 3;
+    const gap = (preset && preset.gap) ? parseInt(preset.gap, 10) : 12;
+    const larghezza = (preset && preset.larghezza) ? preset.larghezza : "800";
+    const altezza = (preset && preset.altezza) ? preset.altezza : "1100";
+    const padTop = (preset && preset.padTop) ? preset.padTop : "10";
+    const padBottom = (preset && preset.padBottom) ? preset.padBottom : "10";
+    const padSides = (preset && preset.padSides) ? preset.padSides : "10";
+    const cellWidth = (preset && preset.cellWidth) ? preset.cellWidth : "380";
+    const cellHeight = (preset && preset.cellHeight) ? preset.cellHeight : "500";
+    const gridX = (preset && preset.gridX !== undefined) ? preset.gridX : "40";
+    const gridY = (preset && preset.gridY !== undefined) ? preset.gridY : "100";
+    const gridWidth = (preset && preset.gridWidth) ? preset.gridWidth : "";
+    const gridHeight = (preset && preset.gridHeight) ? preset.gridHeight : "";
+    const bgImg = (preset && preset.bgImg) ? preset.bgImg : "";
+    const bgWidth = (preset && preset.bgWidth) ? preset.bgWidth : "100";
+    const bgHeight = (preset && preset.bgHeight) ? preset.bgHeight : "100";
+    const bgPosX = (preset && preset.bgPosX !== undefined) ? preset.bgPosX : "0";
+    const bgPosY = (preset && preset.bgPosY !== undefined) ? preset.bgPosY : "0";
+    const bgFit = (preset && preset.bgFit) ? preset.bgFit : "originale";
+    const cellStyles = (preset && preset.cellStyles) ? preset.cellStyles : null;
     
-    const maxItemsPerPage = 9; // Griglia 3x3 = max 9 prodotti per foglio
+    const maxItemsPerPage = cols * rows;
     
     for (let i = 0; i < products.length; i += maxItemsPerPage) {
       const chunk = products.slice(i, i + maxItemsPerPage);
       
-      // Crea un foglio vuoto 3x3 con spaziatura standard di 15px
-      const page = creaPaginaEditor(3, 3, 15);
+      const page = creaPaginaEditor(cols, rows, gap);
+      page.dataset.larghezza = larghezza;
+      page.dataset.altezza = altezza;
+      page.dataset.padTop = padTop;
+      page.dataset.padBottom = padBottom;
+      page.dataset.padSides = padSides;
+      page.dataset.headerH = "0";
+      page.dataset.footerH = "0";
+      page.dataset.cellWidth = cellWidth;
+      page.dataset.cellHeight = cellHeight;
+      page.dataset.gridX = gridX;
+      page.dataset.gridY = gridY;
+      page.dataset.gridWidth = gridWidth;
+      page.dataset.gridHeight = gridHeight;
+      page.dataset.bgImg = bgImg;
+      page.dataset.bgWidth = bgWidth;
+      page.dataset.bgHeight = bgHeight;
+      page.dataset.bgPosX = bgPosX;
+      page.dataset.bgPosY = bgPosY;
+      page.dataset.bgFit = bgFit;
+
       const grid = page.querySelector(".page-grid");
       grid.innerHTML = ""; // Rimuove le celle vuote di default
       
@@ -4435,7 +4515,7 @@ document.addEventListener("DOMContentLoaded", () => {
           descItalic: "0",
           textUpper: "1",
           priceStyle: "base",
-          layout: "modern-split", // Nome codice a sinistra in alto, Immagine al centro, Prezzo a destra in basso
+          layout: "modern-split",
           textAlign: "start",
           fontFamily: "inherit",
           fontColor: "#0f172a",
@@ -4457,8 +4537,13 @@ document.addEventListener("DOMContentLoaded", () => {
           imgOriginal: p.immagine || "",
           imgNoBg: p.immagine || "",
           useNoBg: "1",
-          showDesc: "0" // nascondi descrizione per default in modo che il layout sia pulito ed i prodotti si vedano meglio
+          showDesc: "0"
         });
+
+        // Sovrascrivi con gli stili cella del default salvato
+        if (cellStyles) {
+          Object.assign(cell.dataset, cellStyles);
+        }
         
         const prezzoConUm = `€ ${p.prezzo} / ${p.um}`;
         
@@ -4482,19 +4567,26 @@ document.addEventListener("DOMContentLoaded", () => {
         grid.appendChild(cell);
       });
       
-      // Riempi le celle rimanenti nel foglio se meno di 9 prodotti per l'ultimo foglio
+      // Riempi le celle rimanenti nel foglio se meno di maxItemsPerPage
       const missing = maxItemsPerPage - chunk.length;
       for (let m = 0; m < missing; m++) {
         grid.appendChild(creaCellaVuota());
       }
+
+      applicaDimensioniFoglio(page);
+      applicaSfondoFoglio(page);
+      applicaStrutturaGriglia(page, cols, rows, gap);
       
       pagine.push(page);
     }
     
     paginaCorrente = 0;
     visualizzaPaginaCorrente();
+    if (preset) {
+      applicaPresetAggiustato(preset);
+    }
     aggiornaListaPagineNav();
-    showToast(`Volantino generato con successo! ${products.length} prodotti inseriti in ${pagine.length} fogli.`);
+    showToast(`Volantino generato con successo! ${products.length} prodotti inseriti in ${pagine.length} fogli con le tue impostazioni predefinite.`);
   }
 
   // Gestione caricamento PDF
@@ -4533,6 +4625,13 @@ document.addEventListener("DOMContentLoaded", () => {
             selectTipo.value = "promo_mensile";
           }
           
+          if (data.volantino_id) {
+            volantinoID = data.volantino_id;
+            try {
+              window.history.replaceState({}, '', '/beta-volantino/' + data.volantino_id);
+            } catch(e) {}
+          }
+
           const inputNome = document.getElementById("volantino-nome");
           if (inputNome) {
             const fileNameNoExt = file.name.replace(/\.[^/.]+$/, "");

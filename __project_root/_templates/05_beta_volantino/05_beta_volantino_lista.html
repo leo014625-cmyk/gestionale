@@ -1596,7 +1596,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Leggiamo preset default salvato
     let defaultPreset = null;
     try {
-      const rawPreset = localStorage.getItem("horeca_volantino_preset");
+      const rawPreset = localStorage.getItem("horeca_preset_promo_mensile") || localStorage.getItem("horeca_volantino_preset");
       if (rawPreset) defaultPreset = JSON.parse(rawPreset);
     } catch(e) {}
 
