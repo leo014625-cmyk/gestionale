@@ -1,0 +1,1379 @@
+{% extends "01_base.html" %}
+
+{% block title %}Comparatore Listino & Risparmio Cliente - Horeca Suite{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* Premium Comparatore Aesthetics */
+  .hero-comparatore {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+    color: #ffffff;
+    border-radius: var(--radius);
+    padding: 2.25rem 2.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 12px 30px -6px rgba(49, 46, 129, 0.35);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-comparatore::after {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Live Metric KPI Cards */
+  .kpi-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.35rem 1.5rem;
+    height: 100%;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-border);
+  }
+  .kpi-card.hero-kpi {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.15) 100%);
+    border: 1.5px solid rgba(16, 185, 129, 0.35);
+  }
+  body.dark-mode .kpi-card.hero-kpi {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.22) 100%);
+    border-color: rgba(16, 185, 129, 0.45);
+  }
+  .kpi-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+  }
+  .kpi-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  .kpi-subtext {
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Table styling */
+  .table-comparatore {
+    margin-bottom: 0;
+  }
+  .table-comparatore thead th {
+    background-color: rgba(15, 23, 42, 0.04);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.85rem 0.75rem;
+    border-bottom: 1.5px solid var(--border-color);
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  body.dark-mode .table-comparatore thead th {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+  .table-comparatore tbody td {
+    padding: 0.75rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .table-comparatore input.form-control-sm {
+    border-radius: var(--radius-xs);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+  }
+  .table-comparatore input.form-control-sm:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+  }
+  .table-comparatore .col-num {
+    text-align: right;
+  }
+  .table-comparatore tfoot td {
+    background-color: rgba(15, 23, 42, 0.03);
+    font-weight: 700;
+    padding: 1rem 0.75rem;
+    border-top: 2px solid var(--border-color);
+  }
+  body.dark-mode .table-comparatore tfoot td {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  /* Badge & Pill styling */
+  .badge-risparmio {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: var(--radius-pill);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .badge-aumento {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: var(--radius-pill);
+  }
+
+  .tag-lavorazione {
+    font-size: 0.75rem;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    font-weight: 600;
+  }
+
+  /* Row action icon buttons */
+  .btn-row-action {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .btn-row-action:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: var(--danger-light);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="comparatore-container">
+
+  <!-- HERO SECTION -->
+  <div class="hero-comparatore">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge rounded-pill px-3 py-1 fw-bold text-uppercase" style="background: rgba(255,255,255,0.18); font-size: 0.75rem; letter-spacing: 0.06em;">
+            <i class="bi bi-award-fill text-warning me-1"></i> Strumento Commerciale
+          </span>
+          <span class="badge rounded-pill bg-success px-3 py-1 fw-bold text-white shadow-sm">
+            <i class="bi bi-lightning-charge-fill me-1"></i> Calcolo Live in Tempo Reale
+          </span>
+        </div>
+        <h1 class="fw-bold mb-1 display-brand text-white" style="font-size: 2.15rem;">
+          Comparatore Listino & Calcolo Risparmio
+        </h1>
+        <p class="text-white-50 mb-0 small" style="max-width: 650px;">
+          Confronta i prodotti lavorati (carni, porzionati, gastronomia) con i prezzi pagati oggi dal cliente e la tua offerta. Calcola i volumi in KG, il risparmio mensile ed annuale con impatto immediato.
+        </p>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-light rounded-pill px-3 fw-bold d-flex align-items-center gap-2 shadow-sm text-dark" id="btnSalvaComparazione">
+          <i class="bi bi-cloud-check-fill text-primary"></i>
+          <span>Salva Offerta</span>
+        </button>
+        
+        <button type="button" class="btn btn-outline-light rounded-pill px-3 fw-bold d-flex align-items-center gap-2" id="btnStampaPdf">
+          <i class="bi bi-printer-fill"></i>
+          <span>Stampa / PDF</span>
+        </button>
+
+        <button type="button" class="btn btn-success rounded-pill px-3 fw-bold d-flex align-items-center gap-2 shadow-sm" id="btnWhatsApp">
+          <i class="bi bi-whatsapp"></i>
+          <span>Invia WhatsApp</span>
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-dark bg-dark bg-opacity-50 border-light border-opacity-25 rounded-pill px-3 fw-bold dropdown-toggle text-white" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-three-dots-vertical"></i> Altro
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+            <li><a class="dropdown-item py-2" href="#" id="btnCaricaEsempio"><i class="bi bi-magic text-warning me-2"></i>Carica Esempio Lavorati (Carni/Pesce)</a></li>
+            <li><a class="dropdown-item py-2" href="#" id="btnNuovaComparazione"><i class="bi bi-plus-circle text-primary me-2"></i>Nuovo Prospetto Vuoto</a></li>
+            <li><a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalStorico"><i class="bi bi-clock-history text-info me-2"></i>Storico Preventivi Salvati</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item py-2 text-danger" href="#" id="btnSvuotaTabella"><i class="bi bi-trash me-2"></i>Svuota Tutti i Prodotti</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENT & PROPOSAL SETTINGS CARD -->
+  <div class="glass-panel p-4 mb-4">
+    <div class="row g-3 align-items-end">
+      
+      <!-- Seleziona o digita Cliente -->
+      <div class="col-md-4">
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
+          <i class="bi bi-person-badge-fill text-primary me-1"></i> Cliente Destinatario
+        </label>
+        <div class="input-group">
+          <select class="form-select rounded-start-3 fw-semibold" id="selectCliente">
+            <option value="">-- Seleziona da Rubrica Clienti --</option>
+            {% for c in clienti %}
+              <option value="{{ c.id }}" data-nome="{{ c.nome }}" data-zona="{{ c.zona or '' }}" {% if cliente_preselezionato and cliente_preselezionato.id == c.id %}selected{% endif %}>
+                {{ c.nome }} {% if c.zona %}({{ c.zona }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-outline-secondary rounded-end-3" type="button" id="btnSwitchClienteLibero" title="Digita nome manuale">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+        </div>
+        <input type="text" class="form-control rounded-3 fw-semibold mt-2 d-none" id="inputClienteManuale" placeholder="Nome Ristorante / Attività..." value="{{ cliente_preselezionato.nome if cliente_preselezionato else '' }}">
+      </div>
+
+      <!-- Titolo Offerta -->
+      <div class="col-md-5">
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
+          <i class="bi bi-tag-fill text-accent me-1"></i> Titolo Proposta / Listino Lavorati
+        </label>
+        <input type="text" class="form-control rounded-3 fw-semibold" id="inputTitolo" placeholder="Es. Proposta Carni & Porzionati Lavorati - Stagione 2026" value="{{ comparazione_caricata.titolo if comparazione_caricata else 'Offerta Prodotti Lavorati con Analisi Risparmio' }}">
+      </div>
+
+      <!-- Data e Operatore -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
+          <i class="bi bi-calendar-event me-1"></i> Data Elaborazione
+        </label>
+        <input type="date" class="form-control rounded-3 fw-semibold" id="inputData" value="">
+      </div>
+
+      <!-- Note / Condizioni Fornitura -->
+      <div class="col-12 mt-2">
+        <div class="collapse" id="collapseNoteCommerciali">
+          <div class="pt-2">
+            <label class="form-label fw-semibold small text-muted mb-1">Note commerciali, frequenza consegne o servizi inclusi (es. porzionatura a peso fisso, sottovuoto):</label>
+            <textarea class="form-control rounded-3" id="inputNote" rows="2" placeholder="Es. Consegne garantite 3 volte a settimana. Tutti i tagli sono porzionati a grammatura controllata sottovuoto skin pack...">{{ comparazione_caricata.note if comparazione_caricata else '' }}</textarea>
+          </div>
+        </div>
+        <button class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNoteCommerciali">
+          <i class="bi bi-chat-left-text me-1"></i> <span id="toggleNoteText">Aggiungi Note & Condizioni di Fornitura</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LIVE KPI STATS CARDS -->
+  <div class="row g-3 mb-4">
+    
+    <!-- 1. Volume Totale KG -->
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="kpi-title">Volume Totale Lavorato</span>
+          <span class="badge rounded-circle p-2 bg-primary-light text-primary">
+            <i class="bi bi-box-seam-fill"></i>
+          </span>
+        </div>
+        <div class="kpi-value text-primary" id="kpiVolumeMese">0.0 <span class="fs-6 text-muted fw-normal">kg/mese</span></div>
+        <div class="kpi-subtext text-muted" id="kpiVolumeAnno">
+          <i class="bi bi-arrow-repeat text-secondary"></i> <strong>0.0 kg</strong> all'anno
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Spesa Attuale Cliente -->
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="kpi-title">Spesa Attuale Cliente</span>
+          <span class="badge rounded-circle p-2 bg-light text-secondary">
+            <i class="bi bi-receipt"></i>
+          </span>
+        </div>
+        <div class="kpi-value text-dark" id="kpiSpesaAttualeMese">€ 0.00 <span class="fs-6 text-muted fw-normal">/mese</span></div>
+        <div class="kpi-subtext text-muted" id="kpiSpesaAttualeAnno">
+          <i class="bi bi-calendar3"></i> <strong>€ 0.00</strong> spesi all'anno
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Nostra Proposta Offerta -->
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="kpi-title">Nostra Offerta Horeca</span>
+          <span class="badge rounded-circle p-2 bg-info-subtle text-info">
+            <i class="bi bi-stars"></i>
+          </span>
+        </div>
+        <div class="kpi-value text-indigo" id="kpiSpesaNostraMese" style="color: var(--primary);">€ 0.00 <span class="fs-6 text-muted fw-normal">/mese</span></div>
+        <div class="kpi-subtext text-muted" id="kpiSpesaNostraAnno">
+          <i class="bi bi-check-all text-success"></i> <strong>€ 0.00</strong> all'anno con noi
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. RISPARMIO TOTALE CLIENTE (HERO) -->
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card hero-kpi">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="kpi-title text-success fw-bold">Risparmio Netto Cliente</span>
+          <span class="badge rounded-pill bg-success text-white px-2 py-1" id="kpiPercTotale">
+            0.0%
+          </span>
+        </div>
+        <div class="kpi-value text-success" id="kpiRisparmioMese">€ 0.00 <span class="fs-6 text-muted fw-normal">/mese</span></div>
+        <div class="kpi-subtext text-success fw-bold" id="kpiRisparmioAnno">
+          <i class="bi bi-trophy-fill text-warning"></i> Risparmio: € 0.00 / ANNO!
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TABELLA COMPARATIVA DINAMICA -->
+  <div class="glass-panel p-0 overflow-hidden mb-4">
+    
+    <!-- Table Header Toolbar -->
+    <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: rgba(15, 23, 42, 0.02);">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-table text-primary fs-5"></i>
+        <h5 class="fw-bold mb-0 display-brand text-color">Dettaglio Prodotti Lavorati & Comparazione Prezzi</h5>
+        <span class="badge rounded-pill bg-primary-light text-primary fw-bold ms-2" id="badgeConteggioProdotti">0 Prodotti</span>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" id="btnImportaDaDb">
+          <i class="bi bi-search"></i> Scegli da Catalogo
+        </button>
+        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" id="btnAggiungiRiga">
+          <i class="bi bi-plus-lg"></i> Aggiungi Riga
+        </button>
+      </div>
+    </div>
+
+    <!-- Responsive Table -->
+    <div class="table-responsive">
+      <table class="table table-comparatore table-hover align-middle" id="tabellaProdotti">
+        <thead>
+          <tr>
+            <th style="width: 40px;" class="text-center">#</th>
+            <th style="min-width: 220px;">Prodotto Lavorato / Taglio</th>
+            <th style="width: 140px;">Lavorazione</th>
+            <th style="width: 110px;" class="col-num">Volume KG <small class="text-muted">/Mese</small></th>
+            <th style="width: 120px;" class="col-num">Prezzo Attuale <small class="text-muted">€/KG</small></th>
+            <th style="width: 120px;" class="col-num">Nostro Prezzo <small class="text-muted">€/KG</small></th>
+            <th style="width: 110px;" class="col-num">Risparmio <small class="text-muted">€/KG</small></th>
+            <th style="width: 120px;" class="col-num">Spesa Attuale <small class="text-muted">€/Mese</small></th>
+            <th style="width: 120px;" class="col-num">Nostra Spesa <small class="text-muted">€/Mese</small></th>
+            <th style="width: 130px;" class="col-num text-success">Risparmio Mese</th>
+            <th style="width: 135px;" class="col-num text-success fw-bold">Risparmio Anno</th>
+            <th style="width: 95px;" class="text-center">% Risparmio</th>
+            <th style="width: 50px;" class="text-center"></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyProdotti">
+          <!-- Popolato via JavaScript -->
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" class="text-uppercase fw-bold text-dark">
+              <i class="bi bi-calculator me-1 text-primary"></i> TOTALE GENERALE COMPARATIVO:
+            </td>
+            <td class="col-num fw-bold text-primary" id="footTotVolume">0.0 kg</td>
+            <td class="col-num text-muted">–</td>
+            <td class="col-num text-muted">–</td>
+            <td class="col-num text-muted">–</td>
+            <td class="col-num fw-bold text-dark" id="footTotAttuale">€ 0.00</td>
+            <td class="col-num fw-bold text-dark" id="footTotNostro">€ 0.00</td>
+            <td class="col-num fw-bold text-success fs-6" id="footTotRisparmioMese">€ 0.00</td>
+            <td class="col-num fw-bold text-success fs-6" id="footTotRisparmioAnno">€ 0.00</td>
+            <td class="text-center fw-bold" id="footTotPerc">
+              <span class="badge-risparmio">0.0%</span>
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Table Bottom Quick Bar -->
+    <div class="p-3 border-top bg-light bg-opacity-50 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" id="btnAggiungiRigaSotto">
+          <i class="bi bi-plus-circle me-1"></i> Aggiungi un altro prodotto
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold" id="btnPrecaricaLavorati">
+          <i class="bi bi-box2-heart me-1"></i> Suggerisci Tagli Lavorati Horeca
+        </button>
+      </div>
+      
+      <div class="small text-muted d-flex align-items-center gap-2">
+        <i class="bi bi-info-circle text-primary"></i>
+        <span>Tutti i calcoli si aggiornano istantaneamente alla digitazione di KG e Prezzi.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SUMMARY CALLOUT & COMMERCIAL HIGHLIGHT BOX -->
+  <div class="card border-0 rounded-4 shadow-sm mb-4" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1.5px solid rgba(79, 70, 229, 0.2) !important;">
+    <div class="card-body p-4">
+      <div class="row align-items-center g-3">
+        <div class="col-lg-8">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-success text-white px-2.5 py-1 rounded-pill fw-bold">PROPOSTA DI VALORE</span>
+            <span class="text-muted small">Argomentazione di vendita cliente</span>
+          </div>
+          <h4 class="fw-bold mb-1 text-color display-brand" id="boxArgomentazioneTitolo">
+            Con noi il cliente risparmia € 0.00 all'anno!
+          </h4>
+          <p class="text-muted small mb-0" id="boxArgomentazioneTesto">
+            Inserisci i prodotti e i prezzi per vedere l'impatto economico totale e il risparmio garantito sui prodotti lavorati.
+          </p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+          <button type="button" class="btn btn-primary rounded-pill px-4 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center gap-2" onclick="document.getElementById('btnStampaPdf').click()">
+            <i class="bi bi-file-earmark-pdf-fill"></i> Genera Preventivo PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL: SCEGLI DA CATALOGO GESTIONALE                      -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalCatalogo" tabindex="-1" aria-labelledby="modalCatalogoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-box-seam-fill text-primary fs-5"></i>
+          <h5 class="modal-title fw-bold display-brand mb-0" id="modalCatalogoLabel">Seleziona Prodotti dal Catalogo</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control bg-light border-start-0 rounded-end-3" id="filtroCatalogo" placeholder="Cerca prodotto per nome, codice o categoria...">
+          </div>
+        </div>
+        
+        <div style="max-height: 380px; overflow-y: auto;" class="border rounded-3 p-1">
+          <table class="table table-hover align-middle mb-0" id="tabellaCatalogoModal">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width: 40px;"></th>
+                <th>Nome Prodotto</th>
+                <th>Codice</th>
+                <th>Categoria</th>
+                <th class="text-end">Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in prodotti_catalogo %}
+                <tr class="catalogo-row" data-search="{{ p.nome|lower }} {{ p.codice|lower }} {{ p.categoria|lower }}">
+                  <td><i class="bi bi-box text-muted"></i></td>
+                  <td><strong>{{ p.nome }}</strong></td>
+                  <td><span class="badge bg-light text-dark border font-monospace">{{ p.codice or '–' }}</span></td>
+                  <td><span class="badge bg-primary-light text-primary rounded-pill px-2 py-1">{{ p.categoria }}</span></td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-inserisci-catalogo" 
+                            data-nome="{{ p.nome }}" data-codice="{{ p.codice or '' }}" data-cat="{{ p.categoria }}">
+                      <i class="bi bi-plus-lg"></i> Inserisci
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer border-top py-2.5">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL: STORICO PREVENTIVI SALVATI                         -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalStorico" tabindex="-1" aria-labelledby="modalStoricoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-clock-history text-info fs-5"></i>
+          <h5 class="modal-title fw-bold display-brand mb-0" id="modalStoricoLabel">Preventivi & Comparazioni Salvate</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-4">
+        {% if comparazioni_salvate %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Cliente</th>
+                  <th>Titolo Proposta</th>
+                  <th class="text-end">Volume</th>
+                  <th class="text-end">Risparmio Anno</th>
+                  <th class="text-center">%</th>
+                  <th>Data</th>
+                  <th class="text-end">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cs in comparazioni_salvate %}
+                  <tr>
+                    <td><strong>{{ cs.cliente_nome }}</strong></td>
+                    <td class="small">{{ cs.titolo }}</td>
+                    <td class="text-end small font-monospace">{{ "%.1f"|format(cs.totale_volume_kg or 0) }} kg</td>
+                    <td class="text-end fw-bold text-success font-monospace">€ {{ "%.2f"|format(cs.risparmio_anno or 0) }}</td>
+                    <td class="text-center">
+                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                        {{ "%.1f"|format(cs.percentuale_risparmio or 0) }}%
+                      </span>
+                    </td>
+                    <td class="small text-muted">{{ cs.creato_il.strftime('%d/%m/%Y') if cs.creato_il else '' }}</td>
+                    <td class="text-end">
+                      <div class="btn-group btn-group-sm">
+                        <a href="/comparatore?id={{ cs.id }}" class="btn btn-outline-primary" title="Carica nel comparatore">
+                          <i class="bi bi-box-arrow-in-down-right"></i>
+                        </a>
+                        <a href="/comparatore/stampa/{{ cs.id }}" target="_blank" class="btn btn-outline-secondary" title="Stampa PDF">
+                          <i class="bi bi-printer"></i>
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-elimina-comparazione" data-id="{{ cs.id }}" title="Elimina">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-journal-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
+            <p class="mb-0">Nessun preventivo salvato finora. Salva la tua prima comparazione!</p>
+          </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer border-top py-2.5">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL: CONDIVISIONE WHATSAPP                              -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalWhatsApp" tabindex="-1" aria-labelledby="modalWhatsAppLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-whatsapp text-success fs-5"></i>
+          <h5 class="modal-title fw-bold display-brand mb-0" id="modalWhatsAppLabel">Invia Proposta su WhatsApp</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-bold small text-muted">Numero di Telefono del Cliente:</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">+39</span>
+            <input type="tel" class="form-control" id="waNumero" placeholder="3331234567">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold small text-muted">Messaggio di Riepilogo Risparmio:</label>
+          <textarea class="form-control rounded-3 font-monospace small" id="waMessaggio" rows="7"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-top py-2.5">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-success rounded-pill px-4 fw-bold" id="btnInviaWaConferma">
+          <i class="bi bi-send-fill me-1"></i> Apri WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Stato Globale della Comparazione
+  let currentComparisonId = {{ (comparazione_caricata.id if comparazione_caricata else 'null') }};
+  
+  // Elementi DOM
+  const selectCliente = document.getElementById("selectCliente");
+  const inputClienteManuale = document.getElementById("inputClienteManuale");
+  const btnSwitchClienteLibero = document.getElementById("btnSwitchClienteLibero");
+  const inputTitolo = document.getElementById("inputTitolo");
+  const inputData = document.getElementById("inputData");
+  const inputNote = document.getElementById("inputNote");
+  const tbodyProdotti = document.getElementById("tbodyProdotti");
+  const badgeConteggioProdotti = document.getElementById("badgeConteggioProdotti");
+  
+  // KPI Elements
+  const kpiVolumeMese = document.getElementById("kpiVolumeMese");
+  const kpiVolumeAnno = document.getElementById("kpiVolumeAnno");
+  const kpiSpesaAttualeMese = document.getElementById("kpiSpesaAttualeMese");
+  const kpiSpesaAttualeAnno = document.getElementById("kpiSpesaAttualeAnno");
+  const kpiSpesaNostraMese = document.getElementById("kpiSpesaNostraMese");
+  const kpiSpesaNostraAnno = document.getElementById("kpiSpesaNostraAnno");
+  const kpiRisparmioMese = document.getElementById("kpiRisparmioMese");
+  const kpiRisparmioAnno = document.getElementById("kpiRisparmioAnno");
+  const kpiPercTotale = document.getElementById("kpiPercTotale");
+  
+  // Footer Totals Elements
+  const footTotVolume = document.getElementById("footTotVolume");
+  const footTotAttuale = document.getElementById("footTotAttuale");
+  const footTotNostro = document.getElementById("footTotNostro");
+  const footTotRisparmioMese = document.getElementById("footTotRisparmioMese");
+  const footTotRisparmioAnno = document.getElementById("footTotRisparmioAnno");
+  const footTotPerc = document.getElementById("footTotPerc");
+  
+  // Commercial Highlight Box
+  const boxArgomentazioneTitolo = document.getElementById("boxArgomentazioneTitolo");
+  const boxArgomentazioneTesto = document.getElementById("boxArgomentazioneTesto");
+
+  // Imposta data odierna
+  const todayStr = new Date().toISOString().split('T')[0];
+  inputData.value = todayStr;
+
+  // Toggle cliente da select o input libero
+  let isManuale = false;
+  btnSwitchClienteLibero.addEventListener("click", () => {
+    isManuale = !isManuale;
+    if (isManuale) {
+      selectCliente.classList.add("d-none");
+      inputClienteManuale.classList.remove("d-none");
+      inputClienteManuale.focus();
+      btnSwitchClienteLibero.innerHTML = '<i class="bi bi-list-ul"></i>';
+      btnSwitchClienteLibero.title = "Torna all'elenco clienti";
+    } else {
+      inputClienteManuale.classList.add("d-none");
+      selectCliente.classList.remove("d-none");
+      btnSwitchClienteLibero.innerHTML = '<i class="bi bi-pencil-square"></i>';
+      btnSwitchClienteLibero.title = "Digita nome cliente manuale";
+    }
+  });
+
+  selectCliente.addEventListener("change", () => {
+    const opt = selectCliente.selectedOptions[0];
+    if (opt && opt.value) {
+      const nomeC = opt.getAttribute("data-nome") || "";
+      if (!inputTitolo.value || inputTitolo.value.includes("Offerta") || inputTitolo.value.includes("Comparativo")) {
+        inputTitolo.value = `Proposta Prodotti Lavorati - ${nomeC}`;
+      }
+    }
+  });
+
+  // Array dei prodotti attualmente nella tabella
+  let prodottiState = [];
+
+  // Esempio tipico di prodotti lavorati Horeca (Carni / Pesce)
+  const ESEMPIO_LAVORATI = [
+    {
+      nome: "Tagliata di Scottona Nazionale porzionata",
+      codice: "CAR-01",
+      lavorazione: "Porzionata 250g SV",
+      volume_kg: 80,
+      prezzo_attuale: 21.50,
+      prezzo_nostro: 18.90
+    },
+    {
+      nome: "Filetto di Manzo Selezione Extra pulito",
+      codice: "CAR-02",
+      lavorazione: "Defilato a cuore SV",
+      volume_kg: 40,
+      prezzo_attuale: 34.00,
+      prezzo_nostro: 29.50
+    },
+    {
+      nome: "Tartare di Fassona battuta a coltello",
+      codice: "CAR-03",
+      lavorazione: "Monoporzione 150g",
+      volume_kg: 35,
+      prezzo_attuale: 19.80,
+      prezzo_nostro: 16.50
+    },
+    {
+      nome: "Hamburger Gourmet Black Angus 200g",
+      codice: "CAR-04",
+      lavorazione: "Macinato scelto porz.",
+      volume_kg: 60,
+      prezzo_attuale: 14.50,
+      prezzo_nostro: 12.80
+    },
+    {
+      nome: "Filetti di Orata Fresca deliscati e squamati",
+      codice: "PES-01",
+      lavorazione: "Filettati a mano",
+      volume_kg: 50,
+      prezzo_attuale: 18.20,
+      prezzo_nostro: 15.90
+    },
+    {
+      nome: "Calamaro Atlantico pulito ad anelli e ciuffi",
+      codice: "PES-02",
+      lavorazione: "Pulito IQF",
+      volume_kg: 45,
+      prezzo_attuale: 13.90,
+      prezzo_nostro: 11.80
+    }
+  ];
+
+  // Inizializzazione: se abbiamo dati da comparazione_caricata, caricali, altrimenti carica esempio o riga vuota
+  {% if comparazione_caricata and comparazione_caricata.prodotti_dettaglio %}
+    prodottiState = {{ comparazione_caricata.prodotti_dettaglio | tojson | safe }};
+  {% else %}
+    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_LAVORATI));
+  {% endif %}
+
+  renderTable();
+
+  // Helper formattazione valuta e numeri
+  function formatMoney(val) {
+    return "€ " + (Number(val) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function formatKg(val) {
+    return (Number(val) || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " kg";
+  }
+
+  // RENDER TABELLA & CALCOLO COMPLETO
+  function renderTable() {
+    tbodyProdotti.innerHTML = "";
+
+    let totVolMese = 0;
+    let totSpesaAttualeMese = 0;
+    let totSpesaNostraMese = 0;
+    let totRisparmioMese = 0;
+
+    if (prodottiState.length === 0) {
+      tbodyProdotti.innerHTML = `
+        <tr>
+          <td colspan="13" class="text-center py-5 text-muted">
+            <i class="bi bi-cart-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
+            Nessun prodotto in tabella. Clicca su <strong>"Aggiungi Riga"</strong> o <strong>"Scegli da Catalogo"</strong> per iniziare.
+          </td>
+        </tr>
+      `;
+    } else {
+      prodottiState.forEach((item, idx) => {
+        const vol = parseFloat(item.volume_kg) || 0;
+        const pAtt = parseFloat(item.prezzo_attuale) || 0;
+        const pNos = parseFloat(item.prezzo_nostro) || 0;
+
+        // Calcoli riga
+        const diffKg = pAtt - pNos;
+        const spesaAttMese = vol * pAtt;
+        const spesaNosMese = vol * pNos;
+        const rispMese = spesaAttMese - spesaNosMese;
+        const rispAnno = rispMese * 12;
+        const percRisp = (pAtt > 0) ? ((diffKg / pAtt) * 100) : 0;
+
+        // Aggiorna totali
+        totVolMese += vol;
+        totSpesaAttualeMese += spesaAttMese;
+        totSpesaNostraMese += spesaNosMese;
+        totRisparmioMese += rispMese;
+
+        // Badge classe
+        let badgeHtml = "";
+        if (percRisp > 0) {
+          badgeHtml = `<span class="badge-risparmio"><i class="bi bi-arrow-down-short"></i>-${percRisp.toFixed(1)}%</span>`;
+        } else if (percRisp === 0) {
+          badgeHtml = `<span class="badge bg-light text-muted border">0.0%</span>`;
+        } else {
+          badgeHtml = `<span class="badge-aumento"><i class="bi bi-arrow-up-short"></i>+${Math.abs(percRisp).toFixed(1)}%</span>`;
+        }
+
+        const tr = document.createElement("tr");
+        tr.dataset.idx = idx;
+        tr.innerHTML = `
+          <td class="text-center text-muted fw-bold small">${idx + 1}</td>
+          
+          <td>
+            <input type="text" class="form-control form-control-sm input-row-change fw-bold text-dark" data-field="nome" value="${escapeHtml(item.nome || '')}" placeholder="Nome taglio / prodotto lavorato">
+            <input type="text" class="form-control form-control-sm input-row-change text-muted mt-1 font-monospace" style="font-size: 0.75rem;" data-field="codice" value="${escapeHtml(item.codice || '')}" placeholder="Cod. art. opzionale">
+          </td>
+
+          <td>
+            <input type="text" class="form-control form-control-sm input-row-change" data-field="lavorazione" value="${escapeHtml(item.lavorazione || '')}" placeholder="Es. Porzionato, SV, ecc.">
+          </td>
+
+          <td class="col-num">
+            <div class="input-group input-group-sm">
+              <input type="number" step="0.1" min="0" class="form-control form-control-sm text-end fw-bold text-primary input-row-change" data-field="volume_kg" value="${vol}">
+              <span class="input-group-text small px-1 bg-light text-muted">kg</span>
+            </div>
+          </td>
+
+          <td class="col-num">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text small px-1 bg-light text-muted">€</span>
+              <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-bold text-dark input-row-change" data-field="prezzo_attuale" value="${pAtt.toFixed(2)}">
+            </div>
+          </td>
+
+          <td class="col-num">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text small px-1 bg-light text-muted">€</span>
+              <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end fw-bold text-indigo input-row-change" style="color: var(--primary);" data-field="prezzo_nostro" value="${pNos.toFixed(2)}">
+            </div>
+          </td>
+
+          <td class="col-num font-monospace fw-semibold ${diffKg >= 0 ? 'text-success' : 'text-danger'}">
+            ${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/kg
+          </td>
+
+          <td class="col-num font-monospace text-muted">
+            ${formatMoney(spesaAttMese)}
+          </td>
+
+          <td class="col-num font-monospace fw-semibold text-dark">
+            ${formatMoney(spesaNosMese)}
+          </td>
+
+          <td class="col-num font-monospace fw-bold ${rispMese >= 0 ? 'text-success' : 'text-danger'}">
+            ${formatMoney(rispMese)}
+          </td>
+
+          <td class="col-num font-monospace fw-bold ${rispAnno >= 0 ? 'text-success' : 'text-danger'} fs-6">
+            ${formatMoney(rispAnno)}
+          </td>
+
+          <td class="text-center">
+            ${badgeHtml}
+          </td>
+
+          <td class="text-center">
+            <div class="d-flex align-items-center justify-content-center gap-1">
+              <button type="button" class="btn-row-action btn-duplica-riga" data-idx="${idx}" title="Duplica riga">
+                <i class="bi bi-copy"></i>
+              </button>
+              <button type="button" class="btn-row-action btn-elimina-riga text-danger" data-idx="${idx}" title="Elimina riga">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        `;
+
+        tbodyProdotti.appendChild(tr);
+      });
+    }
+
+    // Calcoli totali globali
+    const totVolAnno = totVolMese * 12;
+    const totSpesaAttualeAnno = totSpesaAttualeMese * 12;
+    const totSpesaNostraAnno = totSpesaNostraMese * 12;
+    const totRisparmioAnno = totRisparmioMese * 12;
+    const totPercRisp = (totSpesaAttualeMese > 0) ? ((totRisparmioMese / totSpesaAttualeMese) * 100) : 0;
+
+    // Aggiorna badge conteggio
+    badgeConteggioProdotti.textContent = prodottiState.length + (prodottiState.length === 1 ? " Prodotto" : " Prodotti");
+
+    // Aggiorna KPI cards
+    kpiVolumeMese.innerHTML = `${totVolMese.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="fs-6 text-muted fw-normal">kg/mese</span>`;
+    kpiVolumeAnno.innerHTML = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${totVolAnno.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kg</strong> all'anno`;
+
+    kpiSpesaAttualeMese.innerHTML = `${formatMoney(totSpesaAttualeMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
+    kpiSpesaAttualeAnno.innerHTML = `<i class="bi bi-calendar3"></i> <strong>${formatMoney(totSpesaAttualeAnno)}</strong> all'anno`;
+
+    kpiSpesaNostraMese.innerHTML = `${formatMoney(totSpesaNostraMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
+    kpiSpesaNostraAnno.innerHTML = `<i class="bi bi-check-all text-success"></i> <strong>${formatMoney(totSpesaNostraAnno)}</strong> all'anno`;
+
+    kpiRisparmioMese.innerHTML = `${formatMoney(totRisparmioMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
+    kpiRisparmioAnno.innerHTML = `<i class="bi bi-trophy-fill text-warning"></i> Risparmio: <strong>${formatMoney(totRisparmioAnno)} / ANNO!</strong>`;
+    
+    kpiPercTotale.textContent = (totPercRisp >= 0 ? "-" : "+") + Math.abs(totPercRisp).toFixed(1) + "%";
+    kpiPercTotale.className = "badge rounded-pill px-2.5 py-1 " + (totPercRisp >= 0 ? "bg-success text-white" : "bg-danger text-white");
+
+    // Aggiorna Footer Tabella
+    footTotVolume.textContent = formatKg(totVolMese);
+    footTotAttuale.textContent = formatMoney(totSpesaAttualeMese);
+    footTotNostro.textContent = formatMoney(totSpesaNostraMese);
+    footTotRisparmioMese.textContent = formatMoney(totRisparmioMese);
+    footTotRisparmioAnno.textContent = formatMoney(totRisparmioAnno);
+    footTotPerc.innerHTML = totPercRisp >= 0 
+      ? `<span class="badge-risparmio fs-6">-${totPercRisp.toFixed(1)}%</span>` 
+      : `<span class="badge-aumento fs-6">+${Math.abs(totPercRisp).toFixed(1)}%</span>`;
+
+    // Aggiorna Box Argomentazione Commerciale
+    const clientName = getClientName();
+    if (totRisparmioAnno > 0) {
+      boxArgomentazioneTitolo.innerHTML = `🎉 Con la nostra fornitura, <span class="text-primary">${escapeHtml(clientName)}</span> risparmia ben <span class="text-success">${formatMoney(totRisparmioAnno)}</span> all'anno!`;
+      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese di prodotti lavorati), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
+    } else if (totRisparmioAnno === 0) {
+      boxArgomentazioneTitolo.textContent = `Listino a parità economica per ${clientName}`;
+      boxArgomentazioneTesto.textContent = `I prezzi proposti eguagliano quelli attuali del cliente. È possibile valorizzare l'alta qualità della lavorazione e i servizi logistici.`;
+    } else {
+      boxArgomentazioneTitolo.innerHTML = `La proposta supera di ${formatMoney(Math.abs(totRisparmioAnno))} all'anno il prezzo attuale`;
+      boxArgomentazioneTesto.textContent = `Verifica i prezzi unitari inseriti per evidenziare il margine competitivo per il cliente.`;
+    }
+  }
+
+  function escapeHtml(text) {
+    if (!text) return "";
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function getClientName() {
+    if (isManuale && inputClienteManuale.value.trim()) {
+      return inputClienteManuale.value.trim();
+    }
+    const opt = selectCliente.selectedOptions[0];
+    if (opt && opt.value) {
+      return opt.getAttribute("data-nome") || opt.textContent.trim();
+    }
+    return inputClienteManuale.value.trim() || "il Cliente";
+  }
+
+  // EVENT DELEGATION PER CAMBIO INPUT IN TABELLA
+  tbodyProdotti.addEventListener("input", (e) => {
+    if (e.target.classList.contains("input-row-change")) {
+      const tr = e.target.closest("tr");
+      if (!tr) return;
+      const idx = parseInt(tr.dataset.idx, 10);
+      const field = e.target.dataset.field;
+      let val = e.target.value;
+
+      if (field === "volume_kg" || field === "prezzo_attuale" || field === "prezzo_nostro") {
+        val = parseFloat(val) || 0;
+      }
+      if (prodottiState[idx]) {
+        prodottiState[idx][field] = val;
+      }
+
+      // Ricalcola solo le colonne calcolate della riga attiva per massima fluidità, poi i totali
+      updateRowCalculations(tr, prodottiState[idx]);
+      updateGrandTotals();
+    }
+  });
+
+  // Aggiornamento parziale riga durante la digitazione (instant feedback)
+  function updateRowCalculations(tr, item) {
+    const vol = parseFloat(item.volume_kg) || 0;
+    const pAtt = parseFloat(item.prezzo_attuale) || 0;
+    const pNos = parseFloat(item.prezzo_nostro) || 0;
+
+    const diffKg = pAtt - pNos;
+    const spesaAttMese = vol * pAtt;
+    const spesaNosMese = vol * pNos;
+    const rispMese = spesaAttMese - spesaNosMese;
+    const rispAnno = rispMese * 12;
+    const percRisp = (pAtt > 0) ? ((diffKg / pAtt) * 100) : 0;
+
+    const tds = tr.querySelectorAll("td");
+    if (tds.length >= 12) {
+      // Risparmio €/kg
+      tds[6].className = `col-num font-monospace fw-semibold ${diffKg >= 0 ? 'text-success' : 'text-danger'}`;
+      tds[6].textContent = `${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/kg`;
+      
+      // Spesa Attuale
+      tds[7].textContent = formatMoney(spesaAttMese);
+      
+      // Nostra Spesa
+      tds[8].textContent = formatMoney(spesaNosMese);
+      
+      // Risparmio Mese
+      tds[9].className = `col-num font-monospace fw-bold ${rispMese >= 0 ? 'text-success' : 'text-danger'}`;
+      tds[9].textContent = formatMoney(rispMese);
+      
+      // Risparmio Anno
+      tds[10].className = `col-num font-monospace fw-bold ${rispAnno >= 0 ? 'text-success' : 'text-danger'} fs-6`;
+      tds[10].textContent = formatMoney(rispAnno);
+      
+      // % Badge
+      let badgeHtml = "";
+      if (percRisp > 0) {
+        badgeHtml = `<span class="badge-risparmio"><i class="bi bi-arrow-down-short"></i>-${percRisp.toFixed(1)}%</span>`;
+      } else if (percRisp === 0) {
+        badgeHtml = `<span class="badge bg-light text-muted border">0.0%</span>`;
+      } else {
+        badgeHtml = `<span class="badge-aumento"><i class="bi bi-arrow-up-short"></i>+${Math.abs(percRisp).toFixed(1)}%</span>`;
+      }
+      tds[11].innerHTML = badgeHtml;
+    }
+  }
+
+  function updateGrandTotals() {
+    let totVolMese = 0;
+    let totSpesaAttualeMese = 0;
+    let totSpesaNostraMese = 0;
+    let totRisparmioMese = 0;
+
+    prodottiState.forEach(item => {
+      const vol = parseFloat(item.volume_kg) || 0;
+      const pAtt = parseFloat(item.prezzo_attuale) || 0;
+      const pNos = parseFloat(item.prezzo_nostro) || 0;
+      totVolMese += vol;
+      totSpesaAttualeMese += (vol * pAtt);
+      totSpesaNostraMese += (vol * pNos);
+      totRisparmioMese += (vol * (pAtt - pNos));
+    });
+
+    const totVolAnno = totVolMese * 12;
+    const totSpesaAttualeAnno = totSpesaAttualeMese * 12;
+    const totSpesaNostraAnno = totSpesaNostraMese * 12;
+    const totRisparmioAnno = totRisparmioMese * 12;
+    const totPercRisp = (totSpesaAttualeMese > 0) ? ((totRisparmioMese / totSpesaAttualeMese) * 100) : 0;
+
+    kpiVolumeMese.innerHTML = `${totVolMese.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="fs-6 text-muted fw-normal">kg/mese</span>`;
+    kpiVolumeAnno.innerHTML = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${totVolAnno.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kg</strong> all'anno`;
+
+    kpiSpesaAttualeMese.innerHTML = `${formatMoney(totSpesaAttualeMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
+    kpiSpesaAttualeAnno.innerHTML = `<i class="bi bi-calendar3"></i> <strong>${formatMoney(totSpesaAttualeAnno)}</strong> all'anno`;
+
+    kpiSpesaNostraMese.innerHTML = `${formatMoney(totSpesaNostraMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
+    kpiSpesaNostraAnno.innerHTML = `<i class="bi bi-check-all text-success"></i> <strong>${formatMoney(totSpesaNostraAnno)}</strong> all'anno`;
+
+    kpiRisparmioMese.innerHTML = `${formatMoney(totRisparmioMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
+    kpiRisparmioAnno.innerHTML = `<i class="bi bi-trophy-fill text-warning"></i> Risparmio: <strong>${formatMoney(totRisparmioAnno)} / ANNO!</strong>`;
+    
+    kpiPercTotale.textContent = (totPercRisp >= 0 ? "-" : "+") + Math.abs(totPercRisp).toFixed(1) + "%";
+    kpiPercTotale.className = "badge rounded-pill px-2.5 py-1 " + (totPercRisp >= 0 ? "bg-success text-white" : "bg-danger text-white");
+
+    footTotVolume.textContent = formatKg(totVolMese);
+    footTotAttuale.textContent = formatMoney(totSpesaAttualeMese);
+    footTotNostro.textContent = formatMoney(totSpesaNostraMese);
+    footTotRisparmioMese.textContent = formatMoney(totRisparmioMese);
+    footTotRisparmioAnno.textContent = formatMoney(totRisparmioAnno);
+    footTotPerc.innerHTML = totPercRisp >= 0 
+      ? `<span class="badge-risparmio fs-6">-${totPercRisp.toFixed(1)}%</span>` 
+      : `<span class="badge-aumento fs-6">+${Math.abs(totPercRisp).toFixed(1)}%</span>`;
+
+    const clientName = getClientName();
+    if (totRisparmioAnno > 0) {
+      boxArgomentazioneTitolo.innerHTML = `🎉 Con la nostra fornitura, <span class="text-primary">${escapeHtml(clientName)}</span> risparmia ben <span class="text-success">${formatMoney(totRisparmioAnno)}</span> all'anno!`;
+      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese di prodotti lavorati), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
+    }
+  }
+
+  // ELIMINAZIONE / DUPLICAZIONE RIGA
+  tbodyProdotti.addEventListener("click", (e) => {
+    const btnDel = e.target.closest(".btn-elimina-riga");
+    if (btnDel) {
+      const idx = parseInt(btnDel.dataset.idx, 10);
+      prodottiState.splice(idx, 1);
+      renderTable();
+      return;
+    }
+    const btnDup = e.target.closest(".btn-duplica-riga");
+    if (btnDup) {
+      const idx = parseInt(btnDup.dataset.idx, 10);
+      const clone = JSON.parse(JSON.stringify(prodottiState[idx]));
+      clone.nome += " (Copia)";
+      prodottiState.splice(idx + 1, 0, clone);
+      renderTable();
+      return;
+    }
+  });
+
+  // AGGIUNTA NUOVA RIGA VUOTA
+  function aggiungiRigaVuota() {
+    prodottiState.push({
+      nome: "",
+      codice: "",
+      lavorazione: "Porzionato SV",
+      volume_kg: 20,
+      prezzo_attuale: 15.00,
+      prezzo_nostro: 13.50
+    });
+    renderTable();
+    // Focus sul nuovo campo nome
+    setTimeout(() => {
+      const inputs = tbodyProdotti.querySelectorAll("input[data-field='nome']");
+      if (inputs.length > 0) {
+        inputs[inputs.length - 1].focus();
+      }
+    }, 50);
+  }
+
+  document.getElementById("btnAggiungiRiga").addEventListener("click", aggiungiRigaVuota);
+  document.getElementById("btnAggiungiRigaSotto").addEventListener("click", aggiungiRigaVuota);
+
+  // PRECARICA ESEMPI TAGLI LAVORATI
+  document.getElementById("btnCaricaEsempio").addEventListener("click", (e) => {
+    e.preventDefault();
+    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_LAVORATI));
+    renderTable();
+    showToastNotification("Caricati 6 prodotti lavorati d'esempio (Carni e Pesce)!");
+  });
+  document.getElementById("btnPrecaricaLavorati").addEventListener("click", () => {
+    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_LAVORATI));
+    renderTable();
+    showToastNotification("Suggeriti tagli lavorati tipici Horeca!");
+  });
+
+  // NUOVA COMPARAZIONE VUOTA
+  document.getElementById("btnNuovaComparazione").addEventListener("click", (e) => {
+    e.preventDefault();
+    if (confirm("Vuoi iniziare una nuova comparazione da zero?")) {
+      currentComparisonId = null;
+      prodottiState = [];
+      aggiungiRigaVuota();
+      inputTitolo.value = "Offerta Prodotti Lavorati con Analisi Risparmio";
+      showToastNotification("Nuovo foglio di comparazione creato!");
+    }
+  });
+
+  // SVUOTA TABELLA
+  document.getElementById("btnSvuotaTabella").addEventListener("click", (e) => {
+    e.preventDefault();
+    if (confirm("Sei sicuro di voler eliminare tutte le righe dalla tabella?")) {
+      prodottiState = [];
+      renderTable();
+      showToastNotification("Tabella svuotata.");
+    }
+  });
+
+  // MODAL CATALOGO: RICERCA IN TEMPO REALE
+  const filtroCatalogo = document.getElementById("filtroCatalogo");
+  filtroCatalogo.addEventListener("input", () => {
+    const q = filtroCatalogo.value.trim().toLowerCase();
+    document.querySelectorAll(".catalogo-row").forEach(row => {
+      const txt = row.getAttribute("data-search") || "";
+      row.style.display = txt.includes(q) ? "" : "none";
+    });
+  });
+
+  document.getElementById("btnImportaDaDb").addEventListener("click", () => {
+    const modal = new bootstrap.Modal(document.getElementById("modalCatalogo"));
+    modal.show();
+  });
+
+  // INSERIMENTO PRODOTTO DA CATALOGO
+  document.querySelectorAll(".btn-inserisci-catalogo").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const nome = btn.getAttribute("data-nome") || "";
+      const codice = btn.getAttribute("data-codice") || "";
+      const cat = btn.getAttribute("data-cat") || "";
+
+      prodottiState.push({
+        nome: nome,
+        codice: codice,
+        lavorazione: cat.includes("Pesce") ? "Filetto / Trancio" : "Porzionato SV",
+        volume_kg: 30,
+        prezzo_attuale: 18.00,
+        prezzo_nostro: 15.50
+      });
+
+      renderTable();
+      showToastNotification(`Aggiunto "${nome}" al prospetto!`);
+      
+      btn.innerHTML = `<i class="bi bi-check-lg text-success"></i> Aggiunto!`;
+      setTimeout(() => {
+        btn.innerHTML = `<i class="bi bi-plus-lg"></i> Inserisci`;
+      }, 1200);
+    });
+  });
+
+  // SALVATAGGIO COMPARAZIONE SUL DATABASE
+  document.getElementById("btnSalvaComparazione").addEventListener("click", () => {
+    const btn = document.getElementById("btnSalvaComparazione");
+    const oldHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Salvataggio...`;
+
+    // Raccoglie totali attuali
+    let totVolMese = 0;
+    let totSpesaAttMese = 0;
+    let totSpesaNosMese = 0;
+    let totRispMese = 0;
+
+    prodottiState.forEach(p => {
+      const v = parseFloat(p.volume_kg) || 0;
+      const pa = parseFloat(p.prezzo_attuale) || 0;
+      const pn = parseFloat(p.prezzo_nostro) || 0;
+      totVolMese += v;
+      totSpesaAttMese += (v * pa);
+      totSpesaNosMese += (v * pn);
+      totRispMese += (v * (pa - pn));
+    });
+
+    const totPerc = (totSpesaAttMese > 0) ? ((totRispMese / totSpesaAttMese) * 100) : 0;
+
+    const payload = {
+      id: currentComparisonId,
+      cliente_id: selectCliente.value ? parseInt(selectCliente.value, 10) : null,
+      cliente_nome: getClientName(),
+      titolo: inputTitolo.value.trim() || "Comparativo Listino",
+      note: inputNote.value.trim(),
+      totale_volume_kg: totVolMese,
+      totale_attuale_mese: totSpesaAttMese,
+      totale_nuovo_mese: totSpesaNosMese,
+      risparmio_mese: totRispMese,
+      risparmio_anno: totRispMese * 12,
+      percentuale_risparmio: totPerc,
+      prodotti: prodottiState
+    };
+
+    fetch("/api/comparatore/salva", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+
+      if (data.ok) {
+        currentComparisonId = data.id;
+        showToastNotification("Prospetto comparativo salvato con successo nel database!");
+      } else {
+        alert("Errore salvataggio: " + (data.message || "Riprova."));
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+      console.error(err);
+      alert("Errore di connessione o salvataggio.");
+    });
+  });
+
+  // ELIMINA COMPARAZIONE DALLO STORICO
+  document.querySelectorAll(".btn-elimina-comparazione").forEach(b => {
+    b.addEventListener("click", () => {
+      const id = b.dataset.id;
+      if (confirm("Sei sicuro di voler eliminare questa comparazione?")) {
+        fetch(`/api/comparatore/elimina/${id}`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok) {
+            b.closest("tr").remove();
+            showToastNotification("Comparazione eliminata.");
+          }
+        });
+      }
+    });
+  });
+
+  // STAMPA / PDF PREVENTIVO
+  document.getElementById("btnStampaPdf").addEventListener("click", () => {
+    // Prima salva o sincronizza
+    if (currentComparisonId) {
+      window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
+    } else {
+      // Salva prima al volo poi apri
+      document.getElementById("btnSalvaComparazione").click();
+      setTimeout(() => {
+        if (currentComparisonId) {
+          window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
+        } else {
+          window.print();
+        }
+      }, 700);
+    }
+  });
+
+  // WHATSAPP SHARE MODAL
+  document.getElementById("btnWhatsApp").addEventListener("click", () => {
+    const clientName = getClientName();
+    let totVolMese = 0;
+    let totSpesaAttMese = 0;
+    let totRispMese = 0;
+
+    prodottiState.forEach(p => {
+      const v = parseFloat(p.volume_kg) || 0;
+      const pa = parseFloat(p.prezzo_attuale) || 0;
+      const pn = parseFloat(p.prezzo_nostro) || 0;
+      totVolMese += v;
+      totSpesaAttMese += (v * pa);
+      totRispMese += (v * (pa - pn));
+    });
+
+    const totRispAnno = totRispMese * 12;
+    const totPerc = (totSpesaAttMese > 0) ? ((totRispMese / totSpesaAttMese) * 100) : 0;
+
+    let topProductsText = "";
+    prodottiState.slice(0, 4).forEach(p => {
+      const diff = (parseFloat(p.prezzo_attuale) || 0) - (parseFloat(p.prezzo_nostro) || 0);
+      topProductsText += `• *${p.nome}*: nostro € ${Number(p.prezzo_nostro).toFixed(2)}/kg (vs attuale € ${Number(p.prezzo_attuale).toFixed(2)}/kg) ➔ Risparmi € ${diff.toFixed(2)}/kg\n`;
+    });
+
+    const waText = `Gentile *${clientName}*,\nabbiamo elaborato la comparazione personalizzata sui *prodotti lavorati* in base ai vostri consumi mensili stimati (${totVolMese.toFixed(0)} kg/mese):\n\n` +
+      topProductsText +
+      `\n💰 *RISPARMIO MENSILE:* € ${totRispMese.toFixed(2)}\n` +
+      `🏆 *RISPARMIO ANNUALE GARANTITO:* € ${totRispAnno.toFixed(2)} (-${totPerc.toFixed(1)}%)\n\n` +
+      `Restiamo a disposizione per concordare le prime consegne di prova!\n_Horeca Suite_`;
+
+    document.getElementById("waMessaggio").value = waText;
+    const modalWa = new bootstrap.Modal(document.getElementById("modalWhatsApp"));
+    modalWa.show();
+  });
+
+  document.getElementById("btnInviaWaConferma").addEventListener("click", () => {
+    let num = document.getElementById("waNumero").value.trim().replace(/\D/g, "");
+    if (num && !num.startsWith("39") && num.length === 10) {
+      num = "39" + num;
+    }
+    const msg = encodeURIComponent(document.getElementById("waMessaggio").value);
+    const url = num ? `https://wa.me/${num}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(url, '_blank');
+  });
+
+  // Notifica Toast rapida
+  function showToastNotification(msg) {
+    const toast = document.createElement("div");
+    toast.className = "position-fixed bottom-0 end-0 m-4 p-3 bg-dark text-white rounded-3 shadow-lg d-flex align-items-center gap-2";
+    toast.style.zIndex = 9999;
+    toast.style.animation = "fadeIn 0.2s ease";
+    toast.innerHTML = `<i class="bi bi-check-circle-fill text-success fs-5"></i> <span>${msg}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transition = "opacity 0.3s";
+      setTimeout(() => toast.remove(), 300);
+    }, 3200);
+  }
+});
+</script>
+{% endblock %}

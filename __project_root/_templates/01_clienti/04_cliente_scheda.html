@@ -236,6 +236,9 @@
               data-bs-toggle="modal" data-bs-target="#modalAggiornamentoSettimanale">
         <i class="bi bi-calendar-plus-fill"></i> Aggiornamento Settimanale (Fatturato & PDF)
       </button>
+      <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-calculator-fill text-warning"></i> Comparatore & Risparmio
+      </a>
       <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2">
         <i class="bi bi-pencil-square"></i> Modifica Anagrafica
       </a>

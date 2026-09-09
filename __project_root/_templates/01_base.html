@@ -17,57 +17,102 @@
   <!-- Premium Vanilla CSS Styling -->
   <style>
     :root {
-      /* Curated Light Mode Color Palette (Harmonious Teal/Indigo) */
+      /* Curated Light Mode Color Palette (Modern Indigo / Electric Teal) */
       --bg-color: #f8fafc;
+      --bg-pattern: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.04) 0px, transparent 50%);
       --text-color: #0f172a;
       --text-muted: #64748b;
       --card-bg: #ffffff;
+      --card-bg-glass: rgba(255, 255, 255, 0.85);
       --border-color: #e2e8f0;
+      --border-subtle: rgba(226, 232, 240, 0.8);
       
       --primary: #4f46e5;
       --primary-hover: #4338ca;
-      --primary-light: rgba(79, 70, 229, 0.1);
+      --primary-light: rgba(79, 70, 229, 0.08);
+      --primary-border: rgba(79, 70, 229, 0.2);
       
       --accent: #0ea5e9;
-      --accent-light: rgba(14, 165, 233, 0.1);
+      --accent-hover: #0284c7;
+      --accent-light: rgba(14, 165, 233, 0.08);
       
       --sidebar-bg: #0f172a;
       --sidebar-text: #f8fafc;
       --sidebar-muted: #94a3b8;
+      --sidebar-hover: rgba(255, 255, 255, 0.07);
       
       --success: #10b981;
+      --success-light: rgba(16, 185, 129, 0.1);
       --danger: #ef4444;
+      --danger-light: rgba(239, 68, 68, 0.1);
       --warning: #f59e0b;
+      --warning-light: rgba(245, 158, 11, 0.1);
       
-      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-      --radius: 16px;
+      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+      --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 6px 16px -2px rgb(0 0 0 / 0.07), 0 2px 6px -1px rgb(0 0 0 / 0.04);
+      --shadow-lg: 0 14px 28px -4px rgb(0 0 0 / 0.1), 0 4px 10px -2px rgb(0 0 0 / 0.04);
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+      
+      --radius-xs: 6px;
       --radius-sm: 10px;
+      --radius: 16px;
+      --radius-lg: 20px;
+      --radius-pill: 9999px;
     }
 
     body.dark-mode {
-      /* Curated Premium Dark Mode Color Palette (Deep Space Slate) */
+      /* Curated Premium Dark Mode Color Palette (Deep Space Obsidian) */
       --bg-color: #0b0f19;
+      --bg-pattern: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.06) 0px, transparent 50%);
       --text-color: #f8fafc;
       --text-muted: #94a3b8;
       --card-bg: #111827;
+      --card-bg-glass: rgba(17, 24, 39, 0.85);
       --border-color: #1f2937;
+      --border-subtle: rgba(31, 41, 55, 0.8);
       
       --primary: #6366f1;
-      --primary-hover: #4f46e5;
+      --primary-hover: #818cf8;
       --primary-light: rgba(99, 102, 241, 0.15);
+      --primary-border: rgba(99, 102, 241, 0.3);
       
       --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
       --accent-light: rgba(56, 189, 248, 0.15);
       
       --sidebar-bg: #030712;
       --sidebar-text: #f8fafc;
       --sidebar-muted: #64748b;
+      --sidebar-hover: rgba(255, 255, 255, 0.08);
       
-      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+      --success-light: rgba(16, 185, 129, 0.18);
+      --danger-light: rgba(239, 68, 68, 0.18);
+      --warning-light: rgba(245, 158, 11, 0.18);
+      
+      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+      --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.5);
+      --shadow-md: 0 6px 16px -2px rgb(0 0 0 / 0.4), 0 2px 6px -1px rgb(0 0 0 / 0.2);
+      --shadow-lg: 0 14px 28px -4px rgb(0 0 0 / 0.5), 0 4px 10px -2px rgb(0 0 0 / 0.3);
+      --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
+    }
+
+    /* Custom Modern Sleek Scrollbar */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.6);
     }
 
     html, body {
@@ -80,15 +125,64 @@
       display: flex;
       flex-direction: column;
       background-color: var(--bg-color);
+      background-image: var(--bg-pattern);
+      background-attachment: fixed;
       color: var(--text-color);
-      font-family: 'Inter', sans-serif;
-      transition: background-color 0.4s ease, color 0.4s ease;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     h1, h2, h3, h4, h5, h6, .display-brand {
       font-family: 'Outfit', sans-serif;
       font-weight: 600;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
+    }
+
+    /* General Modern Utilities */
+    .glass-panel {
+      background: var(--card-bg-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn {
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, #4338ca 100%);
+      border: none;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+    }
+
+    /* Modern Table Styling */
+    .table {
+      --bs-table-color: var(--text-color);
+      --bs-table-bg: transparent;
+      --bs-table-border-color: var(--border-color);
+    }
+    .table-hover tbody tr {
+      transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+    .table-hover tbody tr:hover {
+      background-color: rgba(99, 102, 241, 0.035) !important;
+    }
+    body.dark-mode .table-hover tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.03) !important;
     }
 
     /* Breathtaking Sidebar */
@@ -96,7 +190,7 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 260px;
+      width: 265px;
       height: 100vh;
       background-color: var(--sidebar-bg);
       color: var(--sidebar-text);
@@ -105,15 +199,16 @@
       flex-direction: column;
       box-shadow: var(--shadow-lg);
       z-index: 1030;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .sidebar.collapsed {
-      width: 80px;
+      width: 82px;
     }
 
     .sidebar .navbar-brand {
-      font-size: 1.5rem;
+      font-size: 1.45rem;
       font-weight: 800;
       letter-spacing: -0.03em;
       color: #fff;
@@ -122,8 +217,8 @@
       gap: 12px;
       padding: 0.5rem;
       text-decoration: none;
-      margin-bottom: 2rem;
-      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+      margin-bottom: 1.75rem;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       transition: opacity 0.3s;
@@ -135,25 +230,28 @@
 
     .sidebar .nav-link {
       color: var(--sidebar-muted);
-      padding: 0.85rem 1rem;
+      padding: 0.75rem 0.9rem;
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 13px;
       font-weight: 500;
+      font-size: 0.92rem;
       border-radius: var(--radius-sm);
-      transition: all 0.2s ease;
-      margin-bottom: 0.25rem;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-bottom: 0.2rem;
       position: relative;
     }
 
     .sidebar .nav-link i {
       font-size: 1.25rem;
       transition: transform 0.2s;
+      flex-shrink: 0;
     }
 
     .sidebar .nav-link:hover {
       color: #fff;
-      background-color: rgba(255, 255, 255, 0.05);
+      background-color: var(--sidebar-hover);
+      transform: translateX(2px);
     }
 
     .sidebar .nav-link:hover i {
@@ -161,20 +259,24 @@
     }
 
     .sidebar .nav-link.active {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
       color: #fff !important;
-      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
     }
 
     .sidebar.collapsed .nav-link span {
+      display: none;
+    }
+    .sidebar.collapsed .nav-link .badge {
       display: none;
     }
 
     /* Toggle Dark Mode Button */
     .theme-toggle-btn {
       margin-top: auto;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--sidebar-muted);
       border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
@@ -183,11 +285,13 @@
       gap: 12px;
       cursor: pointer;
       font-weight: 500;
+      font-size: 0.9rem;
       transition: all 0.2s;
     }
     .theme-toggle-btn:hover {
       color: #fff;
-      background-color: rgba(255, 255, 255, 0.1);
+      background-color: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.15);
     }
     .sidebar.collapsed .theme-toggle-btn span {
       display: none;
@@ -197,24 +301,37 @@
     .logout-link {
       color: #f43f5e !important;
       background-color: rgba(244, 63, 94, 0.05);
-      border: 1px solid rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.12);
       margin-top: 0.5rem;
     }
     .logout-link:hover {
       background-color: #f43f5e !important;
       color: #fff !important;
       box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);
+      transform: none !important;
     }
 
     /* Main Container */
     main.container {
       flex: 1;
-      margin-left: 260px;
-      padding: 2.5rem 3.5rem;
-      transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-left: 265px;
+      padding: 2.25rem 3rem;
+      transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: pageEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .sidebar.collapsed + main.container {
-      margin-left: 80px;
+      margin-left: 82px;
+    }
+
+    @keyframes pageEntrance {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* Header & Navbar Top */
@@ -222,7 +339,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2.25rem;
     }
 
     .top-navbar .toggle-sidebar-btn {
@@ -230,14 +347,14 @@
       border: 1px solid var(--border-color);
       color: var(--text-color);
       border-radius: 12px;
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: var(--shadow-sm);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: var(--shadow-xs);
     }
     .top-navbar .toggle-sidebar-btn:hover {
       background-color: var(--border-color);
@@ -248,24 +365,24 @@
     .alert {
       border: none;
       border-radius: var(--radius-sm);
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
       padding: 1rem 1.25rem;
       font-weight: 500;
     }
 
     /* Footer */
     footer {
-      margin-left: 260px;
-      padding: 1.5rem 3.5rem;
+      margin-left: 265px;
+      padding: 1.5rem 3rem;
       border-top: 1px solid var(--border-color);
       background-color: var(--card-bg);
       color: var(--text-muted);
       font-size: 0.85rem;
       font-weight: 500;
-      transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .sidebar.collapsed + main.container + footer {
-      margin-left: 80px;
+      margin-left: 82px;
     }
 
     @media (max-width: 768px) {
@@ -275,12 +392,12 @@
         overflow: hidden;
       }
       .sidebar.mobile-open {
-        width: 260px !important;
+        width: 265px !important;
         padding: 1.5rem 1rem !important;
       }
       main.container, footer {
         margin-left: 0 !important;
-        padding: 1.5rem !important;
+        padding: 1.25rem !important;
       }
     }
 
@@ -308,6 +425,14 @@
         <a class="nav-link {% if request.path.startswith('/prodotti') %}active{% endif %}" href="{{ url_for('prodotti') }}">
           <i class="bi bi-box-seam-fill"></i>
           <span>Prodotti</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link {% if request.path.startswith('/comparatore') %}active{% endif %}" href="{{ url_for('comparatore_listino') }}">
+          <i class="bi bi-calculator-fill text-warning"></i>
+          <span>Comparatore Listino</span>
+          <span class="badge rounded-pill bg-success text-white ms-auto shadow-sm" style="font-size: 0.65rem; padding: 3px 6px;">Risparmio</span>
         </a>
       </li>
 
@@ -372,11 +497,18 @@
     
     <!-- Top Action Navbar -->
     <div class="top-navbar">
-      <button class="toggle-sidebar-btn" id="sidebarToggleBtn" aria-label="Espandi/Riduci Menu">
-        <i class="bi bi-arrow-left-right"></i>
-      </button>
       <div class="d-flex align-items-center gap-3">
-        <span class="badge bg-primary-light text-primary px-3 py-2 rounded-pill fw-semibold">
+        <button class="toggle-sidebar-btn" id="sidebarToggleBtn" aria-label="Espandi/Riduci Menu">
+          <i class="bi bi-arrow-left-right"></i>
+        </button>
+        <a href="{{ url_for('comparatore_listino') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-none d-md-flex align-items-center gap-2 shadow-sm">
+          <i class="bi bi-calculator-fill text-warning"></i>
+          <span>Comparatore Offerte</span>
+          <span class="badge bg-primary text-white" style="font-size: 0.65rem;">% Risparmio</span>
+        </a>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="badge bg-primary-light text-primary px-3 py-2 rounded-pill fw-semibold border border-primary-subtle">
           <i class="bi bi-shield-check"></i> Leonardo (Admin)
         </span>
       </div>

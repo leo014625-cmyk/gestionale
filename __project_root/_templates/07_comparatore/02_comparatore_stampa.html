@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ comp.titolo or 'Proposta Comparativa Prodotti Lavorati' }} - Horeca Suite</title>
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 0;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .page-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px 0;
+    }
+
+    /* Header styling */
+    .header-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2.5px solid #4f46e5;
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+    }
+
+    .company-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #1e1b4b;
+      margin: 0 0 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .company-sub {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    .doc-badge {
+      background-color: #e0e7ff;
+      color: #4338ca;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .doc-meta {
+      font-size: 12px;
+      color: #475569;
+      text-align: right;
+    }
+
+    /* Client info grid */
+    .client-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .client-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 19px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 2px 0;
+    }
+
+    .proposal-title {
+      color: #4f46e5;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    /* Hero savings callout */
+    .savings-hero-box {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 2px solid #10b981;
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .savings-hero-left h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #065f46;
+      margin: 0 0 4px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .savings-hero-left p {
+      margin: 0;
+      font-size: 12px;
+      color: #047857;
+    }
+
+    .savings-hero-right {
+      text-align: right;
+    }
+
+    .savings-hero-amount {
+      font-family: 'Outfit', sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      color: #047857;
+      line-height: 1;
+    }
+
+    .savings-hero-badge {
+      background: #059669;
+      color: #ffffff;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    /* Table styling */
+    table.print-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    table.print-table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 9px 8px;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 2px solid #cbd5e1;
+      text-align: left;
+    }
+
+    table.print-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 12px;
+      vertical-align: middle;
+    }
+
+    table.print-table tfoot td {
+      background: #f8fafc;
+      border-top: 2px solid #0f172a;
+      border-bottom: 2px solid #0f172a;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .col-right {
+      text-align: right;
+    }
+    .col-center {
+      text-align: center;
+    }
+
+    .badge-diff {
+      color: #059669;
+      font-weight: 700;
+      background: #d1fae5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* Notes & terms */
+    .terms-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 30px;
+      font-size: 12px;
+      color: #475569;
+    }
+
+    .terms-box h4 {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* Signatures */
+    .signatures-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 36px;
+      padding-top: 20px;
+      page-break-inside: avoid;
+    }
+
+    .sig-box {
+      width: 44%;
+      text-align: center;
+      border-top: 1px dashed #94a3b8;
+      padding-top: 8px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    /* No-print controls */
+    .no-print-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #1e1b4b;
+      color: white;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .no-print-bar button {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .no-print-bar button:hover {
+      background: #059669;
+    }
+
+    .no-print-bar a {
+      color: #c7d2fe;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    @media print {
+      .no-print-bar {
+        display: none !important;
+      }
+      body {
+        padding-top: 0 !important;
+      }
+      .page-container {
+        padding: 0 !important;
+      }
+    }
+  </style>
+</head>
+<body style="padding-top: 60px;">
+
+  <!-- Non-printable top action bar -->
+  <div class="no-print-bar">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <a href="/comparatore?id={{ comp.id }}">← Torna all'Editor Comparatore</a>
+      <span style="color: #6366f1;">|</span>
+      <span>Proposta per: <strong>{{ comp.cliente_nome }}</strong></span>
+    </div>
+    <button onclick="window.print()">
+      <i class="bi bi-printer-fill"></i> Stampa / Salva come PDF
+    </button>
+  </div>
+
+  <div class="page-container">
+
+    <!-- HEADER AZIENDA -->
+    <div class="header-box">
+      <div>
+        <div class="company-title">
+          <i class="bi bi-box-seam-fill" style="color: #4f46e5;"></i>
+          <span>HORECA SUITE</span>
+        </div>
+        <div class="company-sub">Forniture Professionali & Prodotti Lavorati per la Ristorazione</div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-badge">Prospetto Economico Comparativo</div>
+        <div>Data: <strong>{{ comp.creato_il.strftime('%d/%m/%Y') if comp.creato_il else '' }}</strong></div>
+        <div>Rif. Offerta: <strong>#CMP-{{ "%04d"|format(comp.id) }}</strong></div>
+      </div>
+    </div>
+
+    <!-- CLIENTE CARD -->
+    <div class="client-card">
+      <div>
+        <div class="company-sub" style="margin-bottom: 3px;">Spettabile Cliente</div>
+        <h2 class="client-name">{{ comp.cliente_nome }}</h2>
+        <div class="proposal-title">{{ comp.titolo }}</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 11px; color: #64748b;">Volume Mensile Lavorato:</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: #4f46e5;">
+          {{ "%.1f"|format(comp.totale_volume_kg or 0) }} KG / Mese
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVINGS HERO HIGHLIGHT -->
+    <div class="savings-hero-box">
+      <div class="savings-hero-left">
+        <h3>Risparmio Economico Totale Garantito</h3>
+        <p>A parità di consumi stimati sui prodotti lavorati e porzionati selezionati</p>
+      </div>
+      <div class="savings-hero-right">
+        <div class="savings-hero-amount">€ {{ "%.2f"|format(comp.risparmio_anno or 0) }}</div>
+        <div class="savings-hero-badge">
+          Risparmio Annuo: -{{ "%.1f"|format(comp.percentuale_risparmio or 0) }}% (€ {{ "%.2f"|format(comp.risparmio_mese or 0) }}/mese)
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELLA DETTAGLIATA PRODOTTI LAVORATI -->
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th style="width: 25px;">#</th>
+          <th>Prodotto Lavorato / Taglio</th>
+          <th style="width: 95px;">Lavorazione</th>
+          <th class="col-right" style="width: 75px;">Vol. KG/M</th>
+          <th class="col-right" style="width: 80px;">Attuale</th>
+          <th class="col-right" style="width: 80px;">Offerta</th>
+          <th class="col-right" style="width: 75px;">Diff. KG</th>
+          <th class="col-right" style="width: 85px;">Spesa Mese</th>
+          <th class="col-right" style="width: 90px; color: #059669;">Risp. Anno</th>
+          <th class="col-center" style="width: 60px;">%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(tot_vol=0, tot_att=0, tot_nos=0, tot_risp_m=0) %}
+        {% for p in prodotti %}
+          {% set vol = p.volume_kg|float(0) %}
+          {% set pa = p.prezzo_attuale|float(0) %}
+          {% set pn = p.prezzo_nostro|float(0) %}
+          {% set diff = pa - pn %}
+          {% set spesa_att = vol * pa %}
+          {% set spesa_nos = vol * pn %}
+          {% set risp_m = spesa_att - spesa_nos %}
+          {% set risp_a = risp_m * 12 %}
+          {% set perc = ((diff / pa) * 100) if pa > 0 else 0 %}
+
+          {% set ns.tot_vol = ns.tot_vol + vol %}
+          {% set ns.tot_att = ns.tot_att + spesa_att %}
+          {% set ns.tot_nos = ns.tot_nos + spesa_nos %}
+          {% set ns.tot_risp_m = ns.tot_risp_m + risp_m %}
+
+          <tr>
+            <td style="color: #94a3b8; font-weight: 600;">{{ loop.index }}</td>
+            <td>
+              <strong>{{ p.nome }}</strong>
+              {% if p.codice %}<br><small style="color: #64748b; font-family: monospace;">{{ p.codice }}</small>{% endif %}
+            </td>
+            <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{{ p.lavorazione or '–' }}</span></td>
+            <td class="col-right font-monospace">{{ "%.1f"|format(vol) }}</td>
+            <td class="col-right font-monospace" style="color: #64748b;">€ {{ "%.2f"|format(pa) }}</td>
+            <td class="col-right font-monospace" style="color: #4338ca; font-weight: 600;">€ {{ "%.2f"|format(pn) }}</td>
+            <td class="col-right font-monospace" style="color: #059669; font-weight: 600;">-€ {{ "%.2f"|format(diff) }}</td>
+            <td class="col-right font-monospace">€ {{ "%.2f"|format(spesa_nos) }}</td>
+            <td class="col-right font-monospace" style="color: #059669; font-weight: 700;">€ {{ "%.2f"|format(risp_a) }}</td>
+            <td class="col-center">
+              <span class="badge-diff">-{{ "%.1f"|format(perc) }}%</span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">TOTALE RIEPILOGATIVO:</td>
+          <td class="col-right" style="color: #4f46e5;">{{ "%.1f"|format(ns.tot_vol) }} kg</td>
+          <td class="col-right" colspan="3" style="font-size: 11px; color: #64748b;">(Attuale: € {{ "%.2f"|format(ns.tot_att) }}/m)</td>
+          <td class="col-right">€ {{ "%.2f"|format(ns.tot_nos) }}</td>
+          <td class="col-right" style="color: #059669; font-size: 14px;">€ {{ "%.2f"|format(ns.tot_risp_m * 12) }}</td>
+          <td class="col-center" style="color: #059669;">-{{ "%.1f"|format(((ns.tot_risp_m / ns.tot_att) * 100) if ns.tot_att > 0 else 0) }}%</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- CONDIZIONI FORNITURA E SERVIZI INCLUSI -->
+    <div class="terms-box">
+      <h4>Condizioni di Fornitura & Servizi Inclusi sui Lavorati:</h4>
+      <div>
+        {{ comp.note if comp.note else '• Consegne programmate con automezzi a temperatura controllata.\n• Tagli di carne e pesce porzionati a grammatura costante in sottovuoto per azzerare lo scarto e la manodopera in cucina.\n• Frollatura controllata e tracciabilità certificata di ogni lotto.' | replace('\n', '<br>') | safe }}
+      </div>
+    </div>
+
+    <!-- FIRME -->
+    <div class="signatures-row">
+      <div class="sig-box">
+        Per Accettazione il Cliente (Timbro e Firma)<br><br><br>
+        __________________________________________
+      </div>
+      <div class="sig-box">
+        Horeca Suite - Consulente Commerciale<br><br><br>
+        __________________________________________
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

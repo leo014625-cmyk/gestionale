@@ -350,6 +350,22 @@ def init_db():
             um_pdf TEXT,
             prezzo_pdf REAL DEFAULT 0,
             quantita INTEGER DEFAULT 1
+        )''',
+        '''CREATE TABLE IF NOT EXISTS comparazioni_listini (
+            id SERIAL PRIMARY KEY,
+            cliente_id INTEGER REFERENCES clienti(id) ON DELETE SET NULL,
+            cliente_nome TEXT NOT NULL,
+            titolo TEXT NOT NULL,
+            note TEXT,
+            totale_volume_kg REAL DEFAULT 0,
+            totale_attuale_mese REAL DEFAULT 0,
+            totale_nuovo_mese REAL DEFAULT 0,
+            risparmio_mese REAL DEFAULT 0,
+            risparmio_anno REAL DEFAULT 0,
+            percentuale_risparmio REAL DEFAULT 0,
+            dati_json TEXT NOT NULL,
+            creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )'''
     ]
 
@@ -8504,6 +8520,245 @@ def ical_visite():
     response.headers["Content-Type"] = "text/calendar; charset=utf-8"
     response.headers["Content-Disposition"] = "inline; filename=visite.ics"
     return response
+
+# ============================
+# COMPARATORE PRODOTTI LAVORATI & ANALISI RISPARMIO CLIENTE
+# ============================
+
+@app.route('/comparatore')
+@login_required
+def comparatore_listino():
+    cliente_id_param = request.args.get('cliente_id')
+    load_id_param = request.args.get('id')
+
+    with get_db() as db:
+        cur = db.cursor()
+
+        # Recupera elenco clienti per selezione rapida
+        cur.execute("SELECT id, nome, zona FROM clienti ORDER BY nome ASC")
+        clienti_list = [dict(c) for c in cur.fetchall()]
+
+        # Recupera catalogo prodotti lavorati / base per autocompletamento rapido
+        cur.execute("""
+            SELECT p.id, p.nome, p.codice, COALESCE(c.nome, 'Generale') as categoria
+            FROM prodotti p
+            LEFT JOIN categorie c ON p.categoria_id = c.id
+            WHERE COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY p.nome ASC
+            LIMIT 300
+        """)
+        prodotti_catalogo = [dict(p) for p in cur.fetchall()]
+
+        # Recupera elenco comparazioni salvate
+        comparazioni_salvate = []
+        try:
+            cur.execute("""
+                SELECT id, cliente_id, cliente_nome, titolo, note, 
+                       totale_volume_kg, totale_attuale_mese, totale_nuovo_mese, 
+                       risparmio_mese, risparmio_anno, percentuale_risparmio, 
+                       creato_il, aggiornato_il
+                FROM comparazioni_listini
+                ORDER BY id DESC
+                LIMIT 50
+            """)
+            comparazioni_salvate = [dict(r) for r in cur.fetchall()]
+        except Exception as _e:
+            print(f"comparazioni_listini fetch error: {_e}")
+
+        # Se richiesto caricamento di una comparazione specifica
+        comparazione_caricata = None
+        if load_id_param:
+            try:
+                cur.execute("SELECT * FROM comparazioni_listini WHERE id = %s", (int(load_id_param),))
+                row = cur.fetchone()
+                if row:
+                    comparazione_caricata = dict(row)
+                    if isinstance(comparazione_caricata.get('dati_json'), str):
+                        try:
+                            comparazione_caricata['prodotti_dettaglio'] = json.loads(comparazione_caricata['dati_json'])
+                        except Exception:
+                            comparazione_caricata['prodotti_dettaglio'] = []
+            except Exception as _e:
+                print(f"Errore caricamento comparazione {load_id_param}: {_e}")
+
+        # Se selezionato cliente specifico via query param
+        cliente_preselezionato = None
+        if cliente_id_param:
+            try:
+                cur.execute("SELECT id, nome, zona FROM clienti WHERE id = %s", (int(cliente_id_param),))
+                c_row = cur.fetchone()
+                if c_row:
+                    cliente_preselezionato = dict(c_row)
+            except Exception:
+                pass
+
+    return render_template(
+        '07_comparatore/01_comparatore.html',
+        clienti=clienti_list,
+        prodotti_catalogo=prodotti_catalogo,
+        comparazioni_salvate=comparazioni_salvate,
+        comparazione_caricata=comparazione_caricata,
+        cliente_preselezionato=cliente_preselezionato
+    )
+
+
+@app.route('/api/comparatore/salva', methods=['POST'])
+@login_required
+def api_comparatore_salva():
+    try:
+        data = request.get_json(silent=True) or {}
+        comp_id = data.get('id')
+        cliente_id = data.get('cliente_id')
+        cliente_nome = data.get('cliente_nome', '').strip() or "Cliente Senza Nome"
+        titolo = data.get('titolo', '').strip() or f"Comparativo Listino - {cliente_nome}"
+        note = data.get('note', '').strip()
+        totale_volume_kg = float(data.get('totale_volume_kg', 0) or 0)
+        totale_attuale_mese = float(data.get('totale_attuale_mese', 0) or 0)
+        totale_nuovo_mese = float(data.get('totale_nuovo_mese', 0) or 0)
+        risparmio_mese = float(data.get('risparmio_mese', 0) or 0)
+        risparmio_anno = float(data.get('risparmio_anno', 0) or 0)
+        percentuale_risparmio = float(data.get('percentuale_risparmio', 0) or 0)
+        prodotti = data.get('prodotti', [])
+
+        dati_json = json.dumps(prodotti, ensure_ascii=False)
+
+        with get_db() as db:
+            cur = db.cursor()
+
+            # Assicurati che la tabella esista
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS comparazioni_listini (
+                    id SERIAL PRIMARY KEY,
+                    cliente_id INTEGER REFERENCES clienti(id) ON DELETE SET NULL,
+                    cliente_nome TEXT NOT NULL,
+                    titolo TEXT NOT NULL,
+                    note TEXT,
+                    totale_volume_kg REAL DEFAULT 0,
+                    totale_attuale_mese REAL DEFAULT 0,
+                    totale_nuovo_mese REAL DEFAULT 0,
+                    risparmio_mese REAL DEFAULT 0,
+                    risparmio_anno REAL DEFAULT 0,
+                    percentuale_risparmio REAL DEFAULT 0,
+                    dati_json TEXT NOT NULL,
+                    creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            target_id = None
+            if comp_id:
+                try:
+                    cur.execute("""
+                        UPDATE comparazioni_listini 
+                        SET cliente_id = %s, cliente_nome = %s, titolo = %s, note = %s,
+                            totale_volume_kg = %s, totale_attuale_mese = %s, totale_nuovo_mese = %s,
+                            risparmio_mese = %s, risparmio_anno = %s, percentuale_risparmio = %s,
+                            dati_json = %s, aggiornato_il = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                        RETURNING id
+                    """, (cliente_id or None, cliente_nome, titolo, note,
+                          totale_volume_kg, totale_attuale_mese, totale_nuovo_mese,
+                          risparmio_mese, risparmio_anno, percentuale_risparmio,
+                          dati_json, int(comp_id)))
+                    row = cur.fetchone()
+                    if row:
+                        target_id = row['id']
+                except Exception as _ue:
+                    print(f"Update comparazione error: {_ue}")
+
+            if not target_id:
+                cur.execute("""
+                    INSERT INTO comparazioni_listini (
+                        cliente_id, cliente_nome, titolo, note,
+                        totale_volume_kg, totale_attuale_mese, totale_nuovo_mese,
+                        risparmio_mese, risparmio_anno, percentuale_risparmio,
+                        dati_json, creato_il, aggiornato_il
+                    ) VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s,
+                        %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    ) RETURNING id
+                """, (cliente_id or None, cliente_nome, titolo, note,
+                      totale_volume_kg, totale_attuale_mese, totale_nuovo_mese,
+                      risparmio_mese, risparmio_anno, percentuale_risparmio,
+                      dati_json))
+                target_id = cur.fetchone()['id']
+
+            db.commit()
+
+        return jsonify({
+            "ok": True,
+            "id": target_id,
+            "message": "Comparazione salvata con successo!"
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "message": f"Errore salvataggio: {str(e)}"}), 500
+
+
+@app.route('/api/comparatore/<int:id>', methods=['GET'])
+@login_required
+def api_comparatore_dettaglio(id):
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            cur.execute("SELECT * FROM comparazioni_listini WHERE id = %s", (id,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"ok": False, "message": "Comparazione non trovata"}), 404
+            
+            data = dict(row)
+            if isinstance(data.get('dati_json'), str):
+                try:
+                    data['prodotti'] = json.loads(data['dati_json'])
+                except Exception:
+                    data['prodotti'] = []
+            else:
+                data['prodotti'] = []
+            
+            return jsonify({"ok": True, "comparazione": data})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
+
+
+@app.route('/api/comparatore/elimina/<int:id>', methods=['POST', 'DELETE'])
+@login_required
+def api_comparatore_elimina(id):
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            cur.execute("DELETE FROM comparazioni_listini WHERE id = %s", (id,))
+            db.commit()
+        return jsonify({"ok": True, "message": "Comparazione eliminata con successo!"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
+
+
+@app.route('/comparatore/stampa/<int:id>')
+@login_required
+def comparatore_stampa(id):
+    with get_db() as db:
+        cur = db.cursor()
+        cur.execute("SELECT * FROM comparazioni_listini WHERE id = %s", (id,))
+        row = cur.fetchone()
+        if not row:
+            flash("Comparazione non trovata.", "warning")
+            return redirect(url_for('comparatore_listino'))
+        
+        comp = dict(row)
+        try:
+            prodotti = json.loads(comp.get('dati_json', '[]'))
+        except Exception:
+            prodotti = []
+
+    return render_template(
+        '07_comparatore/02_comparatore_stampa.html',
+        comp=comp,
+        prodotti=prodotti
+    )
+
 # ============================
 # AVVIO APP
 # ============================
