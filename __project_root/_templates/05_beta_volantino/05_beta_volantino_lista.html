@@ -308,9 +308,9 @@
               <!-- Name & modifications -->
               <td>
                 <div class="fw-bold text-color">{{ v.nome }}</div>
-                {% if v.aggiornato_il and v.aggiornato_il > v.creato_il %}
+                {% if v.aggiornato_il and (not v.creato_il or v.aggiornato_il > v.creato_il) %}
                   <span class="badge bg-primary-light text-primary border border-primary-subtle rounded-pill px-2 py-0.5 mt-1" style="font-size: 0.7rem;">
-                    <i class="bi bi-clock-history me-1"></i>Modificato: {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') }}
+                    <i class="bi bi-clock-history me-1"></i>Modificato: {{ v.aggiornato_il.strftime('%d/%m/%Y %H:%M') if v.aggiornato_il.strftime is defined else v.aggiornato_il }}
                   </span>
                 {% endif %}
               </td>
@@ -339,7 +339,7 @@
                 <span class="text-muted small fw-semibold">
                   <i class="bi bi-calendar-event me-1"></i>
                   {% if v.creato_il %}
-                    {{ v.creato_il.strftime('%d/%m/%Y %H:%M') }}
+                    {{ v.creato_il.strftime('%d/%m/%Y %H:%M') if v.creato_il.strftime is defined else v.creato_il }}
                   {% else %}
                     N/D
                   {% endif %}
