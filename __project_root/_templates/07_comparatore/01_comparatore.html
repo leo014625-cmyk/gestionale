@@ -682,9 +682,21 @@
           <div class="tab-pane fade show active" id="tab-alto" role="tabpanel">
             
             <div class="card border rounded-3 mb-3 p-3 bg-light bg-opacity-50">
-              <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                <i class="bi bi-building"></i> Dati Aziendali & Intestazione Foglio
-              </h6>
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h6 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
+                  <i class="bi bi-building"></i> Dati Aziendali & Intestazione Foglio
+                </h6>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="toolMostraHeader" checked>
+                    <label class="form-check-label fw-semibold small" for="toolMostraHeader">Mostra Intestazione</label>
+                  </div>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="toolMostraLogo" checked>
+                    <label class="form-check-label fw-semibold small" for="toolMostraLogo">Mostra Logo</label>
+                  </div>
+                </div>
+              </div>
               <div class="row g-3">
                 <div class="col-md-7">
                   <label class="form-label small fw-bold text-muted">Nome Azienda / Insegna:</label>
@@ -740,9 +752,15 @@
             
             <!-- Note & Condizioni -->
             <div class="card border rounded-3 mb-3 p-3 bg-light bg-opacity-50">
-              <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                <i class="bi bi-card-checklist text-primary"></i> Condizioni di Fornitura & Servizi Inclusi
-              </h6>
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                  <i class="bi bi-card-checklist text-primary"></i> Condizioni di Fornitura & Servizi Inclusi
+                </h6>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toolMostraCondizioni" checked>
+                  <label class="form-check-label fw-semibold small" for="toolMostraCondizioni">Mostra Condizioni</label>
+                </div>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-muted">Titolo Box Condizioni:</label>
@@ -896,9 +914,12 @@ document.addEventListener("DOMContentLoaded", () => {
     contatti: "Tel. +39 071 123456 • info@horecasuite.it • P.IVA 01234567890",
     doc_badge: "Prospetto Economico Comparativo",
     logo_url: "",
+    mostra_header: true,
+    mostra_logo: true,
     mostra_hero_risparmio: true,
     titolo_hero_risparmio: "Risparmio Economico Totale Garantito",
     sub_hero_risparmio: "A parità di consumi stimati sui prodotti selezionati",
+    mostra_condizioni: true,
     titolo_condizioni: "Condizioni di Fornitura & Servizi Inclusi:",
     note_condizioni: "• Consegne programmate con automezzi a temperatura controllata.\n• Porzionatura a grammatura controllata per azzerare lo scarto e la manodopera.\n• Tracciabilità certificata di ogni lotto con scheda tecnica allegata.",
     validita_offerta: "Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.",
@@ -927,10 +948,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("toolDocBadge").value = impostazioniPdfState.doc_badge || "";
     document.getElementById("toolLogoUrl").value = impostazioniPdfState.logo_url || "";
     
+    document.getElementById("toolMostraHeader").checked = impostazioniPdfState.mostra_header !== false;
+    document.getElementById("toolMostraLogo").checked = impostazioniPdfState.mostra_logo !== false;
     document.getElementById("toolMostraHero").checked = impostazioniPdfState.mostra_hero_risparmio !== false;
+    
     document.getElementById("toolTitoloHero").value = impostazioniPdfState.titolo_hero_risparmio || "";
     document.getElementById("toolSubHero").value = impostazioniPdfState.sub_hero_risparmio || "";
     
+    document.getElementById("toolMostraCondizioni").checked = impostazioniPdfState.mostra_condizioni !== false;
     document.getElementById("toolTitoloCondizioni").value = impostazioniPdfState.titolo_condizioni || "";
     document.getElementById("toolValiditaOfferta").value = impostazioniPdfState.validita_offerta || "";
     document.getElementById("toolNoteCondizioni").value = impostazioniPdfState.note_condizioni || "";
@@ -949,10 +974,13 @@ document.addEventListener("DOMContentLoaded", () => {
     impostazioniPdfState.doc_badge = document.getElementById("toolDocBadge").value.trim() || DEFAULT_PDF_SETTINGS.doc_badge;
     impostazioniPdfState.logo_url = document.getElementById("toolLogoUrl").value.trim();
     
+    impostazioniPdfState.mostra_header = document.getElementById("toolMostraHeader").checked;
+    impostazioniPdfState.mostra_logo = document.getElementById("toolMostraLogo").checked;
     impostazioniPdfState.mostra_hero_risparmio = document.getElementById("toolMostraHero").checked;
     impostazioniPdfState.titolo_hero_risparmio = document.getElementById("toolTitoloHero").value.trim() || DEFAULT_PDF_SETTINGS.titolo_hero_risparmio;
     impostazioniPdfState.sub_hero_risparmio = document.getElementById("toolSubHero").value.trim();
     
+    impostazioniPdfState.mostra_condizioni = document.getElementById("toolMostraCondizioni").checked;
     impostazioniPdfState.titolo_condizioni = document.getElementById("toolTitoloCondizioni").value.trim() || DEFAULT_PDF_SETTINGS.titolo_condizioni;
     impostazioniPdfState.validita_offerta = document.getElementById("toolValiditaOfferta").value.trim() || DEFAULT_PDF_SETTINGS.validita_offerta;
     impostazioniPdfState.note_condizioni = document.getElementById("toolNoteCondizioni").value.trim();
