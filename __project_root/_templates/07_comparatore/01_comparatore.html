@@ -214,8 +214,8 @@
         </button>
         
         <button type="button" class="btn btn-outline-light rounded-pill px-3 fw-bold d-flex align-items-center gap-2" id="btnStampaPdf">
-          <i class="bi bi-printer-fill"></i>
-          <span>Stampa / PDF</span>
+          <i class="bi bi-file-earmark-arrow-down-fill text-warning"></i>
+          <span>Scarica Preventivo PDF</span>
         </button>
 
         <button type="button" class="btn btn-success rounded-pill px-3 fw-bold d-flex align-items-center gap-2 shadow-sm" id="btnWhatsApp">
@@ -228,6 +228,7 @@
             <i class="bi bi-three-dots-vertical"></i> Altro
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+            <li><a class="dropdown-item py-2" href="#" id="btnApriStampaFoglio"><i class="bi bi-eye text-primary me-2"></i>Anteprima & Modifica Foglio</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnCaricaEsempio"><i class="bi bi-magic text-warning me-2"></i>Carica Prodotti d'Esempio</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnNuovaComparazione"><i class="bi bi-plus-circle text-primary me-2"></i>Nuovo Prospetto Vuoto</a></li>
             <li><a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalStorico"><i class="bi bi-clock-history text-info me-2"></i>Storico Preventivi Salvati</a></li>
@@ -466,8 +467,8 @@
           </p>
         </div>
         <div class="col-lg-4 text-lg-end">
-          <button type="button" class="btn btn-primary rounded-pill px-4 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center gap-2" onclick="document.getElementById('btnStampaPdf').click()">
-            <i class="bi bi-file-earmark-pdf-fill"></i> Genera Preventivo PDF
+          <button type="button" class="btn btn-primary rounded-pill px-4 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center gap-2" id="btnGeneraPreventivoPdf">
+            <i class="bi bi-file-earmark-arrow-down-fill"></i> Genera Preventivo PDF
           </button>
         </div>
       </div>
@@ -835,6 +836,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   // Stato Globale della Comparazione
@@ -1603,16 +1605,141 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // STAMPA / PDF PREVENTIVO (Salva prima in modo trasparente e poi apre)
-  document.getElementById("btnStampaPdf").addEventListener("click", () => {
-    salvaComparazione((res) => {
-      if (currentComparisonId) {
-        window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
-      } else {
-        window.print();
+  // ========================================================
+  // GENERAZIONE & DOWNLOAD DIRETTO PREVENTIVO PDF
+  // ========================================================
+  async function scaricaPreventivoPdf(btnElement) {
+    if (!prodottiState || prodottiState.length === 0) {
+      alert("Aggiungi almeno un prodotto alla comparazione prima di scaricare il preventivo PDF.");
+      return;
+    }
+
+    const originalHtml = btnElement ? btnElement.innerHTML : null;
+    if (btnElement) {
+      btnElement.disabled = true;
+      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Generazione PDF in corso...`;
+    }
+    showToastNotification("Salvataggio e generazione del file PDF in corso...");
+
+    salvaComparazione(async (res) => {
+      if (!currentComparisonId) {
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalHtml;
+        }
+        alert("Impossibile salvare la comparazione. Riprova.");
+        return;
+      }
+
+      try {
+        // Recupera la pagina di stampa compilata con tutti gli stili e impostazioni correnti
+        const resp = await fetch(`/comparatore/stampa/${currentComparisonId}?t=${Date.now()}`);
+        if (!resp.ok) throw new Error("Errore nel recupero del foglio di stampa dal server.");
+        const htmlText = await resp.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+        const printableSheet = doc.getElementById("printableSheet");
+        if (!printableSheet) throw new Error("Elemento printableSheet non trovato.");
+
+        const styles = doc.querySelectorAll("style, link[rel='stylesheet']");
+
+        // Contenitore fuori schermo per consentire il calcolo esatto delle dimensioni
+        const renderWrap = document.createElement("div");
+        renderWrap.id = "tempPdfRenderWrapper";
+        renderWrap.style.position = "fixed";
+        renderWrap.style.left = "0";
+        renderWrap.style.top = "0";
+        renderWrap.style.width = "820px";
+        renderWrap.style.opacity = "0.005";
+        renderWrap.style.pointerEvents = "none";
+        renderWrap.style.zIndex = "-99999";
+
+        styles.forEach(s => renderWrap.appendChild(s.cloneNode(true)));
+        renderWrap.appendChild(printableSheet);
+        document.body.appendChild(renderWrap);
+
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        const clientClean = (getClientName() || "Cliente")
+          .trim()
+          .replace(/[^a-zA-Z0-9àèéìòùÀÈÉÌÒÙ_\- ]/g, "")
+          .replace(/\s+/g, "_") || "Cliente";
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const fileName = `Preventivo_${clientClean}_${dateStr}.pdf`;
+
+        const opt = {
+          margin: [6, 8, 6, 8],
+          filename: fileName,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            scrollY: 0
+          },
+          jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait"
+          },
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+        };
+
+        await html2pdf().set(opt).from(printableSheet).save();
+        renderWrap.remove();
+
+        if (btnElement) {
+          btnElement.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`;
+          setTimeout(() => {
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalHtml;
+          }, 2500);
+        }
+        showToastNotification("Preventivo PDF scaricato con successo sul tuo computer!");
+
+      } catch (err) {
+        console.error("Generazione PDF diretta fallita, apertura con download:", err);
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalHtml;
+        }
+        // Fallback affidabile: apre con ?download=1 che scarica automaticamente
+        window.open(`/comparatore/stampa/${currentComparisonId}?download=1`, "_blank");
       }
     });
-  });
+  }
+
+  // Click su Genera Preventivo PDF (pulsante grande nella card di risparmio)
+  const btnGeneraPdf = document.getElementById("btnGeneraPreventivoPdf");
+  if (btnGeneraPdf) {
+    btnGeneraPdf.addEventListener("click", function() {
+      scaricaPreventivoPdf(this);
+    });
+  }
+
+  // Click su Scarica Preventivo PDF (pulsante nella barra superiore)
+  const btnStampaPdf = document.getElementById("btnStampaPdf");
+  if (btnStampaPdf) {
+    btnStampaPdf.addEventListener("click", function() {
+      scaricaPreventivoPdf(this);
+    });
+  }
+
+  // Click su Anteprima & Modifica Foglio (nel menu a tendina "Altro")
+  const btnApriStampa = document.getElementById("btnApriStampaFoglio");
+  if (btnApriStampa) {
+    btnApriStampa.addEventListener("click", (e) => {
+      e.preventDefault();
+      salvaComparazione(() => {
+        if (currentComparisonId) {
+          window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
+        }
+      });
+    });
+  }
 
   // WHATSAPP SHARE MODAL
   document.getElementById("btnWhatsApp").addEventListener("click", () => {

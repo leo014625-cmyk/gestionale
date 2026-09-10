@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     @page {
@@ -365,6 +366,14 @@
     .btn-top-bar-print:hover {
       background: #059669;
     }
+    .btn-top-bar-download {
+      background: #2563eb;
+      color: white;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+    .btn-top-bar-download:hover {
+      background: #1d4ed8;
+    }
 
     /* Slide-Over Tool Drawer for Final PDF customization */
     .tool-drawer-backdrop {
@@ -530,8 +539,12 @@
         <i class="bi bi-cloud-check-fill"></i> Salva Modifiche
       </button>
 
+      <button type="button" class="btn-top-bar btn-top-bar-download" id="btnScaricaPdfDiretto">
+        <i class="bi bi-file-earmark-arrow-down-fill"></i> Scarica PDF
+      </button>
+
       <button type="button" class="btn-top-bar btn-top-bar-print" onclick="window.print()">
-        <i class="bi bi-printer-fill"></i> Stampa / Salva in PDF
+        <i class="bi bi-printer-fill"></i> Stampa
       </button>
     </div>
   </div>
@@ -1058,6 +1071,96 @@
     document.getElementById("btnDrawerSaveAndApply").addEventListener("click", function() {
       saveEditsToServer(this);
     });
+
+    // ==========================================
+    // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF
+    // ==========================================
+    function generaEScaricaPdf(callback) {
+      const element = document.getElementById("printableSheet");
+      if (!element) {
+        if (callback) callback();
+        return;
+      }
+
+      // Raccogliamo eventuali modifiche inline sui testi
+      gatherAllUpdatedSettings();
+
+      const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
+      const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9àèéìòùÀÈÉÌÒÙ_\- ]/g, "").replace(/\s+/g, "_") || "Cliente";
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `Preventivo_${clienteClean}_${dateStr}.pdf`;
+
+      const opt = {
+        margin: [6, 8, 6, 8],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollY: 0
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait'
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'PDF_DOWNLOAD_COMPLETE', fileName: filename }, '*');
+          }
+        } catch (e) {}
+        if (callback) callback();
+      }).catch(err => {
+        console.error("Errore durante la generazione PDF:", err);
+        if (callback) callback(err);
+      });
+    }
+
+    const btnScarica = document.getElementById("btnScaricaPdfDiretto");
+    if (btnScarica) {
+      btnScarica.addEventListener("click", function() {
+        const btn = this;
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="bi bi-hourglass-split"></i> Scaricamento PDF...`;
+        generaEScaricaPdf(() => {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="bi bi-check-circle-fill"></i> Scaricato!`;
+          setTimeout(() => {
+            btn.innerHTML = orig;
+          }, 2500);
+        });
+      });
+    }
+
+    // Se l'URL contiene ?download=1 o ?download=true, avvia automaticamente il download
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("download") === "1" || urlParams.get("download") === "true") {
+      const banner = document.createElement("div");
+      banner.id = "downloadNotificationBanner";
+      banner.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;padding:10px 22px;border-radius:30px;font-weight:700;font-size:13px;box-shadow:0 10px 25px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;";
+      banner.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" style="width:1rem;height:1rem;border-width:2px;"></span> Download del Preventivo PDF in corso sul tuo computer...`;
+      document.body.appendChild(banner);
+
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          generaEScaricaPdf(() => {
+            banner.style.background = "#059669";
+            banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF scaricato con successo!`;
+            setTimeout(() => {
+              banner.style.transition = "opacity 0.4s ease";
+              banner.style.opacity = "0";
+              setTimeout(() => banner.remove(), 400);
+            }, 3000);
+          });
+        }, 500);
+      });
+    }
   </script>
 
 </body>
