@@ -10,7 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <style>
     @page {
@@ -1072,17 +1073,21 @@
       saveEditsToServer(this);
     });
 
-    // ==========================================
-    // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF
-    // ==========================================
-    function generaEScaricaPdf(callback) {
+    // ========================================================
+    // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF (AD ALTA RISOLUZIONE)
+    // ========================================================
+    async function generaEScaricaPdf(callback) {
       const element = document.getElementById("printableSheet");
       if (!element) {
         if (callback) callback();
         return;
       }
 
-      // Raccogliamo eventuali modifiche inline sui testi
+      // Rimuoviamo focus o selezioni attive per evitare bordi di editing
+      if (document.activeElement) document.activeElement.blur();
+      window.getSelection()?.removeAllRanges();
+
+      // Sincronizziamo eventuali modifiche inline sui testi
       gatherAllUpdatedSettings();
 
       const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
@@ -1090,35 +1095,79 @@
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `Preventivo_${clienteClean}_${dateStr}.pdf`;
 
-      const opt = {
-        margin: [6, 8, 6, 8],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
+      // Pulizia temporanea di ombre ed angoli arrotondati per un foglio stampato perfetto
+      const prevShadow = element.style.boxShadow;
+      const prevRadius = element.style.borderRadius;
+      element.style.boxShadow = "none";
+      element.style.borderRadius = "0px";
+
+      try {
+        // Cattura del foglio con html2canvas con sfondo bianco solido
+        const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
-          logging: false,
-          scrollY: 0
-        },
-        jsPDF: {
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'portrait'
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false
+        });
 
-      html2pdf().set(opt).from(element).save().then(() => {
+        // Ripristino stili originali
+        element.style.boxShadow = prevShadow;
+        element.style.borderRadius = prevRadius;
+
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          throw new Error("Canvas nullo o non valido");
+        }
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4"
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();   // 210 mm
+        const pdfHeight = pdf.internal.pageSize.getHeight(); // 297 mm
+
+        // Margini proporzionati per A4
+        const margin = 8;
+        const printWidth = pdfWidth - (margin * 2);
+        const printHeight = (canvas.height * printWidth) / canvas.width;
+
+        let heightLeft = printHeight;
+        let position = margin;
+
+        // Prima pagina
+        pdf.addImage(imgData, "JPEG", margin, position, printWidth, printHeight, undefined, "FAST");
+        heightLeft -= (pdfHeight - (margin * 2));
+
+        // Pagine successive se il preventivo ha molti prodotti ed eccede 1 pagina A4
+        while (heightLeft > 0) {
+          position = heightLeft - printHeight + margin;
+          pdf.addPage();
+          pdf.addImage(imgData, "JPEG", margin, position, printWidth, printHeight, undefined, "FAST");
+          heightLeft -= (pdfHeight - (margin * 2));
+        }
+
+        pdf.save(filename);
+
         try {
           if (window.parent && window.parent !== window) {
             window.parent.postMessage({ type: 'PDF_DOWNLOAD_COMPLETE', fileName: filename }, '*');
           }
         } catch (e) {}
+
         if (callback) callback();
-      }).catch(err => {
-        console.error("Errore durante la generazione PDF:", err);
+      } catch (err) {
+        console.error("Errore esportazione PDF con canvas:", err);
+        element.style.boxShadow = prevShadow;
+        element.style.borderRadius = prevRadius;
+        // In caso di errore imprevisto, fallback su stampa del browser
+        window.print();
         if (callback) callback(err);
-      });
+      }
     }
 
     const btnScarica = document.getElementById("btnScaricaPdfDiretto");

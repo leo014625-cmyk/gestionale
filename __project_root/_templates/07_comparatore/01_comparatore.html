@@ -836,7 +836,6 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   // Stato Globale della Comparazione
@@ -1608,7 +1607,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ========================================================
   // GENERAZIONE & DOWNLOAD DIRETTO PREVENTIVO PDF
   // ========================================================
-  async function scaricaPreventivoPdf(btnElement) {
+  function scaricaPreventivoPdf(btnElement) {
     if (!prodottiState || prodottiState.length === 0) {
       alert("Aggiungi almeno un prodotto alla comparazione prima di scaricare il preventivo PDF.");
       return;
@@ -1617,97 +1616,46 @@ document.addEventListener("DOMContentLoaded", () => {
     const originalHtml = btnElement ? btnElement.innerHTML : null;
     if (btnElement) {
       btnElement.disabled = true;
-      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Generazione PDF in corso...`;
+      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Preparazione PDF...`;
     }
-    showToastNotification("Salvataggio e generazione del file PDF in corso...");
+    showToastNotification("Salvataggio e preparazione del Preventivo PDF in corso...");
 
-    salvaComparazione(async (res) => {
-      if (!currentComparisonId) {
-        if (btnElement) {
+    // Pre-apriamo la finestra sul gesto utente (click) per garantire che nessun browser la blocchi come popup
+    let targetWin = null;
+    try {
+      targetWin = window.open('about:blank', '_blank');
+      if (targetWin) {
+        targetWin.document.write(`
+          <!DOCTYPE html><html><head><title>Generazione Preventivo PDF...</title>
+          <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;text-align:center;}
+          .loader{border:4px solid rgba(255,255,255,0.15);border-top:4px solid #6366f1;border-radius:50%;width:48px;height:48px;animation:spin 0.8s linear infinite;margin:0 auto 18px;}
+          @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
+          </head><body><div><div class="loader"></div><h2 style="margin:0 0 8px 0;font-weight:700;">Generazione Preventivo PDF...</h2><p style="color:#94a3b8;margin:0;">Il download del file PDF inizierà automaticamente tra pochi istanti.</p></div></body></html>
+        `);
+      }
+    } catch (e) {
+      console.warn("Popup pre-apertura:", e);
+    }
+
+    salvaComparazione((res) => {
+      if (btnElement) {
+        btnElement.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i> Download Avviato!`;
+        setTimeout(() => {
           btnElement.disabled = false;
           btnElement.innerHTML = originalHtml;
-        }
-        alert("Impossibile salvare la comparazione. Riprova.");
-        return;
+        }, 2500);
       }
 
-      try {
-        // Recupera la pagina di stampa compilata con tutti gli stili e impostazioni correnti
-        const resp = await fetch(`/comparatore/stampa/${currentComparisonId}?t=${Date.now()}`);
-        if (!resp.ok) throw new Error("Errore nel recupero del foglio di stampa dal server.");
-        const htmlText = await resp.text();
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, "text/html");
-        const printableSheet = doc.getElementById("printableSheet");
-        if (!printableSheet) throw new Error("Elemento printableSheet non trovato.");
-
-        const styles = doc.querySelectorAll("style, link[rel='stylesheet']");
-
-        // Contenitore fuori schermo per consentire il calcolo esatto delle dimensioni
-        const renderWrap = document.createElement("div");
-        renderWrap.id = "tempPdfRenderWrapper";
-        renderWrap.style.position = "fixed";
-        renderWrap.style.left = "0";
-        renderWrap.style.top = "0";
-        renderWrap.style.width = "820px";
-        renderWrap.style.opacity = "0.005";
-        renderWrap.style.pointerEvents = "none";
-        renderWrap.style.zIndex = "-99999";
-
-        styles.forEach(s => renderWrap.appendChild(s.cloneNode(true)));
-        renderWrap.appendChild(printableSheet);
-        document.body.appendChild(renderWrap);
-
-        if (document.fonts && document.fonts.ready) {
-          await document.fonts.ready;
+      if (currentComparisonId) {
+        const destUrl = `/comparatore/stampa/${currentComparisonId}?download=1`;
+        if (targetWin && !targetWin.closed) {
+          targetWin.location.href = destUrl;
+        } else {
+          window.open(destUrl, '_blank');
         }
-
-        const clientClean = (getClientName() || "Cliente")
-          .trim()
-          .replace(/[^a-zA-Z0-9àèéìòùÀÈÉÌÒÙ_\- ]/g, "")
-          .replace(/\s+/g, "_") || "Cliente";
-        const dateStr = new Date().toISOString().slice(0, 10);
-        const fileName = `Preventivo_${clientClean}_${dateStr}.pdf`;
-
-        const opt = {
-          margin: [6, 8, 6, 8],
-          filename: fileName,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            scrollY: 0
-          },
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait"
-          },
-          pagebreak: { mode: ["avoid-all", "css", "legacy"] }
-        };
-
-        await html2pdf().set(opt).from(printableSheet).save();
-        renderWrap.remove();
-
-        if (btnElement) {
-          btnElement.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`;
-          setTimeout(() => {
-            btnElement.disabled = false;
-            btnElement.innerHTML = originalHtml;
-          }, 2500);
-        }
-        showToastNotification("Preventivo PDF scaricato con successo sul tuo computer!");
-
-      } catch (err) {
-        console.error("Generazione PDF diretta fallita, apertura con download:", err);
-        if (btnElement) {
-          btnElement.disabled = false;
-          btnElement.innerHTML = originalHtml;
-        }
-        // Fallback affidabile: apre con ?download=1 che scarica automaticamente
-        window.open(`/comparatore/stampa/${currentComparisonId}?download=1`, "_blank");
+      } else {
+        if (targetWin && !targetWin.closed) targetWin.close();
+        alert("Errore salvataggio comparazione.");
       }
     });
   }
