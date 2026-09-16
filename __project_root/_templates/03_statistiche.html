@@ -1,111 +1,141 @@
 {% extends "01_base.html" %}
 
-{% block title %}Statistiche & Analytics - Horeca Suite{% endblock %}
+{% block title %}Statistiche Lavoro & Business Intelligence - Horeca Suite{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
-  /* Premium Analytics Dashboard Styles */
+  /* Executive BI Dashboard Aesthetics */
   .stats-welcome-card {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #1e293b 100%);
     color: #ffffff;
     border-radius: var(--radius);
-    padding: 2.5rem 2rem;
-    margin-bottom: 2.5rem;
-    box-shadow: var(--shadow-lg);
+    padding: 2.25rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 12px 30px -8px rgba(30, 27, 75, 0.4);
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .stats-welcome-card::after {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 400px;
-    height: 400px;
+    top: -50px;
+    right: -50px;
+    width: 320px;
+    height: 320px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
     pointer-events: none;
   }
 
+  /* Filter Badges & Buttons */
+  .filter-pill {
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-pill-active {
+    background: #4f46e5;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  }
+  .filter-pill-inactive {
+    background: rgba(255, 255, 255, 0.12);
+    color: #cbd5e1 !important;
+  }
+  .filter-pill-inactive:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff !important;
+  }
+
+  /* Metric KPI Cards */
   .analytics-card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    padding: 1.5rem;
+    padding: 1.4rem 1.3rem;
     height: 100%;
     box-shadow: var(--shadow-sm);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     overflow: hidden;
   }
   .analytics-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-    border-color: rgba(99, 102, 241, 0.25);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(99, 102, 241, 0.35);
   }
 
   .analytics-icon-box {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 1.25rem;
+    font-size: 1.35rem;
+    margin-bottom: 1rem;
   }
 
   .analytics-value {
     font-family: 'Outfit', sans-serif;
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.5rem;
+    line-height: 1.1;
+    margin-bottom: 0.35rem;
+    letter-spacing: -0.02em;
   }
 
   .analytics-label {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
-  /* Progress bar customizations */
   .custom-progress {
-    height: 8px;
+    height: 6px;
     border-radius: 4px;
     background-color: var(--border-color);
     overflow: hidden;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
   }
 
-  /* Recommendation Card Alert styles */
-  .rec-card {
-    border-radius: var(--radius);
-    border: 1px solid var(--border-color);
+  /* Panel container cards */
+  .panel-card {
     background-color: var(--card-bg);
-    transition: all 0.25s ease;
-  }
-  .rec-card:hover {
-    box-shadow: var(--shadow-md);
-  }
-  .rec-border-danger {
-    border-left: 6px solid var(--danger) !important;
-  }
-  .rec-border-success {
-    border-left: 6px solid var(--success) !important;
-  }
-  .rec-border-warning {
-    border-left: 6px solid var(--warning) !important;
-  }
-  .rec-border-info {
-    border-left: 6px solid var(--accent) !important;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
   }
 
-  /* Tables styling */
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-color);
+    margin: 0;
+  }
+
+  /* Table styling */
   .table-responsive-custom {
     border-radius: var(--radius-sm);
     overflow: hidden;
@@ -115,292 +145,533 @@
     margin-bottom: 0;
   }
   .table-custom th {
-    background-color: rgba(0, 0, 0, 0.015);
+    background-color: rgba(0, 0, 0, 0.02);
     font-weight: 600;
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 1rem;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
   }
   body.dark-mode .table-custom th {
-    background-color: rgba(255, 255, 255, 0.015);
+    background-color: rgba(255, 255, 255, 0.03);
   }
   .table-custom td {
-    padding: 1rem;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
     color: var(--text-color);
     background-color: var(--card-bg);
+    font-size: 0.88rem;
   }
   .table-custom tr:last-child td {
     border-bottom: none;
   }
 
-  /* Badge Custom Colors */
-  .badge-potenziale {
-    background-color: var(--accent-light);
-    color: var(--accent);
-    border: 1px solid rgba(14, 165, 233, 0.15);
+  /* Recommendations styles */
+  .rec-card {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    transition: all 0.2s ease;
   }
-  .badge-lavorato {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success);
-    border: 1px solid rgba(16, 185, 129, 0.15);
+  .rec-card:hover {
+    box-shadow: var(--shadow-sm);
   }
+  .rec-border-danger {
+    border-left: 5px solid #ef4444 !important;
+  }
+  .rec-border-success {
+    border-left: 5px solid #10b981 !important;
+  }
+  .rec-border-warning {
+    border-left: 5px solid #f59e0b !important;
+  }
+
+  .rank-circle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .rank-1 { background: #fef08a; color: #854d0e; }
+  .rank-2 { background: #e2e8f0; color: #334155; }
+  .rank-3 { background: #fed7aa; color: #9a3412; }
+  .rank-other { background: rgba(99, 102, 241, 0.1); color: #4f46e5; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid px-0">
 
-  <!-- Welcome/Header Card -->
-  <div class="stats-welcome-card d-flex flex-wrap justify-content-between align-items-center gap-4">
-    <div>
-      <h1 class="display-6 fw-bold mb-2">Statistiche Lavoro & Business Intelligence 🚀</h1>
-      <p class="lead mb-0 text-white-50">Analisi dettagliata di fatturato, clienti e andamento catalogo prodotti con consigli strategici.</p>
-    </div>
-    <div>
-      <a href="{{ url_for('clienti') }}" class="btn btn-primary rounded-4 shadow-sm fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-person-plus-fill"></i>
-        <span>Gestisci Clienti</span>
-      </a>
-    </div>
-  </div>
-
-  <!-- KPI Grid -->
-  <div class="row g-4 mb-5">
-    <!-- Fatturato Totale -->
-    <div class="col-12 col-sm-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-icon-box bg-soft-success">
-          <i class="bi bi-wallet2"></i>
+  <!-- ======================================================== -->
+  <!-- 1. WELCOME HEADER & PERIODO DI LAVORO                    -->
+  <!-- ======================================================== -->
+  <div class="stats-welcome-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-indigo text-white px-2.5 py-1 rounded-pill" style="background:#6366f1; font-size: 0.75rem;">
+            <i class="bi bi-cpu-fill me-1"></i> Business Intelligence Horeca
+          </span>
+          <span class="badge bg-white bg-opacity-10 text-light px-2.5 py-1 rounded-pill" style="font-size: 0.75rem;">
+            Database Live PostgreSQL
+          </span>
         </div>
-        <div class="analytics-value text-success">
-          € {{ "{:,.2f}".format(fatturato_globale).replace(",", "X").replace(".", ",").replace("X", ".") }}
-        </div>
-        <div class="analytics-label">Fatturato Globale</div>
-        <div class="custom-progress">
-          <div class="progress-bar bg-success" style="width: 100%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Clienti Attivi Ratio -->
-    <div class="col-12 col-sm-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-icon-box bg-soft-primary">
-          <i class="bi bi-people-fill"></i>
-        </div>
-        {% set attivi = stato_clienti.get('attivo', 0) %}
-        {% set ratio_attivi = (attivi / clienti_totali * 100) if clienti_totali > 0 else 0 %}
-        <div class="analytics-value text-primary">
-          {{ attivi }} <span class="fs-6 text-muted">/ {{ clienti_totali }}</span>
-        </div>
-        <div class="analytics-label">Clienti Attivi ({{ "%.1f"|format(ratio_attivi) }}%)</div>
-        <div class="custom-progress">
-          <div class="progress-bar bg-primary" style="width: {{ ratio_attivi }}%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Prodotti Potenziali / Opportunità -->
-    <div class="col-12 col-sm-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-icon-box bg-soft-info">
-          <i class="bi bi-lightbulb-fill"></i>
-        </div>
-        <div class="analytics-value text-info">
-          {{ potenziali_tot }}
-        </div>
-        <div class="analytics-label">Prodotti Potenziali Inseriti</div>
-        {% set total_relations = lavorati_tot + potenziali_tot + non_lavorati_tot %}
-        {% set ratio_potenziali = (potenziali_tot / total_relations * 100) if total_relations > 0 else 0 %}
-        <div class="custom-progress">
-          <div class="progress-bar bg-info" style="width: {{ ratio_potenziali }}%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Inserimenti / Rimozioni Netto -->
-    <div class="col-12 col-sm-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-icon-box bg-soft-warning">
-          <i class="bi bi-arrow-left-right"></i>
-        </div>
-        {% set netto_operazioni = prodotti_inseriti_30gg - prodotti_rimossi_30gg %}
-        <div class="analytics-value {% if netto_operazioni >= 0 %}text-success{% else %}text-danger{% endif %}">
-          {% if netto_operazioni >= 0 %}+{% endif %}{{ netto_operazioni }}
-        </div>
-        <div class="analytics-label">Flusso Listino (30gg)</div>
-        <p class="small text-muted mb-0 mt-2">
-          <span class="text-success fw-bold">+{{ prodotti_inseriti_30gg }}</span> Ins. / 
-          <span class="text-danger fw-bold">-{{ prodotti_rimossi_30gg }}</span> Rim.
+        <h1 class="display-6 fw-bold mb-1">Statistiche Lavoro & Performance</h1>
+        <p class="mb-0 text-white-50" style="font-size: 0.95rem;">
+          Analisi precisa del fatturato, salute effettiva del portafoglio clienti, resa per zona geografica e pipeline trattative.
         </p>
       </div>
+
+      <!-- Filtro Periodo & Azioni -->
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="bg-black bg-opacity-25 p-1 rounded-pill d-inline-flex align-items-center">
+          <a href="{{ url_for('pagina_statistiche', anno='2026') }}" class="filter-pill {{ 'filter-pill-active' if anno_param == '2026' else 'filter-pill-inactive' }}">
+            <i class="bi bi-calendar3"></i> 2026 (Corrente)
+          </a>
+          <a href="{{ url_for('pagina_statistiche', anno='2025') }}" class="filter-pill {{ 'filter-pill-active' if anno_param == '2025' else 'filter-pill-inactive' }}">
+            2025
+          </a>
+          <a href="{{ url_for('pagina_statistiche', anno='tutti') }}" class="filter-pill {{ 'filter-pill-active' if anno_param == 'tutti' else 'filter-pill-inactive' }}">
+            Storico Completo
+          </a>
+        </div>
+
+        <a href="{{ url_for('comparatore_listino') }}" class="btn btn-warning rounded-pill px-3 fw-bold text-dark d-flex align-items-center gap-2 shadow-sm">
+          <i class="bi bi-calculator-fill"></i>
+          <span>Nuovo Preventivo</span>
+        </a>
+      </div>
     </div>
   </div>
 
-  <!-- Charts Row -->
-  <div class="row g-4 mb-5">
-    <!-- Trend Storico Fatturato -->
+  <!-- ======================================================== -->
+  <!-- 2. EXECUTIVE WORK KPI CARDS                              -->
+  <!-- ======================================================== -->
+  <div class="row g-3 mb-4">
+    
+    <!-- 1. Fatturato Totale Periodo -->
+    <div class="col-12 col-sm-6 col-xl-2-4" style="flex: 0 0 20%; max-width: 20%;">
+      <div class="analytics-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="analytics-icon-box" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
+            <i class="bi bi-currency-euro"></i>
+          </div>
+          {% if anno_param == '2026' and confronto_perc > 0 %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small" title="Crescita rispetto al 2025">
+              +{{ "%.1f"|format(confronto_perc) }}%
+            </span>
+          {% endif %}
+        </div>
+        <div class="analytics-value text-success">
+          € {{ "{:,.0f}".format(fatturato_periodo).replace(",", ".") }}
+        </div>
+        <div class="analytics-label">Fatturato {{ anno_label }}</div>
+        <div class="small text-muted mt-2 d-flex justify-content-between">
+          <span>Globale storico:</span>
+          <strong class="text-color">€ {{ "{:,.0f}".format(fatturato_globale).replace(",", ".") }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Clienti Attivi nel Trimestre -->
+    <div class="col-12 col-sm-6 col-xl-2-4" style="flex: 0 0 20%; max-width: 20%;">
+      <div class="analytics-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="analytics-icon-box" style="background: rgba(79, 70, 229, 0.12); color: #4f46e5;">
+            <i class="bi bi-people-fill"></i>
+          </div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small">
+            {{ ratio_attivi }}%
+          </span>
+        </div>
+        <div class="analytics-value text-primary">
+          {{ clienti_attivi }} <span class="fs-6 text-muted fw-normal">/ {{ clienti_totali }}</span>
+        </div>
+        <div class="analytics-label">Clienti Attivi (Trimestre)</div>
+        <div class="custom-progress">
+          <div class="progress-bar bg-primary" style="width: {{ ratio_attivi }}%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Fatturato a Rischio / Dormienti -->
+    <div class="col-12 col-sm-6 col-xl-2-4" style="flex: 0 0 20%; max-width: 20%;">
+      <div class="analytics-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="analytics-icon-box" style="background: rgba(239, 68, 68, 0.12); color: #ef4444;">
+            <i class="bi bi-shield-exclamation"></i>
+          </div>
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill small">
+            {{ clienti_in_calo }} Clienti
+          </span>
+        </div>
+        <div class="analytics-value text-danger">
+          € {{ "{:,.0f}".format(totale_fatturato_a_rischio).replace(",", ".") }}
+        </div>
+        <div class="analytics-label">Fatturato a Rischio (>60gg)</div>
+        <div class="small text-danger mt-2">
+          <i class="bi bi-exclamation-circle-fill me-1"></i> Richiede recupero rapido
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Resa Media per Cliente Attivo -->
+    <div class="col-12 col-sm-6 col-xl-2-4" style="flex: 0 0 20%; max-width: 20%;">
+      <div class="analytics-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="analytics-icon-box" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;">
+            <i class="bi bi-graph-up-arrow"></i>
+          </div>
+          <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
+            Ticket
+          </span>
+        </div>
+        <div class="analytics-value text-info">
+          € {{ "{:,.0f}".format(media_per_attivo).replace(",", ".") }}
+        </div>
+        <div class="analytics-label">Resa Media Cliente Attivo</div>
+        <div class="small text-muted mt-2">
+          Top 10 clienti generano il <strong>{{ pareto_top10_perc }}%</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Trattative Comparatore Listino -->
+    <div class="col-12 col-sm-6 col-xl-2-4" style="flex: 0 0 20%; max-width: 20%;">
+      <div class="analytics-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="analytics-icon-box" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b;">
+            <i class="bi bi-calculator-fill"></i>
+          </div>
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
+            -{{ avg_risparmio_perc }}% medio
+          </span>
+        </div>
+        <div class="analytics-value text-warning">
+          {{ comparazioni_list|length }} <span class="fs-6 text-muted fw-normal">Offerte</span>
+        </div>
+        <div class="analytics-label">Trattative Comparatore</div>
+        <div class="small text-muted mt-2">
+          Volume: <strong>{{ "{:,.0f}".format(tot_volume_comparatore) }} KG/mese</strong>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Fix col-xl-2-4 on small screens -->
+  <style>
+    @media (max-width: 1199px) {
+      .col-xl-2-4 { flex: 0 0 50% !important; max-width: 50% !important; }
+    }
+    @media (max-width: 575px) {
+      .col-xl-2-4 { flex: 0 0 100% !important; max-width: 100% !important; }
+    }
+  </style>
+
+  <!-- ======================================================== -->
+  <!-- 3. GRAFICI DIREZIONALI (CHART.JS)                         -->
+  <!-- ======================================================== -->
+  <div class="row g-4 mb-4">
+    
+    <!-- Grafico 1: Trend Fatturato Mensile -->
     <div class="col-12 col-lg-8">
-      <div class="panel-card d-flex flex-column h-100" style="min-height: 400px;">
-        <span class="panel-title">
-          <i class="bi bi-graph-up text-primary"></i>
-          <span>Andamento Fatturato Mensile</span>
-        </span>
-        <div class="flex-grow-1 position-relative" style="height: 300px;">
-          <canvas id="storicoFatturatoChart"></canvas>
+      <div class="panel-card d-flex flex-column h-100">
+        <div class="panel-header">
+          <div>
+            <h5 class="panel-title">
+              <i class="bi bi-bar-chart-fill text-primary"></i>
+              <span>Trend Mensile Fatturato {{ anno_label }}</span>
+            </h5>
+            <span class="text-muted small">Evoluzione del venduto mese per mese con confronto storico</span>
+          </div>
+          <span class="badge bg-light text-dark border px-2.5 py-1">Valori in €</span>
+        </div>
+        <div class="flex-grow-1 position-relative" style="min-height: 290px;">
+          <canvas id="trendMensileChart"></canvas>
         </div>
       </div>
     </div>
 
-    <!-- Stato Clienti Doughnut -->
+    <!-- Grafico 2: Ripartizione Fatturato per Zona -->
     <div class="col-12 col-lg-4">
-      <div class="panel-card d-flex flex-column h-100" style="min-height: 400px;">
-        <span class="panel-title">
-          <i class="bi bi-pie-chart text-warning"></i>
-          <span>Distribuzione Stato Clienti</span>
-        </span>
-        <div class="flex-grow-1 d-flex align-items-center justify-content-center position-relative" style="height: 250px;">
-          <canvas id="statoClientiChart"></canvas>
+      <div class="panel-card d-flex flex-column h-100">
+        <div class="panel-header">
+          <div>
+            <h5 class="panel-title">
+              <i class="bi bi-pie-chart-fill text-info"></i>
+              <span>Fatturato per Zona</span>
+            </h5>
+            <span class="text-muted small">Quota percentuale sulle zone servite</span>
+          </div>
+        </div>
+        <div class="flex-grow-1 d-flex align-items-center justify-content-center position-relative" style="min-height: 270px;">
+          <canvas id="zoneChart"></canvas>
         </div>
       </div>
     </div>
+
   </div>
 
-  <!-- Actionable Recommendations & Upsell Ops -->
-  <div class="row g-4 mb-5">
-    <!-- Suggerimenti Strategici -->
+  <div class="row g-4 mb-4">
+    
+    <!-- Grafico 3: Segmentazione Salute Portafoglio Clienti -->
     <div class="col-12 col-lg-6">
-      <div class="panel-card h-100">
-        <span class="panel-title">
-          <i class="bi bi-lightning-charge-fill text-primary"></i>
-          <span>Suggerimenti Strategici per Aumentare il Fatturato</span>
-        </span>
-        <div class="d-flex flex-column gap-3">
-          {% for r in raccomandazioni %}
-            <div class="rec-card p-3 rounded-4 rec-border-{{ r.categoria }}">
-              <div class="d-flex align-items-start gap-3">
-                {% if r.categoria == 'danger' %}
-                  <i class="bi bi-exclamation-octagon-fill text-danger fs-4 mt-0.5"></i>
-                {% elif r.categoria == 'success' %}
-                  <i class="bi bi-graph-up text-success fs-4 mt-0.5"></i>
-                {% elif r.categoria == 'warning' %}
-                  <i class="bi bi-star-fill text-warning fs-4 mt-0.5"></i>
-                {% else %}
-                  <i class="bi bi-info-circle-fill text-accent fs-4 mt-0.5"></i>
-                {% endif %}
-                <div>
-                  <h6 class="fw-bold mb-1">{{ r.titolo }}</h6>
-                  <p class="small text-muted mb-2">{{ r.descrizione }}</p>
-                  {% if r.categoria == 'danger' %}
-                    <a href="{{ url_for('visite_clienti') }}" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1">Pianifica Visita di Recupero</a>
-                  {% elif r.categoria == 'success' %}
-                    <a href="{{ url_for('lista_volantini_beta') }}" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1">Crea Volantino Dedicato</a>
-                  {% elif r.categoria == 'warning' %}
-                    <a href="{{ url_for('clienti') }}" class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1">Esplora Anagrafica</a>
-                  {% endif %}
+      <div class="panel-card d-flex flex-column h-100">
+        <div class="panel-header">
+          <div>
+            <h5 class="panel-title">
+              <i class="bi bi-pie-chart text-success"></i>
+              <span>Salute Effettiva Portafoglio Clienti (47 Totali)</span>
+            </h5>
+            <span class="text-muted small">Segmentazione reale basata sugli ordini registrati</span>
+          </div>
+        </div>
+        <div class="row align-items-center">
+          <div class="col-sm-6 d-flex justify-content-center" style="min-height: 220px;">
+            <canvas id="saluteClientiChart"></canvas>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex flex-column gap-2.5 py-2">
+              <div class="p-2.5 rounded-3 bg-light bg-opacity-50 border">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-success d-flex align-items-center gap-1.5 small">
+                    <i class="bi bi-circle-fill" style="font-size: 8px;"></i> Attivi Recenti (Trimestre)
+                  </span>
+                  <strong class="fs-6">{{ clienti_attivi }}</strong>
                 </div>
+                <div class="small text-muted mt-0.5">{{ ratio_attivi }}% del portafoglio</div>
+              </div>
+
+              <div class="p-2.5 rounded-3 bg-light bg-opacity-50 border">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-warning d-flex align-items-center gap-1.5 small">
+                    <i class="bi bi-circle-fill" style="font-size: 8px;"></i> In Calo / Da Recuperare
+                  </span>
+                  <strong class="fs-6 text-warning">{{ clienti_in_calo }}</strong>
+                </div>
+                <div class="small text-muted mt-0.5">Fermi da 60-90 giorni</div>
+              </div>
+
+              <div class="p-2.5 rounded-3 bg-light bg-opacity-50 border">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-danger d-flex align-items-center gap-1.5 small">
+                    <i class="bi bi-circle-fill" style="font-size: 8px;"></i> Dormienti Storici (2025)
+                  </span>
+                  <strong class="fs-6 text-danger">{{ clienti_dormienti }}</strong>
+                </div>
+                <div class="small text-muted mt-0.5">Nessun ordine nel 2026</div>
               </div>
             </div>
-          {% endfor %}
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Opportunità di Upselling: Prodotti Potenziali -->
+    <!-- Grafico 4: Composizione Catalogo Prodotti per Categoria -->
     <div class="col-12 col-lg-6">
-      <div class="panel-card h-100">
-        <span class="panel-title">
-          <i class="bi bi-arrow-up-right-circle-fill text-success"></i>
-          <span>Top Prodotti Potenziali (Opportunità di Vendita)</span>
-        </span>
-        <p class="small text-muted mb-3">Questi prodotti sono contrassegnati come <strong>"Potenziale"</strong> nel listino di più clienti. Proporli durante le prossime visite ti aiuterà ad incrementare il fatturato.</p>
-        <div class="table-responsive-custom">
-          <table class="table table-custom table-hover">
-            <thead>
-              <tr>
-                <th>Prodotto</th>
-                <th>Categoria</th>
-                <th class="text-center">Clienti Potenziali</th>
-                <th class="text-end">Azione</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% if top_potenziali %}
-                {% for p in top_potenziali %}
-                  <tr>
-                    <td>
-                      <span class="fw-bold d-block text-truncate" style="max-width: 200px;">{{ p.prodotto }}</span>
-                    </td>
-                    <td>
-                      <span class="badge bg-light text-secondary border">{{ p.categoria }}</span>
-                    </td>
-                    <td class="text-center">
-                      <span class="badge badge-potenziale px-2.5 py-1 rounded-pill">{{ p.interesse }} Clienti</span>
-                    </td>
-                    <td class="text-end">
-                      <a href="{{ url_for('lista_volantini_beta') }}" class="btn btn-sm btn-outline-primary rounded-pill" title="Aggiungi a volantino promo">
-                        <i class="bi bi-plus-circle"></i> Promo
-                      </a>
-                    </td>
-                  </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="4" class="text-center text-muted py-4">Nessun prodotto potenziale configurato.</td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
+      <div class="panel-card d-flex flex-column h-100">
+        <div class="panel-header">
+          <div>
+            <h5 class="panel-title">
+              <i class="bi bi-box-seam text-primary"></i>
+              <span>Top Categorie Merceologiche (Catalogo 803 Prodotti)</span>
+            </h5>
+            <span class="text-muted small">Numero di referenze disponibili per categoria principale</span>
+          </div>
+          <a href="{{ url_for('prodotti') }}" class="btn btn-sm btn-outline-primary rounded-pill">Catalogo</a>
+        </div>
+        <div class="flex-grow-1 position-relative" style="min-height: 220px;">
+          <canvas id="categorieChart"></canvas>
         </div>
       </div>
+    </div>
+
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 4. SUGGERIMENTI STRATEGICI INTELLIGENTI                   -->
+  <!-- ======================================================== -->
+  <div class="panel-card mb-4">
+    <div class="panel-header mb-3">
+      <h5 class="panel-title">
+        <i class="bi bi-lightning-charge-fill text-warning"></i>
+        <span>Suggerimenti Commerciali Strategici per Leonardo</span>
+      </h5>
+      <span class="badge bg-indigo text-white px-2.5 py-1 rounded-pill" style="background:#4f46e5;">Priorità Lavoro</span>
+    </div>
+
+    <div class="row g-3">
+      {% for r in raccomandazioni %}
+        <div class="col-12 col-md-4">
+          <div class="rec-card p-3 h-100 rec-border-{{ r.categoria }} d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-2">
+                {% if r.categoria == 'danger' %}
+                  <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                {% elif r.categoria == 'success' %}
+                  <i class="bi bi-arrow-up-right-circle-fill text-success fs-5"></i>
+                {% else %}
+                  <i class="bi bi-star-fill text-warning fs-5"></i>
+                {% endif %}
+                <h6 class="fw-bold mb-0 text-color">{{ r.titolo }}</h6>
+              </div>
+              <p class="small text-muted mb-3" style="line-height: 1.45;">{{ r.descrizione }}</p>
+            </div>
+            <div>
+              <a href="{{ r.link }}" class="btn btn-sm btn-outline-{{ r.categoria }} rounded-pill px-3 py-1 fw-semibold w-100">
+                {{ r.link_testo }} <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- Recovery List & Top Clients -->
-  <div class="row g-4">
-    <!-- Top 5 Clienti per Fatturato -->
-    <div class="col-12 col-lg-6">
+  <!-- ======================================================== -->
+  <!-- 5. TABELLE OPERATIVE DI LAVORO                            -->
+  <!-- ======================================================== -->
+
+  <!-- TABELLA 1: CLIENTI DA RECUPERARE (FATTURATO A RISCHIO) -->
+  <div class="panel-card mb-4" id="sezione-recupero">
+    <div class="panel-header">
+      <div>
+        <h5 class="panel-title text-danger">
+          <i class="bi bi-exclamation-octagon-fill"></i>
+          <span>Clienti da Recuperare Urgentemente (Fatturato a Rischio: € {{ "{:,.2f}".format(totale_fatturato_a_rischio).replace(",", "X").replace(".", ",").replace("X", ".") }})</span>
+        </h5>
+        <span class="text-muted small">Clienti con storico rilevante che non ordinano da oltre 60 giorni. Contattali con una visita o offerta personalizzata.</span>
+      </div>
+      <span class="badge bg-danger text-white rounded-pill px-3 py-1.5 fw-bold">{{ clienti_recupero|length }} Clienti Identificati</span>
+    </div>
+
+    <div class="table-responsive-custom">
+      <table class="table table-custom table-hover">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Zona</th>
+            <th>Ultimo Ordine</th>
+            <th class="text-end">Fatturato 2026</th>
+            <th class="text-end">Valore a Rischio</th>
+            <th class="text-center">Azioni di Recupero</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clienti_recupero %}
+            <tr>
+              <td>
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-primary d-inline-flex align-items-center gap-1.5">
+                  <i class="bi bi-shop"></i>
+                  <span>{{ c.nome }}</span>
+                </a>
+              </td>
+              <td>
+                <span class="badge bg-light text-secondary border">{{ c.zona }}</span>
+              </td>
+              <td>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1">
+                  {{ c.ultimo_periodo_str }}
+                </span>
+              </td>
+              <td class="text-end font-monospace">
+                € {{ "{:,.2f}".format(c.fatturato_totale).replace(",", "X").replace(".", ",").replace("X", ".") }}
+              </td>
+              <td class="text-end font-monospace fw-bold text-danger">
+                € {{ "{:,.2f}".format(c.valore_a_rischio).replace(",", "X").replace(".", ",").replace("X", ".") }}
+              </td>
+              <td class="text-center">
+                <div class="d-inline-flex gap-1.5">
+                  <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1" title="Apri Scheda">
+                    <i class="bi bi-person-lines-fill"></i> Scheda
+                  </a>
+                  <a href="{{ url_for('comparatore_listino') }}?cliente_id={{ c.id }}" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1 text-dark" title="Fai Offerta Comparativa">
+                    <i class="bi bi-calculator"></i> Offerta
+                  </a>
+                  {% if c.telefono %}
+                    <a href="https://wa.me/{{ c.telefono|replace(' ', '')|replace('+', '') }}" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1" title="Contatta su WhatsApp">
+                      <i class="bi bi-whatsapp"></i> WhatsApp
+                    </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="bi bi-check-circle-fill text-success fs-4 d-block mb-1"></i>
+                Nessun cliente rilevante a rischio inattività in questo periodo!
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROW: TOP CLIENTI & PERFORMANCE ZONE -->
+  <div class="row g-4 mb-4">
+    
+    <!-- TABELLA 2: TOP 10 CLIENTI -->
+    <div class="col-12 col-lg-7">
       <div class="panel-card h-100">
-        <span class="panel-title">
-          <i class="bi bi-star-fill text-warning"></i>
-          <span>I tuoi Top 5 Clienti (Fatturato Storico)</span>
-        </span>
+        <div class="panel-header">
+          <div>
+            <h5 class="panel-title">
+              <i class="bi bi-trophy-fill text-warning"></i>
+              <span>Top 10 Clienti del Portafoglio (Fatturato 2026)</span>
+            </h5>
+            <span class="text-muted small">Rappresentano il <strong>{{ pareto_top10_perc }}%</strong> del tuo fatturato annuale</span>
+          </div>
+        </div>
+
         <div class="table-responsive-custom">
           <table class="table table-custom table-hover">
             <thead>
               <tr>
+                <th style="width: 40px;">#</th>
                 <th>Cliente</th>
                 <th>Zona</th>
-                <th>Stato</th>
-                <th class="text-end">Fatturato</th>
+                <th class="text-end">Fatturato 2026</th>
+                <th class="text-center">Quota %</th>
+                <th>Visita Std</th>
               </tr>
             </thead>
             <tbody>
               {% for c in top_clienti %}
                 <tr>
                   <td>
-                    <a href="{{ url_for('cliente_scheda', id=c.id or c[0]) }}" class="fw-bold text-decoration-none text-color text-truncate d-block" style="max-width: 200px;">
-                      {{ c.nome or c[1] }}
+                    <span class="rank-circle {% if c.rank == 1 %}rank-1{% elif c.rank == 2 %}rank-2{% elif c.rank == 3 %}rank-3{% else %}rank-other{% endif %}">
+                      {{ c.rank }}
+                    </span>
+                  </td>
+                  <td>
+                    <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-color">
+                      {{ c.nome }}
                     </a>
                   </td>
-                  <td>{{ c.zona or c[2] or 'N/D' }}</td>
                   <td>
-                    {% set stato = (c.stato or c[3])|lower %}
-                    {% if stato == 'attivo' %}
-                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">Attivo</span>
-                    {% elif stato == 'bloccato' %}
-                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">Bloccato</span>
-                    {% else %}
-                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1">{{ stato|capitalize }}</span>
-                    {% endif %}
+                    <span class="badge bg-light text-secondary border">{{ c.zona }}</span>
                   </td>
-                  <td class="text-end fw-bold">
-                    € {{ "{:,.2f}".format(c.fatturato_totale or c[4] or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                  <td class="text-end font-monospace fw-bold text-success">
+                    € {{ "{:,.2f}".format(c.fatturato_2026).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5">
+                      {{ c.quota_perc }}%
+                    </span>
+                  </td>
+                  <td>
+                    <small class="text-muted">{{ c.giorno_visita }}</small>
                   </td>
                 </tr>
               {% endfor %}
@@ -410,66 +681,120 @@
       </div>
     </div>
 
-    <!-- Clienti Bloccati/Inattivi di Alto Valore -->
-    <div class="col-12 col-lg-6">
+    <!-- TABELLA 3: PERFORMANCE TERRITORIALE PER ZONA -->
+    <div class="col-12 col-lg-5">
       <div class="panel-card h-100">
-        <span class="panel-title">
-          <i class="bi bi-exclamation-triangle-fill text-danger"></i>
-          <span>Clienti da Recuperare ad Alto Valore (Bloccati / Inattivi)</span>
-        </span>
-        <p class="small text-muted mb-3">Clienti con fatturato storico elevato che sono attualmente bloccati o inattivi. La loro riattivazione è prioritaria per aumentare il fatturato.</p>
+        <div class="panel-header">
+          <div>
+            <h5 class="panel-title">
+              <i class="bi bi-geo-alt-fill text-danger"></i>
+              <span>Rendimento per Zona</span>
+            </h5>
+            <span class="text-muted small">Confronto clienti e valore medio generato</span>
+          </div>
+        </div>
+
         <div class="table-responsive-custom">
           <table class="table table-custom table-hover">
             <thead>
               <tr>
-                <th>Cliente</th>
                 <th>Zona</th>
-                <th>Stato</th>
-                <th class="text-end">Fatturato Perso</th>
+                <th class="text-center">Clienti (Attivi)</th>
+                <th class="text-end">Fatturato</th>
+                <th class="text-end">Media / Cli</th>
               </tr>
             </thead>
             <tbody>
-              {% set ns = namespace(found=false) %}
-              {% if top_clienti %}
-                {# Troviamo e mostriamo clienti bloccati storicamente ricchi #}
-                {# Per farlo, useremo una query integrata o filtreremo nel DB in futuro. Per ora mostriamo dal backend tramite raccomandazione o ricavandoli #}
-              {% endif %}
-              {# Mostriamo i clienti bloccati recuperandoli dal db se presenti #}
-              {# Nota: Se non passati esplicitamente, usiamo quelli con stato bloccato / inattivo nello storico #}
-              {# Creiamo un fallback visivo elegante se non ce ne sono #}
-              {# Nel server python passeremo 'clienti_recupero' #}
-              {% if clienti_recupero %}
-                {% for c in clienti_recupero %}
-                  {% set ns.found = true %}
-                  <tr>
-                    <td>
-                      <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-decoration-none text-color text-truncate d-block" style="max-width: 200px;">
-                        {{ c.nome }}
-                      </a>
-                    </td>
-                    <td>{{ c.zona or 'N/D' }}</td>
-                    <td>
-                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">{{ c.stato|capitalize }}</span>
-                    </td>
-                    <td class="text-end fw-bold text-danger">
-                      € {{ "{:,.2f}".format(c.fatturato_totale).replace(",", "X").replace(".", ",").replace("X", ".") }}
-                    </td>
-                  </tr>
-                {% endfor %}
-              {% endif %}
-
-              {% if not ns.found %}
+              {% for z in zone_list %}
                 <tr>
-                  <td colspan="4" class="text-center text-muted py-5">
-                    <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
-                    <span>Ottimo! Non ci sono clienti bloccati o inattivi di valore rilevante da recuperare.</span>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background-color: {{ z.colore }};"></span>
+                      <strong class="small">{{ z.zona }}</strong>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    {{ z.num_clienti }} <small class="text-success fw-semibold">({{ z.attivi_zona }})</small>
+                  </td>
+                  <td class="text-end font-monospace fw-semibold">
+                    € {{ "{:,.0f}".format(z.fatturato).replace(",", ".") }}
+                  </td>
+                  <td class="text-end font-monospace small text-muted">
+                    € {{ "{:,.0f}".format(z.media_per_cliente).replace(",", ".") }}
                   </td>
                 </tr>
-              {% endif %}
+              {% endfor %}
             </tbody>
           </table>
         </div>
       </div>
+    </div>
+
+  </div>
+
+  <!-- TABELLA 4: PIPELINE PROSPETTI COMPARATORE DI LISTINO -->
+  <div class="panel-card mb-4">
+    <div class="panel-header">
+      <div>
+        <h5 class="panel-title">
+          <i class="bi bi-file-earmark-text-fill text-warning"></i>
+          <span>Pipeline Trattative & Comparazioni di Listino ({{ comparazioni_list|length }} Salvate)</span>
+        </h5>
+        <span class="text-muted small">Preventivi e prospetti economici generati per i clienti con volumi KG e risparmio prospettato</span>
+      </div>
+      <a href="{{ url_for('comparatore_listino') }}" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+        <i class="bi bi-plus-circle me-1"></i> Apri Comparatore
+      </a>
+    </div>
+
+    <div class="table-responsive-custom">
+      <table class="table table-custom table-hover">
+        <thead>
+          <tr>
+            <th>Cliente / Proposta</th>
+            <th>Data Elaborazione</th>
+            <th class="text-center">Volume Stimato</th>
+            <th class="text-end">Risparmio Offerto (Anno)</th>
+            <th class="text-center">Percentuale</th>
+            <th class="text-end">Azione</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for comp in comparazioni_list %}
+            <tr>
+              <td>
+                <strong class="text-color d-block">{{ comp.cliente_nome }}</strong>
+                <small class="text-muted">Rif. #CMP-{{ "%04d"|format(comp.id) }}</small>
+              </td>
+              <td>
+                <span class="small text-muted">{{ comp.data_str }}</span>
+              </td>
+              <td class="text-center font-monospace fw-semibold">
+                {{ "%.1f"|format(comp.volume_kg) }} KG / mese
+              </td>
+              <td class="text-end font-monospace fw-bold text-success">
+                € {{ "{:,.2f}".format(comp.risparmio_anno).replace(",", "X").replace(".", ",").replace("X", ".") }}
+              </td>
+              <td class="text-center">
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
+                  -{{ comp.perc_risparmio }}%
+                </span>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('comparatore_listino') }}?id={{ comp.id }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
+                  <i class="bi bi-pencil-square me-1"></i> Apri / Modifica
+                </a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                Nessuna trattativa salvata al momento nel comparatore.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -483,180 +808,268 @@
 (() => {
   let charts = {};
 
-  // Resolve CSS themed color tokens
   function getThemeColors() {
-    const style = getComputedStyle(document.body);
+    const isDark = document.body.classList.contains("dark-mode");
     return {
-      primary: style.getPropertyValue('--primary').trim() || '#4f46e5',
-      primaryHover: style.getPropertyValue('--primary-hover').trim() || '#4338ca',
-      accent: style.getPropertyValue('--accent').trim() || '#0ea5e9',
-      bgCard: style.getPropertyValue('--card-bg').trim() || '#ffffff',
-      textColor: style.getPropertyValue('--text-color').trim() || '#0f172a',
-      textMuted: style.getPropertyValue('--text-muted').trim() || '#64748b',
-      borderColor: style.getPropertyValue('--border-color').trim() || '#e2e8f0',
+      textColor: isDark ? '#e2e8f0' : '#1e293b',
+      textMuted: isDark ? '#94a3b8' : '#64748b',
+      borderColor: isDark ? '#334155' : '#e2e8f0',
+      bgCard: isDark ? '#1e293b' : '#ffffff',
+      primary: '#4f46e5',
+      primaryHover: '#4338ca',
       success: '#10b981',
       danger: '#ef4444',
-      warning: '#f59e0b'
+      warning: '#f59e0b',
+      info: '#0ea5e9'
     };
   }
 
-  // Draw Revenue Monthly Line Chart
-  function renderFatturatoChart() {
-    {% if fatturato_mensile is defined and fatturato_mensile %}
-      const fatturatoMensile = {{ fatturato_mensile|tojson }};
-      const mesi = Object.keys(fatturatoMensile).sort();
-      const mesiNomi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-      const labels = mesi.map(m => {
-        const [anno, mese] = m.split('-');
-        return mesiNomi[parseInt(mese,10)-1] + " '" + anno.slice(2);
-      });
-      const valori = Object.values(fatturatoMensile);
+  // 1. Trend Mensile Fatturato
+  function renderTrendMensileChart() {
+    const ctx = document.getElementById('trendMensileChart');
+    if (!ctx) return;
 
-      const colors = getThemeColors();
-      const ctx = document.getElementById('storicoFatturatoChart').getContext('2d');
+    const colors = getThemeColors();
+    const labels = {{ mesi_nomi|tojson }};
+    const dataCurr = {{ trend_mensile_valori|tojson }};
+    const dataPrev = {{ trend_mensile_prev_valori|tojson }};
 
-      // Create gradient fill
-      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-      gradient.addColorStop(0, colors.primary + '33'); // opacity 20%
-      gradient.addColorStop(1, colors.primary + '00'); // opacity 0%
+    if (charts.trend) charts.trend.destroy();
 
-      if (charts.revenue) {
-        charts.revenue.destroy();
-      }
-
-      charts.revenue = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Fatturato (€)',
-            data: valori,
-            borderColor: colors.primary,
-            borderWidth: 3,
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0.35,
-            pointBackgroundColor: colors.primary,
-            pointBorderColor: colors.bgCard,
-            pointBorderWidth: 2,
-            pointRadius: 6,
-            pointHoverRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: colors.bgCard,
-              titleColor: colors.primary,
-              bodyColor: colors.textColor,
-              borderColor: colors.borderColor,
-              borderWidth: 1,
-              padding: 12,
-              cornerRadius: 12,
-              callbacks: {
-                label: function(context) {
-                  return 'Fatturato: € ' + context.raw.toLocaleString('it-IT', { minimumFractionDigits: 2 });
-                }
-              }
+    charts.trend = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '{{ anno_label }} (€)',
+            data: dataCurr,
+            backgroundColor: '#4f46e5',
+            borderRadius: 6,
+            barPercentage: 0.65
+          },
+          {
+            label: 'Anno 2025 (€)',
+            data: dataPrev,
+            backgroundColor: colors.borderColor,
+            borderRadius: 6,
+            barPercentage: 0.65
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: colors.textColor,
+              font: { family: 'Inter', weight: '600', size: 12 },
+              usePointStyle: true,
+              pointStyle: 'circle'
             }
           },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { color: colors.textMuted, font: { family: 'Inter', weight: '600' } }
-            },
-            y: {
-              beginAtZero: true,
-              grid: { color: colors.borderColor },
-              ticks: { 
-                color: colors.textMuted,
-                callback: function(value) {
-                  return '€ ' + value.toLocaleString('it-IT');
-                }
+          tooltip: {
+            backgroundColor: colors.bgCard,
+            titleColor: colors.primary,
+            bodyColor: colors.textColor,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 10,
+            callbacks: {
+              label: function(ctx) {
+                return ctx.dataset.label + ': € ' + ctx.raw.toLocaleString('it-IT', { minimumFractionDigits: 2 });
               }
             }
           }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: colors.textMuted, font: { family: 'Inter', weight: '600' } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: colors.borderColor },
+            ticks: {
+              color: colors.textMuted,
+              callback: function(v) { return '€ ' + v.toLocaleString('it-IT'); }
+            }
+          }
         }
-      });
-    {% endif %}
+      }
+    });
   }
 
-  // Draw Client Status Doughnut Chart
-  function renderStatoClientiChart() {
-    {% if stato_clienti is defined and stato_clienti %}
-      const statoData = {{ stato_clienti|tojson }};
-      const labelsRaw = Object.keys(statoData);
-      const labels = labelsRaw.map(l => l.charAt(0).toUpperCase() + l.slice(1));
-      const valori = Object.values(statoData);
+  // 2. Zone Doughnut Chart
+  function renderZoneChart() {
+    const ctx = document.getElementById('zoneChart');
+    if (!ctx) return;
 
-      const colors = getThemeColors();
-      const ctx = document.getElementById('statoClientiChart').getContext('2d');
+    const colors = getThemeColors();
+    const labels = {{ zone_labels|tojson }};
+    const data = {{ zone_valori|tojson }};
+    const bgColors = [
+      "#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", 
+      "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#64748b"
+    ].slice(0, labels.length);
 
-      const colorMapping = {
-        'attivo': colors.success,
-        'bloccato': colors.danger,
-        'inattivo': colors.warning,
-        'potenziale': colors.accent
-      };
-      const backgroundColors = labelsRaw.map(l => colorMapping[l] || colors.textMuted);
+    if (charts.zone) charts.zone.destroy();
 
-      if (charts.status) {
-        charts.status.destroy();
-      }
-
-      charts.status = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{
-            data: valori,
-            backgroundColor: backgroundColors,
-            borderWidth: 3,
-            borderColor: colors.bgCard
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                color: colors.textColor,
-                font: { family: 'Inter', size: 12, weight: '600' },
-                padding: 15,
-                usePointStyle: true,
-                pointStyle: 'circle'
-              }
-            },
-            tooltip: {
-              backgroundColor: colors.bgCard,
-              titleColor: colors.primary,
-              bodyColor: colors.textColor,
-              borderColor: colors.borderColor,
-              borderWidth: 1,
+    charts.zone = new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: bgColors,
+          borderWidth: 2,
+          borderColor: colors.bgCard
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: colors.textColor,
+              font: { family: 'Inter', size: 11, weight: '600' },
               padding: 12,
-              cornerRadius: 12
+              usePointStyle: true,
+              pointStyle: 'circle'
             }
           },
-          cutout: '72%'
+          tooltip: {
+            backgroundColor: colors.bgCard,
+            titleColor: colors.primary,
+            bodyColor: colors.textColor,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 10,
+            callbacks: {
+              label: function(ctx) {
+                const val = ctx.raw;
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const perc = ((val / total) * 100).toFixed(1);
+                return `${ctx.label}: € ${val.toLocaleString('it-IT')} (${perc}%)`;
+              }
+            }
+          }
+        },
+        cutout: '68%'
+      }
+    });
+  }
+
+  // 3. Salute Clienti Donut Chart
+  function renderSaluteClientiChart() {
+    const ctx = document.getElementById('saluteClientiChart');
+    if (!ctx) return;
+
+    const colors = getThemeColors();
+    if (charts.salute) charts.salute.destroy();
+
+    charts.salute = new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Attivi Recenti', 'In Calo / Rischio', 'Dormienti'],
+        datasets: [{
+          data: [{{ clienti_attivi }}, {{ clienti_in_calo }}, {{ clienti_dormienti }}],
+          backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+          borderWidth: 3,
+          borderColor: colors.bgCard
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: colors.bgCard,
+            titleColor: colors.primary,
+            bodyColor: colors.textColor,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 10
+          }
+        },
+        cutout: '72%'
+      }
+    });
+  }
+
+  // 4. Categorie Horizontal Bar Chart
+  function renderCategorieChart() {
+    const ctx = document.getElementById('categorieChart');
+    if (!ctx) return;
+
+    const colors = getThemeColors();
+    const labels = {{ cat_labels|tojson }};
+    const counts = {{ cat_counts|tojson }};
+
+    if (charts.cat) charts.cat.destroy();
+
+    charts.cat = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Prodotti a Catalogo',
+          data: counts,
+          backgroundColor: '#0ea5e9',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: colors.bgCard,
+            titleColor: colors.primary,
+            bodyColor: colors.textColor,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 10,
+            callbacks: {
+              label: function(c) { return `${c.raw} Referenze`; }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: colors.borderColor },
+            ticks: { color: colors.textMuted }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: colors.textColor, font: { family: 'Inter', weight: '600', size: 11 } }
+          }
         }
-      });
-    {% endif %}
+      }
+    });
   }
 
-  function initCharts() {
-    renderFatturatoChart();
-    renderStatoClientiChart();
+  function initAllCharts() {
+    renderTrendMensileChart();
+    renderZoneChart();
+    renderSaluteClientiChart();
+    renderCategorieChart();
   }
 
-  document.addEventListener("DOMContentLoaded", initCharts);
-
+  document.addEventListener("DOMContentLoaded", initAllCharts);
   document.addEventListener("themeChanged", () => {
-    setTimeout(initCharts, 50);
+    setTimeout(initAllCharts, 60);
   });
 })();
 </script>

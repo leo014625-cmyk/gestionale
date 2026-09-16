@@ -3478,168 +3478,343 @@ def elimina_categoria(nome_categoria):
 @login_required
 def pagina_statistiche():
     import datetime
-    from dateutil.relativedelta import relativedelta
+
+    anno_param = request.args.get('anno', '2026').strip()
+    zona_param = request.args.get('zona', 'tutte').strip()
 
     with get_db() as db:
         cur = db.cursor()
 
-        # 1. KPI FATTURATO
+        # 1. ANNI DISPONIBILI
+        cur.execute("SELECT DISTINCT anno FROM fatturato WHERE anno IS NOT NULL ORDER BY anno DESC")
+        anni_rows = cur.fetchall()
+        anni_disponibili = [r['anno'] if isinstance(r, dict) else r[0] for r in anni_rows]
+        if not anni_disponibili:
+            anni_disponibili = [2026, 2025]
+
+        # 2. TOTALI FATTURATO E CONFRONTO ANNUALE
         cur.execute("SELECT COALESCE(SUM(totale), 0) AS totale FROM fatturato")
-        fatturato_globale = cur.fetchone()['totale'] or 0
+        fatturato_globale = float(cur.fetchone()['totale'] or 0)
 
-        # Andamento fatturato negli ultimi 12 mesi
-        cur.execute('''
-            SELECT anno, mese, COALESCE(SUM(totale), 0) AS totale
+        cur.execute("SELECT COALESCE(SUM(totale), 0) AS totale FROM fatturato WHERE anno = 2026")
+        fatturato_2026 = float(cur.fetchone()['totale'] or 0)
+
+        cur.execute("SELECT COALESCE(SUM(totale), 0) AS totale FROM fatturato WHERE anno = 2025")
+        fatturato_2025 = float(cur.fetchone()['totale'] or 0)
+
+        if anno_param == '2025':
+            fatturato_periodo = fatturato_2025
+            anno_label = "Anno 2025"
+            confronto_perc = 0.0
+        elif anno_param == 'tutti':
+            fatturato_periodo = fatturato_globale
+            anno_label = "Storico Completo"
+            confronto_perc = 0.0
+        else:
+            anno_param = '2026'
+            fatturato_periodo = fatturato_2026
+            anno_label = "Anno 2026"
+            diff = fatturato_2026 - fatturato_2025
+            confronto_perc = round((diff / fatturato_2025 * 100), 1) if fatturato_2025 > 0 else 100.0
+
+        # 3. TREND MENSILE FATTURATO PER GRAFICO CHART.JS
+        cur.execute("""
+            SELECT mese, COALESCE(SUM(totale), 0) AS tot
             FROM fatturato
-            GROUP BY anno, mese
-            ORDER BY anno DESC, mese DESC
-            LIMIT 12
-        ''')
-        fatturato_mensile_rows = cur.fetchall()
-        fatturato_mensile = {f"{r['anno']}-{r['mese']:02}": float(r['totale']) for r in reversed(fatturato_mensile_rows)}
+            WHERE anno = %s
+            GROUP BY mese
+            ORDER BY mese
+        """, (2026 if anno_param != '2025' else 2025,))
+        mesi_curr_dict = {r['mese']: float(r['tot']) for r in cur.fetchall()}
 
-        # TOP 5 Clienti per Fatturato
-        cur.execute('''
-            SELECT id, nome, zona, stato, COALESCE(fatturato_totale, 0) AS fatturato_totale
-            FROM clienti
-            ORDER BY fatturato_totale DESC
-            LIMIT 5
-        ''')
-        top_clienti = cur.fetchall()
+        cur.execute("""
+            SELECT mese, COALESCE(SUM(totale), 0) AS tot
+            FROM fatturato
+            WHERE anno = 2025
+            GROUP BY mese
+            ORDER BY mese
+        """)
+        mesi_prev_dict = {r['mese']: float(r['tot']) for r in cur.fetchall()}
 
-        # Clienti bloccati o inattivi di valore da recuperare
-        cur.execute('''
-            SELECT id, nome, zona, stato, COALESCE(fatturato_totale, 0) AS fatturato_totale
-            FROM clienti
-            WHERE stato IN ('bloccato', 'inattivo') AND fatturato_totale > 0
-            ORDER BY fatturato_totale DESC
-            LIMIT 5
-        ''')
-        clienti_recupero = cur.fetchall()
+        mesi_nomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
+        trend_mensile_valori = [mesi_curr_dict.get(m, 0.0) for m in range(1, 13)]
+        trend_mensile_prev_valori = [mesi_prev_dict.get(m, 0.0) for m in range(1, 13)]
 
-        # 2. ANALISI STATO CLIENTI
-        cur.execute("SELECT stato, COUNT(*) AS conteggio FROM clienti GROUP BY stato")
-        stato_clienti_rows = cur.fetchall()
-        stato_clienti = {r['stato'].lower(): r['conteggio'] for r in stato_clienti_rows}
-        clienti_totali = sum(stato_clienti.values())
+        # 4. SEGMENTAZIONE REALE PORTAFOGLIO CLIENTI (ATTIVITÀ EFFETTIVA)
+        cur.execute("""
+            SELECT 
+                COUNT(DISTINCT c.id) as tot,
+                COUNT(DISTINCT CASE WHEN f.anno = 2026 AND f.mese >= 6 THEN c.id END) as attivi_recenti,
+                COUNT(DISTINCT CASE WHEN f.anno = 2026 AND f.mese < 6 AND c.id NOT IN (
+                    SELECT DISTINCT cliente_id FROM fatturato WHERE anno = 2026 AND mese >= 6
+                ) THEN c.id END) as in_calo,
+                COUNT(DISTINCT CASE WHEN f.anno = 2025 AND c.id NOT IN (
+                    SELECT DISTINCT cliente_id FROM fatturato WHERE anno = 2026
+                ) THEN c.id END) as dormienti_storici,
+                COUNT(DISTINCT CASE WHEN f.cliente_id IS NULL THEN c.id END) as prospect_zero
+            FROM clienti c
+            LEFT JOIN fatturato f ON c.id = f.cliente_id
+        """)
+        seg_row = cur.fetchone()
+        clienti_totali = seg_row['tot'] or 0
+        clienti_attivi = seg_row['attivi_recenti'] or 0
+        clienti_in_calo = seg_row['in_calo'] or 0
+        clienti_dormienti = seg_row['dormienti_storici'] or 0
+        clienti_prospect = seg_row['prospect_zero'] or 0
 
-        # 3. ANALISI PRODOTTI
+        ratio_attivi = round((clienti_attivi / clienti_totali * 100), 1) if clienti_totali > 0 else 0.0
+        media_per_attivo = round(fatturato_periodo / clienti_attivi, 2) if clienti_attivi > 0 else 0.0
+
+        # 5. ANALISI TERRITORIALE (PER ZONE)
+        cur.execute("""
+            SELECT 
+                COALESCE(c.zona, 'ALTRO') as zona,
+                COUNT(DISTINCT c.id) as num_clienti,
+                COUNT(DISTINCT CASE WHEN f.anno = 2026 AND f.mese >= 6 THEN c.id END) as attivi_zona,
+                COALESCE(SUM(CASE WHEN (f.anno = 2026 OR %s = 'tutti') THEN f.totale ELSE 0 END), 0) as fatturato_zona
+            FROM clienti c
+            LEFT JOIN fatturato f ON c.id = f.cliente_id
+            GROUP BY c.zona
+            ORDER BY fatturato_zona DESC
+        """, (anno_param,))
+        zone_rows = cur.fetchall()
+        zone_list = []
+        zone_labels = []
+        zone_valori = []
+        zone_colori = [
+            "#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", 
+            "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#64748b"
+        ]
+
+        for idx, z in enumerate(zone_rows):
+            f_zona = float(z['fatturato_zona'] or 0)
+            n_cli = int(z['num_clienti'] or 0)
+            n_att = int(z['attivi_zona'] or 0)
+            q_perc = round((f_zona / fatturato_periodo * 100), 1) if fatturato_periodo > 0 else 0.0
+            med_cli = round(f_zona / n_cli, 2) if n_cli > 0 else 0.0
+            
+            zone_item = {
+                "zona": z['zona'],
+                "num_clienti": n_cli,
+                "attivi_zona": n_att,
+                "fatturato": f_zona,
+                "quota_perc": q_perc,
+                "media_per_cliente": med_cli,
+                "colore": zone_colori[idx % len(zone_colori)]
+            }
+            zone_list.append(zone_item)
+            if f_zona > 0:
+                zone_labels.append(z['zona'])
+                zone_valori.append(f_zona)
+
+        # 6. CLIENTI A RISCHIO / DORMIENTI DA RECUPERARE (FATTURATO A RISCHIO)
+        cur.execute("""
+            SELECT 
+                c.id, c.nome, c.zona, c.telefono,
+                COALESCE(SUM(f.totale), 0) as fatt_totale,
+                COALESCE(SUM(CASE WHEN f.anno = 2026 THEN f.totale ELSE 0 END), 0) as fatt_2026,
+                MAX(f.anno * 100 + f.mese) as ultimo_periodo,
+                MAX(f.anno) as ultimo_anno,
+                MAX(f.mese) as ultimo_mese
+            FROM clienti c
+            JOIN fatturato f ON c.id = f.cliente_id
+            GROUP BY c.id, c.nome, c.zona, c.telefono
+            HAVING SUM(CASE WHEN f.mese >= 6 AND f.anno = 2026 THEN f.totale ELSE 0 END) = 0
+               AND SUM(f.totale) >= 1000
+            ORDER BY fatt_totale DESC
+        """)
+        clienti_recupero_raw = cur.fetchall()
+        clienti_recupero = []
+        totale_fatturato_a_rischio = 0.0
+
+        for r in clienti_recupero_raw:
+            f_tot = float(r['fatt_totale'] or 0)
+            totale_fatturato_a_rischio += f_tot
+            u_mese = r['ultimo_mese'] or 1
+            u_anno = r['ultimo_anno'] or 2026
+            nome_mese = mesi_nomi[u_mese - 1] if 1 <= u_mese <= 12 else str(u_mese)
+            clienti_recupero.append({
+                "id": r['id'],
+                "nome": r['nome'],
+                "zona": r['zona'] or 'N/D',
+                "telefono": r['telefono'] or '',
+                "fatturato_totale": f_tot,
+                "ultimo_periodo_str": f"{nome_mese} {u_anno}",
+                "valore_a_rischio": f_tot
+            })
+
+        # 7. TOP 10 CLIENTI DEL PORTAFOGLIO
+        cur.execute("""
+            SELECT 
+                c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard,
+                COALESCE(SUM(CASE WHEN f.anno = 2026 THEN f.totale ELSE 0 END), 0) as fatturato_2026,
+                COALESCE(c.fatturato_totale, 0) as fatturato_storico,
+                MAX(f.anno * 100 + f.mese) as ultimo_periodo,
+                MAX(f.mese) as ultimo_mese,
+                MAX(f.anno) as ultimo_anno
+            FROM clienti c
+            LEFT JOIN fatturato f ON c.id = f.cliente_id
+            GROUP BY c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard, c.fatturato_totale
+            ORDER BY fatturato_2026 DESC
+            LIMIT 10
+        """)
+        top_clienti_raw = cur.fetchall()
+        top_clienti = []
+        tot_top10 = 0.0
+
+        giorni_settimana = {0: "Lunedì", 1: "Martedì", 2: "Mercoledì", 3: "Giovedì", 4: "Venerdì", 5: "Sabato", 6: "Domenica"}
+
+        for idx, r in enumerate(top_clienti_raw):
+            f_26 = float(r['fatturato_2026'] or 0)
+            tot_top10 += f_26
+            q_p = round((f_26 / fatturato_2026 * 100), 1) if fatturato_2026 > 0 else 0.0
+            g_visita = giorni_settimana.get(r['giorno_visita_standard'], '–')
+            u_mese = r['ultimo_mese']
+            u_anno = r['ultimo_anno']
+            u_str = f"{mesi_nomi[u_mese - 1]} {u_anno}" if u_mese and 1 <= u_mese <= 12 else '–'
+            
+            top_clienti.append({
+                "rank": idx + 1,
+                "id": r['id'],
+                "nome": r['nome'],
+                "zona": r['zona'] or 'N/D',
+                "telefono": r['telefono'] or '',
+                "fatturato_2026": f_26,
+                "quota_perc": q_p,
+                "giorno_visita": g_visita,
+                "ultimo_ordine_str": u_str
+            })
+
+        pareto_top10_perc = round((tot_top10 / fatturato_2026 * 100), 1) if fatturato_2026 > 0 else 0.0
+
+        # 8. TRATTATIVE COMPARATORE LISTINO
+        cur.execute("""
+            SELECT 
+                id, cliente_nome, cliente_id,
+                COALESCE(totale_volume_kg, 0) as volume_kg,
+                COALESCE(risparmio_anno, 0) as risparmio_anno,
+                COALESCE(percentuale_risparmio, 0) as perc_risparmio,
+                creato_il
+            FROM comparazioni_listini
+            ORDER BY creato_il DESC
+            LIMIT 8
+        """)
+        comparazioni_rows = cur.fetchall()
+        comparazioni_list = []
+        tot_volume_comparatore = 0.0
+        tot_risparmio_comparatore = 0.0
+
+        for comp in comparazioni_rows:
+            v_kg = float(comp['volume_kg'] or 0)
+            r_anno = float(comp['risparmio_anno'] or 0)
+            tot_volume_comparatore += v_kg
+            tot_risparmio_comparatore += r_anno
+            d_str = comp['creato_il'].strftime('%d/%m/%Y') if comp['creato_il'] else ''
+            
+            comparazioni_list.append({
+                "id": comp['id'],
+                "cliente_nome": comp['cliente_nome'] or 'Cliente',
+                "cliente_id": comp['cliente_id'],
+                "volume_kg": v_kg,
+                "risparmio_anno": r_anno,
+                "perc_risparmio": round(float(comp['perc_risparmio'] or 0), 1),
+                "data_str": d_str
+            })
+
+        avg_risparmio_perc = round(sum(c['perc_risparmio'] for c in comparazioni_list) / len(comparazioni_list), 1) if comparazioni_list else 0.0
+
+        # 9. ANALISI CATALOGO PRODOTTI E CATEGORIE
         cur.execute("SELECT COUNT(*) AS totale FROM prodotti")
         prodotti_catalogo = cur.fetchone()['totale'] or 0
 
-        # Prodotti inseriti e rimossi negli ultimi 30 giorni
-        now = datetime.datetime.now()
-        trenta_giorni_fa = now - datetime.timedelta(days=30)
-        
-        cur.execute('''
-            SELECT COUNT(*) AS conteggio
-            FROM clienti_prodotti
-            WHERE lavorato = TRUE AND data_operazione >= %s
-        ''', (trenta_giorni_fa,))
-        prodotti_inseriti_30gg = cur.fetchone()['conteggio'] or 0
-
-        cur.execute('''
-            SELECT COUNT(*) AS conteggio
-            FROM prodotti_rimossi
-            WHERE data_rimozione >= %s
-        ''', (trenta_giorni_fa,))
-        prodotti_rimossi_30gg = cur.fetchone()['conteggio'] or 0
-
-        # Prodotti lavorati, potenziali e non lavorati totali
-        cur.execute('''
-            SELECT 
-                SUM(CASE WHEN lavorato = TRUE THEN 1 ELSE 0 END) AS lavorati,
-                SUM(CASE WHEN potenziale = TRUE THEN 1 ELSE 0 END) AS potenziali,
-                SUM(CASE WHEN lavorato = FALSE AND potenziale = FALSE THEN 1 ELSE 0 END) AS non_lavorati
-            FROM clienti_prodotti
-        ''')
-        prodotti_assoc_summary = cur.fetchone()
-        lavorati_tot = prodotti_assoc_summary['lavorati'] or 0
-        potenziali_tot = prodotti_assoc_summary['potenziali'] or 0
-        non_lavorati_tot = prodotti_assoc_summary['non_lavorati'] or 0
-
-        # TOP 5 Prodotti Potenziali (Upselling opportuni)
-        cur.execute('''
-            SELECT p.id, p.nome AS prodotto, COALESCE(c.nome, '–') AS categoria, COUNT(cp.id) AS interesse
-            FROM clienti_prodotti cp
-            JOIN prodotti p ON cp.prodotto_id = p.id
+        cur.execute("""
+            SELECT COALESCE(c.nome, 'ALTRO') as categoria, COUNT(p.id) as tot
+            FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id = c.id
-            WHERE cp.potenziale = TRUE
-            GROUP BY p.id, p.nome, c.nome
-            ORDER BY interesse DESC
-            LIMIT 5
-        ''')
-        top_potenziali = cur.fetchall()
+            GROUP BY c.nome
+            ORDER BY tot DESC
+            LIMIT 6
+        """)
+        cat_rows = cur.fetchall()
+        cat_labels = [r['categoria'] for r in cat_rows]
+        cat_counts = [int(r['tot']) for r in cat_rows]
 
-        # 4. RACCOMANDAZIONI COMMERCIALI INTELLIGENTI
+        # 10. VISITE COMMERCIALI
+        cur.execute("SELECT COUNT(*) as tot, SUM(CASE WHEN completata = TRUE THEN 1 ELSE 0 END) as svolte FROM visite")
+        v_row = cur.fetchone()
+        visite_totali = v_row['tot'] or 0
+        visite_svolte = v_row['svolte'] or 0
+
+        # 11. RACCOMANDAZIONI COMMERCIALI STRATEGICHE
         raccomandazioni = []
         
-        # Raccomandazione 1: VIP Bloccati da recuperare
-        cur.execute('''
-            SELECT id, nome, fatturato_totale
-            FROM clienti
-            WHERE stato = 'bloccato' AND fatturato_totale > 0
-            ORDER BY fatturato_totale DESC
-            LIMIT 2
-        ''')
-        vip_bloccati = cur.fetchall()
-        for c in vip_bloccati:
+        if clienti_recupero:
+            top_rec = clienti_recupero[0]
+            sec_rec = clienti_recupero[1] if len(clienti_recupero) > 1 else None
+            nomi_rec = f"{top_rec['nome']}" + (f" e {sec_rec['nome']}" if sec_rec else "")
             raccomandazioni.append({
                 "categoria": "danger",
-                "titolo": f"Recupero Cliente VIP: {c['nome']}",
-                "descrizione": f"Questo cliente ha generato storicamente €{c['fatturato_totale']:.2f} ma è attualmente BLOCCATO. Pianifica una visita o proponi condizioni di pagamento agevolate per sbloccarlo."
+                "titolo": f"Recupero Clienti Dormienti: €{totale_fatturato_a_rischio:,.0f} a Rischio",
+                "descrizione": f"Ci sono {len(clienti_recupero)} clienti con oltre €1.000 di fatturato storico fermi negli ultimi mesi (tra cui {nomi_rec}). Pianifica visite o invia un'offerta dedicata per sbloccarli.",
+                "link": "#sezione-recupero",
+                "link_testo": "Vedi Clienti a Rischio"
             })
 
-        # Raccomandazione 2: Prodotti con alto potenziale di vendita
-        if top_potenziali:
-            top_p = top_potenziali[0]
+        if zone_list and zone_list[0]['fatturato'] > 0:
+            top_yield_zone = max(zone_list, key=lambda z: z['media_per_cliente'] if z['num_clienti'] >= 2 else 0)
             raccomandazioni.append({
                 "categoria": "success",
-                "titolo": f"Upselling Opportunità: {top_p['prodotto']}",
-                "descrizione": f"Questo prodotto è segnato come 'Potenziale' per ben {top_p['interesse']} clienti. Prepara una promo dedicata sul prossimo volantino mensile per convertirli."
+                "titolo": f"Espansione Territoriale: Zona {top_yield_zone['zona']}",
+                "descrizione": f"La zona {top_yield_zone['zona']} vanta una resa record di €{top_yield_zone['media_per_cliente']:,.2f} per cliente (totale €{top_yield_zone['fatturato']:,.2f} su soli {top_yield_zone['num_clienti']} clienti). Target ideale per acquisire nuovi locali con lo stesso profilo.",
+                "link": url_for('clienti'),
+                "link_testo": "Apri Clienti per Zona"
             })
 
-        # Raccomandazione 3: Clienti con più prodotti potenziali inseriti
-        cur.execute('''
-            SELECT c.id, c.nome, COUNT(cp.id) AS num_potenziali
-            FROM clienti_prodotti cp
-            JOIN clienti c ON cp.cliente_id = c.id
-            WHERE cp.potenziale = TRUE
-            GROUP BY c.id, c.nome
-            ORDER BY num_potenziali DESC
-            LIMIT 2
-        ''')
-        clienti_molti_potenziali = cur.fetchall()
-        for c in clienti_molti_potenziali:
+        if comparazioni_list:
             raccomandazioni.append({
                 "categoria": "warning",
-                "titolo": f"Sviluppo Portafoglio: {c['nome']}",
-                "descrizione": f"Ha {c['num_potenziali']} prodotti identificati come 'Potenziali' in scheda. Approfitta del prossimo appuntamento o inviagli una proposta mirata per queste referenze."
-            })
-
-        # Default fallback raccomandazioni se vuote
-        if not raccomandazioni:
-            raccomandazioni.append({
-                "categoria": "info",
-                "titolo": "Ottimizzazione Copertura",
-                "descrizione": "Identifica nuovi prodotti e digitalizza il listino dei clienti per far emergere nuove opportunità di vendita incrociata (Cross-Selling)."
+                "titolo": f"Follow-Up Trattative Comparatore ({len(comparazioni_list)} Proposte)",
+                "descrizione": f"Hai {len(comparazioni_list)} preventivi salvati con un volume stimato di {tot_volume_comparatore:,.0f} KG/mese e un risparmio medio dell'offerta del {avg_risparmio_perc}%. Ricontatta i clienti con la proposta PDF per finalizzare gli ordini.",
+                "link": url_for('comparatore_listino'),
+                "link_testo": "Vai al Comparatore"
             })
 
     return render_template(
         '03_statistiche.html',
+        anno_param=anno_param,
+        anno_label=anno_label,
+        anni_disponibili=anni_disponibili,
         fatturato_globale=fatturato_globale,
-        fatturato_mensile=fatturato_mensile,
-        top_clienti=top_clienti,
-        clienti_recupero=clienti_recupero,
-        stato_clienti=stato_clienti,
+        fatturato_periodo=fatturato_periodo,
+        fatturato_2026=fatturato_2026,
+        fatturato_2025=fatturato_2025,
+        confronto_perc=confronto_perc,
+        mesi_nomi=mesi_nomi,
+        trend_mensile_valori=trend_mensile_valori,
+        trend_mensile_prev_valori=trend_mensile_prev_valori,
         clienti_totali=clienti_totali,
+        clienti_attivi=clienti_attivi,
+        clienti_in_calo=clienti_in_calo,
+        clienti_dormienti=clienti_dormienti,
+        clienti_prospect=clienti_prospect,
+        ratio_attivi=ratio_attivi,
+        media_per_attivo=media_per_attivo,
+        zone_list=zone_list,
+        zone_labels=zone_labels,
+        zone_valori=zone_valori,
+        clienti_recupero=clienti_recupero,
+        totale_fatturato_a_rischio=totale_fatturato_a_rischio,
+        top_clienti=top_clienti,
+        pareto_top10_perc=pareto_top10_perc,
+        comparazioni_list=comparazioni_list,
+        tot_volume_comparatore=tot_volume_comparatore,
+        tot_risparmio_comparatore=tot_risparmio_comparatore,
+        avg_risparmio_perc=avg_risparmio_perc,
         prodotti_catalogo=prodotti_catalogo,
-        prodotti_inseriti_30gg=prodotti_inseriti_30gg,
-        prodotti_rimossi_30gg=prodotti_rimossi_30gg,
-        lavorati_tot=lavorati_tot,
-        potenziali_tot=potenziali_tot,
-        non_lavorati_tot=non_lavorati_tot,
-        top_potenziali=top_potenziali,
+        cat_labels=cat_labels,
+        cat_counts=cat_counts,
+        visite_totali=visite_totali,
+        visite_svolte=visite_svolte,
         raccomandazioni=raccomandazioni
     )
 
