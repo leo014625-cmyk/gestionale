@@ -436,7 +436,8 @@ def init_db():
                 chiave TEXT UNIQUE NOT NULL,
                 valore TEXT,
                 aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )"""
+            )""",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS fatturato_stimato_mensile REAL DEFAULT 0"
         ]:
             try:
                 cur.execute(alt_stmt)
@@ -8787,6 +8788,216 @@ def comparatore_listino():
     )
 
 
+def parse_pdf_prodotti_comparatore(pdf_path: str, cliente_id: int = None, cur=None) -> list[dict]:
+    results = []
+    seen_codes_or_names = set()
+
+    # Regex per estrazione prezzi e codici da listino PDF
+    price_re = re.compile(r'(?:€\s*)?(\d{1,4}[.,]\d{2})(?:\s*€)?(?:\s*[/](?:kg|pz|ct|lt))?\s*$', re.IGNORECASE)
+    code_re = re.compile(r'^([A-Z0-9_\.\-]{3,15})\b')
+    um_re = re.compile(r'\b(KG|PZ|CT|LT|GR|CF|CONF|BT|VAS)\b\s*$', re.IGNORECASE)
+
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_idx, page in enumerate(pdf.pages):
+                text = page.extract_text() or ""
+                for raw in text.splitlines():
+                    line = " ".join(raw.strip().split())
+                    if not line or len(line) < 4:
+                        continue
+
+                    # Ignora intestazioni o totali generici
+                    lower_line = line.lower()
+                    if any(kw in lower_line for kw in ['codice descrizione', 'totale imponibile', 'subtotale', 'pagina ', 'pag. ']):
+                        continue
+
+                    m_price = price_re.search(line)
+                    if not m_price:
+                        continue
+
+                    prezzo_str = m_price.group(1).replace(',', '.')
+                    try:
+                        prezzo = float(prezzo_str)
+                    except ValueError:
+                        continue
+                    if prezzo <= 0:
+                        continue
+
+                    rem = line[:m_price.start()].strip()
+                    m_code = code_re.match(rem)
+                    codice = ""
+                    if m_code:
+                        codice = m_code.group(1)
+                        rem = rem[m_code.end():].strip()
+
+                    # Riconosci UM se presente a fine descrizione
+                    um = "KG"
+                    um_match = um_re.search(rem)
+                    if um_match:
+                        um = um_match.group(1).upper()
+                        nome = rem[:um_match.start()].strip()
+                    else:
+                        nome = rem
+
+                    # Pulizia nome prodotto
+                    nome = re.sub(r'^[–\-\:\.\s]+', '', nome).strip()
+                    if len(nome) < 2:
+                        continue
+
+                    unique_key = (codice or nome).lower()
+                    if unique_key in seen_codes_or_names:
+                        continue
+                    seen_codes_or_names.add(unique_key)
+
+                    results.append({
+                        "id": None,
+                        "codice": codice,
+                        "nome": nome,
+                        "um": um,
+                        "prezzo_nostro": round(prezzo, 2),
+                        "prezzo_attuale": 0.0,
+                        "volume_kg": 0.0
+                    })
+    except Exception as _pe:
+        print(f"parse_pdf_prodotti_comparatore line error: {_pe}")
+
+    # Fallback tabella se non sono state trovate righe di testo
+    if not results:
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                for page in pdf.pages:
+                    tables = page.extract_tables() or []
+                    for table in tables:
+                        if not table or len(table) < 2:
+                            continue
+                        headers = [str(c or '').strip().lower() for c in table[0]]
+                        col_cod = next((i for i, h in enumerate(headers) if 'cod' in h or 'art' in h), None)
+                        col_desc = next((i for i, h in enumerate(headers) if 'desc' in h or 'prod' in h or 'nome' in h), None)
+                        col_prezzo = next((i for i, h in enumerate(headers) if 'prezz' in h or 'list' in h or '€' in h or 'cost' in h), None)
+
+                        for row in table[1:]:
+                            if not row:
+                                continue
+                            cod = str(row[col_cod]).strip() if col_cod is not None and col_cod < len(row) and row[col_cod] else ""
+                            desc = str(row[col_desc]).strip() if col_desc is not None and col_desc < len(row) and row[col_desc] else ""
+                            prezzo_raw = str(row[col_prezzo]).strip() if col_prezzo is not None and col_prezzo < len(row) and row[col_prezzo] else ""
+
+                            if not desc and cod:
+                                desc = cod
+                            if not desc:
+                                continue
+
+                            m = re.search(r'(\d+[.,]\d{2})', prezzo_raw)
+                            if m:
+                                try:
+                                    pz = float(m.group(1).replace(',', '.'))
+                                    if pz > 0:
+                                        unique_key = (cod or desc).lower()
+                                        if unique_key in seen_codes_or_names:
+                                            continue
+                                        seen_codes_or_names.add(unique_key)
+                                        results.append({
+                                            "id": None,
+                                            "codice": cod,
+                                            "nome": desc,
+                                            "um": "KG",
+                                            "prezzo_nostro": round(pz, 2),
+                                            "prezzo_attuale": 0.0,
+                                            "volume_kg": 0.0
+                                        })
+                                except Exception:
+                                    pass
+        except Exception as _te:
+            print(f"Table extraction fallback error: {_te}")
+
+    # Arricchisci con dati da database (matching catalogo e storico prezzi cliente)
+    if cur and results:
+        for item in results:
+            pid = None
+            if item.get("codice"):
+                cur.execute("SELECT id, nome, codice, prezzo FROM prodotti WHERE codice = %s LIMIT 1", (item["codice"],))
+                p_row = cur.fetchone()
+                if p_row:
+                    pid = p_row["id"]
+                    item["id"] = pid
+                    if p_row.get("nome"):
+                        item["nome"] = p_row["nome"]
+
+            if not pid and item.get("nome"):
+                cur.execute("SELECT id, nome, codice, prezzo FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) LIMIT 1", (item["nome"],))
+                p_row = cur.fetchone()
+                if p_row:
+                    pid = p_row["id"]
+                    item["id"] = pid
+                    if p_row.get("nome"):
+                        item["nome"] = p_row["nome"]
+                    if not item.get("codice") and p_row.get("codice"):
+                        item["codice"] = p_row["codice"]
+
+            if cliente_id and pid:
+                try:
+                    cur.execute("""
+                        SELECT prezzo_attuale, prezzo_offerta 
+                        FROM clienti_prodotti 
+                        WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
+                    """, (int(cliente_id), int(cliente_id), pid, pid))
+                    cp_row = cur.fetchone()
+                    if cp_row and cp_row.get("prezzo_attuale"):
+                        pa = float(cp_row["prezzo_attuale"])
+                        if pa > 0:
+                            item["prezzo_attuale"] = round(pa, 2)
+                except Exception:
+                    pass
+
+    return results
+
+
+@app.route('/api/comparatore/carica_pdf', methods=['POST'])
+@login_required
+def api_comparatore_carica_pdf():
+    try:
+        pdf_file = request.files.get('pdf_file') or request.files.get('file')
+        if not pdf_file or not pdf_file.filename:
+            return jsonify({"ok": False, "message": "Nessun file PDF selezionato."}), 400
+
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            return jsonify({"ok": False, "message": "Il file caricato non è in formato PDF (.pdf)."}), 400
+
+        cliente_id = request.form.get('cliente_id')
+        try:
+            cliente_id = int(cliente_id) if cliente_id else None
+        except (ValueError, TypeError):
+            cliente_id = None
+
+        filename = werkzeug.utils.secure_filename(pdf_file.filename)
+        upload_dir = os.path.join(app.static_folder, 'uploads', 'comparatore_pdf')
+        os.makedirs(upload_dir, exist_ok=True)
+        unique_name = f"comp_{int(time.time())}_{filename}"
+        file_path = os.path.join(upload_dir, unique_name)
+        pdf_file.save(file_path)
+
+        with get_db() as db:
+            cur = db.cursor()
+            prodotti = parse_pdf_prodotti_comparatore(file_path, cliente_id=cliente_id, cur=cur)
+
+        if not prodotti:
+            return jsonify({
+                "ok": False,
+                "message": "Nessun prodotto o prezzo valido identificato nel PDF. Verifica il layout del documento."
+            }), 422
+
+        return jsonify({
+            "ok": True,
+            "count": len(prodotti),
+            "prodotti": prodotti,
+            "message": f"Caricati con successo {len(prodotti)} prodotti dal PDF! Prezzi inseriti in 'Nostro Prezzo'."
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "message": f"Errore caricamento ed elaborazione PDF: {str(e)}"}), 500
+
+
 @app.route('/api/comparatore/salva', methods=['POST'])
 @login_required
 def api_comparatore_salva():
@@ -8875,12 +9086,115 @@ def api_comparatore_salva():
                       dati_json))
                 target_id = cur.fetchone()['id']
 
+            # ASSEGNAZIONE PRODOTTI E PREZZI AL CLIENTE IN clienti_prodotti
+            prodotti_assegnati_cnt = 0
+            if cliente_id:
+                try:
+                    c_id_int = int(cliente_id)
+
+                    # 1. Aggiorna fatturato stimato mensile sulla scheda cliente
+                    try:
+                        cur.execute("UPDATE clienti SET fatturato_stimato_mensile = %s WHERE id = %s",
+                                    (totale_nuovo_mese, c_id_int))
+                    except Exception as _fe:
+                        print(f"Update fatturato_stimato_mensile warning: {_fe}")
+
+                    # 2. Per ciascun prodotto, inserisci o aggiorna clienti_prodotti con prezzo_offerta (nostro prezzo) e lavorato=TRUE
+                    for prod in prodotti:
+                        if not isinstance(prod, dict):
+                            continue
+                        nome_p = (prod.get('nome') or '').strip()
+                        codice_p = (prod.get('codice') or '').strip()
+                        prezzo_nostro = float(prod.get('prezzo_nostro') or 0.0)
+                        prezzo_attuale = float(prod.get('prezzo_attuale') or 0.0)
+
+                        if not nome_p and not codice_p:
+                            continue
+
+                        pid = prod.get('id') or prod.get('prodotto_id')
+                        if pid:
+                            try:
+                                cur.execute("SELECT id FROM prodotti WHERE id = %s", (int(pid),))
+                                if not cur.fetchone():
+                                    pid = None
+                                else:
+                                    pid = int(pid)
+                            except Exception:
+                                pid = None
+
+                        if not pid and codice_p:
+                            cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (codice_p,))
+                            row_p = cur.fetchone()
+                            if row_p:
+                                pid = row_p['id']
+
+                        if not pid and nome_p:
+                            cur.execute("SELECT id FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) LIMIT 1", (nome_p,))
+                            row_p = cur.fetchone()
+                            if row_p:
+                                pid = row_p['id']
+
+                        # Se il prodotto non esiste ancora nel catalogo, lo creiamo per tracciarlo
+                        if not pid:
+                            try:
+                                cur.execute("""
+                                    INSERT INTO prodotti (codice, nome, prezzo)
+                                    VALUES (%s, %s, %s)
+                                    RETURNING id
+                                """, (codice_p or None, nome_p, prezzo_nostro or None))
+                                pid = cur.fetchone()['id']
+                            except Exception as _ie:
+                                print(f"Auto-creazione prodotto catalogo {nome_p} warning: {_ie}")
+                                continue
+
+                        # Assegna al cliente in clienti_prodotti
+                        cur.execute("""
+                            SELECT id, prezzo_attuale, prezzo_offerta 
+                            FROM clienti_prodotti 
+                            WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
+                        """, (c_id_int, c_id_int, pid, pid))
+                        cp_existing = cur.fetchone()
+
+                        if cp_existing:
+                            cp_id = cp_existing['id']
+                            cur.execute("""
+                                UPDATE clienti_prodotti
+                                SET lavorato = TRUE,
+                                    prezzo_offerta = %s,
+                                    prezzo_attuale = CASE WHEN %s > 0 THEN %s ELSE prezzo_attuale END,
+                                    data_operazione = CURRENT_TIMESTAMP
+                                WHERE id = %s
+                            """, (prezzo_nostro, prezzo_attuale, prezzo_attuale, cp_id))
+                        else:
+                            cur.execute("""
+                                INSERT INTO clienti_prodotti (
+                                    cliente_id, id_cliente, prodotto_id, id_prodotto,
+                                    lavorato, prezzo_offerta, prezzo_attuale,
+                                    data_operazione, data_inizio_lavorazione
+                                ) VALUES (
+                                    %s, %s, %s, %s,
+                                    TRUE, %s, %s,
+                                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                                )
+                            """, (c_id_int, c_id_int, pid, pid, prezzo_nostro, (prezzo_attuale if prezzo_attuale > 0 else None)))
+
+                        prodotti_assegnati_cnt += 1
+
+                except Exception as _ae:
+                    print(f"Errore associazione prodotti cliente: {_ae}")
+
             db.commit()
+
+        success_msg = "Comparazione salvata con successo!"
+        if cliente_id and prodotti_assegnati_cnt > 0:
+            success_msg = f"Offerta salvata! Assegnati {prodotti_assegnati_cnt} prodotti al cliente (Fatturato stimato: € {totale_nuovo_mese:,.2f}/mese)."
 
         return jsonify({
             "ok": True,
             "id": target_id,
-            "message": "Comparazione salvata con successo!"
+            "message": success_msg,
+            "prodotti_assegnati": prodotti_assegnati_cnt,
+            "fatturato_stimato_mensile": totale_nuovo_mese
         })
     except Exception as e:
         import traceback
