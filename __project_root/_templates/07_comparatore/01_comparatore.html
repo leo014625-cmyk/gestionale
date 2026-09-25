@@ -658,7 +658,7 @@
 <!-- MODAL: CARICAMENTO PDF PRODOTTI CLIENTE                  -->
 <!-- ======================================================== -->
 <div class="modal fade" id="modalCaricaPdf" tabindex="-1" aria-labelledby="modalCaricaPdfLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
       <div class="modal-header border-bottom py-3">
         <div class="d-flex align-items-center gap-2">
@@ -666,29 +666,57 @@
             <i class="bi bi-file-earmark-pdf-fill"></i>
           </div>
           <div>
-            <h5 class="modal-title fw-bold text-color mb-0" id="modalCaricaPdfLabel">Carica PDF Prodotti & Listino</h5>
-            <small class="text-muted">Importa istantaneamente i prodotti dal PDF sul cliente</small>
+            <h5 class="modal-title fw-bold text-color mb-0" id="modalCaricaPdfLabel">Importa Prodotti da PDF o Testo</h5>
+            <small class="text-muted">Estrae automaticamente codici, descrizioni e imposta il prezzo in "Nostro Prezzo"</small>
           </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
-      <div class="modal-body py-4">
-        <div id="dropZonePdf" class="border border-2 border-dashed rounded-4 p-4 text-center cursor-pointer mb-3" style="border-color: #cbd5e1; background: rgba(15, 23, 42, 0.02); transition: all 0.2s ease;">
-          <i class="bi bi-cloud-arrow-up-fill text-primary" style="font-size: 2.8rem;"></i>
-          <h6 class="fw-bold mt-2 text-color">Trascina qui il file PDF o clicca per selezionarlo</h6>
-          <p class="text-muted small mb-2">Supporta listini articoli, promozioni e offerte clienti (.pdf)</p>
-          <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
-            <i class="bi bi-folder2-open me-1"></i> Scegli File dal Computer
-          </button>
-          <div id="selectedPdfName" class="mt-2 fw-bold text-success small d-none"></div>
+      <div class="modal-body py-3">
+        <!-- Tabs Caricamento File / Incolla Testo -->
+        <ul class="nav nav-pills nav-fill mb-3 p-1 rounded-3 bg-light border" id="tabImportaProdotti" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active py-2 fw-bold small rounded-3" id="tab-file-pdf" data-bs-toggle="pill" data-bs-target="#content-file-pdf" type="button" role="tab">
+              <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Carica File PDF
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link py-2 fw-bold small rounded-3" id="tab-testo-listino" data-bs-toggle="pill" data-bs-target="#content-testo-listino" type="button" role="tab">
+              <i class="bi bi-card-text text-primary me-1"></i> Incolla Testo / Lista
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content mb-3" id="tabImportaContent">
+          <!-- Tab 1: File PDF -->
+          <div class="tab-pane fade show active" id="content-file-pdf" role="tabpanel">
+            <div id="dropZonePdf" class="border border-2 border-dashed rounded-4 p-4 text-center cursor-pointer" style="border-color: #cbd5e1; background: rgba(15, 23, 42, 0.02); transition: all 0.2s ease;">
+              <i class="bi bi-cloud-arrow-up-fill text-primary" style="font-size: 2.8rem;"></i>
+              <h6 class="fw-bold mt-2 text-color">Trascina qui il file PDF o clicca per selezionarlo</h6>
+              <p class="text-muted small mb-2">Supporta qualsiasi formato: ordini clienti, DDT, fatture fornitore, promozioni e listini (.pdf)</p>
+              <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+                <i class="bi bi-folder2-open me-1"></i> Scegli File dal Computer
+              </button>
+              <div id="selectedPdfName" class="mt-2 fw-bold text-success small d-none"></div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Incolla Testo -->
+          <div class="tab-pane fade" id="content-testo-listino" role="tabpanel">
+            <div class="mb-0">
+              <label class="form-label small fw-bold text-muted text-uppercase mb-1">Incolla qui il testo o l'elenco prodotti:</label>
+              <textarea class="form-control rounded-3 font-monospace small" id="textareaTestoListino" rows="6" placeholder="Incolla qui il testo copiato da un PDF, un'email o WhatsApp...&#10;Esempi supportati:&#10;00150564 COPPA SUINO S/O KG2,5 S/V F EU KG 2,500 6,53&#10;01000013 PARMIGIANO REGGIANO DOP KG 23,30&#10;Tagliata di Scottona Nazionale 18.90 €/kg&#10;Acqua Naturale 1L 0.50"></textarea>
+              <div class="form-text small">Riconosce istantaneamente codici, descrizioni, quantità e prezzi.</div>
+            </div>
+          </div>
         </div>
 
         <div class="p-3 rounded-3 mb-3 bg-light bg-opacity-50 border">
-          <label class="form-label small fw-bold text-muted text-uppercase mb-2">Modalità di importazione nel prospetto:</label>
+          <label class="form-label small fw-bold text-muted text-uppercase mb-2">Modalità di inserimento nella tabella:</label>
           <div class="form-check mb-1.5">
             <input class="form-check-input" type="radio" name="modalitaImportPdf" id="modSostituisci" value="sostituisci" checked>
             <label class="form-check-label small fw-semibold" for="modSostituisci">
-              <strong>Sostituisci</strong> la tabella con tutti i prodotti estratti dal PDF
+              <strong>Sostituisci</strong> la tabella con tutti i prodotti estratti
             </label>
           </div>
           <div class="form-check">
@@ -701,13 +729,13 @@
 
         <div class="alert alert-info py-2 px-3 small rounded-3 mb-0 d-flex align-items-center gap-2">
           <i class="bi bi-info-circle-fill fs-5 text-info"></i>
-          <div>I prezzi estratti dal PDF verranno compilati nella casella <strong>"Nostro Prezzo"</strong>. Potrai poi inserire i volumi (KG) e il <strong>"Prezzo Attuale"</strong> del cliente.</div>
+          <div>I prezzi estratti verranno compilati nella casella <strong>"Nostro Prezzo"</strong>. Eventuali quantità presenti nell'ordine o nel documento verranno inserite in <strong>"Volume KG"</strong>.</div>
         </div>
 
         <!-- Spinner stato caricamento -->
         <div id="pdfLoadingStatus" class="d-none text-center py-3">
           <div class="spinner-border text-primary mb-2" role="status"></div>
-          <div class="fw-bold text-color" id="pdfLoadingText">Elaborazione PDF in corso... Lettura prodotti e prezzi</div>
+          <div class="fw-bold text-color" id="pdfLoadingText">Elaborazione in corso... Lettura prodotti e prezzi</div>
           <small class="text-muted">Estrazione automatica con matching catalogo prodotti...</small>
         </div>
       </div>
@@ -1674,6 +1702,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const selectedPdfName = document.getElementById("selectedPdfName");
   const btnConfermaCaricaPdf = document.getElementById("btnConfermaCaricaPdf");
   const pdfLoadingStatus = document.getElementById("pdfLoadingStatus");
+  const textareaTestoListino = document.getElementById("textareaTestoListino");
   let selectedPdfFile = null;
 
   function apriModalPdf() {
@@ -1682,10 +1711,18 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedPdfName.textContent = "";
       selectedPdfName.classList.add("d-none");
     }
+    if (textareaTestoListino) textareaTestoListino.value = "";
     if (btnConfermaCaricaPdf) btnConfermaCaricaPdf.disabled = true;
-    if (dropZonePdf) dropZonePdf.classList.remove("d-none");
+    const tabContentEl = document.getElementById("tabImportaContent");
+    if (tabContentEl) tabContentEl.classList.remove("d-none");
     if (pdfLoadingStatus) pdfLoadingStatus.classList.add("d-none");
     if (inputPdfProdotti) inputPdfProdotti.value = "";
+
+    const firstTabBtn = document.getElementById("tab-file-pdf");
+    if (firstTabBtn && window.bootstrap && bootstrap.Tab) {
+      const tab = new bootstrap.Tab(firstTabBtn);
+      tab.show();
+    }
     if (modalCaricaPdf) modalCaricaPdf.show();
   }
 
@@ -1699,6 +1736,25 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnCaricaPdfDropdown) btnCaricaPdfDropdown.addEventListener("click", (e) => {
     e.preventDefault();
     apriModalPdf();
+  });
+
+  if (textareaTestoListino) {
+    textareaTestoListino.addEventListener("input", () => {
+      const activeTab = document.querySelector("#tabImportaProdotti .nav-link.active")?.id;
+      if (activeTab === "tab-testo-listino") {
+        btnConfermaCaricaPdf.disabled = textareaTestoListino.value.trim().length === 0;
+      }
+    });
+  }
+
+  document.querySelectorAll("#tabImportaProdotti button[data-bs-toggle='pill']").forEach(tabBtn => {
+    tabBtn.addEventListener("shown.bs.tab", (e) => {
+      if (e.target.id === "tab-file-pdf") {
+        btnConfermaCaricaPdf.disabled = !selectedPdfFile;
+      } else if (e.target.id === "tab-testo-listino") {
+        btnConfermaCaricaPdf.disabled = (textareaTestoListino?.value.trim().length || 0) === 0;
+      }
+    });
   });
 
   if (dropZonePdf && inputPdfProdotti) {
@@ -1733,7 +1789,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handlePdfSelection(file) {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
+    if (!file.name.toLowerCase().endswith?.(".pdf") && !file.name.toLowerCase().endsWith(".pdf")) {
       alert("Seleziona un file con estensione .pdf valido.");
       return;
     }
@@ -1747,19 +1803,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnConfermaCaricaPdf) {
     btnConfermaCaricaPdf.addEventListener("click", () => {
-      if (!selectedPdfFile) return;
-
+      const activeTab = document.querySelector("#tabImportaProdotti .nav-link.active")?.id;
       const modalita = document.querySelector('input[name="modalitaImportPdf"]:checked')?.value || "sostituisci";
       const clienteIdVal = selectCliente.value ? selectCliente.value : "";
 
       const formData = new FormData();
-      formData.append("pdf_file", selectedPdfFile);
       if (clienteIdVal) {
         formData.append("cliente_id", clienteIdVal);
       }
 
+      if (activeTab === "tab-testo-listino") {
+        const textVal = textareaTestoListino?.value.trim();
+        if (!textVal) return;
+        formData.append("testo_listino", textVal);
+      } else {
+        if (!selectedPdfFile) return;
+        formData.append("pdf_file", selectedPdfFile);
+      }
+
       btnConfermaCaricaPdf.disabled = true;
-      if (dropZonePdf) dropZonePdf.classList.add("d-none");
+      const tabContentEl = document.getElementById("tabImportaContent");
+      if (tabContentEl) tabContentEl.classList.add("d-none");
       if (pdfLoadingStatus) pdfLoadingStatus.classList.remove("d-none");
 
       fetch("/api/comparatore/carica_pdf", {
@@ -1777,19 +1841,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
           renderTable();
           if (modalCaricaPdf) modalCaricaPdf.hide();
-          showToastNotification(`Caricati ${data.count} prodotti dal PDF! Il loro prezzo è stato impostato in "Nostro Prezzo". Ora compila le quantità (KG) e il prezzo attuale.`);
+          showToastNotification(`Caricati ${data.count} prodotti! Il loro prezzo è stato impostato in "Nostro Prezzo".`);
         } else {
-          alert(data.message || "Impossibile estrarre prodotti dal PDF selezionato.");
+          alert(data.message || "Impossibile estrarre prodotti dal documento o testo.");
           btnConfermaCaricaPdf.disabled = false;
-          if (dropZonePdf) dropZonePdf.classList.remove("d-none");
+          if (tabContentEl) tabContentEl.classList.remove("d-none");
           if (pdfLoadingStatus) pdfLoadingStatus.classList.add("d-none");
         }
       })
       .catch(err => {
         console.error(err);
-        alert("Errore durante il caricamento del file PDF. Riprova.");
+        alert("Errore durante l'elaborazione. Riprova.");
         btnConfermaCaricaPdf.disabled = false;
-        if (dropZonePdf) dropZonePdf.classList.remove("d-none");
+        if (tabContentEl) tabContentEl.classList.remove("d-none");
         if (pdfLoadingStatus) pdfLoadingStatus.classList.add("d-none");
       });
     });

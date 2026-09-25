@@ -8788,129 +8788,201 @@ def comparatore_listino():
     )
 
 
-def parse_pdf_prodotti_comparatore(pdf_path: str, cliente_id: int = None, cur=None) -> list[dict]:
+def parse_pdf_o_testo_comparatore(file_path: str = None, raw_text: str = None, cliente_id: int = None, cur=None) -> list[dict]:
     results = []
-    seen_codes_or_names = set()
+    seen = set()
 
-    # Regex per estrazione prezzi e codici da listino PDF
-    price_re = re.compile(r'(?:€\s*)?(\d{1,4}[.,]\d{2})(?:\s*€)?(?:\s*[/](?:kg|pz|ct|lt))?\s*$', re.IGNORECASE)
-    code_re = re.compile(r'^([A-Z0-9_\.\-]{3,15})\b')
-    um_re = re.compile(r'\b(KG|PZ|CT|LT|GR|CF|CONF|BT|VAS)\b\s*$', re.IGNORECASE)
+    reject_keywords = [
+        'spett.le', 'ordine del', 'codice art', 'descrizione um', 'pag.', 'pagina',
+        'totale imponibile', 'totale documento', 'iva %', 'vettore', 'trasporto',
+        'causale', 'banca', 'iban', 'sconto cassa', 'subtotale', 'capitale sociale',
+        'condizioni di vendita', 'r.e.a.', 'partita iva', 'c.f. / p.iva'
+    ]
 
-    try:
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_idx, page in enumerate(pdf.pages):
-                text = page.extract_text() or ""
-                for raw in text.splitlines():
-                    line = " ".join(raw.strip().split())
-                    if not line or len(line) < 4:
-                        continue
+    # Pattern per codice articolo (solo cifre o alfanumerico con cifre)
+    code_pattern = r'(\d{3,12}|(?=[A-Z0-9\.\-_]*\d)[A-Z0-9\.\-_]{3,15})'
 
-                    # Ignora intestazioni o totali generici
-                    lower_line = line.lower()
-                    if any(kw in lower_line for kw in ['codice descrizione', 'totale imponibile', 'subtotale', 'pagina ', 'pag. ']):
-                        continue
+    # 1. Regex ordini / fatture / DDT (Codice, Descrizione, UM, Qtà, Prezzo, extra...)
+    # es: 00150564 COPPA SUINO S/O KG2,5 S/V F EU KG 2,500 6,53 2.5 10
+    # es: 12151050 TESTE/CARAPACI GAMBERI ROSA KG2 C KG 12,000 5,51 2.0 10
+    order_regex = re.compile(
+        r'^\s*' + code_pattern + r'\s+'
+        r'(.+?)\s+'
+        r'(KG|PZ|CT|LT|GR|CF|CONF|BT|VAS)\s+'
+        r'(\d{1,5}(?:[.,]\d{1,3})?)\s+'
+        r'(?:€\s*)?(\d{1,5}[.,]\d{2})'
+        r'(?:\s+[\d.,]+)*\s*$',
+        re.IGNORECASE
+    )
 
-                    m_price = price_re.search(line)
-                    if not m_price:
-                        continue
+    # 2. Regex promozioni / listini (Codice, Descrizione, eventuale UM, Prezzo)
+    # es: 01000013 PARMIGIANO REGGIANO DOP 24M 1/8 KG4,5 SV KG € 23,30
+    promo_regex = re.compile(
+        r'^\s*' + code_pattern + r'\s+'
+        r'(.+?)'
+        r'(?:\s+(KG|PZ|CT|LT|GR|CF|CONF|BT|VAS))?\s*'
+        r'(?:€\s*)?'
+        r'(\d{1,5}[.,]\d{2})'
+        r'\s*(?:€|euro|/kg|/pz)?'
+        r'(?:\s+[\d.,]+)?\s*$',
+        re.IGNORECASE
+    )
 
-                    prezzo_str = m_price.group(1).replace(',', '.')
-                    try:
-                        prezzo = float(prezzo_str)
-                    except ValueError:
-                        continue
-                    if prezzo <= 0:
-                        continue
+    # 3. Regex generica per righe senza codice (Descrizione, eventuale UM, Prezzo)
+    # es: Acqua Minerale Naturale 1L 0.50
+    # es: Tagliata di Scottona 18.90 €/kg
+    no_code_regex = re.compile(
+        r'^\s*([A-Za-zÀ-ÖØ-öø-ÿ0-9\s\/\(\)\'\.\,\-\+]{3,60}?)\s+'
+        r'(?:(KG|PZ|CT|LT|GR|CF|CONF|BT|VAS)\s+)?'
+        r'(?:€\s*)?(\d{1,5}[.,]\d{2})\s*(?:€)?'
+        r'(?:\s*[/](?:kg|pz|ct|lt))?\s*$',
+        re.IGNORECASE
+    )
 
-                    rem = line[:m_price.start()].strip()
-                    m_code = code_re.match(rem)
-                    codice = ""
-                    if m_code:
-                        codice = m_code.group(1)
-                        rem = rem[m_code.end():].strip()
+    lines = []
+    tables = []
 
-                    # Riconosci UM se presente a fine descrizione
-                    um = "KG"
-                    um_match = um_re.search(rem)
-                    if um_match:
-                        um = um_match.group(1).upper()
-                        nome = rem[:um_match.start()].strip()
-                    else:
-                        nome = rem
+    if file_path and os.path.exists(file_path):
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                for page in pdf.pages:
+                    txt = page.extract_text() or ""
+                    lines.extend(txt.splitlines())
+                    t = page.extract_tables() or []
+                    tables.extend(t)
+        except Exception as e:
+            print(f"pdfplumber read error: {e}")
 
-                    # Pulizia nome prodotto
-                    nome = re.sub(r'^[–\-\:\.\s]+', '', nome).strip()
-                    if len(nome) < 2:
-                        continue
+    if raw_text:
+        lines.extend(raw_text.splitlines())
 
-                    unique_key = (codice or nome).lower()
-                    if unique_key in seen_codes_or_names:
-                        continue
-                    seen_codes_or_names.add(unique_key)
+    for raw in lines:
+        line = " ".join(raw.strip().split())
+        if not line or len(line) < 4:
+            continue
 
+        lower = line.lower()
+        if any(kw in lower for kw in reject_keywords):
+            continue
+
+        # Check 1: Ordine / DDT
+        m1 = order_regex.match(line)
+        if m1:
+            cod, nome, um, qta_str, prz_str = m1.groups()
+            try:
+                prz = float(prz_str.replace(',', '.'))
+                qta = float(qta_str.replace(',', '.'))
+                key = (cod or nome).lower().strip()
+                if key not in seen and prz > 0:
+                    seen.add(key)
                     results.append({
                         "id": None,
-                        "codice": codice,
-                        "nome": nome,
-                        "um": um,
-                        "prezzo_nostro": round(prezzo, 2),
-                        "prezzo_attuale": 0.0,
-                        "volume_kg": 0.0
+                        "codice": cod,
+                        "nome": nome.strip(),
+                        "um": um.upper(),
+                        "volume_kg": round(qta, 2) if um.upper() == 'KG' else round(qta, 1),
+                        "prezzo_nostro": round(prz, 2),
+                        "prezzo_attuale": 0.0
                     })
-    except Exception as _pe:
-        print(f"parse_pdf_prodotti_comparatore line error: {_pe}")
+                    continue
+            except Exception:
+                pass
 
-    # Fallback tabella se non sono state trovate righe di testo
-    if not results:
-        try:
-            with pdfplumber.open(pdf_path) as pdf:
-                for page in pdf.pages:
-                    tables = page.extract_tables() or []
-                    for table in tables:
-                        if not table or len(table) < 2:
-                            continue
-                        headers = [str(c or '').strip().lower() for c in table[0]]
-                        col_cod = next((i for i, h in enumerate(headers) if 'cod' in h or 'art' in h), None)
-                        col_desc = next((i for i, h in enumerate(headers) if 'desc' in h or 'prod' in h or 'nome' in h), None)
-                        col_prezzo = next((i for i, h in enumerate(headers) if 'prezz' in h or 'list' in h or '€' in h or 'cost' in h), None)
+        # Check 2: Promo / Listino
+        m2 = promo_regex.match(line)
+        if m2:
+            cod, nome, um, prz_str = m2.groups()
+            try:
+                prz = float(prz_str.replace(',', '.'))
+                key = (cod or nome).lower().strip()
+                if key not in seen and prz > 0 and len(nome.strip()) > 2:
+                    seen.add(key)
+                    results.append({
+                        "id": None,
+                        "codice": cod,
+                        "nome": nome.strip(),
+                        "um": (um or 'KG').upper(),
+                        "volume_kg": 0.0,
+                        "prezzo_nostro": round(prz, 2),
+                        "prezzo_attuale": 0.0
+                    })
+                    continue
+            except Exception:
+                pass
 
-                        for row in table[1:]:
-                            if not row:
-                                continue
-                            cod = str(row[col_cod]).strip() if col_cod is not None and col_cod < len(row) and row[col_cod] else ""
-                            desc = str(row[col_desc]).strip() if col_desc is not None and col_desc < len(row) and row[col_desc] else ""
-                            prezzo_raw = str(row[col_prezzo]).strip() if col_prezzo is not None and col_prezzo < len(row) and row[col_prezzo] else ""
+        # Check 3: Senza codice
+        m3 = no_code_regex.match(line)
+        if m3:
+            nome, um, prz_str = m3.groups()
+            try:
+                prz = float(prz_str.replace(',', '.'))
+                key = nome.lower().strip()
+                if key not in seen and prz > 0 and len(nome.strip()) > 2:
+                    if not any(sw in nome.lower() for sw in ['via ', 'piazza ', 'viale ', 'corso ', 's.r.l.', 'srl', 's.p.a.', 'telefono', 'tel.']):
+                        seen.add(key)
+                        results.append({
+                            "id": None,
+                            "codice": "",
+                            "nome": nome.strip(),
+                            "um": (um or 'KG').upper(),
+                            "volume_kg": 0.0,
+                            "prezzo_nostro": round(prz, 2),
+                            "prezzo_attuale": 0.0
+                        })
+                        continue
+            except Exception:
+                pass
 
-                            if not desc and cod:
-                                desc = cod
-                            if not desc:
-                                continue
+    # Fallback su estrazione tabelle
+    if not results and tables:
+        for table in tables:
+            if not table or len(table) < 2:
+                continue
+            headers = [str(c or '').strip().lower() for c in table[0]]
+            col_cod = next((i for i, h in enumerate(headers) if 'cod' in h or 'art' in h), None)
+            col_desc = next((i for i, h in enumerate(headers) if 'desc' in h or 'prod' in h or 'nome' in h), None)
+            col_um = next((i for i, h in enumerate(headers) if 'um' in h or 'u.m' in h), None)
+            col_qta = next((i for i, h in enumerate(headers) if 'qt' in h or 'vol' in h), None)
+            col_prz = next((i for i, h in enumerate(headers) if 'prez' in h or 'list' in h or '€' in h), None)
 
-                            m = re.search(r'(\d+[.,]\d{2})', prezzo_raw)
-                            if m:
-                                try:
-                                    pz = float(m.group(1).replace(',', '.'))
-                                    if pz > 0:
-                                        unique_key = (cod or desc).lower()
-                                        if unique_key in seen_codes_or_names:
-                                            continue
-                                        seen_codes_or_names.add(unique_key)
-                                        results.append({
-                                            "id": None,
-                                            "codice": cod,
-                                            "nome": desc,
-                                            "um": "KG",
-                                            "prezzo_nostro": round(pz, 2),
-                                            "prezzo_attuale": 0.0,
-                                            "volume_kg": 0.0
-                                        })
-                                except Exception:
-                                    pass
-        except Exception as _te:
-            print(f"Table extraction fallback error: {_te}")
+            for row in table[1:]:
+                if not row:
+                    continue
+                cod = str(row[col_cod]).strip() if col_cod is not None and col_cod < len(row) and row[col_cod] else ''
+                desc = str(row[col_desc]).strip() if col_desc is not None and col_desc < len(row) and row[col_desc] else ''
+                um = str(row[col_um]).strip().upper() if col_um is not None and col_um < len(row) and row[col_um] else 'KG'
+                qta_raw = str(row[col_qta]).strip() if col_qta is not None and col_qta < len(row) and row[col_qta] else '0'
+                prz_raw = str(row[col_prz]).strip() if col_prz is not None and col_prz < len(row) and row[col_prz] else ''
 
-    # Arricchisci con dati da database (matching catalogo e storico prezzi cliente)
+                if not desc and cod:
+                    desc = cod
+                if not desc:
+                    continue
+
+                m = re.search(r'(\d+[.,]\d{2})', prz_raw)
+                if m:
+                    try:
+                        prz = float(m.group(1).replace(',', '.'))
+                        qta = 0.0
+                        mq = re.search(r'(\d+(?:[.,]\d+)?)', qta_raw)
+                        if mq:
+                            qta = float(mq.group(1).replace(',', '.'))
+                        key = (cod or desc).lower().strip()
+                        if key not in seen and prz > 0:
+                            seen.add(key)
+                            results.append({
+                                "id": None,
+                                "codice": cod,
+                                "nome": desc,
+                                "um": um or 'KG',
+                                "volume_kg": round(qta, 2) if um == 'KG' else round(qta, 1),
+                                "prezzo_nostro": round(prz, 2),
+                                "prezzo_attuale": 0.0
+                            })
+                    except Exception:
+                        pass
+
+    # Matching con database prodotti e storico cliente
     if cur and results:
         for item in results:
             pid = None
@@ -8956,46 +9028,66 @@ def parse_pdf_prodotti_comparatore(pdf_path: str, cliente_id: int = None, cur=No
 @login_required
 def api_comparatore_carica_pdf():
     try:
+        testo_listino = request.form.get('testo_listino') or (request.json.get('testo_listino') if request.is_json else None)
         pdf_file = request.files.get('pdf_file') or request.files.get('file')
-        if not pdf_file or not pdf_file.filename:
-            return jsonify({"ok": False, "message": "Nessun file PDF selezionato."}), 400
 
-        if not pdf_file.filename.lower().endswith('.pdf'):
-            return jsonify({"ok": False, "message": "Il file caricato non è in formato PDF (.pdf)."}), 400
+        if not pdf_file and not testo_listino:
+            return jsonify({"ok": False, "message": "Nessun file PDF o testo caricato."}), 400
 
-        cliente_id = request.form.get('cliente_id')
+        cliente_id = request.form.get('cliente_id') or (request.json.get('cliente_id') if request.is_json else None)
         try:
             cliente_id = int(cliente_id) if cliente_id else None
         except (ValueError, TypeError):
             cliente_id = None
 
-        filename = werkzeug.utils.secure_filename(pdf_file.filename)
-        upload_dir = os.path.join(app.static_folder, 'uploads', 'comparatore_pdf')
-        os.makedirs(upload_dir, exist_ok=True)
-        unique_name = f"comp_{int(time.time())}_{filename}"
-        file_path = os.path.join(upload_dir, unique_name)
-        pdf_file.save(file_path)
+        file_path = None
+        if pdf_file and pdf_file.filename:
+            if not pdf_file.filename.lower().endswith('.pdf'):
+                return jsonify({"ok": False, "message": "Il file caricato non è in formato PDF (.pdf)."}), 400
+
+            filename = werkzeug.utils.secure_filename(pdf_file.filename)
+            upload_dir = os.path.join(app.static_folder, 'uploads', 'comparatore_pdf')
+            os.makedirs(upload_dir, exist_ok=True)
+            unique_name = f"comp_{int(time.time())}_{filename}"
+            file_path = os.path.join(upload_dir, unique_name)
+            pdf_file.save(file_path)
 
         with get_db() as db:
             cur = db.cursor()
-            prodotti = parse_pdf_prodotti_comparatore(file_path, cliente_id=cliente_id, cur=cur)
+            prodotti = parse_pdf_o_testo_comparatore(file_path=file_path, raw_text=testo_listino, cliente_id=cliente_id, cur=cur)
 
         if not prodotti:
-            return jsonify({
-                "ok": False,
-                "message": "Nessun prodotto o prezzo valido identificato nel PDF. Verifica il layout del documento."
-            }), 422
+            is_scanned = False
+            if file_path:
+                try:
+                    with pdfplumber.open(file_path) as p:
+                        txt_check = "".join(page.extract_text() or "" for page in p.pages).strip()
+                        if len(txt_check) < 20:
+                            is_scanned = True
+                except Exception:
+                    pass
+
+            if is_scanned:
+                return jsonify({
+                    "ok": False,
+                    "message": "Il PDF sembra essere una scansione/immagine senza testo selezionabile. Puoi incollare direttamente la lista prodotti nel tab 'Incolla Testo'!"
+                }), 422
+            else:
+                return jsonify({
+                    "ok": False,
+                    "message": "Nessun prodotto o prezzo valido identificato nel documento. Puoi incollare direttamente il testo o la lista prodotti nel tab 'Incolla Testo'."
+                }), 422
 
         return jsonify({
             "ok": True,
             "count": len(prodotti),
             "prodotti": prodotti,
-            "message": f"Caricati con successo {len(prodotti)} prodotti dal PDF! Prezzi inseriti in 'Nostro Prezzo'."
+            "message": f"Caricati con successo {len(prodotti)} prodotti! Prezzi inseriti in 'Nostro Prezzo'."
         })
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({"ok": False, "message": f"Errore caricamento ed elaborazione PDF: {str(e)}"}), 500
+        return jsonify({"ok": False, "message": f"Errore caricamento ed elaborazione: {str(e)}"}), 500
 
 
 @app.route('/api/comparatore/salva', methods=['POST'])
