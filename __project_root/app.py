@@ -66,6 +66,7 @@ if db_url.startswith("postgres://"):
 # Se DATABASE_URL è presente usa PostgreSQL (su Render e locale), altrimenti SQLite locale
 if db_url:
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"connect_timeout": 3}}
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "gestionale.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -80,8 +81,11 @@ class VolantinoBeta(db.Model):
     creato_il = db.Column(db.DateTime, default=datetime.utcnow)
     aggiornato_il = db.Column(db.DateTime)
 
-with app.app_context():
-    db.create_all()
+try:
+    with app.app_context():
+        db.create_all()
+except Exception as _e_sa:
+    print(f"Warning db.create_all(): {_e_sa}")
 
 # Additional Config
 app.config["UPLOAD_FOLDER_VOLANTINI"] = os.path.join(STATIC_DIR, "uploads", "volantini")
@@ -129,23 +133,33 @@ class SQLiteCursorWrapper:
     """Adatta un cursor SQLite a essere compatibile con psycopg2 RealDictCursor."""
     def __init__(self, cursor):
         self._cursor = cursor
+        self._last_returning = None
+
     def execute(self, query, params=None):
         import re as _re
         query = _re.sub(r'%s', '?', query)
         query = _re.sub(r'make_date\(([^,]+),\s*([^,]+),\s*1\)',
-                        r"date(printf('%04d-%02d-01', \\1, \\2))", query)
+                        r"date(printf('%04d-%02d-01', \1, \2))", query)
+        returning_match = _re.search(r'\s+RETURNING\s+(\w+)', query, flags=_re.IGNORECASE)
+        returning_col = returning_match.group(1) if returning_match else None
         query = _re.sub(r'\s+RETURNING\s+\w+', '', query, flags=_re.IGNORECASE)
+        self._last_returning = None
         if params is not None:
             self._cursor.execute(query, params)
         else:
             self._cursor.execute(query)
+        if returning_col:
+            self._last_returning = {returning_col: self._cursor.lastrowid}
+
     def executemany(self, query, seq_of_parameters):
         import re as _re
         query = _re.sub(r'%s', '?', query)
         query = _re.sub(r'make_date\(([^,]+),\s*([^,]+),\s*1\)',
-                        r"date(printf('%04d-%02d-01', \\1, \\2))", query)
+                        r"date(printf('%04d-%02d-01', \1, \2))", query)
         query = _re.sub(r'\s+RETURNING\s+\w+', '', query, flags=_re.IGNORECASE)
+        self._last_returning = None
         self._cursor.executemany(query, seq_of_parameters)
+
     def _conv(self, row):
         if not row: return row
         d = dict(row)
@@ -154,10 +168,24 @@ class SQLiteCursorWrapper:
             if kl.startswith("coalesce("): d["coalesce"] = v
             elif kl.startswith("sum("): d["sum"] = v
         return d
-    def fetchone(self): return self._conv(self._cursor.fetchone())
-    def fetchall(self): return [self._conv(r) for r in (self._cursor.fetchall() or [])]
+
+    def fetchone(self):
+        if self._last_returning is not None:
+            ret = self._last_returning
+            self._last_returning = None
+            return ret
+        return self._conv(self._cursor.fetchone())
+
+    def fetchall(self):
+        if self._last_returning is not None:
+            ret = [self._last_returning]
+            self._last_returning = None
+            return ret
+        return [self._conv(r) for r in (self._cursor.fetchall() or [])]
+
     def __iter__(self):
         for row in self._cursor: yield self._conv(row)
+
     @property
     def lastrowid(self): return self._cursor.lastrowid
     def close(self): self._cursor.close()
@@ -177,22 +205,25 @@ class SQLiteConnWrapper:
 
 @contextmanager
 def get_db():
-    """Connessione DB. Tenta PostgreSQL; se offline usa gestionale.db (SQLite)."""
-    if not DATABASE_URL:
-        raise ValueError("❌ Variabile d'ambiente DATABASE_URL non settata")
+    """Connessione DB. Tenta PostgreSQL; se non configurata o offline usa gestionale.db (SQLite)."""
     conn = None
+    if DATABASE_URL:
+        try:
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=4)
+            yield conn
+            return
+        except (psycopg2.OperationalError, psycopg2.Error) as e:
+            print(f"⚠️ POSTGRESQL non disponibile: {e}")
+            print("⚠️ Uso SQLite locale (gestionale.db)")
+
+    sqlite_raw = sqlite3.connect(os.path.join(BASE_DIR, 'gestionale.db'))
+    sqlite_raw.row_factory = sqlite3.Row
+    conn = SQLiteConnWrapper(sqlite_raw)
     try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-        yield conn
-    except psycopg2.OperationalError as e:
-        print(f"⚠️ POSTGRESQL non disponibile: {e}")
-        print("⚠️ Uso SQLite locale (gestionale.db)")
-        sqlite_raw = sqlite3.connect(os.path.join(BASE_DIR, 'gestionale.db'))
-        sqlite_raw.row_factory = sqlite3.Row
-        conn = SQLiteConnWrapper(sqlite_raw)
         yield conn
     finally:
-        if conn: conn.close()
+        if conn:
+            conn.close()
 
 
 # ============================
@@ -8788,6 +8819,206 @@ def comparatore_listino():
     )
 
 
+def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prezzo_nostro = None, prezzo_attuale = None, cliente_id: int = None, db = None):
+    """
+    Verifica se il prodotto è presente nel catalogo ('prodotti').
+    Se NON è presente:
+      - Riconosce la categoria appropriata (Carne, Ittico, Verdure, Alimentari, ecc.).
+      - Lo inserisce in 'prodotti' con prezzo, prezzo_con_simbolo, categoria e eliminato=FALSE.
+    Se cliente_id è specificato:
+      - Assegna il prodotto in 'clienti_prodotti' con lavorato=TRUE, prezzo_offerta=prezzo_nostro, prezzo_attuale=prezzo_attuale.
+    Ritorna: (prodotto_id, is_nuovo, is_assegnato)
+    """
+    nome_clean = (nome or '').strip()
+    codice_clean = (codice or '').strip() if codice else None
+
+    if not nome_clean and not codice_clean:
+        return None, False, False
+
+    if not nome_clean and codice_clean:
+        nome_clean = f"Articolo {codice_clean}"
+
+    pid = None
+
+    # 1. Ricerca prodotto esistente per codice
+    if codice_clean:
+        try:
+            cur.execute("SELECT id, nome, codice, categoria_id, prezzo FROM prodotti WHERE codice = %s AND COALESCE(eliminato, FALSE) = FALSE LIMIT 1", (codice_clean,))
+            r = cur.fetchone()
+            if r:
+                pid = r['id']
+        except Exception as _ce:
+            print(f"Errore ricerca prodotto per codice {codice_clean}: {_ce}")
+
+    # 2. Ricerca prodotto esistente per nome
+    if not pid and nome_clean:
+        try:
+            cur.execute("SELECT id, nome, codice, categoria_id, prezzo FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) AND COALESCE(eliminato, FALSE) = FALSE LIMIT 1", (nome_clean,))
+            r = cur.fetchone()
+            if r:
+                pid = r['id']
+        except Exception as _ne:
+            print(f"Errore ricerca prodotto per nome {nome_clean}: {_ne}")
+
+    is_nuovo = False
+    p_nostro_float = None
+    if prezzo_nostro is not None:
+        try:
+            val = float(prezzo_nostro)
+            if val > 0:
+                p_nostro_float = round(val, 2)
+        except (ValueError, TypeError):
+            pass
+
+    p_attuale_float = None
+    if prezzo_attuale is not None:
+        try:
+            val = float(prezzo_attuale)
+            if val > 0:
+                p_attuale_float = round(val, 2)
+        except (ValueError, TypeError):
+            pass
+
+    # 3. Se NON esiste sul sito, crealo subito nel catalogo ('prodotti')!
+    if not pid:
+        is_nuovo = True
+        cat_id = None
+        try:
+            cur.execute("SELECT id, nome FROM categorie ORDER BY id ASC")
+            all_cats = cur.fetchall() or []
+            cat_map = {c['nome'].lower().strip(): c['id'] for c in all_cats}
+            nl = nome_clean.lower()
+
+            if any(k in nl for k in ['carne', 'suino', 'vitell', 'manzo', 'bovin', 'pollo', 'scottona', 'hamburger', 'arista', 'lombata', 'tagliata', 'costata', 'filetto', 'bistecca', 'agnello', 'coniglio', 'salsiccia', 'fesa']):
+                for cname, cid in cat_map.items():
+                    if 'carne' in cname:
+                        cat_id = cid
+                        break
+            elif any(k in nl for k in ['pesce', 'ittic', 'gamber', 'calamar', 'seppi', 'polp', 'salmone', 'orata', 'spigola', 'branzino', 'tonno', 'cozze', 'vongole', 'crostacei', 'baccala', 'merluzzo', 'orate', 'spigole']):
+                for cname, cid in cat_map.items():
+                    if 'ittic' in cname or 'pesce' in cname:
+                        cat_id = cid
+                        break
+            elif any(k in nl for k in ['verdur', 'patat', 'spinac', 'fungh', 'pisell', 'carot', 'zucchine', 'melanzan', 'insalat']):
+                for cname, cid in cat_map.items():
+                    if 'verdur' in cname:
+                        cat_id = cid
+                        break
+            elif any(k in nl for k in ['pane', 'pasta', 'farina', 'riso', 'pelati', 'olio', 'pomodor', 'formagg', 'mozzar', 'latte', 'burro', 'uova', 'grana', 'parmig', 'salumi', 'prosciutt']):
+                for cname, cid in cat_map.items():
+                    if 'alimentar' in cname or 'fresco' in cname or 'secco' in cname:
+                        cat_id = cid
+                        break
+
+            if not cat_id:
+                for cname, cid in cat_map.items():
+                    if 'alimentar' in cname:
+                        cat_id = cid
+                        break
+            if not cat_id and all_cats:
+                cat_id = all_cats[0]['id']
+        except Exception as _ce:
+            print(f"Warning rilevamento categoria per {nome_clean}: {_ce}")
+
+        prz_str = f"€ {p_nostro_float:.2f}" if p_nostro_float is not None else None
+        try:
+            cur.execute("""
+                INSERT INTO prodotti (codice, nome, prezzo, prezzo_con_simbolo, categoria_id, eliminato, is_promo_mensile)
+                VALUES (%s, %s, %s, %s, %s, FALSE, FALSE)
+                RETURNING id
+            """, (codice_clean, nome_clean, p_nostro_float, prz_str, cat_id))
+            row_ins = cur.fetchone()
+            if row_ins and 'id' in row_ins:
+                pid = row_ins['id']
+        except Exception as _ie:
+            print(f"Errore creazione prodotto {nome_clean}: {_ie}")
+            try:
+                if codice_clean:
+                    cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (codice_clean,))
+                else:
+                    cur.execute("SELECT id FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) LIMIT 1", (nome_clean,))
+                row_f = cur.fetchone()
+                if row_f:
+                    pid = row_f['id']
+            except Exception:
+                pass
+    else:
+        # Se il prodotto esiste già, aggiorniamo il prezzo se prima non lo aveva
+        if p_nostro_float is not None:
+            try:
+                cur.execute("""
+                    UPDATE prodotti
+                    SET prezzo = COALESCE(prezzo, %s),
+                        prezzo_con_simbolo = COALESCE(prezzo_con_simbolo, %s)
+                    WHERE id = %s
+                """, (p_nostro_float, f"€ {p_nostro_float:.2f}", pid))
+            except Exception:
+                pass
+
+    # 4. Assegnazione al cliente in 'clienti_prodotti' con lavorato = TRUE
+    is_assegnato = False
+    if cliente_id and pid:
+        try:
+            c_id_int = int(cliente_id)
+            cur.execute("""
+                SELECT cliente_id, prodotto_id, prezzo_attuale, prezzo_offerta, lavorato
+                FROM clienti_prodotti
+                WHERE cliente_id = %s AND prodotto_id = %s
+            """, (c_id_int, pid))
+            cp_row = cur.fetchone()
+
+            if cp_row:
+                cur.execute("""
+                    UPDATE clienti_prodotti
+                    SET lavorato = TRUE,
+                        prezzo_offerta = COALESCE(%s, prezzo_offerta),
+                        prezzo_attuale = CASE WHEN %s > 0 THEN %s ELSE prezzo_attuale END,
+                        data_operazione = CURRENT_TIMESTAMP
+                    WHERE cliente_id = %s AND prodotto_id = %s
+                """, (p_nostro_float, (p_attuale_float or 0.0), p_attuale_float, c_id_int, pid))
+                is_assegnato = True
+            else:
+                is_sqlite = isinstance(db, SQLiteConnWrapper) if db else False
+                if not is_sqlite:
+                    try:
+                        cur.execute("""
+                            INSERT INTO clienti_prodotti (
+                                cliente_id, id_cliente, prodotto_id, id_prodotto,
+                                lavorato, prezzo_offerta, prezzo_attuale, data_operazione
+                            ) VALUES (
+                                %s, %s, %s, %s,
+                                TRUE, %s, %s, CURRENT_TIMESTAMP
+                            )
+                        """, (c_id_int, c_id_int, pid, pid, p_nostro_float, p_attuale_float))
+                        is_assegnato = True
+                    except Exception:
+                        cur.execute("""
+                            INSERT INTO clienti_prodotti (
+                                cliente_id, prodotto_id,
+                                lavorato, prezzo_offerta, prezzo_attuale, data_operazione
+                            ) VALUES (
+                                %s, %s,
+                                TRUE, %s, %s, CURRENT_TIMESTAMP
+                            )
+                        """, (c_id_int, pid, p_nostro_float, p_attuale_float))
+                        is_assegnato = True
+                else:
+                    cur.execute("""
+                        INSERT INTO clienti_prodotti (
+                            cliente_id, prodotto_id,
+                            lavorato, prezzo_offerta, prezzo_attuale, data_operazione
+                        ) VALUES (
+                            %s, %s,
+                            TRUE, %s, %s, CURRENT_TIMESTAMP
+                        )
+                    """, (c_id_int, pid, p_nostro_float, p_attuale_float))
+                    is_assegnato = True
+        except Exception as _cpe:
+            print(f"Errore assegnazione cliente {cliente_id} / prodotto {pid}: {_cpe}")
+
+    return pid, is_nuovo, is_assegnato
+
+
 def parse_pdf_o_testo_comparatore(file_path: str = None, raw_text: str = None, cliente_id: int = None, cur=None) -> list[dict]:
     results = []
     seen = set()
@@ -9011,8 +9242,8 @@ def parse_pdf_o_testo_comparatore(file_path: str = None, raw_text: str = None, c
                     cur.execute("""
                         SELECT prezzo_attuale, prezzo_offerta 
                         FROM clienti_prodotti 
-                        WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
-                    """, (int(cliente_id), int(cliente_id), pid, pid))
+                        WHERE cliente_id = %s AND prodotto_id = %s
+                    """, (int(cliente_id), pid))
                     cp_row = cur.fetchone()
                     if cp_row and cp_row.get("prezzo_attuale"):
                         pa = float(cp_row["prezzo_attuale"])
@@ -9056,6 +9287,33 @@ def api_comparatore_carica_pdf():
             cur = db.cursor()
             prodotti = parse_pdf_o_testo_comparatore(file_path=file_path, raw_text=testo_listino, cliente_id=cliente_id, cur=cur)
 
+            # Se i prodotti non sono presenti sul sito, caricali sul sito ('prodotti') e assegnali al cliente come lavorati!
+            nuovi_catalogo = 0
+            assegnati_cliente = 0
+            for item in prodotti:
+                nome_p = (item.get('nome') or '').strip()
+                codice_p = (item.get('codice') or '').strip()
+                prz_n = item.get('prezzo_nostro')
+                prz_a = item.get('prezzo_attuale')
+
+                pid, is_new, is_ass = assicura_prodotto_e_assegna_cliente(
+                    cur=cur,
+                    nome=nome_p,
+                    codice=codice_p,
+                    prezzo_nostro=prz_n,
+                    prezzo_attuale=prz_a,
+                    cliente_id=cliente_id,
+                    db=db
+                )
+                if pid:
+                    item['id'] = pid
+                if is_new:
+                    nuovi_catalogo += 1
+                if is_ass:
+                    assegnati_cliente += 1
+
+            db.commit()
+
         if not prodotti:
             is_scanned = False
             if file_path:
@@ -9078,11 +9336,20 @@ def api_comparatore_carica_pdf():
                     "message": "Nessun prodotto o prezzo valido identificato nel documento. Puoi incollare direttamente il testo o la lista prodotti nel tab 'Incolla Testo'."
                 }), 422
 
+        msg_parts = [f"Caricati con successo {len(prodotti)} prodotti! Prezzi inseriti in 'Nostro Prezzo'."]
+        if nuovi_catalogo > 0:
+            msg_parts.append(f"{nuovi_catalogo} nuovi prodotti aggiunti al catalogo del sito.")
+        if cliente_id and assegnati_cliente > 0:
+            msg_parts.append(f"{assegnati_cliente} prodotti assegnati al cliente come lavorati.")
+        success_msg = " ".join(msg_parts)
+
         return jsonify({
             "ok": True,
             "count": len(prodotti),
             "prodotti": prodotti,
-            "message": f"Caricati con successo {len(prodotti)} prodotti! Prezzi inseriti in 'Nostro Prezzo'."
+            "nuovi_catalogo": nuovi_catalogo,
+            "assegnati_cliente": assegnati_cliente,
+            "message": success_msg
         })
     except Exception as e:
         import traceback
@@ -9118,7 +9385,7 @@ def api_comparatore_salva():
         with get_db() as db:
             cur = db.cursor()
 
-            # Assicurati che la tabella esista
+            # Assicurati che la tabella comparazioni_listini esista
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS comparazioni_listini (
                     id SERIAL PRIMARY KEY,
@@ -9176,116 +9443,74 @@ def api_comparatore_salva():
                       totale_volume_kg, totale_attuale_mese, totale_nuovo_mese,
                       risparmio_mese, risparmio_anno, percentuale_risparmio,
                       dati_json))
-                target_id = cur.fetchone()['id']
+                row_t = cur.fetchone()
+                target_id = row_t['id'] if row_t else None
 
-            # ASSEGNAZIONE PRODOTTI E PREZZI AL CLIENTE IN clienti_prodotti
+            # ASSEGNAZIONE PRODOTTI E PREZZI AL CLIENTE IN clienti_prodotti ED ESISTENZA SUL SITO
             prodotti_assegnati_cnt = 0
-            if cliente_id:
+            nuovi_prodotti_cnt = 0
+            c_id_int = int(cliente_id) if cliente_id else None
+
+            if c_id_int:
+                # 1. Aggiorna fatturato stimato mensile sulla scheda cliente
                 try:
-                    c_id_int = int(cliente_id)
+                    cur.execute("UPDATE clienti SET fatturato_stimato_mensile = %s WHERE id = %s",
+                                (totale_nuovo_mese, c_id_int))
+                except Exception as _fe:
+                    print(f"Update fatturato_stimato_mensile warning: {_fe}")
 
-                    # 1. Aggiorna fatturato stimato mensile sulla scheda cliente
-                    try:
-                        cur.execute("UPDATE clienti SET fatturato_stimato_mensile = %s WHERE id = %s",
-                                    (totale_nuovo_mese, c_id_int))
-                    except Exception as _fe:
-                        print(f"Update fatturato_stimato_mensile warning: {_fe}")
+            # 2. Per ciascun prodotto, verifica o crea sul sito e assegna al cliente come lavorato
+            for prod in prodotti:
+                if not isinstance(prod, dict):
+                    continue
+                nome_p = (prod.get('nome') or '').strip()
+                codice_p = (prod.get('codice') or '').strip()
+                prezzo_nostro = float(prod.get('prezzo_nostro') or 0.0)
+                prezzo_attuale = float(prod.get('prezzo_attuale') or 0.0)
 
-                    # 2. Per ciascun prodotto, inserisci o aggiorna clienti_prodotti con prezzo_offerta (nostro prezzo) e lavorato=TRUE
-                    for prod in prodotti:
-                        if not isinstance(prod, dict):
-                            continue
-                        nome_p = (prod.get('nome') or '').strip()
-                        codice_p = (prod.get('codice') or '').strip()
-                        prezzo_nostro = float(prod.get('prezzo_nostro') or 0.0)
-                        prezzo_attuale = float(prod.get('prezzo_attuale') or 0.0)
+                if not nome_p and not codice_p:
+                    continue
 
-                        if not nome_p and not codice_p:
-                            continue
+                pid, is_new, is_ass = assicura_prodotto_e_assegna_cliente(
+                    cur=cur,
+                    nome=nome_p,
+                    codice=codice_p,
+                    prezzo_nostro=prezzo_nostro,
+                    prezzo_attuale=prezzo_attuale,
+                    cliente_id=c_id_int,
+                    db=db
+                )
+                if pid:
+                    prod['id'] = pid
+                if is_new:
+                    nuovi_prodotti_cnt += 1
+                if is_ass:
+                    prodotti_assegnati_cnt += 1
 
-                        pid = prod.get('id') or prod.get('prodotto_id')
-                        if pid:
-                            try:
-                                cur.execute("SELECT id FROM prodotti WHERE id = %s", (int(pid),))
-                                if not cur.fetchone():
-                                    pid = None
-                                else:
-                                    pid = int(pid)
-                            except Exception:
-                                pid = None
-
-                        if not pid and codice_p:
-                            cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (codice_p,))
-                            row_p = cur.fetchone()
-                            if row_p:
-                                pid = row_p['id']
-
-                        if not pid and nome_p:
-                            cur.execute("SELECT id FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) LIMIT 1", (nome_p,))
-                            row_p = cur.fetchone()
-                            if row_p:
-                                pid = row_p['id']
-
-                        # Se il prodotto non esiste ancora nel catalogo, lo creiamo per tracciarlo
-                        if not pid:
-                            try:
-                                cur.execute("""
-                                    INSERT INTO prodotti (codice, nome, prezzo)
-                                    VALUES (%s, %s, %s)
-                                    RETURNING id
-                                """, (codice_p or None, nome_p, prezzo_nostro or None))
-                                pid = cur.fetchone()['id']
-                            except Exception as _ie:
-                                print(f"Auto-creazione prodotto catalogo {nome_p} warning: {_ie}")
-                                continue
-
-                        # Assegna al cliente in clienti_prodotti
-                        cur.execute("""
-                            SELECT id, prezzo_attuale, prezzo_offerta 
-                            FROM clienti_prodotti 
-                            WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
-                        """, (c_id_int, c_id_int, pid, pid))
-                        cp_existing = cur.fetchone()
-
-                        if cp_existing:
-                            cp_id = cp_existing['id']
-                            cur.execute("""
-                                UPDATE clienti_prodotti
-                                SET lavorato = TRUE,
-                                    prezzo_offerta = %s,
-                                    prezzo_attuale = CASE WHEN %s > 0 THEN %s ELSE prezzo_attuale END,
-                                    data_operazione = CURRENT_TIMESTAMP
-                                WHERE id = %s
-                            """, (prezzo_nostro, prezzo_attuale, prezzo_attuale, cp_id))
-                        else:
-                            cur.execute("""
-                                INSERT INTO clienti_prodotti (
-                                    cliente_id, id_cliente, prodotto_id, id_prodotto,
-                                    lavorato, prezzo_offerta, prezzo_attuale,
-                                    data_operazione, data_inizio_lavorazione
-                                ) VALUES (
-                                    %s, %s, %s, %s,
-                                    TRUE, %s, %s,
-                                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-                                )
-                            """, (c_id_int, c_id_int, pid, pid, prezzo_nostro, (prezzo_attuale if prezzo_attuale > 0 else None)))
-
-                        prodotti_assegnati_cnt += 1
-
-                except Exception as _ae:
-                    print(f"Errore associazione prodotti cliente: {_ae}")
+            # Aggiorna anche dati_json con gli ID corretti dei prodotti
+            payload_dati['prodotti'] = prodotti
+            dati_json = json.dumps(payload_dati, ensure_ascii=False)
+            if target_id:
+                try:
+                    cur.execute("UPDATE comparazioni_listini SET dati_json = %s WHERE id = %s", (dati_json, target_id))
+                except Exception:
+                    pass
 
             db.commit()
 
         success_msg = "Comparazione salvata con successo!"
-        if cliente_id and prodotti_assegnati_cnt > 0:
-            success_msg = f"Offerta salvata! Assegnati {prodotti_assegnati_cnt} prodotti al cliente (Fatturato stimato: € {totale_nuovo_mese:,.2f}/mese)."
+        if c_id_int and prodotti_assegnati_cnt > 0:
+            extra_new = f" ({nuovi_prodotti_cnt} nuovi prodotti aggiunti al catalogo del sito)" if nuovi_prodotti_cnt > 0 else ""
+            success_msg = f"Offerta salvata! Assegnati {prodotti_assegnati_cnt} prodotti al cliente come lavorati{extra_new} (Fatturato stimato: € {totale_nuovo_mese:,.2f}/mese)."
+        elif nuovi_prodotti_cnt > 0:
+            success_msg = f"Comparazione salvata! Aggiunti {nuovi_prodotti_cnt} nuovi prodotti al catalogo del sito."
 
         return jsonify({
             "ok": True,
             "id": target_id,
             "message": success_msg,
             "prodotti_assegnati": prodotti_assegnati_cnt,
+            "nuovi_prodotti": nuovi_prodotti_cnt,
             "fatturato_stimato_mensile": totale_nuovo_mese
         })
     except Exception as e:
