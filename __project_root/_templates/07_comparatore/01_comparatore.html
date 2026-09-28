@@ -259,7 +259,7 @@
           <select class="form-select rounded-start-3 fw-semibold" id="selectCliente">
             <option value="">-- Seleziona da Rubrica Clienti --</option>
             {% for c in clienti %}
-              <option value="{{ c.id }}" data-nome="{{ c.nome }}" data-zona="{{ c.zona or '' }}" {% if cliente_preselezionato and cliente_preselezionato.id == c.id %}selected{% endif %}>
+              <option value="{{ c.id }}" data-nome="{{ c.nome }}" data-zona="{{ c.zona or '' }}" {% if (cliente_preselezionato and cliente_preselezionato.id == c.id) or (comparazione_caricata and comparazione_caricata.cliente_id == c.id) %}selected{% endif %}>
                 {{ c.nome }} {% if c.zona %}({{ c.zona }}){% endif %}
               </option>
             {% endfor %}
@@ -585,7 +585,7 @@
                         {{ "%.1f"|format(cs.percentuale_risparmio or 0) }}%
                       </span>
                     </td>
-                    <td class="small text-muted">{{ cs.creato_il.strftime('%d/%m/%Y') if cs.creato_il else '' }}</td>
+                    <td class="small text-muted">{{ cs.creato_il.strftime('%d/%m/%Y') if (cs.creato_il and cs.creato_il.strftime is defined) else (cs.creato_il[:10] if cs.creato_il else '') }}</td>
                     <td class="text-end">
                       <div class="btn-group btn-group-sm">
                         <a href="/comparatore?id={{ cs.id }}" class="btn btn-outline-primary" title="Carica nel comparatore">
@@ -1005,11 +1005,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const opt = selectCliente.selectedOptions[0];
     if (opt && opt.value) {
       const nomeC = opt.getAttribute("data-nome") || "";
-      if (!inputTitolo.value || inputTitolo.value.includes("Offerta") || inputTitolo.value.includes("Comparativo")) {
+      if (!inputTitolo.value || inputTitolo.value.includes("Offerta") || inputTitolo.value.includes("Comparativo") || inputTitolo.value.includes("Proposta")) {
         inputTitolo.value = `Proposta Prodotti Lavorati - ${nomeC}`;
       }
+      caricaListinoPerCliente(opt.value);
     }
   });
+
+  function caricaListinoPerCliente(clienteId) {
+    if (!clienteId) return;
+    fetch(`/api/comparatore/cliente/${clienteId}/ultimo`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.trovato && Array.isArray(data.prodotti) && data.prodotti.length > 0) {
+          prodottiState = data.prodotti;
+          currentComparisonId = data.id || null;
+          if (data.titolo) {
+            inputTitolo.value = data.titolo;
+          }
+          if (data.note !== undefined && inputNote) {
+            inputNote.value = data.note;
+          }
+          if (data.impostazioni_pdf && Object.keys(data.impostazioni_pdf).length > 0) {
+            impostazioniPdfState = Object.assign(impostazioniPdfState, data.impostazioni_pdf);
+          }
+          renderTable();
+          showToastNotification(`Caricato listino salvato per ${getClientName()} (${prodottiState.length} prodotti)`);
+        }
+      })
+      .catch(err => console.error("Errore caricamento listino cliente:", err));
+  }
 
   // ==========================================
   // GESTIONE IMPOSTAZIONI PDF (TOOL ALTO / BASSO)

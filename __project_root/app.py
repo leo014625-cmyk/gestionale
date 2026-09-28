@@ -8772,7 +8772,7 @@ def comparatore_listino():
         except Exception as _e:
             print(f"comparazioni_listini fetch error: {_e}")
 
-        # Se richiesto caricamento di una comparazione specifica
+        # Se richiesto caricamento di una comparazione specifica per ID
         comparazione_caricata = None
         if load_id_param:
             try:
@@ -8808,6 +8808,64 @@ def comparatore_listino():
                     cliente_preselezionato = dict(c_row)
             except Exception:
                 pass
+
+            # SE NON C'E' UN ID SPECIFICO, CARICA L'ULTIMO LISTINO SALVATO PER QUESTO CLIENTE!
+            if not comparazione_caricata:
+                try:
+                    cur.execute("""
+                        SELECT * FROM comparazioni_listini 
+                        WHERE cliente_id = %s 
+                        ORDER BY aggiornato_il DESC, id DESC 
+                        LIMIT 1
+                    """, (int(cliente_id_param),))
+                    row_comp = cur.fetchone()
+                    if row_comp:
+                        comparazione_caricata = dict(row_comp)
+                        if isinstance(comparazione_caricata.get('dati_json'), str):
+                            try:
+                                parsed = json.loads(comparazione_caricata['dati_json'])
+                                if isinstance(parsed, dict):
+                                    comparazione_caricata['prodotti_dettaglio'] = parsed.get('prodotti', [])
+                                    comparazione_caricata['impostazioni_pdf'] = parsed.get('impostazioni_pdf', {})
+                                elif isinstance(parsed, list):
+                                    comparazione_caricata['prodotti_dettaglio'] = parsed
+                                    comparazione_caricata['impostazioni_pdf'] = {}
+                            except Exception:
+                                comparazione_caricata['prodotti_dettaglio'] = []
+                    else:
+                        # Se non ha ancora salvato una comparazione, pre-carica i prodotti lavorati del cliente!
+                        cur.execute("""
+                            SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
+                            FROM clienti_prodotti cp
+                            JOIN prodotti p ON cp.prodotto_id = p.id
+                            WHERE cp.cliente_id = %s AND (cp.lavorato = TRUE OR cp.prezzo_offerta IS NOT NULL)
+                              AND COALESCE(p.eliminato, FALSE) = FALSE
+                            ORDER BY p.nome ASC
+                        """, (int(cliente_id_param),))
+                        rows_cp = cur.fetchall()
+                        if rows_cp:
+                            prods = []
+                            for r in rows_cp:
+                                prods.append({
+                                    "id": r['id'],
+                                    "nome": r['nome'],
+                                    "codice": r['codice'] or '',
+                                    "volume_kg": 0.0,
+                                    "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                                    "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                                })
+                            c_nome = cliente_preselezionato['nome'] if cliente_preselezionato else 'Cliente'
+                            comparazione_caricata = {
+                                'id': None,
+                                'cliente_id': int(cliente_id_param),
+                                'cliente_nome': c_nome,
+                                'titolo': f"Offerta Prodotti Lavorati - {c_nome}",
+                                'note': '',
+                                'prodotti_dettaglio': prods,
+                                'impostazioni_pdf': {}
+                            }
+                except Exception as _e_cc:
+                    print(f"Errore caricamento listino cliente {cliente_id_param}: {_e_cc}")
 
     return render_template(
         '07_comparatore/01_comparatore.html',
@@ -9426,6 +9484,26 @@ def api_comparatore_salva():
                 except Exception as _ue:
                     print(f"Update comparazione error: {_ue}")
 
+            if not target_id and cliente_id:
+                try:
+                    cur.execute("SELECT id FROM comparazioni_listini WHERE cliente_id = %s ORDER BY aggiornato_il DESC, id DESC LIMIT 1", (int(cliente_id),))
+                    row_exist = cur.fetchone()
+                    if row_exist:
+                        target_id = row_exist['id']
+                        cur.execute("""
+                            UPDATE comparazioni_listini 
+                            SET cliente_id = %s, cliente_nome = %s, titolo = %s, note = %s,
+                                totale_volume_kg = %s, totale_attuale_mese = %s, totale_nuovo_mese = %s,
+                                risparmio_mese = %s, risparmio_anno = %s, percentuale_risparmio = %s,
+                                dati_json = %s, aggiornato_il = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                        """, (cliente_id or None, cliente_nome, titolo, note,
+                              totale_volume_kg, totale_attuale_mese, totale_nuovo_mese,
+                              risparmio_mese, risparmio_anno, percentuale_risparmio,
+                              dati_json, target_id))
+                except Exception as _e_lookup:
+                    print(f"Lookup existing comparazione warning: {_e_lookup}")
+
             if not target_id:
                 cur.execute("""
                     INSERT INTO comparazioni_listini (
@@ -9551,6 +9629,86 @@ def api_comparatore_dettaglio(id):
                 data['impostazioni_pdf'] = {}
             
             return jsonify({"ok": True, "comparazione": data})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
+
+
+@app.route('/api/comparatore/cliente/<int:cliente_id>/ultimo', methods=['GET'])
+@login_required
+def api_comparatore_cliente_ultimo(cliente_id):
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            # 1. Cerca l'ultima comparazione salvata per questo cliente
+            cur.execute("""
+                SELECT * FROM comparazioni_listini 
+                WHERE cliente_id = %s 
+                ORDER BY aggiornato_il DESC, id DESC 
+                LIMIT 1
+            """, (cliente_id,))
+            row = cur.fetchone()
+            if row:
+                comp = dict(row)
+                prods = []
+                impostazioni_pdf = {}
+                if isinstance(comp.get('dati_json'), str):
+                    try:
+                        parsed = json.loads(comp['dati_json'])
+                        if isinstance(parsed, dict):
+                            prods = parsed.get('prodotti', [])
+                            impostazioni_pdf = parsed.get('impostazioni_pdf', {})
+                        elif isinstance(parsed, list):
+                            prods = parsed
+                    except Exception:
+                        pass
+                return jsonify({
+                    "ok": True,
+                    "trovato": True,
+                    "fonte": "comparazione",
+                    "id": comp['id'],
+                    "titolo": comp['titolo'],
+                    "note": comp.get('note') or '',
+                    "prodotti": prods,
+                    "impostazioni_pdf": impostazioni_pdf
+                })
+
+            # 2. Se non ha una comparazione salvata, recupera i prodotti lavorati del cliente
+            cur.execute("""
+                SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
+                FROM clienti_prodotti cp
+                JOIN prodotti p ON cp.prodotto_id = p.id
+                WHERE cp.cliente_id = %s AND (cp.lavorato = TRUE OR cp.prezzo_offerta IS NOT NULL)
+                  AND COALESCE(p.eliminato, FALSE) = FALSE
+                ORDER BY p.nome ASC
+            """, (cliente_id,))
+            rows_cp = cur.fetchall()
+            if rows_cp:
+                prods = []
+                for r in rows_cp:
+                    prods.append({
+                        "id": r['id'],
+                        "nome": r['nome'],
+                        "codice": r['codice'] or '',
+                        "volume_kg": 0.0,
+                        "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                        "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                    })
+                return jsonify({
+                    "ok": True,
+                    "trovato": True,
+                    "fonte": "lavorati",
+                    "id": None,
+                    "titolo": "Offerta Prodotti Lavorati",
+                    "note": "",
+                    "prodotti": prods,
+                    "impostazioni_pdf": {}
+                })
+
+            return jsonify({
+                "ok": True,
+                "trovato": False,
+                "message": "Nessun listino o prodotto lavorato salvato per questo cliente"
+            })
     except Exception as e:
         return jsonify({"ok": False, "message": str(e)}), 500
 
