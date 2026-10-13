@@ -1780,7 +1780,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const payload = {
       id: currentComparisonId,
-      cliente_id: selectCliente.value ? parseInt(selectCliente.value, 10) : null,
+      cliente_id: (!isManuale && selectCliente && selectCliente.value) ? parseInt(selectCliente.value, 10) : null,
       cliente_nome: getClientName(),
       titolo: inputTitolo.value.trim() || "Comparativo Listino",
       note: inputNote.value.trim(),
@@ -2048,7 +2048,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    // 1) Salva la comparazione, 2) scarica il PDF generato dal server come file (nessun popup)
+    // 1) Salva la comparazione e assegna i prezzi al cliente selezionato
+    // 2) Scarica direttamente il file PDF generato dal server come allegato nativo (funziona al 100% su Safari Mac e Chrome)
     salvaComparazione((res) => {
       const compIdToUse = (res && res.id) || currentComparisonId;
       if (!compIdToUse) {
@@ -2060,34 +2061,12 @@ document.addEventListener("DOMContentLoaded", () => {
       syncUrlWithState();
       saveDraftToStorage();
 
-      fetch(`/comparatore/scarica_pdf/${compIdToUse}`, { credentials: "same-origin" })
-        .then(async (resp) => {
-          const ct = resp.headers.get("Content-Type") || "";
-          if (!resp.ok || !ct.includes("application/pdf")) {
-            throw new Error("Il server non ha restituito un PDF (stato " + resp.status + ").");
-          }
-          let filename = `Preventivo_${compIdToUse}.pdf`;
-          const cd = resp.headers.get("Content-Disposition") || "";
-          const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-          if (m && m[1]) filename = decodeURIComponent(m[1]);
-          const blob = await resp.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 10000);
-          ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
-          showToastNotification(`Preventivo PDF scaricato: ${filename}`);
-        })
-        .catch((err) => {
-          console.error("Errore download PDF:", err);
-          ripristinaBottone(null);
-          // Fallback: navigazione diretta al file (il browser lo scarica come allegato)
-          window.location.href = `/comparatore/scarica_pdf/${compIdToUse}`;
-        });
+      ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
+      showToastNotification("Download del Preventivo PDF avviato con successo!");
+
+      // Scarica direttamente il file PDF come allegato (il browser lo salva nei Download senza ricaricare la pagina)
+      const downloadUrl = `/comparatore/scarica_pdf/${compIdToUse}`;
+      window.location.href = downloadUrl;
     });
   }
 

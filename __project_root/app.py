@@ -9071,41 +9071,16 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
                 """, (p_nostro_float, (p_attuale_float or 0.0), p_attuale_float, c_id_int, pid))
                 is_assegnato = True
             else:
-                is_sqlite = isinstance(db, SQLiteConnWrapper) if db else False
-                if not is_sqlite:
-                    try:
-                        cur.execute("""
-                            INSERT INTO clienti_prodotti (
-                                cliente_id, id_cliente, prodotto_id, id_prodotto,
-                                lavorato, prezzo_offerta, prezzo_attuale, data_operazione
-                            ) VALUES (
-                                %s, %s, %s, %s,
-                                TRUE, %s, %s, CURRENT_TIMESTAMP
-                            )
-                        """, (c_id_int, c_id_int, pid, pid, p_nostro_float, p_attuale_float))
-                        is_assegnato = True
-                    except Exception:
-                        cur.execute("""
-                            INSERT INTO clienti_prodotti (
-                                cliente_id, prodotto_id,
-                                lavorato, prezzo_offerta, prezzo_attuale, data_operazione
-                            ) VALUES (
-                                %s, %s,
-                                TRUE, %s, %s, CURRENT_TIMESTAMP
-                            )
-                        """, (c_id_int, pid, p_nostro_float, p_attuale_float))
-                        is_assegnato = True
-                else:
-                    cur.execute("""
-                        INSERT INTO clienti_prodotti (
-                            cliente_id, prodotto_id,
-                            lavorato, prezzo_offerta, prezzo_attuale, data_operazione
-                        ) VALUES (
-                            %s, %s,
-                            TRUE, %s, %s, CURRENT_TIMESTAMP
-                        )
-                    """, (c_id_int, pid, p_nostro_float, p_attuale_float))
-                    is_assegnato = True
+                cur.execute("""
+                    INSERT INTO clienti_prodotti (
+                        cliente_id, prodotto_id,
+                        lavorato, prezzo_offerta, prezzo_attuale, data_operazione
+                    ) VALUES (
+                        %s, %s,
+                        TRUE, %s, %s, CURRENT_TIMESTAMP
+                    )
+                """, (c_id_int, pid, p_nostro_float, p_attuale_float))
+                is_assegnato = True
                 
                 if cache_cp is not None:
                     cache_cp.add(pid)
