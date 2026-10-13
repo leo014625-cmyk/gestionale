@@ -695,7 +695,7 @@
       <div class="company-brand-area">
         <div id="printLogoContainer" style="display: {{ 'block' if impostazioni_pdf.get('mostra_logo', True) else 'none' }};">
           {% if impostazioni_pdf.get('logo_url') %}
-            <img src="{{ impostazioni_pdf.get('logo_url') }}" alt="Logo" class="company-logo-img" id="printLogoImg">
+            <img src="{{ impostazioni_pdf.get('logo_url') }}" alt="Logo" class="company-logo-img" id="printLogoImg" crossorigin="anonymous">
           {% else %}
             <i class="bi bi-box-seam-fill" id="printLogoIcon" style="font-size: 34px; color: #4f46e5;"></i>
           {% endif %}
@@ -925,7 +925,7 @@
         currentSettings.logo_url = url;
         const container = document.getElementById("printLogoContainer");
         if (url) {
-          container.innerHTML = `<img src="${url}" alt="Logo" class="company-logo-img">`;
+          container.innerHTML = `<img src="${url}" alt="Logo" class="company-logo-img" crossorigin="anonymous">`;
         } else {
           container.innerHTML = `<i class="bi bi-box-seam-fill" style="font-size: 34px; color: #4f46e5;"></i>`;
         }
@@ -1109,6 +1109,11 @@
       element.style.borderRadius = "0px";
 
       try {
+        // Assicuriamoci che i font personalizzati (Outfit, Inter) siano completamente caricati
+        if (document.fonts && document.fonts.ready) {
+          try { await document.fonts.ready; } catch(e) {}
+        }
+
         // Metodo 1: Se disponibile html2pdf, usa la libreria specializzata
         if (typeof html2pdf !== 'undefined') {
           const opt = {
@@ -1226,25 +1231,37 @@
     // Se l'URL contiene ?download=1 o ?download=true, avvia automaticamente il download
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("download") === "1" || urlParams.get("download") === "true") {
-      const banner = document.createElement("div");
-      banner.id = "downloadNotificationBanner";
-      banner.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;padding:10px 22px;border-radius:30px;font-weight:700;font-size:13px;box-shadow:0 10px 25px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;";
-      banner.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" style="width:1rem;height:1rem;border-width:2px;"></span> Download del Preventivo PDF in corso sul tuo computer...`;
-      document.body.appendChild(banner);
+      const isInsideIframe = window.self !== window.top;
+      let banner = null;
+      if (!isInsideIframe) {
+        banner = document.createElement("div");
+        banner.id = "downloadNotificationBanner";
+        banner.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;padding:10px 22px;border-radius:30px;font-weight:700;font-size:13px;box-shadow:0 10px 25px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;";
+        banner.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" style="width:1rem;height:1rem;border-width:2px;"></span> Download del Preventivo PDF in corso sul tuo computer...`;
+        document.body.appendChild(banner);
+      }
 
-      window.addEventListener("load", () => {
+      const runDownload = () => {
         setTimeout(() => {
           generaEScaricaPdf(() => {
-            banner.style.background = "#059669";
-            banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF scaricato con successo!`;
-            setTimeout(() => {
-              banner.style.transition = "opacity 0.4s ease";
-              banner.style.opacity = "0";
-              setTimeout(() => banner.remove(), 400);
-            }, 3000);
+            if (banner) {
+              banner.style.background = "#059669";
+              banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF scaricato con successo!`;
+              setTimeout(() => {
+                banner.style.transition = "opacity 0.4s ease";
+                banner.style.opacity = "0";
+                setTimeout(() => banner.remove(), 400);
+              }, 3000);
+            }
           });
-        }, 500);
-      });
+        }, 350);
+      };
+
+      if (document.readyState === "complete") {
+        runDownload();
+      } else {
+        window.addEventListener("load", runDownload);
+      }
     }
   </script>
 

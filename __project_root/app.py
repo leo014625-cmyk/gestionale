@@ -9479,6 +9479,19 @@ def api_comparatore_salva():
             target_id = None
             if comp_id:
                 try:
+                    # Verifica che comp_id appartenga allo stesso cliente, per evitare che cambiando cliente si sovrascriva la comparazione precedente
+                    if cliente_id:
+                        cur.execute("SELECT cliente_id FROM comparazioni_listini WHERE id = %s", (int(comp_id),))
+                        row_chk = cur.fetchone()
+                        if row_chk:
+                            old_cid = row_chk.get('cliente_id')
+                            if old_cid and int(old_cid) != int(cliente_id):
+                                comp_id = None
+                except Exception:
+                    pass
+
+            if comp_id:
+                try:
                     cur.execute("""
                         UPDATE comparazioni_listini 
                         SET cliente_id = %s, cliente_nome = %s, titolo = %s, note = %s,
