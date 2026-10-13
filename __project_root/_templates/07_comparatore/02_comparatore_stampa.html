@@ -1123,7 +1123,7 @@
             html2canvas: {
               scale: 2,
               useCORS: true,
-              allowTaint: false,
+              allowTaint: true,
               backgroundColor: "#ffffff",
               logging: false
             },
@@ -1140,7 +1140,7 @@
         const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
-          allowTaint: false,
+          allowTaint: true,
           backgroundColor: "#ffffff",
           logging: false
         });

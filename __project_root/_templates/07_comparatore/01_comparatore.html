@@ -1007,7 +1007,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const nomeC = (opt && opt.getAttribute("data-nome")) ? opt.getAttribute("data-nome") : (opt ? opt.textContent.trim() : "");
 
     // 1. Resetta SEMPRE currentComparisonId al cambio cliente:
-    // in questo modo ogni cliente ha la sua comparazione dedicata e non scarica mai il preventivo del cliente precedente!
     currentComparisonId = null;
 
     if (newClienteId) {
@@ -1015,6 +1014,8 @@ document.addEventListener("DOMContentLoaded", () => {
       caricaListinoPerCliente(newClienteId);
     } else {
       inputTitolo.value = "Comparativo Listino";
+      prodottiState = [];
+      renderTable();
       syncUrlWithState();
       saveDraftToStorage();
     }
@@ -1022,40 +1023,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function caricaListinoPerCliente(clienteId) {
     if (!clienteId) return;
-    const haGiaProdotti = Array.isArray(prodottiState) && prodottiState.length > 0;
 
     fetch(`/api/comparatore/cliente/${clienteId}/ultimo`)
       .then(r => r.json())
       .then(data => {
         if (data.ok && data.trovato && Array.isArray(data.prodotti) && data.prodotti.length > 0) {
-          if (!haGiaProdotti) {
-            // Se non c'erano prodotti a video, carica il listino salvato per questo cliente
-            prodottiState = data.prodotti;
-            currentComparisonId = data.id || null;
-            if (data.titolo) inputTitolo.value = data.titolo;
-            if (data.note !== undefined && inputNote) inputNote.value = data.note;
-            if (data.impostazioni_pdf && Object.keys(data.impostazioni_pdf).length > 0) {
-              impostazioniPdfState = Object.assign(impostazioniPdfState, data.impostazioni_pdf);
-            }
-            renderTable();
-            showToastNotification(`Caricato listino salvato per ${getClientName()} (${prodottiState.length} prodotti)`);
-          } else {
-            // L'utente ha già preparato una tabella con prodotti:
-            // associa la comparazione di questo cliente se già presente, altrimenti ne creerà una nuova
-            currentComparisonId = data.id || null;
-            showToastNotification(`Cliente ${getClientName()} selezionato. I ${prodottiState.length} prodotti a schermo verranno assegnati a questo cliente.`);
+          // Carica i prodotti salvati per questo cliente
+          prodottiState = data.prodotti;
+          currentComparisonId = data.id || null;
+          if (data.titolo) inputTitolo.value = data.titolo;
+          if (data.note !== undefined && inputNote) inputNote.value = data.note;
+          if (data.impostazioni_pdf && Object.keys(data.impostazioni_pdf).length > 0) {
+            impostazioniPdfState = Object.assign(impostazioniPdfState, data.impostazioni_pdf);
           }
+          renderTable();
+          showToastNotification(`Caricati ${prodottiState.length} prodotti salvati per ${getClientName()}`);
         } else {
-          // Nessuna comparazione precedente per questo cliente: ID nuovo!
+          // Questo cliente non ha ancora prodotti salvati: svuota la tabella per permettere nuovi inserimenti
+          prodottiState = [];
           currentComparisonId = null;
-          showToastNotification(`Cliente ${getClientName()} selezionato.`);
+          renderTable();
+          showToastNotification(`Nessun listino salvato per ${getClientName()}. Tabella pronta per nuovi prodotti.`);
         }
         syncUrlWithState();
         saveDraftToStorage();
       })
       .catch(err => {
         console.error("Errore caricamento listino cliente:", err);
+        prodottiState = [];
         currentComparisonId = null;
+        renderTable();
         syncUrlWithState();
         saveDraftToStorage();
       });
@@ -2049,7 +2046,23 @@ document.addEventListener("DOMContentLoaded", () => {
       btnElement.disabled = true;
       btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Preparazione PDF...`;
     }
-    showToastNotification("Salvataggio e preparazione del Preventivo PDF in corso...");
+    showToastNotification("Salvataggio offerta e preparazione Preventivo PDF in corso...");
+
+    // 1. Pre-apriamo la finestra direttamente sul gesto utente (click)
+    // per garantire che nessun browser (Safari Mac / Chrome) la blocchi come popup
+    let targetWin = null;
+    try {
+      targetWin = window.open('about:blank', '_blank');
+      if (targetWin) {
+        targetWin.document.write(`
+          <!DOCTYPE html><html><head><title>Generazione Preventivo PDF...</title>
+          <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;text-align:center;}
+          .loader{border:4px solid rgba(255,255,255,0.15);border-top:4px solid #6366f1;border-radius:50%;width:48px;height:48px;animation:spin 0.8s linear infinite;margin:0 auto 18px;}
+          @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
+          </head><body><div><div class="loader"></div><h2 style="margin:0 0 8px 0;font-weight:700;">Generazione Preventivo PDF...</h2><p style="color:#94a3b8;margin:0;">Salvataggio prezzi al cliente e preparazione del foglio grafico in corso...</p></div></body></html>
+        `);
+      }
+    } catch (e) {}
 
     const ripristinaBottone = (okHtml) => {
       if (!btnElement) return;
@@ -2065,11 +2078,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    // 1) Salva la comparazione e assegna i prezzi al cliente selezionato
-    // 2) Genera e scarica il PDF grafico ad alta risoluzione (layout grafico completo A4 con logo, card risparmio e font curati)
+    // 2. Salva la comparazione e assegna tutti i prezzi al cliente selezionato nel database
     salvaComparazione((res) => {
       const compIdToUse = (res && res.id) || currentComparisonId;
       if (!compIdToUse) {
+        if (targetWin && !targetWin.closed) targetWin.close();
         ripristinaBottone(null);
         alert("Impossibile salvare la comparazione prima del download. Controlla i dati inseriti.");
         return;
@@ -2078,35 +2091,16 @@ document.addEventListener("DOMContentLoaded", () => {
       syncUrlWithState();
       saveDraftToStorage();
 
-      showToastNotification("Generazione Preventivo PDF ad alta risoluzione in corso...");
+      ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Preventivo Generato!`);
+      showToastNotification("Prezzi assegnati al cliente! Generazione PDF avviata.");
 
-      // Render grafico completo A4 tramite iframe invisibile (nessuna scheda popup aperta)
-      let iframe = document.getElementById("pdfRendererIframe");
-      if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.id = "pdfRendererIframe";
-        iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:860px;height:1200px;opacity:0.01;pointer-events:none;z-index:-9999;border:none;";
-        document.body.appendChild(iframe);
+      // 3. Naviga la finestra aperta alla pagina del foglio ad alta risoluzione con download automatico attivo
+      const destUrl = `/comparatore/stampa/${compIdToUse}?download=1`;
+      if (targetWin && !targetWin.closed) {
+        targetWin.location.href = destUrl;
+      } else {
+        window.open(destUrl, '_blank');
       }
-      iframe.src = `/comparatore/stampa/${compIdToUse}?download=1`;
-
-      let downloadConcluso = false;
-      const onPdfComplete = (event) => {
-        if (event.data && event.data.type === "PDF_DOWNLOAD_COMPLETE") {
-          downloadConcluso = true;
-          window.removeEventListener("message", onPdfComplete);
-          ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
-          showToastNotification(`Preventivo PDF scaricato con successo sul computer!`);
-        }
-      };
-      window.addEventListener("message", onPdfComplete);
-
-      // Fallback timer: se l'operazione richiede qualche secondo, aggiorna il bottone
-      setTimeout(() => {
-        if (!downloadConcluso) {
-          ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Download Avviato!`);
-        }
-      }, 4000);
     });
   }
 
