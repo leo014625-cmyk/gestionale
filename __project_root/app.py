@@ -140,6 +140,7 @@ class SQLiteCursorWrapper:
         query = _re.sub(r'%s', '?', query)
         query = _re.sub(r'make_date\(([^,]+),\s*([^,]+),\s*1\)',
                         r"date(printf('%04d-%02d-01', \1, \2))", query)
+        query = _re.sub(r'\bSERIAL\s+PRIMARY\s+KEY\b', 'INTEGER PRIMARY KEY AUTOINCREMENT', query, flags=_re.IGNORECASE)
         returning_match = _re.search(r'\s+RETURNING\s+(\w+)', query, flags=_re.IGNORECASE)
         returning_col = returning_match.group(1) if returning_match else None
         query = _re.sub(r'\s+RETURNING\s+\w+', '', query, flags=_re.IGNORECASE)
@@ -156,6 +157,7 @@ class SQLiteCursorWrapper:
         query = _re.sub(r'%s', '?', query)
         query = _re.sub(r'make_date\(([^,]+),\s*([^,]+),\s*1\)',
                         r"date(printf('%04d-%02d-01', \1, \2))", query)
+        query = _re.sub(r'\bSERIAL\s+PRIMARY\s+KEY\b', 'INTEGER PRIMARY KEY AUTOINCREMENT', query, flags=_re.IGNORECASE)
         query = _re.sub(r'\s+RETURNING\s+\w+', '', query, flags=_re.IGNORECASE)
         self._last_returning = None
         self._cursor.executemany(query, seq_of_parameters)
@@ -8737,6 +8739,14 @@ def ical_visite():
 def comparatore_listino():
     cliente_id_param = request.args.get('cliente_id')
     load_id_param = request.args.get('id')
+    nuovo_param = request.args.get('nuovo')
+
+    if nuovo_param == '1':
+        session.pop('last_comparazione_id', None)
+    elif not load_id_param and not cliente_id_param:
+        last_id = session.get('last_comparazione_id')
+        if last_id:
+            load_id_param = str(last_id)
 
     with get_db() as db:
         cur = db.cursor()
@@ -8780,6 +8790,7 @@ def comparatore_listino():
                 row = cur.fetchone()
                 if row:
                     comparazione_caricata = dict(row)
+                    session['last_comparazione_id'] = comparazione_caricata['id']
                     if isinstance(comparazione_caricata.get('dati_json'), str):
                         try:
                             parsed = json.loads(comparazione_caricata['dati_json'])
@@ -9473,14 +9484,11 @@ def api_comparatore_salva():
                             risparmio_mese = %s, risparmio_anno = %s, percentuale_risparmio = %s,
                             dati_json = %s, aggiornato_il = CURRENT_TIMESTAMP
                         WHERE id = %s
-                        RETURNING id
                     """, (cliente_id or None, cliente_nome, titolo, note,
                           totale_volume_kg, totale_attuale_mese, totale_nuovo_mese,
                           risparmio_mese, risparmio_anno, percentuale_risparmio,
                           dati_json, int(comp_id)))
-                    row = cur.fetchone()
-                    if row:
-                        target_id = row['id']
+                    target_id = int(comp_id)
                 except Exception as _ue:
                     print(f"Update comparazione error: {_ue}")
 
@@ -9488,8 +9496,8 @@ def api_comparatore_salva():
                 try:
                     cur.execute("SELECT id FROM comparazioni_listini WHERE cliente_id = %s ORDER BY aggiornato_il DESC, id DESC LIMIT 1", (int(cliente_id),))
                     row_exist = cur.fetchone()
-                    if row_exist:
-                        target_id = row_exist['id']
+                    if row_exist and row_exist.get('id'):
+                        target_id = int(row_exist['id'])
                         cur.execute("""
                             UPDATE comparazioni_listini 
                             SET cliente_id = %s, cliente_nome = %s, titolo = %s, note = %s,
@@ -9522,7 +9530,17 @@ def api_comparatore_salva():
                       risparmio_mese, risparmio_anno, percentuale_risparmio,
                       dati_json))
                 row_t = cur.fetchone()
-                target_id = row_t['id'] if row_t else None
+                if row_t and row_t.get('id'):
+                    target_id = int(row_t['id'])
+                elif hasattr(cur, 'lastrowid') and cur.lastrowid:
+                    target_id = int(cur.lastrowid)
+                elif hasattr(cur, '_cursor') and hasattr(cur._cursor, 'lastrowid') and cur._cursor.lastrowid:
+                    target_id = int(cur._cursor.lastrowid)
+                else:
+                    cur.execute("SELECT MAX(id) as max_id FROM comparazioni_listini")
+                    row_max = cur.fetchone()
+                    if row_max and row_max.get('max_id'):
+                        target_id = int(row_max['max_id'])
 
             # ASSEGNAZIONE PRODOTTI E PREZZI AL CLIENTE IN clienti_prodotti ED ESISTENZA SUL SITO
             prodotti_assegnati_cnt = 0
@@ -9575,6 +9593,9 @@ def api_comparatore_salva():
                     pass
 
             db.commit()
+
+        if target_id:
+            session['last_comparazione_id'] = target_id
 
         success_msg = "Comparazione salvata con successo!"
         if c_id_int and prodotti_assegnati_cnt > 0:
@@ -9726,6 +9747,13 @@ def api_comparatore_elimina(id):
         return jsonify({"ok": False, "message": str(e)}), 500
 
 
+@app.route('/api/comparatore/session_reset', methods=['POST'])
+@login_required
+def api_comparatore_session_reset():
+    session.pop('last_comparazione_id', None)
+    return jsonify({"ok": True})
+
+
 @app.route('/comparatore/stampa/<int:id>')
 @login_required
 def comparatore_stampa(id):
@@ -9738,6 +9766,22 @@ def comparatore_stampa(id):
             return redirect(url_for('comparatore_listino'))
         
         comp = dict(row)
+        comp['id'] = int(comp['id']) if comp.get('id') else id
+        session['last_comparazione_id'] = comp['id']
+
+        # Formattazione sicura data di creazione (supporta datetime e stringa SQLite)
+        creato_il_val = comp.get('creato_il')
+        if hasattr(creato_il_val, 'strftime'):
+            comp['data_creazione_str'] = creato_il_val.strftime('%d/%m/%Y')
+        elif isinstance(creato_il_val, str) and len(creato_il_val) >= 10:
+            try:
+                parts = creato_il_val[:10].split('-')
+                comp['data_creazione_str'] = f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else creato_il_val[:10]
+            except Exception:
+                comp['data_creazione_str'] = creato_il_val[:10]
+        else:
+            comp['data_creazione_str'] = datetime.now().strftime('%d/%m/%Y')
+
         impostazioni_pdf = {}
         try:
             parsed = json.loads(comp.get('dati_json', '{}'))
@@ -9757,6 +9801,230 @@ def comparatore_stampa(id):
         prodotti=prodotti,
         impostazioni_pdf=impostazioni_pdf
     )
+
+
+@app.route('/comparatore/scarica_pdf/<int:id>')
+@login_required
+def comparatore_scarica_pdf_diretto(id):
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            cur.execute("SELECT * FROM comparazioni_listini WHERE id = %s", (id,))
+            row = cur.fetchone()
+            if not row:
+                flash("Comparazione non trovata.", "warning")
+                return redirect(url_for('comparatore_listino'))
+            comp = dict(row)
+            dati = {}
+            raw_dati = comp.get('dati_json')
+            if isinstance(raw_dati, (dict, list)):
+                dati = raw_dati
+            else:
+                try:
+                    dati = json.loads(raw_dati or '{}')
+                except Exception:
+                    pass
+            prodotti = dati.get('prodotti', []) if isinstance(dati, dict) else (dati if isinstance(dati, list) else [])
+            impostazioni_pdf = dati.get('impostazioni_pdf', {}) if isinstance(dati, dict) else {}
+
+        from fpdf import FPDF
+        import io
+        from flask import send_file
+
+        def _clean_str(s):
+            if not s: return ""
+            res = str(s).replace('•', '-').replace('€', 'EUR ').replace('“', '"').replace('”', '"').replace('’', "'").replace('—', '-')
+            return res.encode('latin-1', 'replace').decode('latin-1')
+
+        class ComparatorePDF(FPDF):
+            def header(self):
+                self.set_font('helvetica', 'B', 15)
+                self.set_text_color(15, 23, 42)
+                nome_az = impostazioni_pdf.get('azienda_nome', 'HORECA SUITE')
+                self.cell(120, 7, _clean_str(nome_az), align='L')
+                
+                self.set_font('helvetica', 'B', 9)
+                self.set_text_color(79, 70, 229)
+                self.cell(0, 7, _clean_str(impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo')), align='R')
+                self.ln(6)
+
+                self.set_font('helvetica', '', 8)
+                self.set_text_color(100, 116, 139)
+                sub_az = impostazioni_pdf.get('azienda_sub', 'Forniture Professionali & Listini Dedicati per la Ristorazione')
+                self.cell(120, 4, _clean_str(sub_az), align='L')
+                
+                date_str = datetime.now().strftime('%d/%m/%Y')
+                creato = comp.get('creato_il')
+                if hasattr(creato, 'strftime'):
+                    date_str = creato.strftime('%d/%m/%Y')
+                elif isinstance(creato, str) and len(creato) >= 10:
+                    p = creato[:10].split('-')
+                    if len(p) == 3: date_str = f"{p[2]}/{p[1]}/{p[0]}"
+                self.cell(0, 4, _clean_str(f"Data: {date_str}  -  #CMP-{int(id):04d}"), align='R')
+                self.ln(5)
+
+                contatti = impostazioni_pdf.get('contatti', 'Tel. +39 071 123456 - info@horecasuite.it')
+                self.cell(0, 4, _clean_str(contatti), align='L')
+                self.ln(6)
+                self.set_draw_color(226, 232, 240)
+                self.line(10, self.get_y(), 200, self.get_y())
+                self.ln(5)
+
+            def footer(self):
+                self.set_y(-14)
+                self.set_font('helvetica', 'I', 8)
+                self.set_text_color(148, 163, 184)
+                self.cell(120, 5, _clean_str('Documento ad uso commerciale confidenziale redatto su misura.'), align='L')
+                self.cell(0, 5, f'Pagina {self.page_no()}/{{nb}}', align='R')
+
+        pdf = ComparatorePDF(orientation='P', unit='mm', format='A4')
+        pdf.alias_nb_pages()
+        pdf.set_auto_page_break(auto=True, margin=18)
+        pdf.add_page()
+
+        # Box Cliente e Titolo
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_draw_color(226, 232, 240)
+        pdf.rect(10, pdf.get_y(), 190, 20, style='DF')
+        cur_y = pdf.get_y()
+        pdf.set_xy(14, cur_y + 3)
+        pdf.set_font('helvetica', '', 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(100, 4, 'Spettabile Cliente:')
+        pdf.set_xy(14, cur_y + 7)
+        pdf.set_font('helvetica', 'B', 13)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(110, 6, _clean_str(comp.get('cliente_nome') or 'Cliente'))
+        pdf.set_xy(14, cur_y + 13)
+        pdf.set_font('helvetica', '', 9)
+        pdf.set_text_color(79, 70, 229)
+        pdf.cell(110, 5, _clean_str(comp.get('titolo') or 'Proposta Listino'))
+
+        # Box Destro: Volume e Risparmio
+        tot_vol = float(comp.get('totale_volume_kg') or 0)
+        tot_risp_anno = float(comp.get('risparmio_anno') or 0)
+        tot_risp_mese = float(comp.get('risparmio_mese') or 0)
+        tot_att_mese = float(comp.get('totale_attuale_mese') or 0)
+        tot_nos_mese = float(comp.get('totale_nuovo_mese') or 0)
+        perc_risp = float(comp.get('percentuale_risparmio') or 0)
+        if perc_risp == 0 and tot_att_mese > 0:
+            perc_risp = (tot_risp_mese / tot_att_mese) * 100
+        if tot_risp_anno == 0 and tot_risp_mese > 0:
+            tot_risp_anno = tot_risp_mese * 12
+
+        pdf.set_xy(125, cur_y + 3)
+        pdf.set_font('helvetica', '', 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(70, 4, _clean_str('Volume Stimato: ' + f"{tot_vol:.1f} kg/mese"), align='R')
+        pdf.set_xy(125, cur_y + 8)
+        pdf.set_font('helvetica', 'B', 12)
+        pdf.set_text_color(5, 150, 105)
+        pdf.cell(70, 5, _clean_str(f"Risparmio Annuo: -{perc_risp:.1f}%"), align='R')
+        pdf.set_xy(125, cur_y + 13)
+        pdf.set_font('helvetica', 'B', 10)
+        pdf.cell(70, 5, _clean_str(f"EUR {tot_risp_anno:,.2f} (EUR {tot_risp_mese:,.2f}/m)"), align='R')
+        pdf.set_y(cur_y + 24)
+
+        # Tabella Prodotti Header
+        pdf.set_fill_color(30, 41, 59)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('helvetica', 'B', 8)
+        
+        pdf.cell(60, 7, '  Articolo / Descrizione', fill=True)
+        pdf.cell(20, 7, 'Vol. kg/m', align='R', fill=True)
+        pdf.cell(22, 7, 'Prz Attuale', align='R', fill=True)
+        pdf.cell(22, 7, 'Nostro Prz', align='R', fill=True)
+        pdf.cell(22, 7, 'Diff. Unit.', align='R', fill=True)
+        pdf.cell(22, 7, 'Spesa Mese', align='R', fill=True)
+        pdf.cell(22, 7, 'Risp. Anno', align='R', fill=True)
+        pdf.ln(7)
+
+        # Righe Tabella
+        pdf.set_font('helvetica', '', 8)
+        fill_toggle = False
+        for p in prodotti:
+            if not isinstance(p, dict): continue
+            nome_p = (p.get('nome') or 'Articolo')[:32]
+            vol_p = float(p.get('volume_kg') or 0)
+            pa_p = float(p.get('prezzo_attuale') or 0)
+            pn_p = float(p.get('prezzo_nostro') or 0)
+            diff_p = pa_p - pn_p
+            spesa_m = vol_p * pn_p if vol_p > 0 else pn_p
+            risp_a = (diff_p * vol_p * 12) if vol_p > 0 else (diff_p * 12)
+
+            pdf.set_fill_color(248, 250, 252) if fill_toggle else pdf.set_fill_color(255, 255, 255)
+            pdf.set_text_color(15, 23, 42)
+            
+            pdf.cell(60, 6.5, _clean_str(f"  {nome_p}"), fill=True)
+            pdf.cell(20, 6.5, _clean_str(f"{vol_p:.1f} kg" if vol_p > 0 else "-"), align='R', fill=True)
+            
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(22, 6.5, _clean_str(f"EUR {pa_p:.2f}"), align='R', fill=True)
+            
+            pdf.set_text_color(67, 56, 202)
+            pdf.set_font('helvetica', 'B', 8)
+            pdf.cell(22, 6.5, _clean_str(f"EUR {pn_p:.2f}"), align='R', fill=True)
+            
+            pdf.set_font('helvetica', '', 8)
+            pdf.set_text_color(5, 150, 105) if diff_p >= 0 else pdf.set_text_color(225, 29, 72)
+            pdf.cell(22, 6.5, _clean_str(f"{'-' if diff_p>=0 else '+'}EUR {abs(diff_p):.2f}"), align='R', fill=True)
+            
+            pdf.set_text_color(15, 23, 42)
+            pdf.cell(22, 6.5, _clean_str(f"EUR {spesa_m:.2f}"), align='R', fill=True)
+            
+            pdf.set_text_color(5, 150, 105) if risp_a >= 0 else pdf.set_text_color(225, 29, 72)
+            pdf.set_font('helvetica', 'B', 8)
+            pdf.cell(22, 6.5, _clean_str(f"EUR {risp_a:.2f}"), align='R', fill=True)
+            pdf.set_font('helvetica', '', 8)
+            
+            pdf.ln(6.5)
+            fill_toggle = not fill_toggle
+
+        # Riga Totali
+        pdf.set_fill_color(241, 245, 249)
+        pdf.set_text_color(15, 23, 42)
+        pdf.set_font('helvetica', 'B', 8.5)
+        pdf.cell(60, 7.5, '  TOTALI COMPLESSIVI', fill=True)
+        pdf.set_text_color(79, 70, 229)
+        pdf.cell(20, 7.5, _clean_str(f"{tot_vol:.1f} kg"), align='R', fill=True)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(22, 7.5, _clean_str(f"EUR {tot_att_mese:.2f}"), align='R', fill=True)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(22, 7.5, "", fill=True)
+        pdf.cell(22, 7.5, "", fill=True)
+        pdf.cell(22, 7.5, _clean_str(f"EUR {tot_nos_mese:.2f}"), align='R', fill=True)
+        pdf.set_text_color(5, 150, 105)
+        pdf.cell(22, 7.5, _clean_str(f"EUR {tot_risp_anno:.2f}"), align='R', fill=True)
+        pdf.ln(9)
+
+        # Condizioni commerciali / Note
+        note_text = impostazioni_pdf.get('note_condizioni') or comp.get('note') or '- Consegne programmate con automezzi a temperatura controllata.\n- Grammatura costante e massima resa per azzerare lo scarto in cucina.\n- Tracciabilita certificata di ogni lotto con scheda tecnica allegata.'
+        if note_text:
+            box_note_y = pdf.get_y()
+            if box_note_y > 235:
+                pdf.add_page()
+            pdf.set_font('helvetica', 'B', 8.5)
+            pdf.set_text_color(30, 41, 59)
+            pdf.cell(0, 5, 'Condizioni di Fornitura & Servizi Inclusi:', align='L')
+            pdf.ln(5)
+            pdf.set_font('helvetica', '', 8)
+            pdf.set_text_color(71, 85, 105)
+            pdf.multi_cell(190, 4.5, _clean_str(note_text))
+            pdf.ln(3)
+
+        pdf_bytes = bytes(pdf.output())
+        cliente_clean = re.sub(r'[^a-zA-Z0-9_\-]', '_', comp.get('cliente_nome') or 'Cliente')
+        filename = f"Preventivo_{cliente_clean}_{id}.pdf"
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        traceback.print_exc()
+        flash(f"Errore generazione PDF: {str(e)}", "danger")
+        return redirect(url_for('comparatore_stampa', id=id))
 
 # ============================
 # AVVIO APP

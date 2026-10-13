@@ -944,7 +944,7 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   // Stato Globale della Comparazione
-  let currentComparisonId = {{ (comparazione_caricata.id if comparazione_caricata else 'null') }};
+  let currentComparisonId = {{ (comparazione_caricata.id if (comparazione_caricata and comparazione_caricata.id) else None) | tojson }};
   
   // Elementi DOM
   const selectCliente = document.getElementById("selectCliente");
@@ -1009,6 +1009,9 @@ document.addEventListener("DOMContentLoaded", () => {
         inputTitolo.value = `Proposta Prodotti Lavorati - ${nomeC}`;
       }
       caricaListinoPerCliente(opt.value);
+    } else {
+      syncUrlWithState();
+      saveDraftToStorage();
     }
   });
 
@@ -1030,7 +1033,12 @@ document.addEventListener("DOMContentLoaded", () => {
             impostazioniPdfState = Object.assign(impostazioniPdfState, data.impostazioni_pdf);
           }
           renderTable();
+          syncUrlWithState();
+          saveDraftToStorage();
           showToastNotification(`Caricato listino salvato per ${getClientName()} (${prodottiState.length} prodotti)`);
+        } else {
+          syncUrlWithState();
+          saveDraftToStorage();
         }
       })
       .catch(err => console.error("Errore caricamento listino cliente:", err));
@@ -1200,11 +1208,104 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ];
 
-  // Inizializzazione prodotti
+  // ==========================================
+  // PERSISTENZA BOZZA (LOCALSTORAGE) & SINCRONIZZAZIONE URL
+  // ==========================================
+  function saveDraftToStorage() {
+    try {
+      const draft = {
+        id: currentComparisonId,
+        cliente_id: (selectCliente && selectCliente.value) ? parseInt(selectCliente.value, 10) : null,
+        cliente_nome: getClientName(),
+        is_manuale: isManuale,
+        titolo: inputTitolo ? inputTitolo.value.trim() : "",
+        note: inputNote ? inputNote.value.trim() : "",
+        prodotti: prodottiState,
+        impostazioni_pdf: impostazioniPdfState,
+        updated_at: Date.now()
+      };
+      localStorage.setItem("horeca_comparatore_draft", JSON.stringify(draft));
+    } catch (e) {
+      console.warn("Impossibile salvare bozza in localStorage:", e);
+    }
+  }
+
+  function syncUrlWithState() {
+    try {
+      const url = new URL(window.location);
+      if (currentComparisonId) {
+        url.searchParams.set("id", currentComparisonId);
+      } else {
+        url.searchParams.delete("id");
+      }
+      if (selectCliente && selectCliente.value) {
+        url.searchParams.set("cliente_id", selectCliente.value);
+      }
+      url.searchParams.delete("nuovo");
+      window.history.replaceState({ id: currentComparisonId }, '', url.toString());
+    } catch (e) {}
+  }
+
+  // Ascolta digitazione su titolo e note per salvare la bozza in tempo reale
+  if (inputTitolo) inputTitolo.addEventListener("input", saveDraftToStorage);
+  if (inputNote) inputNote.addEventListener("input", saveDraftToStorage);
+  if (inputClienteManuale) {
+    inputClienteManuale.addEventListener("input", () => {
+      saveDraftToStorage();
+      syncUrlWithState();
+    });
+  }
+
+  // Inizializzazione prodotti (con priorità: server -> bozza localStorage -> default)
+  const isNuovoRichiesto = new URLSearchParams(window.location.search).get("nuovo") === "1";
+  if (isNuovoRichiesto) {
+    localStorage.removeItem("horeca_comparatore_draft");
+  }
+
   {% if comparazione_caricata and comparazione_caricata.prodotti_dettaglio %}
     prodottiState = {{ comparazione_caricata.prodotti_dettaglio | tojson | safe }};
+    saveDraftToStorage();
+    syncUrlWithState();
   {% else %}
-    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
+    let draftRestored = false;
+    if (!isNuovoRichiesto) {
+      const savedDraftRaw = localStorage.getItem("horeca_comparatore_draft");
+      if (savedDraftRaw) {
+        try {
+          const draft = JSON.parse(savedDraftRaw);
+          if (draft && Array.isArray(draft.prodotti) && draft.prodotti.length > 0) {
+            prodottiState = draft.prodotti;
+            if (draft.id) currentComparisonId = draft.id;
+            if (draft.titolo && inputTitolo) inputTitolo.value = draft.titolo;
+            if (draft.note !== undefined && inputNote) inputNote.value = draft.note;
+            if (draft.impostazioni_pdf) impostazioniPdfState = Object.assign(impostazioniPdfState, draft.impostazioni_pdf);
+            if (draft.is_manuale) {
+              isManuale = true;
+              selectCliente.classList.add("d-none");
+              inputClienteManuale.classList.remove("d-none");
+              inputClienteManuale.value = draft.cliente_nome || "";
+              btnSwitchClienteLibero.innerHTML = '<i class="bi bi-list-ul"></i>';
+            } else if (draft.cliente_id && selectCliente) {
+              selectCliente.value = String(draft.cliente_id);
+            }
+            draftRestored = true;
+            syncUrlWithState();
+            setTimeout(() => {
+              showToastNotification(`Bozza di lavoro ripristinata (${prodottiState.length} prodotti in memoria).`);
+            }, 300);
+          }
+        } catch (e) {
+          console.warn("Errore lettura bozza localStorage:", e);
+        }
+      }
+    }
+    if (!draftRestored) {
+      {% if cliente_preselezionato %}
+        prodottiState = [];
+      {% else %}
+        prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
+      {% endif %}
+    }
   {% endif %}
 
   renderTable();
@@ -1421,6 +1522,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Ricalcola solo le colonne calcolate della riga attiva per massima fluidità, poi i totali
       updateRowCalculations(tr, prodottiState[idx]);
       updateGrandTotals();
+      saveDraftToStorage();
     }
   });
 
@@ -1530,6 +1632,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const idx = parseInt(btnDel.dataset.idx, 10);
       prodottiState.splice(idx, 1);
       renderTable();
+      saveDraftToStorage();
       return;
     }
     const btnDup = e.target.closest(".btn-duplica-riga");
@@ -1539,6 +1642,7 @@ document.addEventListener("DOMContentLoaded", () => {
       clone.nome += " (Copia)";
       prodottiState.splice(idx + 1, 0, clone);
       renderTable();
+      saveDraftToStorage();
       return;
     }
   });
@@ -1553,6 +1657,7 @@ document.addEventListener("DOMContentLoaded", () => {
       prezzo_nostro: 13.50
     });
     renderTable();
+    saveDraftToStorage();
     // Focus sul nuovo campo nome
     setTimeout(() => {
       const inputs = tbodyProdotti.querySelectorAll("input[data-field='nome']");
@@ -1570,11 +1675,13 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
     renderTable();
+    saveDraftToStorage();
     showToastNotification("Caricati 6 prodotti d'esempio (Carni e Pesce)!");
   });
   document.getElementById("btnPrecaricaLavorati").addEventListener("click", () => {
     prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
     renderTable();
+    saveDraftToStorage();
     showToastNotification("Suggeriti prodotti tipici Horeca!");
   });
 
@@ -1583,6 +1690,9 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     if (confirm("Vuoi iniziare una nuova comparazione da zero?")) {
       currentComparisonId = null;
+      localStorage.removeItem("horeca_comparatore_draft");
+      window.history.replaceState({}, '', '/comparatore?nuovo=1');
+      fetch('/api/comparatore/session_reset', { method: 'POST' }).catch(() => {});
       prodottiState = [];
       aggiungiRigaVuota();
       inputTitolo.value = "Offerta Prodotti con Analisi Risparmio";
@@ -1596,6 +1706,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (confirm("Sei sicuro di voler eliminare tutte le righe dalla tabella?")) {
       prodottiState = [];
       renderTable();
+      saveDraftToStorage();
       showToastNotification("Tabella svuotata.");
     }
   });
@@ -1630,6 +1741,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       renderTable();
+      saveDraftToStorage();
       showToastNotification(`Aggiunto "${nome}" al prospetto!`);
       
       btn.innerHTML = `<i class="bi bi-check-lg text-success"></i> Aggiunto!`;
@@ -1694,12 +1806,15 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.innerHTML = oldHtml;
       }
 
-      if (data.ok) {
+      if (data && data.ok) {
         currentComparisonId = data.id;
+        syncUrlWithState();
+        saveDraftToStorage();
         showToastNotification(data.message || "Prospetto comparativo salvato con successo!");
         if (typeof callback === "function") callback(data);
       } else {
-        alert("Errore salvataggio: " + (data.message || "Riprova."));
+        alert("Errore salvataggio: " + (data ? data.message : "Riprova."));
+        if (typeof callback === "function") callback(null);
       }
     })
     .catch(err => {
@@ -1708,7 +1823,8 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.innerHTML = oldHtml;
       }
       console.error(err);
-      alert("Errore di connessione o salvataggio.");
+      alert("Errore di connessione o salvataggio: " + err);
+      if (typeof callback === "function") callback(null);
     });
   }
 
@@ -1865,6 +1981,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           renderTable();
+          saveDraftToStorage();
           if (modalCaricaPdf) modalCaricaPdf.hide();
           showToastNotification(`Caricati ${data.count} prodotti! Il loro prezzo è stato impostato in "Nostro Prezzo".`);
         } else {
@@ -1917,43 +2034,60 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     showToastNotification("Salvataggio e preparazione del Preventivo PDF in corso...");
 
-    // Pre-apriamo la finestra sul gesto utente (click) per garantire che nessun browser la blocchi come popup
-    let targetWin = null;
-    try {
-      targetWin = window.open('about:blank', '_blank');
-      if (targetWin) {
-        targetWin.document.write(`
-          <!DOCTYPE html><html><head><title>Generazione Preventivo PDF...</title>
-          <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;text-align:center;}
-          .loader{border:4px solid rgba(255,255,255,0.15);border-top:4px solid #6366f1;border-radius:50%;width:48px;height:48px;animation:spin 0.8s linear infinite;margin:0 auto 18px;}
-          @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
-          </head><body><div><div class="loader"></div><h2 style="margin:0 0 8px 0;font-weight:700;">Generazione Preventivo PDF...</h2><p style="color:#94a3b8;margin:0;">Il download del file PDF inizierà automaticamente tra pochi istanti.</p></div></body></html>
-        `);
-      }
-    } catch (e) {
-      console.warn("Popup pre-apertura:", e);
-    }
-
-    salvaComparazione((res) => {
-      if (btnElement) {
-        btnElement.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i> Download Avviato!`;
+    const ripristinaBottone = (okHtml) => {
+      if (!btnElement) return;
+      if (okHtml) {
+        btnElement.innerHTML = okHtml;
         setTimeout(() => {
           btnElement.disabled = false;
           btnElement.innerHTML = originalHtml;
         }, 2500);
-      }
-
-      if (currentComparisonId) {
-        const destUrl = `/comparatore/stampa/${currentComparisonId}?download=1`;
-        if (targetWin && !targetWin.closed) {
-          targetWin.location.href = destUrl;
-        } else {
-          window.open(destUrl, '_blank');
-        }
       } else {
-        if (targetWin && !targetWin.closed) targetWin.close();
-        alert("Errore salvataggio comparazione.");
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalHtml;
       }
+    };
+
+    // 1) Salva la comparazione, 2) scarica il PDF generato dal server come file (nessun popup)
+    salvaComparazione((res) => {
+      const compIdToUse = (res && res.id) || currentComparisonId;
+      if (!compIdToUse) {
+        ripristinaBottone(null);
+        alert("Impossibile salvare la comparazione prima del download. Controlla i dati inseriti.");
+        return;
+      }
+      currentComparisonId = compIdToUse;
+      syncUrlWithState();
+      saveDraftToStorage();
+
+      fetch(`/comparatore/scarica_pdf/${compIdToUse}`, { credentials: "same-origin" })
+        .then(async (resp) => {
+          const ct = resp.headers.get("Content-Type") || "";
+          if (!resp.ok || !ct.includes("application/pdf")) {
+            throw new Error("Il server non ha restituito un PDF (stato " + resp.status + ").");
+          }
+          let filename = `Preventivo_${compIdToUse}.pdf`;
+          const cd = resp.headers.get("Content-Disposition") || "";
+          const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+          if (m && m[1]) filename = decodeURIComponent(m[1]);
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
+          ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
+          showToastNotification(`Preventivo PDF scaricato: ${filename}`);
+        })
+        .catch((err) => {
+          console.error("Errore download PDF:", err);
+          ripristinaBottone(null);
+          // Fallback: navigazione diretta al file (il browser lo scarica come allegato)
+          window.location.href = `/comparatore/scarica_pdf/${compIdToUse}`;
+        });
     });
   }
 
@@ -1978,9 +2112,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnApriStampa) {
     btnApriStampa.addEventListener("click", (e) => {
       e.preventDefault();
-      salvaComparazione(() => {
-        if (currentComparisonId) {
-          window.open(`/comparatore/stampa/${currentComparisonId}`, '_blank');
+      let targetWin = null;
+      try { targetWin = window.open('about:blank', '_blank'); } catch(e) {}
+      salvaComparazione((res) => {
+        const idToOpen = (res && res.id) || currentComparisonId;
+        if (idToOpen) {
+          if (targetWin && !targetWin.closed) {
+            targetWin.location.href = `/comparatore/stampa/${idToOpen}`;
+          } else {
+            window.location.href = `/comparatore/stampa/${idToOpen}`;
+          }
+        } else {
+          if (targetWin && !targetWin.closed) targetWin.close();
         }
       });
     });

@@ -12,6 +12,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     @page {
@@ -521,7 +522,7 @@
   <!-- Non-printable top action bar with Tool controls -->
   <div class="no-print-bar">
     <div style="display: flex; align-items: center; gap: 14px;">
-      <a href="/comparatore?id={{ comp.id }}">
+      <a href="/comparatore{% if comp.id %}?id={{ comp.id }}{% endif %}">
         <i class="bi bi-arrow-left"></i> Torna all'Editor
       </a>
       <span style="color: #6366f1;">|</span>
@@ -543,6 +544,12 @@
       <button type="button" class="btn-top-bar btn-top-bar-download" id="btnScaricaPdfDiretto">
         <i class="bi bi-file-earmark-arrow-down-fill"></i> Scarica PDF
       </button>
+
+      {% if comp.id %}
+      <a href="/comparatore/scarica_pdf/{{ comp.id }}" class="btn-top-bar btn-top-bar-download" style="text-decoration: none;" title="Download diretto file PDF">
+        <i class="bi bi-download"></i> PDF Diretto
+      </a>
+      {% endif %}
 
       <button type="button" class="btn-top-bar btn-top-bar-print" onclick="window.print()">
         <i class="bi bi-printer-fill"></i> Stampa
@@ -702,8 +709,8 @@
       <div class="header-right">
         <div class="doc-badge" id="printDocBadge" contenteditable="true" title="Clicca per modificare badge">{{ impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo') }}</div>
         <div class="doc-meta">
-          <div>Data: <strong>{{ comp.creato_il.strftime('%d/%m/%Y') if comp.creato_il else '' }}</strong></div>
-          <div>Rif. Offerta: <strong>#CMP-{{ "%04d"|format(comp.id) }}</strong></div>
+          <div>Data: <strong>{{ comp.data_creazione_str or '' }}</strong></div>
+          <div>Rif. Offerta: <strong>#CMP-{{ "%04d"|format(comp.id|int) if comp.id else '0001' }}</strong></div>
         </div>
         <div class="doc-contacts" id="printContatti" contenteditable="true" title="Clicca per modificare recapiti">
           {{ impostazioni_pdf.get('contatti', 'Tel. +39 071 123456 • info@horecasuite.it') }}
@@ -835,7 +842,7 @@
 
   <script>
     // Stato dati comparazione e impostazioni PDF
-    const compId = {{ comp.id }};
+    const compId = {{ (comp.id if comp.id else None) | tojson }};
     let currentSettings = {
       azienda_nome: {{ impostazioni_pdf.get('azienda_nome', 'HORECA SUITE') | tojson }},
       azienda_sub: {{ impostazioni_pdf.get('azienda_sub', 'Forniture Professionali & Listini Dedicati per la Ristorazione') | tojson }},
@@ -1030,7 +1037,7 @@
 
       const payload = {
         id: compId,
-        cliente_id: {{ comp.cliente_id or 'null' }},
+        cliente_id: {{ (comp.cliente_id if comp.cliente_id else None) | tojson }},
         cliente_nome: document.getElementById("printClienteNome").textContent.trim() || {{ comp.cliente_nome | tojson }},
         titolo: document.getElementById("printTitoloDoc").textContent.trim() || {{ comp.titolo | tojson }},
         note: settings.note_condizioni || "",
@@ -1102,11 +1109,33 @@
       element.style.borderRadius = "0px";
 
       try {
-        // Cattura del foglio con html2canvas con sfondo bianco solido
+        // Metodo 1: Se disponibile html2pdf, usa la libreria specializzata
+        if (typeof html2pdf !== 'undefined') {
+          const opt = {
+            margin: [8, 8, 8, 8],
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              logging: false
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          await html2pdf().set(opt).from(element).save();
+          element.style.boxShadow = prevShadow;
+          element.style.borderRadius = prevRadius;
+          if (callback) callback();
+          return;
+        }
+
+        // Metodo 2: Cattura del foglio con html2canvas + jsPDF
         const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
-          allowTaint: true,
+          allowTaint: false,
           backgroundColor: "#ffffff",
           logging: false
         });
@@ -1121,8 +1150,11 @@
 
         const imgData = canvas.toDataURL("image/jpeg", 0.98);
 
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
+        const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDFClass) {
+          throw new Error("Libreria jsPDF non disponibile");
+        }
+        const pdf = new jsPDFClass({
           orientation: "portrait",
           unit: "mm",
           format: "a4"
@@ -1164,8 +1196,12 @@
         console.error("Errore esportazione PDF con canvas:", err);
         element.style.boxShadow = prevShadow;
         element.style.borderRadius = prevRadius;
-        // In caso di errore imprevisto, fallback su stampa del browser
-        window.print();
+        // In caso di errore canvas, tenta download diretto dal server se compId esiste
+        if (compId) {
+          window.location.href = `/comparatore/scarica_pdf/${compId}`;
+        } else {
+          window.print();
+        }
         if (callback) callback(err);
       }
     }
