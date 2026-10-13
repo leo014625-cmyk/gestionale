@@ -4136,328 +4136,301 @@ document.addEventListener("DOMContentLoaded", () => {
   autoFitZoom();
   aggiornaListaPagineNav();
 
-  // Helper per attendere il caricamento delle immagini in un clone DOM prima del rendering canvas
+  // Helper per attendere il caricamento delle immagini in un clone DOM prima del rendering canvas (con timeout di sicurezza)
   function waitImagesLoaded(element) {
     const imgs = Array.from(element.querySelectorAll("img"));
-    const promises = imgs.map(img => {
+    if (imgs.length === 0) return Promise.resolve();
+    
+    const perImagePromises = imgs.map(img => {
       return new Promise((resolve) => {
         if (img.complete && img.naturalWidth > 0) {
           resolve();
         } else {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          // Forza caricamento nel clone riassegnando src
-          const src = img.src;
-          if (src) {
-            img.src = "";
-            img.src = src;
-          } else {
-            resolve();
-          }
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          img.onload = finish;
+          img.onerror = finish;
+          setTimeout(finish, 1500); // Timeout max 1.5s per singola immagine
         }
       });
     });
-    return Promise.all(promises);
+
+    // Timeout globale max 2 secondi per evitare qualsiasi blocco della generazione
+    const globalTimeout = new Promise(resolve => setTimeout(resolve, 2000));
+    return Promise.race([Promise.all(perImagePromises), globalTimeout]);
   }
 
   /* -------------------------------------------------------------------
        ESPORTAZIONE PDF COMPLETO MULTIPAGINA
      ------------------------------------------------------------------- */
-  document.getElementById("export-pdf").addEventListener("click", async () => {
-    showToast("Generazione del PDF in corso...");
-    clearSelection();
+  const btnExportPdf = document.getElementById("export-pdf");
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener("click", async () => {
+      if (!pagine || pagine.length === 0) {
+        alert("Nessun foglio presente nel volantino da esportare.");
+        return;
+      }
 
-    const originalPage = paginaCorrente;
-    const w = parseInt(pagine[0].dataset.larghezza || "800", 10);
-    const h = parseInt(pagine[0].dataset.altezza || "1100", 10);
+      const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || (typeof jspdf !== "undefined" && jspdf.jsPDF);
+      if (!jsPDFClass) {
+        alert("Libreria jsPDF non caricata. Verifica la connessione internet e ricarica la pagina.");
+        return;
+      }
 
-    const pdf = new jspdf.jsPDF({
-      orientation: w > h ? "landscape" : "portrait",
-      unit: "px",
-      format: [w, h]
-    });
+      showToast("Avvio generazione del PDF in corso...");
+      clearSelection();
 
-    for (let i = 0; i < pagine.length; i++) {
-      if (i > 0) pdf.addPage([w, h]);
+      const originalPage = paginaCorrente;
+      const w = parseInt(pagine[0].dataset.larghezza || "800", 10);
+      const h = parseInt(pagine[0].dataset.altezza || "1100", 10);
 
-      paginaCorrente = i;
-      visualizzaPaginaCorrente();
-      
-      // Crea un clone temporaneo a scala reale 1:1 fuori dallo schermo per evitare bug di posizionamento/scale
-      const clone = pagine[i].cloneNode(true);
-      clone.style.position = "absolute";
-      clone.style.left = "-9999px";
-      clone.style.top = "-9999px";
-      clone.style.transform = "none";
-      clone.style.transformOrigin = "top left";
-      
-      clone.classList.remove("cella-selezionata");
-      clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
-      clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
+      try {
+        const pdf = new jsPDFClass({
+          orientation: w > h ? "landscape" : "portrait",
+          unit: "px",
+          format: [w, h]
+        });
 
-      // Append clone to the DOM first so clientWidth / clientHeight calculations are accurate
-      document.body.appendChild(clone);
+        for (let i = 0; i < pagine.length; i++) {
+          showToast(`Generazione PDF: foglio ${i + 1} di ${pagine.length}...`);
+          if (i > 0) pdf.addPage([w, h]);
 
-      // Attendiamo che tutte le immagini del clone siano caricate prima di calcolare le posizioni
-      await waitImagesLoaded(clone);
-      clone.querySelectorAll(".cella-prodotto").forEach(cell => {
-        const titolo = cell.querySelector(".titolo")?.innerText || "";
-        const codice = cell.dataset.codice || "";
-        const haImg = cell.querySelector(".img-box img") !== null;
-        
-        // Cella considerata vuota se priva di codice ed ha il titolo o l'immagine di default
-        const isVuota = !codice && (titolo === "PRODOTTO" || !haImg);
-        
-        if (isVuota) {
-          cell.style.visibility = "hidden"; // Rende invisibile la cella ma mantiene intatto il layout della griglia
-        } else {
-          // Fix immagini per html2canvas (utilizza il posizionamento assoluto calcolato a partire dalle dimensioni reali per evitare sgranature/sfocature)
-          const imgBox = cell.querySelector(".img-box");
-          if (imgBox) {
-            const img = imgBox.querySelector("img");
-            if (img) {
-              if (img.naturalWidth && img.naturalHeight) {
-                const boxW = imgBox.clientWidth || imgBox.offsetWidth;
-                const boxH = imgBox.clientHeight || imgBox.offsetHeight;
-                
-                if (boxW > 0 && boxH > 0) {
-                  const imgW = img.naturalWidth;
-                  const imgH = img.naturalHeight;
-                  
-                  const boxAspect = boxW / boxH;
-                  const imgAspect = imgW / imgH;
-                  
-                  let wFit, hFit;
-                  if (imgAspect > boxAspect) {
-                    wFit = boxW;
-                    hFit = boxW / imgAspect;
-                  } else {
-                    hFit = boxH;
-                    wFit = boxH * imgAspect;
+          paginaCorrente = i;
+          visualizzaPaginaCorrente();
+          
+          // Crea un clone temporaneo a scala reale 1:1 posizionato in modo fisso e sicuro fuori vista
+          const clone = pagine[i].cloneNode(true);
+          clone.style.position = "fixed";
+          clone.style.left = "0px";
+          clone.style.top = "0px";
+          clone.style.zIndex = "-9999";
+          clone.style.transform = "none";
+          clone.style.transformOrigin = "top left";
+          clone.style.pointerEvents = "none";
+          clone.style.opacity = "1";
+          
+          clone.classList.remove("cella-selezionata");
+          clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
+          clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
+
+          document.body.appendChild(clone);
+
+          // Attendiamo con timeout che le immagini siano pronte
+          await waitImagesLoaded(clone);
+
+          clone.querySelectorAll(".cella-prodotto").forEach(cell => {
+            const titolo = cell.querySelector(".titolo")?.innerText || "";
+            const codice = cell.dataset.codice || "";
+            const haImg = cell.querySelector(".img-box img") !== null;
+            
+            const isVuota = !codice && (titolo === "PRODOTTO" || !haImg);
+            
+            if (isVuota) {
+              cell.style.visibility = "hidden";
+            } else {
+              const imgBox = cell.querySelector(".img-box");
+              if (imgBox) {
+                const img = imgBox.querySelector("img");
+                if (img) {
+                  if (img.naturalWidth && img.naturalHeight) {
+                    const boxW = imgBox.clientWidth || imgBox.offsetWidth;
+                    const boxH = imgBox.clientHeight || imgBox.offsetHeight;
+                    
+                    if (boxW > 0 && boxH > 0) {
+                      const imgW = img.naturalWidth;
+                      const imgH = img.naturalHeight;
+                      
+                      const boxAspect = boxW / boxH;
+                      const imgAspect = imgW / imgH;
+                      
+                      let wFit, hFit;
+                      if (imgAspect > boxAspect) {
+                        wFit = boxW;
+                        hFit = boxW / imgAspect;
+                      } else {
+                        hFit = boxH;
+                        wFit = boxH * imgAspect;
+                      }
+                      
+                      const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
+                      const px = parseInt(cell.dataset.imagePosX || "50", 10);
+                      const py = parseInt(cell.dataset.imagePosY || "50", 10);
+                      
+                      const wZoomed = wFit * zoom;
+                      const hZoomed = hFit * zoom;
+                      
+                      const left = (boxW - wZoomed) * (px / 100);
+                      const top = (boxH - hZoomed) * (py / 100);
+                      
+                      imgBox.style.position = "relative";
+                      imgBox.style.overflow = "hidden";
+                      
+                      img.style.position = "absolute";
+                      img.style.width = wZoomed + "px";
+                      img.style.height = hZoomed + "px";
+                      img.style.left = left + "px";
+                      img.style.top = top + "px";
+                      img.style.transform = "none";
+                      img.style.objectFit = "fill";
+                      img.style.objectPosition = "0 0";
+                    }
                   }
-                  
-                  const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
-                  const px = parseInt(cell.dataset.imagePosX || "50", 10);
-                  const py = parseInt(cell.dataset.imagePosY || "50", 10);
-                  
-                  const wZoomed = wFit * zoom;
-                  const hZoomed = hFit * zoom;
-                  
-                  const left = (boxW - wZoomed) * (px / 100);
-                  const top = (boxH - hZoomed) * (py / 100);
-                  
-                  imgBox.style.position = "relative";
-                  imgBox.style.overflow = "hidden";
-                  
-                  img.style.position = "absolute";
-                  img.style.width = wZoomed + "px";
-                  img.style.height = hZoomed + "px";
-                  img.style.left = left + "px";
-                  img.style.top = top + "px";
-                  img.style.transform = "none";
-                  img.style.objectFit = "fill";
-                  img.style.objectPosition = "0 0";
                 }
-              } else {
-                // Fallback a div background-image se le dimensioni reali non sono pronte
-                const src = img.src;
-                const zoom = img.style.transform || "none";
-                const pos = img.style.objectPosition || "50% 50%";
-                const radius = img.style.borderRadius || "0px";
-                const filter = img.style.filter || "none";
-
-                const divImg = document.createElement("div");
-                divImg.style.width = "100%";
-                divImg.style.height = "100%";
-                divImg.style.backgroundImage = `url("${src}")`;
-                divImg.style.backgroundSize = "contain";
-                divImg.style.backgroundPosition = pos;
-                divImg.style.backgroundRepeat = "no-repeat";
-                divImg.style.transform = zoom;
-                divImg.style.borderRadius = radius;
-                divImg.style.filter = filter;
-
-                imgBox.replaceChild(divImg, img);
               }
             }
+          });
+          
+          let canvas = null;
+          try {
+            canvas = await html2canvas(clone, { 
+              scale: 2, 
+              backgroundColor: "#ffffff",
+              useCORS: true,
+              allowTaint: true,
+              logging: false
+            });
+          } catch (canvasErr) {
+            console.warn("html2canvas primo tentativo fallito, riprovo con impostazioni minime:", canvasErr);
+            canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff", logging: false });
+          }
+          
+          if (clone.parentNode) {
+            document.body.removeChild(clone);
+          }
+          
+          let imgDataUrl = null;
+          try {
+            imgDataUrl = canvas.toDataURL("image/png");
+          } catch (taintErr) {
+            console.warn("Canvas tainted, fallback jpeg:", taintErr);
+            try {
+              imgDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+            } catch (e2) {
+              console.error("toDataURL fallito:", e2);
+            }
+          }
+
+          if (imgDataUrl) {
+            const printW = w * 0.8;
+            const printH = h * 0.8;
+            const offX = (w - printW) / 2;
+            const offY = (h - printH) / 2;
+            pdf.addImage(imgDataUrl, "PNG", offX, offY, printW, printH);
           }
         }
-      });
-      
-      const canvas = await html2canvas(clone, { 
-        scale: 3, 
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        logging: false
-      });
-      
-      document.body.removeChild(clone);
-      
-      // Renderizza con zoom ridotto del 20% (scala 0.8) centrato sul foglio PDF per lasciare margini puliti
-      const printW = w * 0.8;
-      const printH = h * 0.8;
-      const offX = (w - printW) / 2;
-      const offY = (h - printH) / 2;
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", offX, offY, printW, printH);
-    }
 
-    paginaCorrente = originalPage;
-    visualizzaPaginaCorrente();
-    aggiornaListaPagineNav();
-
-    pdf.save((inputNome.value.trim() || "volantino_pro") + ".pdf");
-    showToast("PDF scaricato con successo!");
-  });
+        const nomeFile = ((inputNome && inputNome.value.trim()) || "volantino_pro") + ".pdf";
+        pdf.save(nomeFile);
+        showToast("PDF scaricato con successo!");
+      } catch (err) {
+        console.error("Errore generazione PDF:", err);
+        alert("Si è verificato un errore durante la generazione del PDF: " + (err.message || err));
+      } finally {
+        paginaCorrente = originalPage;
+        visualizzaPaginaCorrente();
+        aggiornaListaPagineNav();
+      }
+    });
+  }
 
   /* -------------------------------------------------------------------
        ESPORTAZIONE PNG FOGLIO ATTIVO
      ------------------------------------------------------------------- */
-  document.getElementById("export-png").addEventListener("click", async () => {
-    showToast("Generazione immagini PNG in corso...");
-    clearSelection();
+  const btnExportPng = document.getElementById("export-png");
+  if (btnExportPng) {
+    btnExportPng.addEventListener("click", async () => {
+      if (!pagine || pagine.length === 0) {
+        alert("Nessun foglio presente nel volantino.");
+        return;
+      }
+      showToast("Generazione immagini PNG in corso...");
+      clearSelection();
 
-    const originalPage = paginaCorrente;
+      const originalPage = paginaCorrente;
 
-    for (let i = 0; i < pagine.length; i++) {
-      paginaCorrente = i;
-      visualizzaPaginaCorrente();
-      aggiornaListaPagineNav();
+      try {
+        for (let i = 0; i < pagine.length; i++) {
+          showToast(`Generazione PNG: foglio ${i + 1} di ${pagine.length}...`);
+          paginaCorrente = i;
+          visualizzaPaginaCorrente();
+          aggiornaListaPagineNav();
 
-      const clone = pagine[i].cloneNode(true);
-      clone.style.position = "absolute";
-      clone.style.left = "-9999px";
-      clone.style.top = "-9999px";
-      clone.style.transform = "none";
-      clone.style.transformOrigin = "top left";
-      
-      clone.classList.remove("cella-selezionata");
-      clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
-      clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
+          const clone = pagine[i].cloneNode(true);
+          clone.style.position = "fixed";
+          clone.style.left = "0px";
+          clone.style.top = "0px";
+          clone.style.zIndex = "-9999";
+          clone.style.transform = "none";
+          clone.style.transformOrigin = "top left";
+          clone.style.pointerEvents = "none";
+          clone.style.opacity = "1";
+          
+          clone.classList.remove("cella-selezionata");
+          clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
+          clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
 
-      // Append clone to the DOM first so clientWidth / clientHeight calculations are accurate
-      document.body.appendChild(clone);
+          document.body.appendChild(clone);
+          await waitImagesLoaded(clone);
 
-      // Attendiamo che tutte le immagini del clone siano caricate prima di calcolare le posizioni
-      await waitImagesLoaded(clone);
-      clone.querySelectorAll(".cella-prodotto").forEach(cell => {
-        const titolo = cell.querySelector(".titolo")?.innerText || "";
-        const codice = cell.dataset.codice || "";
-        const haImg = cell.querySelector(".img-box img") !== null;
-        
-        const isVuota = !codice && (titolo === "PRODOTTO" || !haImg);
-        
-        if (isVuota) {
-          cell.style.visibility = "hidden";
-        } else {
-          // Fix immagini per html2canvas (utilizza il posizionamento assoluto calcolato a partire dalle dimensioni reali per evitare sgranature/sfocature)
-          const imgBox = cell.querySelector(".img-box");
-          if (imgBox) {
-            const img = imgBox.querySelector("img");
-            if (img) {
-              if (img.naturalWidth && img.naturalHeight) {
-                const boxW = imgBox.clientWidth || imgBox.offsetWidth;
-                const boxH = imgBox.clientHeight || imgBox.offsetHeight;
-                
-                if (boxW > 0 && boxH > 0) {
-                  const imgW = img.naturalWidth;
-                  const imgH = img.naturalHeight;
-                  
-                  const boxAspect = boxW / boxH;
-                  const imgAspect = imgW / imgH;
-                  
-                  let wFit, hFit;
-                  if (imgAspect > boxAspect) {
-                    wFit = boxW;
-                    hFit = boxW / imgAspect;
-                  } else {
-                    hFit = boxH;
-                    wFit = boxH * imgAspect;
-                  }
-                  
-                  const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
-                  const px = parseInt(cell.dataset.imagePosX || "50", 10);
-                  const py = parseInt(cell.dataset.imagePosY || "50", 10);
-                  
-                  const wZoomed = wFit * zoom;
-                  const hZoomed = hFit * zoom;
-                  
-                  const left = (boxW - wZoomed) * (px / 100);
-                  const top = (boxH - hZoomed) * (py / 100);
-                  
-                  imgBox.style.position = "relative";
-                  imgBox.style.overflow = "hidden";
-                  
-                  img.style.position = "absolute";
-                  img.style.width = wZoomed + "px";
-                  img.style.height = hZoomed + "px";
-                  img.style.left = left + "px";
-                  img.style.top = top + "px";
-                  img.style.transform = "none";
-                  img.style.objectFit = "fill";
-                  img.style.objectPosition = "0 0";
-                }
-              } else {
-                // Fallback a div background-image se le dimensioni reali non sono pronte
-                const src = img.src;
-                const zoom = img.style.transform || "none";
-                const pos = img.style.objectPosition || "50% 50%";
-                const radius = img.style.borderRadius || "0px";
-                const filter = img.style.filter || "none";
-
-                const divImg = document.createElement("div");
-                divImg.style.width = "100%";
-                divImg.style.height = "100%";
-                divImg.style.backgroundImage = `url("${src}")`;
-                divImg.style.backgroundSize = "contain";
-                divImg.style.backgroundPosition = pos;
-                divImg.style.backgroundRepeat = "no-repeat";
-                divImg.style.transform = zoom;
-                divImg.style.borderRadius = radius;
-                divImg.style.filter = filter;
-
-                imgBox.replaceChild(divImg, img);
-              }
-            }
+          let canvas = null;
+          try {
+            canvas = await html2canvas(clone, { 
+              scale: 2, 
+              backgroundColor: "#ffffff",
+              useCORS: true,
+              allowTaint: true,
+              logging: false
+            });
+          } catch(e) {
+            canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff" });
           }
+
+          if (clone.parentNode) {
+            document.body.removeChild(clone);
+          }
+
+          const outCanvas = document.createElement("canvas");
+          outCanvas.width = canvas.width;
+          outCanvas.height = canvas.height;
+          const ctx = outCanvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+          const scaledW = canvas.width * 0.8;
+          const scaledH = canvas.height * 0.8;
+          const offX = (canvas.width - scaledW) / 2;
+          const offY = (canvas.height - scaledH) / 2;
+          ctx.drawImage(canvas, offX, offY, scaledW, scaledH);
+
+          let dataUrl = null;
+          try {
+            dataUrl = outCanvas.toDataURL("image/png");
+          } catch(e) {
+            dataUrl = outCanvas.toDataURL("image/jpeg", 0.95);
+          }
+
+          if (dataUrl) {
+            const a = document.createElement("a");
+            a.href = dataUrl;
+            a.download = ((inputNome && inputNome.value.trim()) || "volantino") + "_foglio" + (i + 1) + ".png";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
-      });
 
-      const canvas = await html2canvas(clone, { 
-        scale: 3, 
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        logging: false
-      });
-      
-      document.body.removeChild(clone);
-      
-      // Riduzione zoom del 20% (scala 0.8) centrata nell'immagine PNG per lasciare margini puliti
-      const outCanvas = document.createElement("canvas");
-      outCanvas.width = canvas.width;
-      outCanvas.height = canvas.height;
-      const ctx = outCanvas.getContext("2d");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
-      const scaledW = canvas.width * 0.8;
-      const scaledH = canvas.height * 0.8;
-      const offX = (canvas.width - scaledW) / 2;
-      const offY = (canvas.height - scaledH) / 2;
-      ctx.drawImage(canvas, offX, offY, scaledW, scaledH);
-
-      const a = document.createElement("a");
-      a.href = outCanvas.toDataURL("image/png");
-      a.download = (inputNome.value.trim() || "volantino") + "_foglio" + (i + 1) + ".png";
-      a.click();
-      
-      // Breve pausa per evitare che il browser blocchi download multipli contemporanei
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    paginaCorrente = originalPage;
-    visualizzaPaginaCorrente();
-    aggiornaListaPagineNav();
-    showToast("Tutti i fogli PNG scaricati con successo!");
-  });
+        showToast("Tutti i fogli PNG scaricati con successo!");
+      } catch (err) {
+        console.error("Errore PNG:", err);
+        alert("Errore durante l'esportazione PNG: " + (err.message || err));
+      } finally {
+        paginaCorrente = originalPage;
+        visualizzaPaginaCorrente();
+        aggiornaListaPagineNav();
+      }
+    });
+  }
 
   /* -------------------------------------------------------------------
        POPOLAMENTO AUTOMATICO DEL VOLANTINO DA PDF SCANSIONATO

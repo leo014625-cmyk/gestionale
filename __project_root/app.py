@@ -8888,7 +8888,7 @@ def comparatore_listino():
     )
 
 
-def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prezzo_nostro = None, prezzo_attuale = None, cliente_id: int = None, db = None):
+def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prezzo_nostro = None, prezzo_attuale = None, cliente_id: int = None, db = None, cache_prod_codice = None, cache_prod_nome = None, cache_cat = None, cache_cp = None):
     """
     Verifica se il prodotto è presente nel catalogo ('prodotti').
     Se NON è presente:
@@ -8909,25 +8909,36 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
 
     pid = None
 
-    # 1. Ricerca prodotto esistente per codice
+    # 1. Ricerca prodotto esistente per codice (in cache o DB)
     if codice_clean:
-        try:
-            cur.execute("SELECT id, nome, codice, categoria_id, prezzo FROM prodotti WHERE codice = %s AND COALESCE(eliminato, FALSE) = FALSE LIMIT 1", (codice_clean,))
-            r = cur.fetchone()
-            if r:
-                pid = r['id']
-        except Exception as _ce:
-            print(f"Errore ricerca prodotto per codice {codice_clean}: {_ce}")
+        if cache_prod_codice is not None and codice_clean in cache_prod_codice:
+            pid = cache_prod_codice[codice_clean]
+        else:
+            try:
+                cur.execute("SELECT id, nome, codice, categoria_id, prezzo FROM prodotti WHERE codice = %s AND COALESCE(eliminato, FALSE) = FALSE LIMIT 1", (codice_clean,))
+                r = cur.fetchone()
+                if r:
+                    pid = r['id']
+                    if cache_prod_codice is not None:
+                        cache_prod_codice[codice_clean] = pid
+            except Exception as _ce:
+                print(f"Errore ricerca prodotto per codice {codice_clean}: {_ce}")
 
-    # 2. Ricerca prodotto esistente per nome
+    # 2. Ricerca prodotto esistente per nome (in cache o DB)
     if not pid and nome_clean:
-        try:
-            cur.execute("SELECT id, nome, codice, categoria_id, prezzo FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) AND COALESCE(eliminato, FALSE) = FALSE LIMIT 1", (nome_clean,))
-            r = cur.fetchone()
-            if r:
-                pid = r['id']
-        except Exception as _ne:
-            print(f"Errore ricerca prodotto per nome {nome_clean}: {_ne}")
+        nl_lookup = nome_clean.lower().strip()
+        if cache_prod_nome is not None and nl_lookup in cache_prod_nome:
+            pid = cache_prod_nome[nl_lookup]
+        else:
+            try:
+                cur.execute("SELECT id, nome, codice, categoria_id, prezzo FROM prodotti WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) AND COALESCE(eliminato, FALSE) = FALSE LIMIT 1", (nome_clean,))
+                r = cur.fetchone()
+                if r:
+                    pid = r['id']
+                    if cache_prod_nome is not None:
+                        cache_prod_nome[nl_lookup] = pid
+            except Exception as _ne:
+                print(f"Errore ricerca prodotto per nome {nome_clean}: {_ne}")
 
     is_nuovo = False
     p_nostro_float = None
@@ -8953,9 +8964,13 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
         is_nuovo = True
         cat_id = None
         try:
-            cur.execute("SELECT id, nome FROM categorie ORDER BY id ASC")
-            all_cats = cur.fetchall() or []
-            cat_map = {c['nome'].lower().strip(): c['id'] for c in all_cats}
+            if cache_cat is not None:
+                cat_map = cache_cat
+            else:
+                cur.execute("SELECT id, LOWER(TRIM(nome)) as nome_l FROM categorie ORDER BY id ASC")
+                all_cats = cur.fetchall() or []
+                cat_map = {c['nome_l']: c['id'] for c in all_cats}
+
             nl = nome_clean.lower()
 
             if any(k in nl for k in ['carne', 'suino', 'vitell', 'manzo', 'bovin', 'pollo', 'scottona', 'hamburger', 'arista', 'lombata', 'tagliata', 'costata', 'filetto', 'bistecca', 'agnello', 'coniglio', 'salsiccia', 'fesa']):
@@ -8984,8 +8999,8 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
                     if 'alimentar' in cname:
                         cat_id = cid
                         break
-            if not cat_id and all_cats:
-                cat_id = all_cats[0]['id']
+            if not cat_id and cat_map:
+                cat_id = next(iter(cat_map.values()))
         except Exception as _ce:
             print(f"Warning rilevamento categoria per {nome_clean}: {_ce}")
 
@@ -9011,6 +9026,12 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
                     pid = row_f['id']
             except Exception:
                 pass
+
+        if pid:
+            if cache_prod_codice is not None and codice_clean:
+                cache_prod_codice[codice_clean] = pid
+            if cache_prod_nome is not None and nome_clean:
+                cache_prod_nome[nome_clean.lower().strip()] = pid
     else:
         # Se il prodotto esiste già, aggiorniamo il prezzo se prima non lo aveva
         if p_nostro_float is not None:
@@ -9029,14 +9050,17 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
     if cliente_id and pid:
         try:
             c_id_int = int(cliente_id)
-            cur.execute("""
-                SELECT cliente_id, prodotto_id, prezzo_attuale, prezzo_offerta, lavorato
-                FROM clienti_prodotti
-                WHERE cliente_id = %s AND prodotto_id = %s
-            """, (c_id_int, pid))
-            cp_row = cur.fetchone()
+            if cache_cp is not None:
+                has_cp = pid in cache_cp
+            else:
+                cur.execute("""
+                    SELECT cliente_id, prodotto_id
+                    FROM clienti_prodotti
+                    WHERE cliente_id = %s AND prodotto_id = %s
+                """, (c_id_int, pid))
+                has_cp = bool(cur.fetchone())
 
-            if cp_row:
+            if has_cp:
                 cur.execute("""
                     UPDATE clienti_prodotti
                     SET lavorato = TRUE,
@@ -9082,6 +9106,9 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
                         )
                     """, (c_id_int, pid, p_nostro_float, p_attuale_float))
                     is_assegnato = True
+                
+                if cache_cp is not None:
+                    cache_cp.add(pid)
         except Exception as _cpe:
             print(f"Errore assegnazione cliente {cliente_id} / prodotto {pid}: {_cpe}")
 
@@ -9555,7 +9582,37 @@ def api_comparatore_salva():
                 except Exception as _fe:
                     print(f"Update fatturato_stimato_mensile warning: {_fe}")
 
-            # 2. Per ciascun prodotto, verifica o crea sul sito e assegna al cliente come lavorato
+            # 2. Pre-caricamento in blocco di categorie, prodotti esistenti e prodotti cliente
+            # per eseguire il salvataggio in 3 query totali anziché centinaia di chiamate remote lente
+            cache_prod_codice = {}
+            cache_prod_nome = {}
+            cache_cat = {}
+            cache_cp = set()
+
+            try:
+                cur.execute("SELECT id, LOWER(TRIM(nome)) as nome_l FROM categorie")
+                cache_cat = {r['nome_l']: r['id'] for r in (cur.fetchall() or []) if r.get('nome_l')}
+            except Exception:
+                cache_cat = {}
+
+            try:
+                cur.execute("SELECT id, codice, LOWER(TRIM(nome)) as nome_l FROM prodotti WHERE COALESCE(eliminato, FALSE) = FALSE")
+                for r in (cur.fetchall() or []):
+                    if r.get('codice'):
+                        cache_prod_codice[str(r['codice']).strip()] = r['id']
+                    if r.get('nome_l'):
+                        cache_prod_nome[r['nome_l']] = r['id']
+            except Exception:
+                pass
+
+            if c_id_int:
+                try:
+                    cur.execute("SELECT prodotto_id FROM clienti_prodotti WHERE cliente_id = %s", (c_id_int,))
+                    cache_cp = {r['prodotto_id'] for r in (cur.fetchall() or []) if r.get('prodotto_id')}
+                except Exception:
+                    cache_cp = set()
+
+            # Per ciascun prodotto, verifica o crea sul sito e assegna al cliente come lavorato
             for prod in prodotti:
                 if not isinstance(prod, dict):
                     continue
@@ -9574,7 +9631,11 @@ def api_comparatore_salva():
                     prezzo_nostro=prezzo_nostro,
                     prezzo_attuale=prezzo_attuale,
                     cliente_id=c_id_int,
-                    db=db
+                    db=db,
+                    cache_prod_codice=cache_prod_codice,
+                    cache_prod_nome=cache_prod_nome,
+                    cache_cat=cache_cat,
+                    cache_cp=cache_cp
                 )
                 if pid:
                     prod['id'] = pid
