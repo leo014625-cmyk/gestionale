@@ -1105,7 +1105,7 @@
       });
     }
 
-    async function generaCanvasPdfFallback(callback) {
+    async function generaCanvasPdfGrafico(callback) {
       const element = document.getElementById("printableSheet");
       if (!element) {
         if (callback) callback();
@@ -1134,7 +1134,7 @@
         const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
-          allowTaint: true,
+          allowTaint: false,
           backgroundColor: "#ffffff",
           logging: false
         });
@@ -1177,25 +1177,35 @@
         }
 
         pdf.save(filename);
+
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'PDF_DOWNLOAD_COMPLETE', fileName: filename }, '*');
+          }
+        } catch (e) {}
+
         if (callback) callback();
       } catch (err) {
-        console.error("Errore fallback canvas:", err);
+        console.error("Errore esportazione canvas, fallback su PDF server:", err);
         element.style.boxShadow = prevShadow;
         element.style.borderRadius = prevRadius;
         if (compId) {
-          window.location.href = `/comparatore/scarica_pdf/${compId}`;
+          avviaDownloadPdfServer(callback);
         } else {
           window.print();
+          if (callback) callback(err);
         }
-        if (callback) callback(err);
       }
     }
 
     function generaEScaricaPdf(callback) {
       if (compId) {
-        avviaDownloadPdfServer(callback);
+        gatherAllUpdatedSettings();
+        saveEditsToServer(null, () => {
+          generaCanvasPdfGrafico(callback);
+        });
       } else {
-        generaCanvasPdfFallback(callback);
+        generaCanvasPdfGrafico(callback);
       }
     }
 

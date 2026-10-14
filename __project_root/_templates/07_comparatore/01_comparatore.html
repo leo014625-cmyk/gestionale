@@ -2182,18 +2182,45 @@ document.addEventListener("DOMContentLoaded", () => {
     const originalHtml = btnElement ? btnElement.innerHTML : null;
     if (btnElement) {
       btnElement.disabled = true;
-      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Preparazione PDF...`;
+      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Preparazione PDF Grafico...`;
     }
-    showToastNotification("Salvataggio offerta e preparazione del file PDF in corso...");
+    showToastNotification("Salvataggio offerta e preparazione del Preventivo PDF grafico in corso...");
+
+    // Pre-apriamo la finestra direttamente sull'interazione dell'utente per evitare blocchi popup
+    let targetWin = null;
+    try {
+      targetWin = window.open('about:blank', '_blank');
+      if (targetWin) {
+        targetWin.document.write(`
+          <!DOCTYPE html><html><head><title>Generazione Preventivo PDF Grafico...</title>
+          <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;text-align:center;}
+          .loader{border:4px solid rgba(255,255,255,0.15);border-top:4px solid #6366f1;border-radius:50%;width:48px;height:48px;animation:spin 0.8s linear infinite;margin:0 auto 18px;}
+          @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
+          </head><body><div><div class="loader"></div><h2 style="margin:0 0 8px 0;font-weight:700;">Generazione Preventivo Grafico...</h2><p style="color:#94a3b8;margin:0;">Salvataggio prezzi al cliente e preparazione del foglio ad alta risoluzione...</p></div></body></html>
+        `);
+      }
+    } catch (e) {}
+
+    const ripristinaBottone = (okHtml) => {
+      if (!btnElement) return;
+      if (okHtml) {
+        btnElement.innerHTML = okHtml;
+        setTimeout(() => {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalHtml;
+        }, 3500);
+      } else {
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalHtml;
+      }
+    };
 
     // Salva la comparazione e assegna tutti i prodotti/prezzi al cliente selezionato nel database
     salvaComparazione((res) => {
       const compIdToUse = (res && res.id) || currentComparisonId;
       if (!compIdToUse) {
-        if (btnElement) {
-          btnElement.disabled = false;
-          btnElement.innerHTML = originalHtml;
-        }
+        if (targetWin && !targetWin.closed) targetWin.close();
+        ripristinaBottone(null);
         alert("Impossibile salvare la comparazione prima del download. Controlla i dati inseriti.");
         return;
       }
@@ -2201,24 +2228,15 @@ document.addEventListener("DOMContentLoaded", () => {
       syncUrlWithState();
       saveDraftToStorage();
 
-      if (btnElement) {
-        btnElement.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`;
-        setTimeout(() => {
-          btnElement.disabled = false;
-          btnElement.innerHTML = originalHtml;
-        }, 3500);
-      }
-      showToastNotification(`Prezzi assegnati al cliente! Download del file PDF in corso...`);
+      ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Preventivo Grafico Generato!`);
+      showToastNotification(`Prezzi assegnati al cliente! Generazione PDF ad alta risoluzione avviata.`);
 
-      // Download diretto e immediato del file PDF generato dal server
-      const clientClean = getClientName().replace(/[^a-zA-Z0-9_\-]/g, '_') || 'Cliente';
-      const downloadUrl = `/comparatore/scarica_pdf/${compIdToUse}`;
-      const dlLink = document.createElement("a");
-      dlLink.href = downloadUrl;
-      dlLink.download = `Preventivo_${clientClean}_${compIdToUse}.pdf`;
-      document.body.appendChild(dlLink);
-      dlLink.click();
-      setTimeout(() => dlLink.remove(), 600);
+      const destUrl = `/comparatore/stampa/${compIdToUse}?download=1`;
+      if (targetWin && !targetWin.closed) {
+        targetWin.location.href = destUrl;
+      } else {
+        window.open(destUrl, '_blank');
+      }
     });
   }
 
