@@ -19,6 +19,9 @@
     <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> Indietro
     </a>
+    <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn btn-outline-primary" title="Apri comparatore e genera preventivo PDF con i prodotti assegnati">
+      <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Comparatore & Preventivo PDF
+    </a>
     <button form="form-modifica-cliente" class="btn btn-primary">
       <i class="bi bi-save"></i> Salva
     </button>

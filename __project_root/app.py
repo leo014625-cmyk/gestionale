@@ -8820,6 +8820,28 @@ def comparatore_listino():
             except Exception:
                 pass
 
+            # Recupera SEMPRE i prodotti assegnati al cliente in clienti_prodotti (lavorati o con prezzi)
+            prodotti_cp = []
+            try:
+                cur.execute("""
+                    SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
+                    FROM clienti_prodotti cp
+                    JOIN prodotti p ON cp.prodotto_id = p.id
+                    WHERE cp.cliente_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
+                    ORDER BY p.nome ASC
+                """, (int(cliente_id_param),))
+                for r in (cur.fetchall() or []):
+                    prodotti_cp.append({
+                        "id": r['id'],
+                        "nome": r['nome'],
+                        "codice": r['codice'] or '',
+                        "volume_kg": 0.0,
+                        "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                        "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                    })
+            except Exception as _e_cp:
+                print(f"Errore caricamento prodotti clienti_prodotti: {_e_cp}")
+
             # SE NON C'E' UN ID SPECIFICO, CARICA L'ULTIMO LISTINO SALVATO PER QUESTO CLIENTE!
             if not comparazione_caricata:
                 try:
@@ -8841,40 +8863,34 @@ def comparatore_listino():
                                 elif isinstance(parsed, list):
                                     comparazione_caricata['prodotti_dettaglio'] = parsed
                                     comparazione_caricata['impostazioni_pdf'] = {}
+                                else:
+                                    comparazione_caricata['prodotti_dettaglio'] = []
+                                    comparazione_caricata['impostazioni_pdf'] = {}
                             except Exception:
                                 comparazione_caricata['prodotti_dettaglio'] = []
+                                comparazione_caricata['impostazioni_pdf'] = {}
+
+                        # MERGE con i prodotti assegnati al cliente in anagrafica: non perdere mai i nuovi assegnati!
+                        prods_esistenti = comparazione_caricata.get('prodotti_dettaglio', [])
+                        ids_in = {p.get('id') for p in prods_esistenti if isinstance(p, dict) and p.get('id')}
+                        nomi_in = {str(p.get('nome', '')).lower().strip() for p in prods_esistenti if isinstance(p, dict) and p.get('nome')}
+                        for pcp in prodotti_cp:
+                            if pcp['id'] not in ids_in and pcp['nome'].lower().strip() not in nomi_in:
+                                prods_esistenti.append(pcp)
+                        if not prods_esistenti and prodotti_cp:
+                            prods_esistenti = prodotti_cp
+                        comparazione_caricata['prodotti_dettaglio'] = prods_esistenti
                     else:
-                        # Se non ha ancora salvato una comparazione, pre-carica i prodotti lavorati del cliente!
-                        cur.execute("""
-                            SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
-                            FROM clienti_prodotti cp
-                            JOIN prodotti p ON cp.prodotto_id = p.id
-                            WHERE cp.cliente_id = %s AND (cp.lavorato = TRUE OR cp.prezzo_offerta IS NOT NULL)
-                              AND COALESCE(p.eliminato, FALSE) = FALSE
-                            ORDER BY p.nome ASC
-                        """, (int(cliente_id_param),))
-                        rows_cp = cur.fetchall()
-                        if rows_cp:
-                            prods = []
-                            for r in rows_cp:
-                                prods.append({
-                                    "id": r['id'],
-                                    "nome": r['nome'],
-                                    "codice": r['codice'] or '',
-                                    "volume_kg": 0.0,
-                                    "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
-                                    "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
-                                })
-                            c_nome = cliente_preselezionato['nome'] if cliente_preselezionato else 'Cliente'
-                            comparazione_caricata = {
-                                'id': None,
-                                'cliente_id': int(cliente_id_param),
-                                'cliente_nome': c_nome,
-                                'titolo': f"Offerta Prodotti Lavorati - {c_nome}",
-                                'note': '',
-                                'prodotti_dettaglio': prods,
-                                'impostazioni_pdf': {}
-                            }
+                        c_nome = cliente_preselezionato['nome'] if cliente_preselezionato else 'Cliente'
+                        comparazione_caricata = {
+                            'id': None,
+                            'cliente_id': int(cliente_id_param),
+                            'cliente_nome': c_nome,
+                            'titolo': f"Offerta Prodotti Lavorati - {c_nome}",
+                            'note': '',
+                            'prodotti_dettaglio': prodotti_cp,
+                            'impostazioni_pdf': {}
+                        }
                 except Exception as _e_cc:
                     print(f"Errore caricamento listino cliente {cliente_id_param}: {_e_cc}")
 
@@ -9006,6 +9022,10 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
 
         prz_str = f"€ {p_nostro_float:.2f}" if p_nostro_float is not None else None
         try:
+            try:
+                cur.execute("SAVEPOINT sp_ins_prod")
+            except Exception:
+                pass
             cur.execute("""
                 INSERT INTO prodotti (codice, nome, prezzo, prezzo_con_simbolo, categoria_id, eliminato, is_promo_mensile)
                 VALUES (%s, %s, %s, %s, %s, FALSE, FALSE)
@@ -9014,8 +9034,16 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
             row_ins = cur.fetchone()
             if row_ins and 'id' in row_ins:
                 pid = row_ins['id']
+            try:
+                cur.execute("RELEASE SAVEPOINT sp_ins_prod")
+            except Exception:
+                pass
         except Exception as _ie:
             print(f"Errore creazione prodotto {nome_clean}: {_ie}")
+            try:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_ins_prod")
+            except Exception:
+                pass
             try:
                 if codice_clean:
                     cur.execute("SELECT id FROM prodotti WHERE codice = %s LIMIT 1", (codice_clean,))
@@ -9071,16 +9099,39 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
                 """, (p_nostro_float, (p_attuale_float or 0.0), p_attuale_float, c_id_int, pid))
                 is_assegnato = True
             else:
-                cur.execute("""
-                    INSERT INTO clienti_prodotti (
-                        cliente_id, prodotto_id,
-                        lavorato, prezzo_offerta, prezzo_attuale, data_operazione
-                    ) VALUES (
-                        %s, %s,
-                        TRUE, %s, %s, CURRENT_TIMESTAMP
-                    )
-                """, (c_id_int, pid, p_nostro_float, p_attuale_float))
-                is_assegnato = True
+                try:
+                    cur.execute("SAVEPOINT sp_ins_cp")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("""
+                        INSERT INTO clienti_prodotti (
+                            cliente_id, prodotto_id,
+                            lavorato, prezzo_offerta, prezzo_attuale, data_operazione
+                        ) VALUES (
+                            %s, %s,
+                            TRUE, %s, %s, CURRENT_TIMESTAMP
+                        )
+                    """, (c_id_int, pid, p_nostro_float, p_attuale_float))
+                    try:
+                        cur.execute("RELEASE SAVEPOINT sp_ins_cp")
+                    except Exception:
+                        pass
+                    is_assegnato = True
+                except Exception:
+                    try:
+                        cur.execute("ROLLBACK TO SAVEPOINT sp_ins_cp")
+                    except Exception:
+                        pass
+                    cur.execute("""
+                        UPDATE clienti_prodotti
+                        SET lavorato = TRUE,
+                            prezzo_offerta = COALESCE(%s, prezzo_offerta),
+                            prezzo_attuale = CASE WHEN %s > 0 THEN %s ELSE prezzo_attuale END,
+                            data_operazione = CURRENT_TIMESTAMP
+                        WHERE cliente_id = %s AND prodotto_id = %s
+                    """, (p_nostro_float, (p_attuale_float or 0.0), p_attuale_float, c_id_int, pid))
+                    is_assegnato = True
                 
                 if cache_cp is not None:
                     cache_cp.add(pid)
@@ -9709,7 +9760,27 @@ def api_comparatore_cliente_ultimo(cliente_id):
     try:
         with get_db() as db:
             cur = db.cursor()
-            # 1. Cerca l'ultima comparazione salvata per questo cliente
+            # 1. Recupera SEMPRE tutti i prodotti assegnati a questo cliente in clienti_prodotti
+            cur.execute("""
+                SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta, cp.lavorato, cp.potenziale
+                FROM clienti_prodotti cp
+                JOIN prodotti p ON cp.prodotto_id = p.id
+                WHERE cp.cliente_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
+                ORDER BY p.nome ASC
+            """, (cliente_id,))
+            rows_cp = cur.fetchall() or []
+            prodotti_assegnati_cliente = []
+            for r in rows_cp:
+                prodotti_assegnati_cliente.append({
+                    "id": r['id'],
+                    "nome": r['nome'],
+                    "codice": r['codice'] or '',
+                    "volume_kg": 0.0,
+                    "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                    "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                })
+
+            # 2. Cerca l'ultima comparazione salvata per questo cliente
             cur.execute("""
                 SELECT * FROM comparazioni_listini 
                 WHERE cliente_id = %s 
@@ -9731,6 +9802,17 @@ def api_comparatore_cliente_ultimo(cliente_id):
                             prods = parsed
                     except Exception:
                         pass
+
+                # MERGE: se il cliente ha prodotti assegnati in anagrafica che non sono nella comparazione salvata,
+                # AGGIUNGILI così che la proposta e il PDF includano TUTTI i prodotti assegnati al cliente!
+                ids_in = {p.get('id') for p in prods if isinstance(p, dict) and p.get('id')}
+                nomi_in = {str(p.get('nome', '')).lower().strip() for p in prods if isinstance(p, dict) and p.get('nome')}
+                for pac in prodotti_assegnati_cliente:
+                    if pac['id'] not in ids_in and pac['nome'].lower().strip() not in nomi_in:
+                        prods.append(pac)
+                if not prods and prodotti_assegnati_cliente:
+                    prods = prodotti_assegnati_cliente
+
                 return jsonify({
                     "ok": True,
                     "trovato": True,
@@ -9739,45 +9821,67 @@ def api_comparatore_cliente_ultimo(cliente_id):
                     "titolo": comp['titolo'],
                     "note": comp.get('note') or '',
                     "prodotti": prods,
+                    "prodotti_assegnati_cnt": len(prodotti_assegnati_cliente),
                     "impostazioni_pdf": impostazioni_pdf
                 })
 
-            # 2. Se non ha una comparazione salvata, recupera i prodotti lavorati del cliente
-            cur.execute("""
-                SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
-                FROM clienti_prodotti cp
-                JOIN prodotti p ON cp.prodotto_id = p.id
-                WHERE cp.cliente_id = %s AND (cp.lavorato = TRUE OR cp.prezzo_offerta IS NOT NULL)
-                  AND COALESCE(p.eliminato, FALSE) = FALSE
-                ORDER BY p.nome ASC
-            """, (cliente_id,))
-            rows_cp = cur.fetchall()
-            if rows_cp:
-                prods = []
-                for r in rows_cp:
-                    prods.append({
-                        "id": r['id'],
-                        "nome": r['nome'],
-                        "codice": r['codice'] or '',
-                        "volume_kg": 0.0,
-                        "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
-                        "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
-                    })
+            # 3. Se non ha una comparazione salvata, usa direttamente i prodotti assegnati
+            if prodotti_assegnati_cliente:
+                cur.execute("SELECT nome FROM clienti WHERE id = %s", (cliente_id,))
+                c_row = cur.fetchone()
+                c_nome = c_row['nome'] if c_row else "Cliente"
                 return jsonify({
                     "ok": True,
                     "trovato": True,
                     "fonte": "lavorati",
                     "id": None,
-                    "titolo": "Offerta Prodotti Lavorati",
+                    "titolo": f"Proposta Prodotti Lavorati - {c_nome}",
                     "note": "",
-                    "prodotti": prods,
+                    "prodotti": prodotti_assegnati_cliente,
+                    "prodotti_assegnati_cnt": len(prodotti_assegnati_cliente),
                     "impostazioni_pdf": {}
                 })
 
             return jsonify({
                 "ok": True,
                 "trovato": False,
+                "prodotti": [],
+                "prodotti_assegnati_cnt": 0,
                 "message": "Nessun listino o prodotto lavorato salvato per questo cliente"
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
+
+
+@app.route('/api/comparatore/cliente/<int:cliente_id>/prodotti_assegnati', methods=['GET'])
+@login_required
+def api_comparatore_cliente_prodotti_assegnati(cliente_id):
+    try:
+        with get_db() as db:
+            cur = db.cursor()
+            cur.execute("""
+                SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
+                FROM clienti_prodotti cp
+                JOIN prodotti p ON cp.prodotto_id = p.id
+                WHERE cp.cliente_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
+                ORDER BY p.nome ASC
+            """, (cliente_id,))
+            rows = cur.fetchall() or []
+            prods = []
+            for r in rows:
+                prods.append({
+                    "id": r['id'],
+                    "nome": r['nome'],
+                    "codice": r['codice'] or '',
+                    "volume_kg": 0.0,
+                    "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                    "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                })
+            return jsonify({
+                "ok": True,
+                "cliente_id": cliente_id,
+                "prodotti": prods,
+                "conteggio": len(prods)
             })
     except Exception as e:
         return jsonify({"ok": False, "message": str(e)}), 500
@@ -9844,6 +9948,44 @@ def comparatore_stampa(id):
         except Exception:
             prodotti = []
 
+        # SYNC CLIENTI_PRODOTTI: se mancano prodotti o il cliente ha prodotti assegnati in anagrafica,
+        # integrali automaticamente così il foglio e il PDF contengono sempre tutti i prodotti del cliente!
+        if comp.get('cliente_id'):
+            try:
+                cur.execute("""
+                    SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
+                    FROM clienti_prodotti cp
+                    JOIN prodotti p ON cp.prodotto_id = p.id
+                    WHERE cp.cliente_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
+                    ORDER BY p.nome ASC
+                """, (int(comp['cliente_id']),))
+                rows_cp = cur.fetchall() or []
+                if not prodotti and rows_cp:
+                    for r in rows_cp:
+                        prodotti.append({
+                            "id": r['id'],
+                            "nome": r['nome'],
+                            "codice": r['codice'] or '',
+                            "volume_kg": 0.0,
+                            "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                            "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                        })
+                elif rows_cp:
+                    ids_in = {p.get('id') for p in prodotti if isinstance(p, dict) and p.get('id')}
+                    nomi_in = {str(p.get('nome', '')).lower().strip() for p in prodotti if isinstance(p, dict) and p.get('nome')}
+                    for r in rows_cp:
+                        if r['id'] not in ids_in and str(r['nome']).lower().strip() not in nomi_in:
+                            prodotti.append({
+                                "id": r['id'],
+                                "nome": r['nome'],
+                                "codice": r['codice'] or '',
+                                "volume_kg": 0.0,
+                                "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                                "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                            })
+            except Exception as _sync_err:
+                print(f"Sync clienti_prodotti warning in stampa: {_sync_err}")
+
     return render_template(
         '07_comparatore/02_comparatore_stampa.html',
         comp=comp,
@@ -9875,6 +10017,43 @@ def comparatore_scarica_pdf_diretto(id):
                     pass
             prodotti = dati.get('prodotti', []) if isinstance(dati, dict) else (dati if isinstance(dati, list) else [])
             impostazioni_pdf = dati.get('impostazioni_pdf', {}) if isinstance(dati, dict) else {}
+
+            # SYNC CLIENTI_PRODOTTI: verifica che tutti i prodotti assegnati al cliente siano nel PDF!
+            if comp.get('cliente_id'):
+                try:
+                    cur.execute("""
+                        SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
+                        FROM clienti_prodotti cp
+                        JOIN prodotti p ON cp.prodotto_id = p.id
+                        WHERE cp.cliente_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
+                        ORDER BY p.nome ASC
+                    """, (int(comp['cliente_id']),))
+                    rows_cp = cur.fetchall() or []
+                    if not prodotti and rows_cp:
+                        for r in rows_cp:
+                            prodotti.append({
+                                "id": r['id'],
+                                "nome": r['nome'],
+                                "codice": r['codice'] or '',
+                                "volume_kg": 0.0,
+                                "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                                "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                            })
+                    elif rows_cp:
+                        ids_in = {p.get('id') for p in prodotti if isinstance(p, dict) and p.get('id')}
+                        nomi_in = {str(p.get('nome', '')).lower().strip() for p in prodotti if isinstance(p, dict) and p.get('nome')}
+                        for r in rows_cp:
+                            if r['id'] not in ids_in and str(r['nome']).lower().strip() not in nomi_in:
+                                prodotti.append({
+                                    "id": r['id'],
+                                    "nome": r['nome'],
+                                    "codice": r['codice'] or '',
+                                    "volume_kg": 0.0,
+                                    "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                                    "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                                })
+                except Exception as _sync_err:
+                    print(f"Sync clienti_prodotti warning in scarica_pdf: {_sync_err}")
 
         from fpdf import FPDF
         import io
@@ -9949,17 +10128,26 @@ def comparatore_scarica_pdf_diretto(id):
         pdf.set_text_color(79, 70, 229)
         pdf.cell(110, 5, _clean_str(comp.get('titolo') or 'Proposta Listino'))
 
-        # Box Destro: Volume e Risparmio
+        # Box Destro: Volume e Risparmio (ricalcola dinamicamente dai prodotti se comp ha zeri)
         tot_vol = float(comp.get('totale_volume_kg') or 0)
         tot_risp_anno = float(comp.get('risparmio_anno') or 0)
         tot_risp_mese = float(comp.get('risparmio_mese') or 0)
         tot_att_mese = float(comp.get('totale_attuale_mese') or 0)
         tot_nos_mese = float(comp.get('totale_nuovo_mese') or 0)
         perc_risp = float(comp.get('percentuale_risparmio') or 0)
-        if perc_risp == 0 and tot_att_mese > 0:
-            perc_risp = (tot_risp_mese / tot_att_mese) * 100
-        if tot_risp_anno == 0 and tot_risp_mese > 0:
-            tot_risp_anno = tot_risp_mese * 12
+
+        calc_vol = sum(float(p.get('volume_kg') or 0) for p in prodotti if isinstance(p, dict))
+        calc_att = sum((float(p.get('volume_kg') or 0) * float(p.get('prezzo_attuale') or 0)) for p in prodotti if isinstance(p, dict))
+        calc_nos = sum((float(p.get('volume_kg') or 0) * float(p.get('prezzo_nostro') or 0)) for p in prodotti if isinstance(p, dict))
+        calc_risp_m = calc_att - calc_nos
+        calc_risp_a = calc_risp_m * 12
+        if tot_vol == 0 and calc_vol > 0: tot_vol = calc_vol
+        if tot_att_mese == 0 and calc_att > 0: tot_att_mese = calc_att
+        if tot_nos_mese == 0 and calc_nos > 0: tot_nos_mese = calc_nos
+        if tot_risp_anno == 0 and calc_risp_a != 0: tot_risp_anno = calc_risp_a
+        if tot_risp_mese == 0 and calc_risp_m != 0: tot_risp_mese = calc_risp_m
+        if perc_risp == 0 and tot_att_mese > 0: perc_risp = (tot_risp_mese / tot_att_mese) * 100
+        if tot_risp_anno == 0 and tot_risp_mese > 0: tot_risp_anno = tot_risp_mese * 12
 
         pdf.set_xy(125, cur_y + 3)
         pdf.set_font('helvetica', '', 8)

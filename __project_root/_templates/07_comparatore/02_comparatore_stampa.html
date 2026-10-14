@@ -12,7 +12,6 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     @page {
@@ -1083,60 +1082,55 @@
     // ========================================================
     // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF (AD ALTA RISOLUZIONE)
     // ========================================================
-    async function generaEScaricaPdf(callback) {
+    // ========================================================
+    // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF (VETTORIALE AD ALTA RISOLUZIONE)
+    // ========================================================
+    function avviaDownloadPdfServer(callback) {
+      if (!compId) {
+        generaCanvasPdfFallback(callback);
+        return;
+      }
+      // Prima salviamo eventuali modifiche inline sui testi del foglio
+      gatherAllUpdatedSettings();
+      saveEditsToServer(null, () => {
+        const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
+        const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9_\-]/g, "_") || "Cliente";
+        const dlLink = document.createElement("a");
+        dlLink.href = `/comparatore/scarica_pdf/${compId}`;
+        dlLink.download = `Preventivo_${clienteClean}_${compId}.pdf`;
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        setTimeout(() => dlLink.remove(), 600);
+        if (callback) callback();
+      });
+    }
+
+    async function generaCanvasPdfFallback(callback) {
       const element = document.getElementById("printableSheet");
       if (!element) {
         if (callback) callback();
         return;
       }
 
-      // Rimuoviamo focus o selezioni attive per evitare bordi di editing
       if (document.activeElement) document.activeElement.blur();
       window.getSelection()?.removeAllRanges();
-
-      // Sincronizziamo eventuali modifiche inline sui testi
       gatherAllUpdatedSettings();
 
       const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
-      const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9àèéìòùÀÈÉÌÒÙ_\- ]/g, "").replace(/\s+/g, "_") || "Cliente";
+      const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9_\-]/g, "_") || "Cliente";
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `Preventivo_${clienteClean}_${dateStr}.pdf`;
 
-      // Pulizia temporanea di ombre ed angoli arrotondati per un foglio stampato perfetto
       const prevShadow = element.style.boxShadow;
       const prevRadius = element.style.borderRadius;
       element.style.boxShadow = "none";
       element.style.borderRadius = "0px";
 
       try {
-        // Assicuriamoci che i font personalizzati (Outfit, Inter) siano completamente caricati
         if (document.fonts && document.fonts.ready) {
           try { await document.fonts.ready; } catch(e) {}
         }
 
-        // Metodo 1: Se disponibile html2pdf, usa la libreria specializzata
-        if (typeof html2pdf !== 'undefined') {
-          const opt = {
-            margin: [8, 8, 8, 8],
-            filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: "#ffffff",
-              logging: false
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          };
-          await html2pdf().set(opt).from(element).save();
-          element.style.boxShadow = prevShadow;
-          element.style.borderRadius = prevRadius;
-          if (callback) callback();
-          return;
-        }
-
-        // Metodo 2: Cattura del foglio con html2canvas + jsPDF
         const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
@@ -1145,19 +1139,17 @@
           logging: false
         });
 
-        // Ripristino stili originali
         element.style.boxShadow = prevShadow;
         element.style.borderRadius = prevRadius;
 
         if (!canvas || canvas.width === 0 || canvas.height === 0) {
-          throw new Error("Canvas nullo o non valido");
+          throw new Error("Canvas nullo");
         }
 
         const imgData = canvas.toDataURL("image/jpeg", 0.98);
-
         const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDFClass) {
-          throw new Error("Libreria jsPDF non disponibile");
+          throw new Error("jsPDF non disponibile");
         }
         const pdf = new jsPDFClass({
           orientation: "portrait",
@@ -1165,10 +1157,8 @@
           format: "a4"
         });
 
-        const pdfWidth = pdf.internal.pageSize.getWidth();   // 210 mm
-        const pdfHeight = pdf.internal.pageSize.getHeight(); // 297 mm
-
-        // Margini proporzionati per A4
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
         const margin = 8;
         const printWidth = pdfWidth - (margin * 2);
         const printHeight = (canvas.height * printWidth) / canvas.width;
@@ -1176,11 +1166,9 @@
         let heightLeft = printHeight;
         let position = margin;
 
-        // Prima pagina
         pdf.addImage(imgData, "JPEG", margin, position, printWidth, printHeight, undefined, "FAST");
         heightLeft -= (pdfHeight - (margin * 2));
 
-        // Pagine successive se il preventivo ha molti prodotti ed eccede 1 pagina A4
         while (heightLeft > 0) {
           position = heightLeft - printHeight + margin;
           pdf.addPage();
@@ -1189,19 +1177,11 @@
         }
 
         pdf.save(filename);
-
-        try {
-          if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: 'PDF_DOWNLOAD_COMPLETE', fileName: filename }, '*');
-          }
-        } catch (e) {}
-
         if (callback) callback();
       } catch (err) {
-        console.error("Errore esportazione PDF con canvas:", err);
+        console.error("Errore fallback canvas:", err);
         element.style.boxShadow = prevShadow;
         element.style.borderRadius = prevRadius;
-        // In caso di errore canvas, tenta download diretto dal server se compId esiste
         if (compId) {
           window.location.href = `/comparatore/scarica_pdf/${compId}`;
         } else {
@@ -1211,24 +1191,32 @@
       }
     }
 
+    function generaEScaricaPdf(callback) {
+      if (compId) {
+        avviaDownloadPdfServer(callback);
+      } else {
+        generaCanvasPdfFallback(callback);
+      }
+    }
+
     const btnScarica = document.getElementById("btnScaricaPdfDiretto");
     if (btnScarica) {
       btnScarica.addEventListener("click", function() {
         const btn = this;
         const orig = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="bi bi-hourglass-split"></i> Scaricamento PDF...`;
+        btn.innerHTML = `<i class="bi bi-hourglass-split"></i> Preparazione PDF...`;
         generaEScaricaPdf(() => {
           btn.disabled = false;
-          btn.innerHTML = `<i class="bi bi-check-circle-fill"></i> Scaricato!`;
+          btn.innerHTML = `<i class="bi bi-check-circle-fill text-success"></i> Scaricato!`;
           setTimeout(() => {
             btn.innerHTML = orig;
-          }, 2500);
+          }, 3000);
         });
       });
     }
 
-    // Se l'URL contiene ?download=1 o ?download=true, avvia automaticamente il download
+    // Se l'URL contiene ?download=1 o ?download=true, avvia automaticamente il download del PDF
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("download") === "1" || urlParams.get("download") === "true") {
       const isInsideIframe = window.self !== window.top;
@@ -1236,8 +1224,8 @@
       if (!isInsideIframe) {
         banner = document.createElement("div");
         banner.id = "downloadNotificationBanner";
-        banner.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;padding:10px 22px;border-radius:30px;font-weight:700;font-size:13px;box-shadow:0 10px 25px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;";
-        banner.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" style="width:1rem;height:1rem;border-width:2px;"></span> Download del Preventivo PDF in corso sul tuo computer...`;
+        banner.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;padding:10px 24px;border-radius:30px;font-weight:700;font-size:13px;box-shadow:0 10px 25px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;";
+        banner.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" style="width:1rem;height:1rem;border-width:2px;"></span> Download del Preventivo PDF in corso...`;
         document.body.appendChild(banner);
       }
 
@@ -1246,7 +1234,7 @@
           generaEScaricaPdf(() => {
             if (banner) {
               banner.style.background = "#059669";
-              banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF scaricato con successo!`;
+              banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF scaricato sul tuo computer!`;
               setTimeout(() => {
                 banner.style.transition = "opacity 0.4s ease";
                 banner.style.opacity = "0";
@@ -1254,7 +1242,7 @@
               }, 3000);
             }
           });
-        }, 350);
+        }, 300);
       };
 
       if (document.readyState === "complete") {

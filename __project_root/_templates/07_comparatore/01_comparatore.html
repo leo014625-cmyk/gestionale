@@ -447,8 +447,11 @@
         <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" id="btnAggiungiRigaSotto">
           <i class="bi bi-plus-circle me-1"></i> Aggiungi un altro prodotto
         </button>
-        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold" id="btnPrecaricaLavorati">
-          <i class="bi bi-box2-heart me-1"></i> Suggerisci Prodotti Horeca
+        <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" id="btnCaricaProdottiCliente" title="Carica tutti i prodotti assegnati a questo cliente in anagrafica">
+          <i class="bi bi-person-check-fill me-1"></i> Carica Prodotti Assegnati Cliente
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold" id="btnPrecaricaLavorati" title="Carica i prodotti del cliente o suggerisci esempi">
+          <i class="bi bi-box2-heart me-1"></i> Suggerisci Prodotti
         </button>
       </div>
       
@@ -1006,6 +1009,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const newClienteId = (opt && opt.value) ? parseInt(opt.value, 10) : null;
     const nomeC = (opt && opt.getAttribute("data-nome")) ? opt.getAttribute("data-nome") : (opt ? opt.textContent.trim() : "");
 
+    // 0. Se c'è un salvataggio automatico in attesa, completalo sul cliente PRECEDENTE
+    //    (quello a cui appartenevano le modifiche, memorizzato in autoSaveSnapshot)
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = null;
+      if (autoSaveSnapshot && (autoSaveSnapshot.cliente_id || autoSaveSnapshot.id)) {
+        salvaComparazione(null, { silent: true, override: autoSaveSnapshot });
+      }
+    }
+
     // 1. Resetta SEMPRE currentComparisonId al cambio cliente:
     currentComparisonId = null;
 
@@ -1242,6 +1255,55 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       console.warn("Impossibile salvare bozza in localStorage:", e);
     }
+  }
+
+  // ==========================================
+  // AUTO-SALVATAGGIO LISTINO SUL DATABASE
+  // Ogni volta che si caricano prodotti da PDF, si aggiungono/rimuovono
+  // prodotti o si modificano i prezzi, il listino del cliente viene
+  // aggiornato sul server (così al ricaricamento non riappare il vecchio).
+  // ==========================================
+  let autoSaveTimer = null;
+  let autoSaveSnapshot = null;
+  let salvataggioInCorso = false;
+  let salvataggioPendente = false;
+
+  function getClienteIdCorrente() {
+    return (!isManuale && selectCliente && selectCliente.value) ? parseInt(selectCliente.value, 10) : null;
+  }
+
+  function puoAutoSalvare() {
+    const haCliente = !!getClienteIdCorrente() || (isManuale && inputClienteManuale && inputClienteManuale.value.trim());
+    return !!(haCliente || currentComparisonId);
+  }
+
+  function segnaModificato(immediato) {
+    saveDraftToStorage();
+    if (!puoAutoSalvare()) return;
+    // Memorizza a quale cliente/listino appartengono le modifiche in attesa
+    autoSaveSnapshot = {
+      id: currentComparisonId,
+      cliente_id: getClienteIdCorrente(),
+      cliente_nome: getClientName()
+    };
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => eseguiAutoSalvataggio(), immediato ? 0 : 800);
+  }
+
+  function eseguiAutoSalvataggio(override) {
+    autoSaveTimer = null;
+    if (salvataggioInCorso) {
+      salvataggioPendente = true;
+      return;
+    }
+    salvataggioInCorso = true;
+    salvaComparazione(() => {
+      salvataggioInCorso = false;
+      if (salvataggioPendente) {
+        salvataggioPendente = false;
+        eseguiAutoSalvataggio();
+      }
+    }, { silent: true, override: override || null });
   }
 
   function syncUrlWithState() {
@@ -1540,6 +1602,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Salvataggio automatico sul server quando il campo viene confermato (uscita dal campo / invio)
+  tbodyProdotti.addEventListener("change", (e) => {
+    if (e.target.classList.contains("input-row-change")) {
+      segnaModificato();
+    }
+  });
+
   // Aggiornamento parziale riga durante la digitazione (instant feedback)
   function updateRowCalculations(tr, item) {
     const vol = parseFloat(item.volume_kg) || 0;
@@ -1646,7 +1715,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const idx = parseInt(btnDel.dataset.idx, 10);
       prodottiState.splice(idx, 1);
       renderTable();
-      saveDraftToStorage();
+      segnaModificato();
       return;
     }
     const btnDup = e.target.closest(".btn-duplica-riga");
@@ -1684,7 +1753,51 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnAggiungiRiga").addEventListener("click", aggiungiRigaVuota);
   document.getElementById("btnAggiungiRigaSotto").addEventListener("click", aggiungiRigaVuota);
 
-  // PRECARICA ESEMPI PRODOTTI
+  // CARICAMENTO PRODOTTI ASSEGNATI AL CLIENTE
+  function caricaProdottiClienteAssegnati() {
+    const cId = getClienteIdCorrente();
+    if (!cId) {
+      alert("Seleziona prima un cliente dall'elenco per caricare i prodotti ad esso assegnati.");
+      if (selectCliente) selectCliente.focus();
+      return;
+    }
+    showToastNotification(`Recupero prodotti assegnati a ${getClientName()} in anagrafica...`);
+    fetch(`/api/comparatore/cliente/${cId}/prodotti_assegnati`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && Array.isArray(data.prodotti) && data.prodotti.length > 0) {
+          const existingIds = new Set(prodottiState.map(p => p.id).filter(Boolean));
+          const existingNames = new Set(prodottiState.map(p => (p.nome || '').toLowerCase().trim()).filter(Boolean));
+          let aggiunti = 0;
+          data.prodotti.forEach(p => {
+            if (!existingIds.has(p.id) && !existingNames.has((p.nome || '').toLowerCase().trim())) {
+              prodottiState.push(p);
+              aggiunti++;
+            }
+          });
+          if (prodottiState.length === 0 || aggiunti === 0) {
+            prodottiState = data.prodotti;
+            aggiunti = data.prodotti.length;
+          }
+          renderTable();
+          saveDraftToStorage();
+          showToastNotification(`Caricati ${data.prodotti.length} prodotti assegnati a ${getClientName()}!`);
+        } else {
+          showToastNotification(`Nessun prodotto trovato assegnato a ${getClientName()} in anagrafica.`);
+        }
+      })
+      .catch(err => {
+        console.error("Errore recupero prodotti cliente:", err);
+        alert("Errore nel recupero dei prodotti del cliente.");
+      });
+  }
+
+  const btnCaricaProdClienteEl = document.getElementById("btnCaricaProdottiCliente");
+  if (btnCaricaProdClienteEl) {
+    btnCaricaProdClienteEl.addEventListener("click", caricaProdottiClienteAssegnati);
+  }
+
+  // PRECARICA ESEMPI PRODOTTI O PRODOTTI CLIENTE
   document.getElementById("btnCaricaEsempio").addEventListener("click", (e) => {
     e.preventDefault();
     prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
@@ -1692,11 +1805,17 @@ document.addEventListener("DOMContentLoaded", () => {
     saveDraftToStorage();
     showToastNotification("Caricati 6 prodotti d'esempio (Carni e Pesce)!");
   });
+
   document.getElementById("btnPrecaricaLavorati").addEventListener("click", () => {
-    prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
-    renderTable();
-    saveDraftToStorage();
-    showToastNotification("Suggeriti prodotti tipici Horeca!");
+    const cId = getClienteIdCorrente();
+    if (cId) {
+      caricaProdottiClienteAssegnati();
+    } else {
+      prodottiState = JSON.parse(JSON.stringify(ESEMPIO_PRODOTTI));
+      renderTable();
+      saveDraftToStorage();
+      showToastNotification("Suggeriti prodotti tipici Horeca!");
+    }
   });
 
   // NUOVA COMPARAZIONE VUOTA
@@ -1720,7 +1839,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (confirm("Sei sicuro di voler eliminare tutte le righe dalla tabella?")) {
       prodottiState = [];
       renderTable();
-      saveDraftToStorage();
+      segnaModificato(true);
       showToastNotification("Tabella svuotata.");
     }
   });
@@ -1755,7 +1874,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       renderTable();
-      saveDraftToStorage();
+      segnaModificato();
       showToastNotification(`Aggiunto "${nome}" al prospetto!`);
       
       btn.innerHTML = `<i class="bi bi-check-lg text-success"></i> Aggiunto!`;
@@ -1766,12 +1885,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // FUNZIONE DI SALVATAGGIO COMPARAZIONE (CON SUPPORTO CALLBACK)
-  function salvaComparazione(callback) {
-    const btn = document.getElementById("btnSalvaComparazione");
+  // opts.silent   -> salvataggio automatico in background (nessun alert/spinner)
+  // opts.override -> campi del payload da forzare (es. cliente precedente al cambio cliente)
+  function salvaComparazione(callback, opts) {
+    opts = opts || {};
+    const silent = !!opts.silent;
+    const btn = silent ? null : document.getElementById("btnSalvaComparazione");
     const oldHtml = btn ? btn.innerHTML : "";
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Salvataggio...`;
+    }
+    if (!silent && autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = null;
     }
 
     // Raccoglie totali attuali
@@ -1792,9 +1919,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const totPerc = (totSpesaAttMese > 0) ? ((totRispMese / totSpesaAttMese) * 100) : 0;
 
-    const payload = {
+    const payload = Object.assign({
       id: currentComparisonId,
-      cliente_id: (!isManuale && selectCliente && selectCliente.value) ? parseInt(selectCliente.value, 10) : null,
+      cliente_id: getClienteIdCorrente(),
       cliente_nome: getClientName(),
       titolo: inputTitolo.value.trim() || "Comparativo Listino",
       note: inputNote.value.trim(),
@@ -1804,9 +1931,9 @@ document.addEventListener("DOMContentLoaded", () => {
       risparmio_mese: totRispMese,
       risparmio_anno: totRispMese * 12,
       percentuale_risparmio: totPerc,
-      prodotti: prodottiState,
+      prodotti: JSON.parse(JSON.stringify(prodottiState)),
       impostazioni_pdf: impostazioniPdfState
-    };
+    }, opts.override || {});
 
     fetch("/api/comparatore/salva", {
       method: "POST",
@@ -1821,13 +1948,23 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (data && data.ok) {
-        currentComparisonId = data.id;
-        syncUrlWithState();
-        saveDraftToStorage();
-        showToastNotification(data.message || "Prospetto comparativo salvato con successo!");
+        // Aggiorna l'ID solo se nel frattempo non è stato cambiato cliente
+        const stessoCliente = (payload.cliente_id || null) === (getClienteIdCorrente() || null);
+        if (stessoCliente && !opts.override) {
+          currentComparisonId = data.id;
+          syncUrlWithState();
+          saveDraftToStorage();
+        }
+        if (!silent) {
+          showToastNotification(data.message || "Prospetto comparativo salvato con successo!");
+        }
         if (typeof callback === "function") callback(data);
       } else {
-        alert("Errore salvataggio: " + (data ? data.message : "Riprova."));
+        if (silent) {
+          console.warn("Auto-salvataggio listino non riuscito:", data ? data.message : data);
+        } else {
+          alert("Errore salvataggio: " + (data ? data.message : "Riprova."));
+        }
         if (typeof callback === "function") callback(null);
       }
     })
@@ -1837,7 +1974,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.innerHTML = oldHtml;
       }
       console.error(err);
-      alert("Errore di connessione o salvataggio: " + err);
+      if (!silent) alert("Errore di connessione o salvataggio: " + err);
       if (typeof callback === "function") callback(null);
     });
   }
@@ -1995,9 +2132,10 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           renderTable();
-          saveDraftToStorage();
+          segnaModificato(true);
           if (modalCaricaPdf) modalCaricaPdf.hide();
-          showToastNotification(`Caricati ${data.count} prodotti! Il loro prezzo è stato impostato in "Nostro Prezzo".`);
+          const msgSalvato = puoAutoSalvare() ? " Listino aggiornato e salvato." : " Seleziona un cliente o premi Salva per memorizzarlo.";
+          showToastNotification(`Caricati ${data.count} prodotti! Il loro prezzo è stato impostato in "Nostro Prezzo".${msgSalvato}`);
         } else {
           alert(data.message || "Impossibile estrarre prodotti dal documento o testo.");
           btnConfermaCaricaPdf.disabled = false;
@@ -2046,44 +2184,16 @@ document.addEventListener("DOMContentLoaded", () => {
       btnElement.disabled = true;
       btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Preparazione PDF...`;
     }
-    showToastNotification("Salvataggio offerta e preparazione Preventivo PDF in corso...");
+    showToastNotification("Salvataggio offerta e preparazione del file PDF in corso...");
 
-    // 1. Pre-apriamo la finestra direttamente sul gesto utente (click)
-    // per garantire che nessun browser (Safari Mac / Chrome) la blocchi come popup
-    let targetWin = null;
-    try {
-      targetWin = window.open('about:blank', '_blank');
-      if (targetWin) {
-        targetWin.document.write(`
-          <!DOCTYPE html><html><head><title>Generazione Preventivo PDF...</title>
-          <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;text-align:center;}
-          .loader{border:4px solid rgba(255,255,255,0.15);border-top:4px solid #6366f1;border-radius:50%;width:48px;height:48px;animation:spin 0.8s linear infinite;margin:0 auto 18px;}
-          @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
-          </head><body><div><div class="loader"></div><h2 style="margin:0 0 8px 0;font-weight:700;">Generazione Preventivo PDF...</h2><p style="color:#94a3b8;margin:0;">Salvataggio prezzi al cliente e preparazione del foglio grafico in corso...</p></div></body></html>
-        `);
-      }
-    } catch (e) {}
-
-    const ripristinaBottone = (okHtml) => {
-      if (!btnElement) return;
-      if (okHtml) {
-        btnElement.innerHTML = okHtml;
-        setTimeout(() => {
-          btnElement.disabled = false;
-          btnElement.innerHTML = originalHtml;
-        }, 2500);
-      } else {
-        btnElement.disabled = false;
-        btnElement.innerHTML = originalHtml;
-      }
-    };
-
-    // 2. Salva la comparazione e assegna tutti i prezzi al cliente selezionato nel database
+    // Salva la comparazione e assegna tutti i prodotti/prezzi al cliente selezionato nel database
     salvaComparazione((res) => {
       const compIdToUse = (res && res.id) || currentComparisonId;
       if (!compIdToUse) {
-        if (targetWin && !targetWin.closed) targetWin.close();
-        ripristinaBottone(null);
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalHtml;
+        }
         alert("Impossibile salvare la comparazione prima del download. Controlla i dati inseriti.");
         return;
       }
@@ -2091,16 +2201,24 @@ document.addEventListener("DOMContentLoaded", () => {
       syncUrlWithState();
       saveDraftToStorage();
 
-      ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Preventivo Generato!`);
-      showToastNotification("Prezzi assegnati al cliente! Generazione PDF avviata.");
-
-      // 3. Naviga la finestra aperta alla pagina del foglio ad alta risoluzione con download automatico attivo
-      const destUrl = `/comparatore/stampa/${compIdToUse}?download=1`;
-      if (targetWin && !targetWin.closed) {
-        targetWin.location.href = destUrl;
-      } else {
-        window.open(destUrl, '_blank');
+      if (btnElement) {
+        btnElement.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`;
+        setTimeout(() => {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalHtml;
+        }, 3500);
       }
+      showToastNotification(`Prezzi assegnati al cliente! Download del file PDF in corso...`);
+
+      // Download diretto e immediato del file PDF generato dal server
+      const clientClean = getClientName().replace(/[^a-zA-Z0-9_\-]/g, '_') || 'Cliente';
+      const downloadUrl = `/comparatore/scarica_pdf/${compIdToUse}`;
+      const dlLink = document.createElement("a");
+      dlLink.href = downloadUrl;
+      dlLink.download = `Preventivo_${clientClean}_${compIdToUse}.pdf`;
+      document.body.appendChild(dlLink);
+      dlLink.click();
+      setTimeout(() => dlLink.remove(), 600);
     });
   }
 
