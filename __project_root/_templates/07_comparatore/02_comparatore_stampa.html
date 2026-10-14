@@ -1027,18 +1027,20 @@
     }
 
     // Salva le modifiche sul database
-    function saveEditsToServer(btnElement) {
-      const originalText = btnElement.innerHTML;
-      btnElement.disabled = true;
-      btnElement.innerHTML = `<i class="bi bi-hourglass-split"></i> Salvataggio...`;
+    function saveEditsToServer(btnElement, callback) {
+      const originalText = btnElement ? btnElement.innerHTML : null;
+      if (btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerHTML = `<i class="bi bi-hourglass-split"></i> Salvataggio...`;
+      }
 
       const settings = gatherAllUpdatedSettings();
 
       const payload = {
         id: compId,
         cliente_id: {{ (comp.cliente_id if comp.cliente_id else None) | tojson }},
-        cliente_nome: document.getElementById("printClienteNome").textContent.trim() || {{ comp.cliente_nome | tojson }},
-        titolo: document.getElementById("printTitoloDoc").textContent.trim() || {{ comp.titolo | tojson }},
+        cliente_nome: (document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent.trim() : "") || {{ comp.cliente_nome | tojson }},
+        titolo: (document.getElementById("printTitoloDoc") ? document.getElementById("printTitoloDoc").textContent.trim() : "") || {{ comp.titolo | tojson }},
         note: settings.note_condizioni || "",
         totale_volume_kg: {{ comp.totale_volume_kg or 0 }},
         totale_attuale_mese: {{ comp.totale_attuale_mese or 0 }},
@@ -1057,17 +1059,24 @@
       })
       .then(r => r.json())
       .then(data => {
-        btnElement.disabled = false;
-        btnElement.innerHTML = `<i class="bi bi-check-lg"></i> Salvato!`;
-        setTimeout(() => {
-          btnElement.innerHTML = originalText;
-        }, 2000);
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = `<i class="bi bi-check-lg"></i> Salvato!`;
+          setTimeout(() => {
+            btnElement.innerHTML = originalText;
+          }, 2000);
+        }
         closeDrawer();
+        if (typeof callback === "function") callback(data);
       })
       .catch(err => {
-        btnElement.disabled = false;
-        btnElement.innerHTML = originalText;
-        alert("Errore salvataggio: " + err);
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = originalText;
+          alert("Errore salvataggio: " + err);
+        }
+        console.error("Errore salvataggio:", err);
+        if (typeof callback === "function") callback(null);
       });
     }
 
@@ -1080,29 +1089,22 @@
     });
 
     // ========================================================
-    // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF (AD ALTA RISOLUZIONE)
-    // ========================================================
-    // ========================================================
     // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF (VETTORIALE AD ALTA RISOLUZIONE)
     // ========================================================
     function avviaDownloadPdfServer(callback) {
       if (!compId) {
-        generaCanvasPdfFallback(callback);
+        if (callback) callback();
         return;
       }
-      // Prima salviamo eventuali modifiche inline sui testi del foglio
-      gatherAllUpdatedSettings();
-      saveEditsToServer(null, () => {
-        const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
-        const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9_\-]/g, "_") || "Cliente";
-        const dlLink = document.createElement("a");
-        dlLink.href = `/comparatore/scarica_pdf/${compId}`;
-        dlLink.download = `Preventivo_${clienteClean}_${compId}.pdf`;
-        document.body.appendChild(dlLink);
-        dlLink.click();
-        setTimeout(() => dlLink.remove(), 600);
-        if (callback) callback();
-      });
+      const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
+      const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9_\-]/g, "_") || "Cliente";
+      const dlLink = document.createElement("a");
+      dlLink.href = `/comparatore/scarica_pdf/${compId}`;
+      dlLink.download = `Preventivo_${clienteClean}_${compId}.pdf`;
+      document.body.appendChild(dlLink);
+      dlLink.click();
+      setTimeout(() => dlLink.remove(), 600);
+      if (callback) callback();
     }
 
     async function generaCanvasPdfGrafico(callback) {
@@ -1126,10 +1128,19 @@
       element.style.boxShadow = "none";
       element.style.borderRadius = "0px";
 
+      let failsafeTimer = null;
       try {
         if (document.fonts && document.fonts.ready) {
           try { await document.fonts.ready; } catch(e) {}
         }
+
+        // Failsafe: se html2canvas si blocca per più di 5 secondi (es. problemi CORS su immagini esterne), avvia subito il download dal server
+        failsafeTimer = setTimeout(() => {
+          console.warn("Failsafe: html2canvas ha impiegato troppo tempo, avvio download diretto dal server...");
+          element.style.boxShadow = prevShadow;
+          element.style.borderRadius = prevRadius;
+          if (compId) avviaDownloadPdfServer(callback);
+        }, 5000);
 
         const canvas = await html2canvas(element, {
           scale: 2,
@@ -1138,6 +1149,8 @@
           backgroundColor: "#ffffff",
           logging: false
         });
+
+        if (failsafeTimer) clearTimeout(failsafeTimer);
 
         element.style.boxShadow = prevShadow;
         element.style.borderRadius = prevRadius;
@@ -1186,6 +1199,7 @@
 
         if (callback) callback();
       } catch (err) {
+        if (failsafeTimer) clearTimeout(failsafeTimer);
         console.error("Errore esportazione canvas, fallback su PDF server:", err);
         element.style.boxShadow = prevShadow;
         element.style.borderRadius = prevRadius;
@@ -1199,14 +1213,7 @@
     }
 
     function generaEScaricaPdf(callback) {
-      if (compId) {
-        gatherAllUpdatedSettings();
-        saveEditsToServer(null, () => {
-          generaCanvasPdfGrafico(callback);
-        });
-      } else {
-        generaCanvasPdfGrafico(callback);
-      }
+      generaCanvasPdfGrafico(callback);
     }
 
     const btnScarica = document.getElementById("btnScaricaPdfDiretto");
