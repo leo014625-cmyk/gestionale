@@ -333,8 +333,12 @@
         <i class="bi bi-calculator-fill text-warning"></i> Comparatore Offerte
       </a>
 
-      <button type="button" class="btn btn-warning text-dark rounded-4 px-3 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalQuickWeeklyEntry" onclick="impostaDatePredefiniteQuick()">
-        <i class="bi bi-lightning-charge-fill"></i> Aggiornamento Settimanale
+      <button type="button" class="btn btn-warning text-dark rounded-4 px-3.5 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalBulkMonthlyFatturato" onclick="apriModalFatturatoMensile()">
+        <i class="bi bi-calendar2-check-fill"></i> Fatturato Mese Rapido
+      </button>
+
+      <button type="button" class="btn btn-outline-light rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalQuickWeeklyEntry" onclick="impostaDatePredefiniteQuick()">
+        <i class="bi bi-lightning-charge-fill text-warning"></i> Settimanale
       </button>
 
       <button type="button" class="btn btn-primary rounded-4 px-3.5 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoCliente">
@@ -945,6 +949,156 @@
     </div>
   </div>
 
+</div>
+
+<!-- ================================================================= -->
+<!-- POPUP 0: MODAL AGGIORNAMENTO RAPIDO FATTURATI MENSILI (MASSIVO TUTTI I CLIENTI) -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalBulkMonthlyFatturato" tabindex="-1" aria-labelledby="modalBulkMonthlyFatturatoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      
+      <!-- Modal Header -->
+      <div class="modal-header border-bottom px-4 py-3 pb-3" style="border-color: var(--border-color) !important;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 bg-warning bg-opacity-10 text-warning p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+            <i class="bi bi-calendar2-check-fill fs-4"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold mb-0" id="modalBulkMonthlyFatturatoLabel">Aggiornamento Rapido Fatturati Mensili</h5>
+            <p class="small text-muted mb-0">Assegna o modifica il fatturato del mese selezionato per tutti i clienti del portfolio.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body px-4 py-3">
+        <!-- Control Toolbar: Mese, Anno, Cerca & KPI -->
+        <div class="row g-3 align-items-center mb-3 p-3 rounded-4 bg-light border" style="border-color: var(--border-color) !important;">
+          <!-- Select Mese -->
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-month text-primary me-1"></i>Mese da Aggiornare</label>
+            <select id="bulkFattMese" class="form-select rounded-3 fw-bold" onchange="caricaFatturatiMensili()">
+              <option value="1">01 - Gennaio</option>
+              <option value="2">02 - Febbraio</option>
+              <option value="3">03 - Marzo</option>
+              <option value="4">04 - Aprile</option>
+              <option value="5">05 - Maggio</option>
+              <option value="6">06 - Giugno</option>
+              <option value="7">07 - Luglio</option>
+              <option value="8">08 - Agosto</option>
+              <option value="9">09 - Settembre</option>
+              <option value="10">10 - Ottobre</option>
+              <option value="11">11 - Novembre</option>
+              <option value="12">12 - Dicembre</option>
+            </select>
+          </div>
+
+          <!-- Select Anno -->
+          <div class="col-12 col-sm-6 col-md-2">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-event text-primary me-1"></i>Anno</label>
+            <select id="bulkFattAnno" class="form-select rounded-3 fw-bold" onchange="caricaFatturatiMensili()">
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+            </select>
+          </div>
+
+          <!-- Ricerca Veloce Cliente -->
+          <div class="col-12 col-md-4">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-search text-primary me-1"></i>Filtra Clienti</label>
+            <div class="input-group">
+              <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-funnel text-muted"></i></span>
+              <input type="text" id="bulkFattCerca" class="form-control border-start-0" placeholder="Nome o zona cliente..." oninput="filtraTabellaBulkFatturato(this.value)">
+              <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('bulkFattCerca').value=''; filtraTabellaBulkFatturato('');">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Totale & Azioni Rapide -->
+          <div class="col-12 col-md-3 text-md-end">
+            <div class="small fw-semibold text-muted">Totale Assegnato Mese</div>
+            <div class="fs-4 fw-bold text-primary font-monospace" id="bulkFattTotaleMeseDisplay">€ 0,00</div>
+            <div class="d-flex align-items-center justify-content-md-end gap-2 mt-1">
+              <span class="badge bg-primary-light text-primary border" id="bulkFattCountDisplay">0 / 0 con fatturato</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Assist Bar -->
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 px-1">
+          <div class="small text-muted d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle-fill text-primary"></i>
+            <span>Puoi usare <strong>Invio</strong> o i tasti <strong>Freccia Giù / Su</strong> per muoverti istantaneamente tra i clienti.</span>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-sm" onclick="copiaTuttiDaMesePrecedente()">
+              <i class="bi bi-copy"></i> Copia da Mese Prec.
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-sm" onclick="azzeraTuttiFatturati()">
+              <i class="bi bi-eraser"></i> Svuota Tutti
+            </button>
+          </div>
+        </div>
+
+        <!-- Feedback Alert Container -->
+        <div id="bulkFattAlertContainer"></div>
+
+        <!-- Loading State -->
+        <div id="bulkFattLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem;">
+            <span class="visually-hidden">Caricamento in corso...</span>
+          </div>
+          <div class="small text-muted mt-2 fw-semibold">Caricamento clienti e storico fatturati...</div>
+        </div>
+
+        <!-- Table Container -->
+        <div id="bulkFattTableWrapper" style="display: none; max-height: 520px; overflow-y: auto;" class="border rounded-4 shadow-sm">
+          <table class="table table-hover align-middle mb-0" id="bulkFattTable">
+            <thead class="sticky-top shadow-sm" style="background-color: var(--card-bg); z-index: 5;">
+              <tr class="small text-uppercase text-muted" style="letter-spacing: 0.05em;">
+                <th style="width: 40px;" class="text-center">#</th>
+                <th>Cliente & Zona</th>
+                <th style="width: 130px;" class="text-center">Tier</th>
+                <th style="width: 170px;" class="text-end">Mese Prec. (<span id="bulkHeaderPrevMese">M-1</span>)</th>
+                <th style="width: 220px;" class="text-end">Fatturato Mese (€)</th>
+                <th style="width: 140px;" class="text-center">Variazione</th>
+              </tr>
+            </thead>
+            <tbody id="bulkFattTableBody" class="small">
+              <!-- Dynamically populated via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div id="bulkFattEmpty" class="text-center py-5 d-none">
+          <i class="bi bi-person-x fs-1 text-muted opacity-50"></i>
+          <p class="text-muted mt-2 fw-semibold">Nessun cliente corrisponde ai criteri di ricerca.</p>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between align-items-center" style="border-color: var(--border-color) !important;">
+        <div class="small text-muted" id="bulkFattFooterSummary">
+          Seleziona il mese e compila gli importi per salvare massivamente.
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary rounded-4 px-4 fw-semibold" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" class="btn btn-primary rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" id="btnSalvaBulkFatturati" onclick="salvaFatturatiMensili()">
+            <i class="bi bi-check2-circle fs-5"></i>
+            <span>Salva Tutti i Fatturati</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- ================================================================= -->
@@ -2173,6 +2327,378 @@ function applicaFiltriClientSide() {
       card.style.display = 'none';
     }
   });
+}
+
+// =================================================================
+// FUNZIONI AGGIORNAMENTO RAPIDO FATTURATI MENSILI (BULK MODAL)
+// =================================================================
+let bulkClientiData = [];
+
+function formatEuro(num) {
+  const val = parseFloat(num) || 0;
+  return '€ ' + val.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function apriModalFatturatoMensile() {
+  const now = new Date();
+  const selectMese = document.getElementById('bulkFattMese');
+  const selectAnno = document.getElementById('bulkFattAnno');
+  
+  if (selectMese && !selectMese.value) {
+    selectMese.value = String(now.getMonth() + 1);
+  } else if (selectMese && !selectMese.getAttribute('data-init')) {
+    selectMese.value = String(now.getMonth() + 1);
+    selectMese.setAttribute('data-init', 'true');
+  }
+
+  if (selectAnno && !selectAnno.value) {
+    selectAnno.value = String(now.getFullYear());
+  } else if (selectAnno && !selectAnno.getAttribute('data-init')) {
+    selectAnno.value = String(now.getFullYear());
+    selectAnno.setAttribute('data-init', 'true');
+  }
+
+  const alertContainer = document.getElementById('bulkFattAlertContainer');
+  if (alertContainer) alertContainer.innerHTML = '';
+
+  const cercaInput = document.getElementById('bulkFattCerca');
+  if (cercaInput) cercaInput.value = '';
+
+  caricaFatturatiMensili();
+}
+
+async function caricaFatturatiMensili() {
+  const mese = document.getElementById('bulkFattMese').value;
+  const anno = document.getElementById('bulkFattAnno').value;
+  const loading = document.getElementById('bulkFattLoading');
+  const wrapper = document.getElementById('bulkFattTableWrapper');
+  const tbody = document.getElementById('bulkFattTableBody');
+  const empty = document.getElementById('bulkFattEmpty');
+  const prevHeader = document.getElementById('bulkHeaderPrevMese');
+  const alertContainer = document.getElementById('bulkFattAlertContainer');
+
+  if (alertContainer) alertContainer.innerHTML = '';
+  if (loading) loading.style.display = 'block';
+  if (wrapper) wrapper.style.display = 'none';
+  if (empty) empty.classList.add('d-none');
+
+  try {
+    const res = await fetch(`/api/clienti/fatturati_mese?mese=${mese}&anno=${anno}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      throw new Error(data.message || 'Errore nel recupero dati');
+    }
+
+    bulkClientiData = data.clienti || [];
+    
+    // Nomi mesi per header
+    const mesiNomi = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+    if (prevHeader) {
+      prevHeader.textContent = `${mesiNomi[data.prev_mese] || data.prev_mese} ${data.prev_anno}`;
+    }
+
+    tbody.innerHTML = '';
+    if (bulkClientiData.length === 0) {
+      if (empty) empty.classList.remove('d-none');
+      if (loading) loading.style.display = 'none';
+      return;
+    }
+
+    bulkClientiData.forEach((c, idx) => {
+      const tr = document.createElement('tr');
+      tr.id = `bulk_row_${c.id}`;
+      tr.className = 'bulk-client-row';
+      tr.setAttribute('data-name', (c.nome || '').toLowerCase());
+      tr.setAttribute('data-zona', (c.zona || '').toLowerCase());
+
+      const prevVal = parseFloat(c.prev_importo) || 0;
+      const currVal = c.importo !== null ? parseFloat(c.importo) : '';
+
+      tr.innerHTML = `
+        <td class="text-center text-muted fw-bold" style="font-size: 0.78rem;">${idx + 1}</td>
+        <td>
+          <div class="fw-bold text-truncate" style="max-width: 280px;" title="${c.nome}">
+            <a href="/clienti/${c.id}" target="_blank" class="text-decoration-none text-reset hover-primary">
+              ${c.nome}
+            </a>
+          </div>
+          <span class="text-muted small" style="font-size: 0.75rem;">
+            <i class="bi bi-geo-alt me-1 opacity-75"></i>${c.zona || 'Nessuna zona'}
+          </span>
+        </td>
+        <td class="text-center">
+          <span class="badge badge-tier badge-tier-${c.tier}">
+            ${c.tier_label}
+          </span>
+        </td>
+        <td class="text-end font-monospace">
+          <div class="d-flex align-items-center justify-content-end gap-1">
+            <span class="fw-semibold text-muted">${formatEuro(prevVal)}</span>
+            ${prevVal > 0 ? `
+              <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1.5 rounded-pill shadow-xs" 
+                      title="Copia nel mese corrente" onclick="copiaSingoloFatturato(${c.id}, ${prevVal})">
+                <i class="bi bi-arrow-right-short fs-6"></i>
+              </button>
+            ` : ''}
+          </div>
+        </td>
+        <td class="text-end">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light text-muted fw-bold border-end-0">€</span>
+            <input type="number" step="0.01" min="0" 
+                   class="form-control form-control-sm font-monospace fw-bold text-end input-bulk-fatt border-start-0" 
+                   id="bulk_input_${c.id}" 
+                   data-cid="${c.id}" 
+                   data-prev="${prevVal}" 
+                   value="${currVal !== '' ? currVal : ''}" 
+                   placeholder="0.00"
+                   oninput="aggiornaRigaVariazione(${c.id}); ricalcolaTotaleBulk();" 
+                   onkeydown="navigaInputBulk(event, ${idx})">
+          </div>
+        </td>
+        <td class="text-center" id="bulk_var_container_${c.id}">
+          <!-- Dynamic variation badge -->
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+      aggiornaRigaVariazione(c.id);
+    });
+
+    ricalcolaTotaleBulk();
+
+    if (loading) loading.style.display = 'none';
+    if (wrapper) wrapper.style.display = 'block';
+
+  } catch (err) {
+    if (loading) loading.style.display = 'none';
+    if (alertContainer) {
+      alertContainer.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show rounded-3" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i> ${err.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    }
+  }
+}
+
+function aggiornaRigaVariazione(cid) {
+  const input = document.getElementById(`bulk_input_${cid}`);
+  const container = document.getElementById(`bulk_var_container_${cid}`);
+  if (!input || !container) return;
+
+  const rawVal = input.value.trim().replace(',', '.');
+  const prevVal = parseFloat(input.getAttribute('data-prev')) || 0;
+
+  if (rawVal === '') {
+    container.innerHTML = `<span class="badge bg-light text-muted border" style="font-size: 0.72rem;">Da compilare</span>`;
+    return;
+  }
+
+  const val = parseFloat(rawVal) || 0;
+
+  if (val === 0 && prevVal === 0) {
+    container.innerHTML = `<span class="badge bg-light text-muted border" style="font-size: 0.72rem;">0.00</span>`;
+  } else if (prevVal === 0 && val > 0) {
+    container.innerHTML = `<span class="badge bg-info-subtle text-info border border-info-subtle fw-semibold" style="font-size: 0.72rem;"><i class="bi bi-stars me-1"></i>Nuovo</span>`;
+  } else if (val > prevVal) {
+    const diffPct = ((val - prevVal) / prevVal) * 100;
+    container.innerHTML = `<span class="badge bg-success-subtle text-success border border-success-subtle fw-bold" style="font-size: 0.72rem;"><i class="bi bi-arrow-up-short"></i>+${diffPct.toFixed(1)}%</span>`;
+  } else if (val < prevVal) {
+    const diffPct = ((prevVal - val) / prevVal) * 100;
+    container.innerHTML = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold" style="font-size: 0.72rem;"><i class="bi bi-arrow-down-short"></i>-${diffPct.toFixed(1)}%</span>`;
+  } else {
+    container.innerHTML = `<span class="badge bg-light text-secondary border fw-semibold" style="font-size: 0.72rem;">= Stabile</span>`;
+  }
+}
+
+function navigaInputBulk(event, currentIndex) {
+  const inputs = Array.from(document.querySelectorAll('#bulkFattTableBody .input-bulk-fatt:not([disabled])'))
+    .filter(inp => inp.closest('tr').style.display !== 'none');
+
+  const currPos = inputs.indexOf(event.target);
+
+  if (event.key === 'Enter' || event.key === 'ArrowDown') {
+    event.preventDefault();
+    if (currPos !== -1 && currPos < inputs.length - 1) {
+      inputs[currPos + 1].focus();
+      inputs[currPos + 1].select();
+    }
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    if (currPos > 0) {
+      inputs[currPos - 1].focus();
+      inputs[currPos - 1].select();
+    }
+  }
+}
+
+function filtraTabellaBulkFatturato(query) {
+  const q = (query || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#bulkFattTableBody .bulk-client-row');
+  let matchCount = 0;
+
+  rows.forEach(r => {
+    const name = r.getAttribute('data-name') || '';
+    const zona = r.getAttribute('data-zona') || '';
+    if (!q || name.includes(q) || zona.includes(q)) {
+      r.style.display = '';
+      matchCount++;
+    } else {
+      r.style.display = 'none';
+    }
+  });
+
+  const empty = document.getElementById('bulkFattEmpty');
+  if (empty) {
+    if (matchCount === 0 && rows.length > 0) {
+      empty.classList.remove('d-none');
+    } else {
+      empty.classList.add('d-none');
+    }
+  }
+}
+
+function copiaTuttiDaMesePrecedente() {
+  const inputs = document.querySelectorAll('#bulkFattTableBody .input-bulk-fatt');
+  let countCopied = 0;
+
+  inputs.forEach(inp => {
+    const prev = parseFloat(inp.getAttribute('data-prev')) || 0;
+    if (prev > 0) {
+      inp.value = prev.toFixed(2);
+      const cid = inp.getAttribute('data-cid');
+      aggiornaRigaVariazione(cid);
+      countCopied++;
+    }
+  });
+
+  ricalcolaTotaleBulk();
+}
+
+function azzeraTuttiFatturati() {
+  if (!confirm('Vuoi davvero svuotare tutti gli importi inseriti nella tabella?')) return;
+  const inputs = document.querySelectorAll('#bulkFattTableBody .input-bulk-fatt');
+  inputs.forEach(inp => {
+    inp.value = '';
+    const cid = inp.getAttribute('data-cid');
+    aggiornaRigaVariazione(cid);
+  });
+  ricalcolaTotaleBulk();
+}
+
+function copiaSingoloFatturato(cid, val) {
+  const inp = document.getElementById(`bulk_input_${cid}`);
+  if (inp) {
+    inp.value = parseFloat(val || 0).toFixed(2);
+    aggiornaRigaVariazione(cid);
+    ricalcolaTotaleBulk();
+    inp.focus();
+    inp.select();
+  }
+}
+
+function ricalcolaTotaleBulk() {
+  const inputs = document.querySelectorAll('#bulkFattTableBody .input-bulk-fatt');
+  let tot = 0.0;
+  let conFatturato = 0;
+  const totalClients = inputs.length;
+
+  inputs.forEach(inp => {
+    const val = parseFloat(inp.value.replace(',', '.')) || 0;
+    if (val > 0) {
+      tot += val;
+      conFatturato++;
+    }
+  });
+
+  const displayTot = document.getElementById('bulkFattTotaleMeseDisplay');
+  const displayCount = document.getElementById('bulkFattCountDisplay');
+  const footerSummary = document.getElementById('bulkFattFooterSummary');
+
+  if (displayTot) displayTot.textContent = formatEuro(tot);
+  if (displayCount) displayCount.textContent = `${conFatturato} / ${totalClients} con fatturato`;
+  if (footerSummary) {
+    footerSummary.innerHTML = `<strong>${conFatturato}</strong> clienti su <strong>${totalClients}</strong> valorizzati per un totale mensile di <strong class="text-primary font-monospace">${formatEuro(tot)}</strong>.`;
+  }
+}
+
+async function salvaFatturatiMensili() {
+  const btn = document.getElementById('btnSalvaBulkFatturati');
+  const alertContainer = document.getElementById('bulkFattAlertContainer');
+  const mese = parseInt(document.getElementById('bulkFattMese').value);
+  const anno = parseInt(document.getElementById('bulkFattAnno').value);
+
+  const inputs = document.querySelectorAll('#bulkFattTableBody .input-bulk-fatt');
+  const fatturati = [];
+
+  inputs.forEach(inp => {
+    const cid = parseInt(inp.getAttribute('data-cid'));
+    const rawVal = inp.value.trim().replace(',', '.');
+    const importo = rawVal !== '' ? (parseFloat(rawVal) || 0) : 0;
+    fatturati.push({
+      cliente_id: cid,
+      totale: importo
+    });
+  });
+
+  // Mostra stato di salvataggio
+  const originalBtnHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Salvataggio in corso...`;
+
+  try {
+    const res = await fetch('/api/clienti/salva_fatturati_mese', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        mese: mese,
+        anno: anno,
+        fatturati: fatturati
+      })
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      throw new Error(data.message || 'Errore durante il salvataggio dei fatturati');
+    }
+
+    btn.className = 'btn btn-success rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm';
+    btn.innerHTML = `<i class="bi bi-check-circle-fill fs-5"></i><span>Salvataggio Completato!</span>`;
+
+    if (alertContainer) {
+      alertContainer.innerHTML = `
+        <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-sm" role="alert">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i> ${data.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    }
+
+    // Dopo breve delay ricarica la pagina per sincronizzare i KPI della dashboard clienti
+    setTimeout(() => {
+      window.location.reload();
+    }, 1200);
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.className = 'btn btn-primary rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm';
+    btn.innerHTML = originalBtnHtml;
+
+    if (alertContainer) {
+      alertContainer.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show rounded-4 shadow-sm" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i> ${err.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    }
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

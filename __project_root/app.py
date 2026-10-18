@@ -4192,6 +4192,228 @@ def aggiorna_fatturati():
 
 
 # ============================
+# API: Recupera fatturato mensile per tutti i clienti
+# ============================
+@app.route('/api/clienti/fatturati_mese', methods=['GET'])
+@login_required
+def api_clienti_fatturati_mese():
+    try:
+        mese = int(request.args.get('mese', datetime.now().month))
+        anno = int(request.args.get('anno', datetime.now().year))
+    except (ValueError, TypeError):
+        mese = datetime.now().month
+        anno = datetime.now().year
+
+    # Calcola mese precedente
+    if mese == 1:
+        prev_mese = 12
+        prev_anno = anno - 1
+    else:
+        prev_mese = mese - 1
+        prev_anno = anno
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute('''
+                SELECT id, nome, zona, COALESCE(fatturato_totale, 0) as fatturato_totale, COALESCE(stato, 'attivo') as stato
+                FROM clienti
+                WHERE stato != 'inattivo' OR stato IS NULL
+                ORDER BY nome ASC
+            ''')
+            clienti_raw = cur.fetchall()
+
+            c_ids = [c['id'] for c in clienti_raw]
+            fatt_corrente = {}
+            fatt_precedente = {}
+
+            if c_ids:
+                placeholders = ','.join(['%s'] * len(c_ids))
+
+                # Mese corrente
+                cur.execute(f'''
+                    SELECT cliente_id, COALESCE(totale, 0) as totale
+                    FROM fatturato
+                    WHERE mese = %s AND anno = %s AND cliente_id IN ({placeholders})
+                ''', (mese, anno, *c_ids))
+                for row in cur.fetchall():
+                    fatt_corrente[row['cliente_id']] = float(row['totale'] or 0.0)
+
+                # Mese precedente
+                cur.execute(f'''
+                    SELECT cliente_id, COALESCE(totale, 0) as totale
+                    FROM fatturato
+                    WHERE mese = %s AND anno = %s AND cliente_id IN ({placeholders})
+                ''', (prev_mese, prev_anno, *c_ids))
+                for row in cur.fetchall():
+                    fatt_precedente[row['cliente_id']] = float(row['totale'] or 0.0)
+
+            result_list = []
+            totale_mese = 0.0
+            clienti_con_fatturato = 0
+
+            for c in clienti_raw:
+                cid = c['id']
+                curr_val = fatt_corrente.get(cid, None)
+                prev_val = fatt_precedente.get(cid, 0.0)
+                tot_rev = float(c['fatturato_totale'] or 0.0)
+
+                # Assegna tier commerciale
+                if tot_rev >= 50000:
+                    tier = 'diamond'
+                    tier_label = 'Diamond'
+                elif tot_rev >= 20000:
+                    tier = 'gold'
+                    tier_label = 'Gold'
+                elif tot_rev >= 5000:
+                    tier = 'silver'
+                    tier_label = 'Silver'
+                else:
+                    tier = 'bronze'
+                    tier_label = 'Bronze'
+
+                if curr_val is not None and curr_val > 0:
+                    totale_mese += curr_val
+                    clienti_con_fatturato += 1
+
+                result_list.append({
+                    'id': cid,
+                    'nome': c['nome'],
+                    'zona': c['zona'] or '',
+                    'stato': c['stato'],
+                    'tier': tier,
+                    'tier_label': tier_label,
+                    'importo': round(curr_val, 2) if curr_val is not None else None,
+                    'prev_importo': round(prev_val, 2)
+                })
+
+            return jsonify({
+                'success': True,
+                'mese': mese,
+                'anno': anno,
+                'prev_mese': prev_mese,
+                'prev_anno': prev_anno,
+                'totale_mese': round(totale_mese, 2),
+                'clienti_con_fatturato': clienti_con_fatturato,
+                'totale_clienti': len(result_list),
+                'clienti': result_list
+            })
+        except Exception as e:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================
+# API / Form: Salva fatturato mensile massivo per tutti i clienti
+# ============================
+@app.route('/api/clienti/salva_fatturati_mese', methods=['POST'])
+@app.route('/clienti/salva_fatturati_mese', methods=['POST'])
+@login_required
+def salva_clienti_fatturati_mese():
+    is_json = request.is_json
+    if is_json:
+        data = request.get_json(silent=True) or {}
+        try:
+            mese = int(data.get('mese'))
+            anno = int(data.get('anno'))
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Mese o anno non valido'}), 400
+        fatturati_input = data.get('fatturati', {})
+    else:
+        try:
+            mese = int(request.form.get('mese'))
+            anno = int(request.form.get('anno'))
+        except (ValueError, TypeError):
+            flash("Mese o anno non valido", "danger")
+            return redirect(url_for('clienti'))
+        fatturati_input = {}
+        for key, val in request.form.items():
+            if key.startswith('fatturato_'):
+                cid_str = key.replace('fatturato_', '')
+                fatturati_input[cid_str] = val
+
+    # Normalizza gli input in dict: int(cliente_id) -> float(importo)
+    items_to_process = {}
+    if isinstance(fatturati_input, list):
+        for item in fatturati_input:
+            try:
+                cid = int(item.get('cliente_id'))
+                raw_val = str(item.get('totale', '')).replace('€', '').replace(',', '.').strip()
+                val = float(raw_val) if raw_val != '' else 0.0
+                items_to_process[cid] = val
+            except (ValueError, TypeError):
+                continue
+    elif isinstance(fatturati_input, dict):
+        for k, v in fatturati_input.items():
+            try:
+                cid = int(k)
+                raw_val = str(v).replace('€', '').replace(',', '.').strip()
+                val = float(raw_val) if raw_val != '' else 0.0
+                items_to_process[cid] = val
+            except (ValueError, TypeError):
+                continue
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute('SELECT id, cliente_id, totale FROM fatturato WHERE mese = %s AND anno = %s', (mese, anno))
+            exist_map = {row['cliente_id']: row for row in cur.fetchall()}
+
+            updated_clients = set()
+            totale_generale_mese = 0.0
+
+            for cid, importo in items_to_process.items():
+                if importo > 0:
+                    totale_generale_mese += importo
+
+                if cid in exist_map:
+                    row = exist_map[cid]
+                    existing_tot = float(row['totale'] or 0.0)
+                    if abs(existing_tot - importo) > 0.001:
+                        cur.execute('UPDATE fatturato SET totale = %s WHERE id = %s', (importo, row['id']))
+                        updated_clients.add(cid)
+                else:
+                    if importo > 0:
+                        cur.execute('INSERT INTO fatturato (cliente_id, mese, anno, totale) VALUES (%s, %s, %s, %s)', (cid, mese, anno, importo))
+                        updated_clients.add(cid)
+
+            # Ricalcola totale cliente per tutti i clienti aggiornati
+            for cid in updated_clients:
+                aggiorna_fatturato_totale(cid, cur)
+
+            db.commit()
+
+            mesi_nomi = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+            nome_mese = mesi_nomi[mese] if 1 <= mese <= 12 else str(mese)
+            msg = f"Fatturati di {len(updated_clients)} clienti aggiornati con successo per {nome_mese} {anno} (Totale: € {totale_generale_mese:,.2f})!"
+            if is_json:
+                return jsonify({
+                    'success': True,
+                    'message': msg,
+                    'updated_count': len(updated_clients),
+                    'totale_mese': round(totale_generale_mese, 2)
+                })
+            else:
+                flash(msg, "success")
+                return redirect(url_for('clienti'))
+
+        except Exception as e:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            err_msg = f"Errore durante il salvataggio dei fatturati mensili: {str(e)}"
+            if is_json:
+                return jsonify({'success': False, 'message': err_msg}), 500
+            else:
+                flash(err_msg, "danger")
+                return redirect(url_for('clienti'))
+
+
+# ============================
 # LISTA VOLANTINI
 # ============================
 @app.route('/beta-volantini')
