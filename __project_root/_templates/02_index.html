@@ -7,24 +7,25 @@
 <style>
   /* Premium Dashboard Styling */
   .dashboard-welcome-card {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%);
     color: #ffffff;
     border-radius: var(--radius);
-    padding: 2.5rem 2rem;
+    padding: 2.5rem 2.25rem;
     margin-bottom: 2.5rem;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 12px 30px -8px rgba(30, 27, 75, 0.45);
     position: relative;
     overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .dashboard-welcome-card::after {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -20%;
+    top: -50px;
+    right: -50px;
     width: 350px;
     height: 350px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
     pointer-events: none;
   }
 
@@ -239,37 +240,37 @@
   <!-- Quick Nav Grid -->
   <h5 class="mb-3 fw-bold text-uppercase tracking-wider text-muted small">Accesso Rapido</h5>
   <div class="row g-3 mb-5">
-    <div class="col-6 col-md-4 col-lg-2">
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
       <a href="{{ url_for('clienti') }}" class="quick-action-btn h-100">
         <i class="bi bi-people text-primary"></i>
         <span>Anagrafica Clienti</span>
       </a>
     </div>
-    <div class="col-6 col-md-4 col-lg-2">
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <a href="{{ url_for('comparatore_listino') }}" class="quick-action-btn h-100">
+        <i class="bi bi-calculator-fill text-warning"></i>
+        <span>Comparatore Offerte</span>
+      </a>
+    </div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
       <a href="{{ url_for('prodotti') }}" class="quick-action-btn h-100">
         <i class="bi bi-box-seam text-success"></i>
         <span>Catalogo Prodotti</span>
       </a>
     </div>
-    <div class="col-6 col-md-4 col-lg-2">
-      <a href="{{ url_for('lista_volantini_beta') }}" class="quick-action-btn h-100">
-        <i class="bi bi-file-earmark-image text-info"></i>
-        <span>Volantini & Promo</span>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <a href="{{ url_for('ordini_settimanali') }}" class="quick-action-btn h-100">
+        <i class="bi bi-truck text-info"></i>
+        <span>Ordini Settimanali</span>
       </a>
     </div>
-    <div class="col-6 col-md-4 col-lg-2">
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
       <a href="{{ url_for('fatturato') }}" class="quick-action-btn h-100">
         <i class="bi bi-currency-euro text-warning"></i>
         <span>Analisi Fatturato</span>
       </a>
     </div>
-    <div class="col-6 col-md-4 col-lg-2">
-      <a href="{{ url_for('pagina_statistiche') }}" class="quick-action-btn h-100">
-        <i class="bi bi-bar-chart-line-fill text-danger"></i>
-        <span>Statistiche Lavoro</span>
-      </a>
-    </div>
-    <div class="col-6 col-md-4 col-lg-2">
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
       <a href="{{ url_for('visite_clienti') }}" class="quick-action-btn h-100">
         <i class="bi bi-calendar-check text-primary"></i>
         <span>Visite Clienti</span>

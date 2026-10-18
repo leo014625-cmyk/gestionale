@@ -215,18 +215,23 @@
   <!-- Header Card -->
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div class="d-flex align-items-center gap-3 flex-wrap">
-      <h1 class="h2 mb-0">{{ cliente.nome }}</h1>
+      <h1 class="h2 mb-0 fw-bold">{{ cliente.nome }}</h1>
+      {% if tier_cliente %}
+        <span class="badge-tier badge-tier-{{ tier_cliente.code }}">
+          {{ tier_cliente.badge }}
+        </span>
+      {% endif %}
       {% if stato == 'attivo' %}
-        <span class="badge bg-success-subtle text-success border border-success px-3 py-1.5 rounded-pill fw-semibold">
-          <i class="bi bi-circle-fill me-1.5 small"></i>Attivo
+        <span class="status-pill status-attivo">
+          <span class="status-pulse-dot pulse-green"></span>Attivo
         </span>
       {% elif stato == 'bloccato' %}
-        <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-1.5 rounded-pill fw-semibold">
-          <i class="bi bi-exclamation-octagon me-1.5 small"></i>Bloccato
+        <span class="status-pill status-bloccato">
+          <i class="bi bi-x-circle-fill"></i>Bloccato / Churn Risk
         </span>
       {% else %}
-        <span class="badge bg-secondary-subtle text-secondary border border-secondary px-3 py-1.5 rounded-pill fw-semibold">
-          <i class="bi bi-clock-history me-1.5 small"></i>Inattivo
+        <span class="status-pill status-inattivo">
+          <i class="bi bi-clock-history"></i>Inattivo
         </span>
       {% endif %}
     </div>
@@ -367,59 +372,193 @@
     </div>
   </div>
 
-  {% if cliente.fatturato_stimato_mensile and cliente.fatturato_stimato_mensile > 0 %}
-  <!-- Banner Fatturato Stimato da Listino Comparato -->
-  <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(16, 185, 129, 0.12) 100%); border-left: 5px solid #10b981 !important;">
-    <div class="card-body p-3.5 d-flex flex-wrap align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="badge rounded-circle p-2.5 bg-success text-white fs-4 shadow-sm">
-          <i class="bi bi-receipt-cutoff"></i>
-        </div>
+  <!-- ======================================================== -->
+  <!-- COCKPIT POTENZIALE COMMERCIALE & ANALISI CROSS-SELLING   -->
+  <!-- ======================================================== -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background-color: var(--card-bg); border: 1px solid var(--border-color) !important;">
+    <div class="p-4" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(14, 165, 233, 0.05) 100%); border-bottom: 1px solid var(--border-color);">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="small fw-bold text-uppercase text-muted tracking-wider">Fatturato Stimato Mensile (Listino Assegnato)</span>
-            <span class="badge bg-success-subtle text-success border border-success px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Attivo</span>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-primary text-white rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">BUSINESS INTELLIGENCE</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-0.5 small fw-semibold">
+              <i class="bi bi-shield-check me-1"></i>Analisi Attiva
+            </span>
           </div>
-          <div class="d-flex align-items-baseline gap-2">
-            <h3 class="fw-bold text-success font-monospace mb-0">€ {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}</h3>
-            <span class="text-muted small fw-semibold">/ mese previsto dai prodotti lavorati</span>
-          </div>
+          <h4 class="fw-bold mb-1 d-flex align-items-center gap-2">
+            <i class="bi bi-crosshair text-primary"></i>
+            <span>Potenziale Commerciale & Opportunità di Crescita</span>
+          </h4>
+          <p class="text-muted small mb-0">Comprendi il valore del cliente, le categorie non ancora presidiate e il margine di espansione commerciale.</p>
         </div>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn btn-outline-success rounded-pill px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1 shadow-sm">
-          <i class="bi bi-sliders"></i> Apri Comparatore Offerta
-        </a>
+
+        <div class="d-flex align-items-center gap-2">
+          <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn btn-outline-primary rounded-4 px-3.5 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-sliders text-warning"></i> Comparatore Offerta & Risparmio
+          </a>
+        </div>
       </div>
     </div>
+
+    <div class="p-4">
+      <!-- Top Potential Metrics Row -->
+      <div class="row g-3 mb-4">
+        <!-- Monthly Real Average -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-3 rounded-4 bg-light border h-100">
+            <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Media Mensile Reale</div>
+            <div class="fw-bold font-monospace text-color fs-4 mt-1">€ {{ "%.2f"|format(media_mensile_reale or 0) }}</div>
+            <div class="text-muted small mt-1" style="font-size: 0.75rem;">Fatturato mensile medio registrato</div>
+          </div>
+        </div>
+
+        <!-- Estimated Monthly Potential (From Comparator) -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-3 rounded-4 bg-light border h-100" style="border-left: 4px solid var(--primary) !important;">
+            <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Potenziale Stimato / Mese</div>
+            <div class="fw-bold font-monospace text-primary fs-4 mt-1">
+              {% if cliente.fatturato_stimato_mensile and cliente.fatturato_stimato_mensile > 0 %}
+                € {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}
+              {% else %}
+                <span class="fs-6 text-muted fw-normal">Non ancora stimato</span>
+              {% endif %}
+            </div>
+            <div class="text-muted small mt-1" style="font-size: 0.75rem;">In base al listino comparato</div>
+          </div>
+        </div>
+
+        <!-- Growth Gap / Untapped Revenue -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-3 rounded-4 bg-light border h-100" style="border-left: 4px solid #10b981 !important;">
+            <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Gap di Crescita / Mese</div>
+            <div class="fw-bold font-monospace text-success fs-4 mt-1">
+              {% if gap_potenziale > 0 %}
+                € {{ "%.2f"|format(gap_potenziale) }}
+              {% elif cliente.fatturato_stimato_mensile and cliente.fatturato_stimato_mensile > 0 %}
+                <span class="fs-6 text-success fw-bold">Target Raggiunto 🎉</span>
+              {% else %}
+                <span class="fs-6 text-muted fw-normal">–</span>
+              {% endif %}
+            </div>
+            <div class="text-muted small mt-1" style="font-size: 0.75rem;">Margine di incremento del carrello</div>
+          </div>
+        </div>
+
+        <!-- Category Coverage % -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-3 rounded-4 bg-light border h-100">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Copertura Catalogo</div>
+              <span class="badge bg-primary text-white rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">{{ tasso_penetrazione_macro or 0 }}%</span>
+            </div>
+            <div class="fw-bold font-monospace text-color fs-4 mt-1">{{ categorie_analisi|selectattr('is_lavorata', 'equalto', True)|list|length }} / {{ categorie_analisi|length }} cat.</div>
+            <div class="penetration-bar-bg mt-2">
+              <div class="penetration-bar-fill" style="width: {{ tasso_penetrazione_macro or 0 }}%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar of Macro Categories -->
+      <h6 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
+        <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Radar Macro-Categorie & Penetrazione del Catalogo
+      </h6>
+      <div class="row g-3 mb-4">
+        {% for cat in categorie_analisi %}
+          <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+            <div class="p-3 rounded-4 h-100 border text-center transition-all"
+                 style="background-color: var(--card-bg); {% if cat.is_lavorata %}border-color: rgba(16, 185, 129, 0.4) !important; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.06);{% else %}border-style: dashed !important; border-color: rgba(99, 102, 241, 0.3) !important; background: rgba(99, 102, 241, 0.02);{% endif %}">
+              <div class="d-flex justify-content-center mb-2">
+                <div class="rounded-circle d-flex align-items-center justify-content-center"
+                     style="width: 44px; height: 44px; {% if cat.is_lavorata %}background: rgba(16, 185, 129, 0.12); color: #10b981;{% else %}background: rgba(99, 102, 241, 0.08); color: var(--primary);{% endif %}">
+                  {% if 'Ittico' in cat.nome %}
+                    <i class="bi bi-water fs-5"></i>
+                  {% elif 'Carne' in cat.nome %}
+                    <i class="bi bi-fire fs-5"></i>
+                  {% elif 'Alimentari' in cat.nome %}
+                    <i class="bi bi-cup-hot fs-5"></i>
+                  {% else %}
+                    <i class="bi bi-box-seam fs-5"></i>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="fw-bold small text-color text-truncate mb-1" title="{{ cat.nome }}">{{ cat.nome }}</div>
+              
+              {% if cat.is_lavorata %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.68rem;">
+                  <i class="bi bi-check-circle-fill me-1"></i>Attivo ({{ cat.num_lavorati }} ref.)
+                </span>
+                <div class="small text-muted mt-2 text-truncate" style="font-size: 0.72rem;">
+                  {{ cat.prodotti_lavorati[:2]|map(attribute='nome')|join(', ') }}
+                </div>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0.5" style="font-size: 0.68rem;">
+                  <i class="bi bi-stars me-1"></i>Opportunità
+                </span>
+                <div class="small text-muted mt-2 text-truncate" style="font-size: 0.72rem;" title="Proponi: {{ cat.suggeriti_cross_sell[:2]|map(attribute='nome')|join(', ') }}">
+                  Da proporre
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Automated Strategic Recommendations Box -->
+      {% if raccomandazioni_commerciali %}
+        <div class="p-3.5 rounded-4 bg-light border">
+          <div class="d-flex align-items-center gap-2 mb-2.5">
+            <i class="bi bi-lightbulb-fill text-warning fs-5"></i>
+            <h6 class="fw-bold mb-0 text-color">Consigli Strategici & Azioni di Vendita per questo Cliente</h6>
+          </div>
+          <div class="row g-2.5">
+            {% for r in raccomandazioni_commerciali %}
+              <div class="col-12 col-md-6">
+                <div class="p-3 rounded-3 bg-white border h-100 shadow-xs">
+                  <div class="d-flex align-items-start gap-2.5">
+                    <div class="p-2 rounded-3 bg-{{ r.color }} bg-opacity-10 text-{{ r.color }} fs-5 mt-0.5">
+                      <i class="bi {{ r.icon }}"></i>
+                    </div>
+                    <div>
+                      <div class="fw-bold small text-color mb-1">{{ r.titolo }}</div>
+                      <div class="text-muted small" style="line-height: 1.45;">{{ r.testo }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
   </div>
-  {% endif %}
 
   <!-- KPI Mini Metrics Grid -->
   <div class="row g-3 mb-4">
     {% set mesi_totali = fatturato_mensile|length %}
     {% set media = (fatturato_totale / mesi_totali if mesi_totali > 0 else 0) %}
-    {% set cm_defined = crescita_mensile is defined and crescita_mensile is not none %}
-    {% set cm = crescita_mensile if cm_defined else 0 %}
+    {% set cm_defined = variazione_fatturato_cliente is defined and variazione_fatturato_cliente is not none %}
+    {% set cm = (variazione_fatturato_cliente|round(1)) if cm_defined else 0 %}
 
     <div class="col-6 col-md-3">
       <div class="kpi-mini-card">
         <div class="kpi-mini-title">Fatturato Cumulativo</div>
-        <div class="kpi-mini-val text-success">{{ "%.2f"|format(fatturato_totale or 0) }} €</div>
+        <div class="kpi-mini-val text-success font-monospace">€ {{ "%.2f"|format(fatturato_totale or 0) }}</div>
       </div>
     </div>
 
     <div class="col-6 col-md-3">
       <div class="kpi-mini-card">
         <div class="kpi-mini-title">Media Mensile</div>
-        <div class="kpi-mini-val text-info">{{ "%.2f"|format(media) }} €</div>
+        <div class="kpi-mini-val text-info font-monospace">€ {{ "%.2f"|format(media) }}</div>
       </div>
     </div>
 
     <div class="col-6 col-md-3">
       <div class="kpi-mini-card">
-        <div class="kpi-mini-title">Crescita Mensile</div>
-        <div class="kpi-mini-val {% if cm_defined and cm < 0 %}text-danger{% else %}text-success{% endif %}">
+        <div class="kpi-mini-title">Trend Ultimo Mese</div>
+        <div class="kpi-mini-val font-monospace {% if cm_defined and cm < 0 %}text-danger{% else %}text-success{% endif %}">
           {% if cm_defined %}
             {{ cm }}%
             {% if cm > 0 %}<i class="bi bi-arrow-up-short"></i>{% elif cm < 0 %}<i class="bi bi-arrow-down-short"></i>{% endif %}
@@ -436,10 +575,10 @@
         {% set keys = fatturato_mensile.keys()|list|sort %}
         {% if keys|length > 0 %}
           {% set last_key = keys[-1] %}
-          <div class="kpi-mini-val text-primary" style="font-size: 1.15rem;">{{ last_key }}</div>
-          <div class="small text-muted fw-bold">{{ "%.2f"|format(fatturato_mensile[last_key] or 0) }} €</div>
+          <div class="kpi-mini-val text-primary font-monospace" style="font-size: 1.15rem;">{{ last_key }}</div>
+          <div class="small text-muted fw-bold font-monospace">€ {{ "%.2f"|format(fatturato_mensile[last_key] or 0) }}</div>
         {% else %}
-          <div class="kpi-mini-val text-muted">–</div>
+          <div class="kpi-mini-val text-muted font-monospace">–</div>
         {% endif %}
       </div>
     </div>

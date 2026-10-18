@@ -60,6 +60,16 @@
       --radius: 16px;
       --radius-lg: 20px;
       --radius-pill: 9999px;
+      
+      /* Commercial Tier Colors */
+      --tier-diamond: #7c3aed;
+      --tier-diamond-bg: rgba(124, 58, 237, 0.1);
+      --tier-gold: #d97706;
+      --tier-gold-bg: rgba(217, 119, 6, 0.1);
+      --tier-silver: #475569;
+      --tier-silver-bg: rgba(71, 85, 105, 0.1);
+      --tier-bronze: #b45309;
+      --tier-bronze-bg: rgba(180, 83, 9, 0.1);
     }
 
     body.dark-mode {
@@ -97,6 +107,15 @@
       --shadow-md: 0 6px 16px -2px rgb(0 0 0 / 0.4), 0 2px 6px -1px rgb(0 0 0 / 0.2);
       --shadow-lg: 0 14px 28px -4px rgb(0 0 0 / 0.5), 0 4px 10px -2px rgb(0 0 0 / 0.3);
       --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
+      
+      --tier-diamond: #a78bfa;
+      --tier-diamond-bg: rgba(167, 139, 250, 0.18);
+      --tier-gold: #fbbf24;
+      --tier-gold-bg: rgba(251, 191, 36, 0.18);
+      --tier-silver: #94a3b8;
+      --tier-silver-bg: rgba(148, 163, 184, 0.18);
+      --tier-bronze: #f59e0b;
+      --tier-bronze-bg: rgba(245, 158, 11, 0.18);
     }
 
     /* Custom Modern Sleek Scrollbar */
@@ -169,6 +188,65 @@
       box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
     }
 
+    /* Tier Badges & Commercial Badges */
+    .badge-tier {
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.65rem;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .badge-tier-diamond {
+      background-color: var(--tier-diamond-bg);
+      color: var(--tier-diamond);
+      border: 1px solid rgba(124, 58, 237, 0.25);
+    }
+    .badge-tier-gold {
+      background-color: var(--tier-gold-bg);
+      color: var(--tier-gold);
+      border: 1px solid rgba(217, 119, 6, 0.25);
+    }
+    .badge-tier-silver {
+      background-color: var(--tier-silver-bg);
+      color: var(--tier-silver);
+      border: 1px solid rgba(71, 85, 105, 0.25);
+    }
+    .badge-tier-bronze {
+      background-color: var(--tier-bronze-bg);
+      color: var(--tier-bronze);
+      border: 1px solid rgba(180, 83, 9, 0.25);
+    }
+
+    /* Pulse dot for active status */
+    .status-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 4px;
+      position: relative;
+    }
+    .status-pulse-dot.pulse-green {
+      background-color: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulse-green-anim 2s infinite;
+    }
+    @keyframes pulse-green-anim {
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+
     /* Modern Table Styling */
     .table {
       --bs-table-color: var(--text-color);
@@ -179,7 +257,7 @@
       transition: background-color 0.15s ease, transform 0.15s ease;
     }
     .table-hover tbody tr:hover {
-      background-color: rgba(99, 102, 241, 0.035) !important;
+      background-color: rgba(99, 102, 241, 0.04) !important;
     }
     body.dark-mode .table-hover tbody tr:hover {
       background-color: rgba(255, 255, 255, 0.03) !important;
@@ -194,17 +272,32 @@
       height: 100vh;
       background-color: var(--sidebar-bg);
       color: var(--sidebar-text);
-      padding: 1.5rem 1rem;
+      padding: 1.25rem 1rem;
       display: flex;
       flex-direction: column;
       box-shadow: var(--shadow-lg);
       z-index: 1030;
       transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       border-right: 1px solid rgba(255, 255, 255, 0.05);
+      overflow-y: auto;
     }
 
     .sidebar.collapsed {
       width: 82px;
+    }
+
+    .sidebar-section-header {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--sidebar-muted);
+      padding: 0.75rem 0.85rem 0.35rem;
+      margin-top: 0.5rem;
+      opacity: 0.7;
+    }
+    .sidebar.collapsed .sidebar-section-header {
+      display: none;
     }
 
     .sidebar .navbar-brand {
@@ -217,7 +310,7 @@
       gap: 12px;
       padding: 0.5rem;
       text-decoration: none;
-      margin-bottom: 1.75rem;
+      margin-bottom: 1rem;
       background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -230,20 +323,20 @@
 
     .sidebar .nav-link {
       color: var(--sidebar-muted);
-      padding: 0.75rem 0.9rem;
+      padding: 0.7rem 0.9rem;
       display: flex;
       align-items: center;
-      gap: 13px;
+      gap: 12px;
       font-weight: 500;
-      font-size: 0.92rem;
+      font-size: 0.91rem;
       border-radius: var(--radius-sm);
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.15rem;
       position: relative;
     }
 
     .sidebar .nav-link i {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       transition: transform 0.2s;
       flex-shrink: 0;
     }
@@ -315,7 +408,7 @@
     main.container {
       flex: 1;
       margin-left: 265px;
-      padding: 2.25rem 3rem;
+      padding: 2rem 2.75rem;
       transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       animation: pageEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
@@ -339,7 +432,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 2.25rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
     }
 
     .top-navbar .toggle-sidebar-btn {
@@ -347,8 +442,8 @@
       border: 1px solid var(--border-color);
       color: var(--text-color);
       border-radius: 12px;
-      width: 42px;
-      height: 42px;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -359,6 +454,27 @@
     .top-navbar .toggle-sidebar-btn:hover {
       background-color: var(--border-color);
       transform: scale(1.05);
+    }
+
+    .top-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+    }
+    .top-breadcrumb a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .top-breadcrumb a:hover {
+      color: var(--primary);
+    }
+    .top-breadcrumb .active-crumb {
+      color: var(--text-color);
+      font-weight: 700;
     }
 
     /* Alert Styling */
@@ -373,7 +489,7 @@
     /* Footer */
     footer {
       margin-left: 265px;
-      padding: 1.5rem 3rem;
+      padding: 1.5rem 2.75rem;
       border-top: 1px solid var(--border-color);
       background-color: var(--card-bg);
       color: var(--text-muted);
@@ -409,30 +525,43 @@
   <!-- Sidebar Panel -->
   <nav class="sidebar" id="sidebar" aria-label="Navigazione principale">
     <a class="navbar-brand" href="/">
-      <i class="bi bi-rocket-takeoff-fill"></i>
+      <i class="bi bi-rocket-takeoff-fill text-primary"></i>
       <span>Horeca Suite</span>
     </a>
 
     <ul class="nav flex-column">
+      <!-- Section: CRM & Vendite -->
+      <li class="sidebar-section-header">Clienti & CRM</li>
+      
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/clienti') %}active{% endif %}" href="{{ url_for('clienti') }}">
           <i class="bi bi-people-fill"></i>
-          <span>Clienti</span>
-        </a>
-      </li>
-
-      <li class="nav-item">
-        <a class="nav-link {% if request.path.startswith('/prodotti') %}active{% endif %}" href="{{ url_for('prodotti') }}">
-          <i class="bi bi-box-seam-fill"></i>
-          <span>Prodotti</span>
+          <span>Gestione Clienti</span>
         </a>
       </li>
 
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/comparatore') %}active{% endif %}" href="{{ url_for('comparatore_listino') }}">
           <i class="bi bi-calculator-fill text-warning"></i>
-          <span>Comparatore Listino</span>
-          <span class="badge rounded-pill bg-success text-white ms-auto shadow-sm" style="font-size: 0.65rem; padding: 3px 6px;">Risparmio</span>
+          <span>Comparatore Offerte</span>
+          <span class="badge rounded-pill bg-success text-white ms-auto shadow-sm" style="font-size: 0.65rem; padding: 3px 6px;">Potenziale</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link {% if request.path.startswith('/visite') %}active{% endif %}" href="{{ url_for('visite_clienti') }}">
+          <i class="bi bi-calendar-check-fill"></i>
+          <span>Visite & Giri</span>
+        </a>
+      </li>
+
+      <!-- Section: Catalogo & Ordini -->
+      <li class="sidebar-section-header">Catalogo & Ordini</li>
+
+      <li class="nav-item">
+        <a class="nav-link {% if request.path.startswith('/prodotti') %}active{% endif %}" href="{{ url_for('prodotti') }}">
+          <i class="bi bi-box-seam-fill"></i>
+          <span>Catalogo Prodotti</span>
         </a>
       </li>
 
@@ -444,18 +573,14 @@
       </li>
 
       <li class="nav-item">
-        <a class="nav-link {% if request.path.startswith('/visite') %}active{% endif %}" href="{{ url_for('visite_clienti') }}">
-          <i class="bi bi-calendar-check-fill"></i>
-          <span>Visite Clienti</span>
+        <a class="nav-link {% if request.path.startswith('/beta-volantini') or request.path.startswith('/beta-volantino') or request.path.startswith('/volantini') %}active{% endif %}" href="{{ url_for('lista_volantini_beta') }}">
+          <i class="bi bi-palette-fill"></i>
+          <span>Volantini & Promo</span>
         </a>
       </li>
 
-      <li class="nav-item">
-        <a class="nav-link {% if request.path.startswith('/beta-volantini') or request.path.startswith('/beta-volantino') or request.path.startswith('/volantini') %}active{% endif %}" href="{{ url_for('lista_volantini_beta') }}">
-          <i class="bi bi-palette-fill"></i>
-          <span>Volantini</span>
-        </a>
-      </li>
+      <!-- Section: Business Intelligence -->
+      <li class="sidebar-section-header">Intelligence & Bot</li>
 
       <li class="nav-item">
         <a class="nav-link {% if request.path.startswith('/fatturato') %}active{% endif %}" href="{{ url_for('fatturato') }}">
@@ -497,14 +622,37 @@
     
     <!-- Top Action Navbar -->
     <div class="top-navbar">
-      <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2">
         <button class="toggle-sidebar-btn" id="sidebarToggleBtn" aria-label="Espandi/Riduci Menu">
-          <i class="bi bi-arrow-left-right"></i>
+          <i class="bi bi-layout-sidebar-inset"></i>
         </button>
+        <div class="top-breadcrumb d-none d-sm-flex align-items-center">
+          <a href="/"><i class="bi bi-house-door-fill me-1"></i>Home</a>
+          <span class="mx-1 text-muted">/</span>
+          {% if request.path.startswith('/clienti/') and request.path != '/clienti' and request.path != '/clienti/' %}
+            <a href="{{ url_for('clienti') }}">Clienti</a>
+            <span class="mx-1 text-muted">/</span>
+            <span class="active-crumb">Scheda Dettaglio</span>
+          {% elif request.path.startswith('/clienti') %}
+            <span class="active-crumb">Anagrafica & Gestione Clienti</span>
+          {% elif request.path.startswith('/comparatore') %}
+            <span class="active-crumb">Comparatore Offerte & Potenziale</span>
+          {% elif request.path.startswith('/prodotti') %}
+            <span class="active-crumb">Catalogo Prodotti Horeca</span>
+          {% elif request.path.startswith('/statistiche') %}
+            <span class="active-crumb">Statistiche & Business Intelligence</span>
+          {% else %}
+            <span class="active-crumb">Dashboard Direzionale</span>
+          {% endif %}
+        </div>
       </div>
       <div class="d-flex align-items-center gap-3">
-        <span class="badge bg-primary-light text-primary px-3 py-2 rounded-pill fw-semibold border border-primary-subtle">
-          <i class="bi bi-shield-check"></i> Leonardo (Admin)
+        <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-light border text-muted small fw-semibold">
+          <i class="bi bi-shield-check text-success"></i>
+          <span>Sistema Connesso</span>
+        </div>
+        <span class="badge bg-primary-light text-primary px-3 py-2 rounded-pill fw-semibold border border-primary-subtle d-flex align-items-center gap-2">
+          <i class="bi bi-person-circle"></i> Leonardo (Admin)
         </span>
       </div>
     </div>

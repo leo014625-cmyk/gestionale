@@ -5,18 +5,42 @@
 {% block styles %}
 {{ super() }}
 <style>
-  /* Premium Client list styling */
+  /* Executive Commercial Cockpit Styling */
+  .crm-header-card {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%);
+    color: #ffffff;
+    border-radius: var(--radius);
+    padding: 2.25rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 12px 30px -8px rgba(30, 27, 75, 0.45);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .crm-header-card::after {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* KPI Metrics Cards */
   .kpi-card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.5rem;
+    border-radius: var(--radius);
+    padding: 1.25rem 1.4rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-    flex: 1 1 220px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    flex: 1 1 200px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     overflow: hidden;
   }
@@ -28,140 +52,220 @@
     width: 4px;
     height: 100%;
     background: transparent;
-    transition: background 0.3s;
+    transition: background 0.25s;
   }
   .kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
   }
   .kpi-card-primary::before { background: var(--primary); }
   .kpi-card-success::before { background: var(--success); }
+  .kpi-card-warning::before { background: var(--warning); }
   .kpi-card-danger::before { background: var(--danger); }
-  .kpi-card-secondary::before { background: var(--secondary); }
+  .kpi-card-info::before { background: var(--accent); }
+  .kpi-card-purple::before { background: #8b5cf6; }
 
   .kpi-card-details h6 {
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
   }
   .kpi-card-details .kpi-num {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.85rem;
+    font-size: 1.65rem;
     font-weight: 800;
     line-height: 1.1;
   }
 
-  /* Filters Panel */
+  /* Intelligence Strip & Tier Badges */
+  .intelligence-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 2rem;
+  }
+
+  .tier-selector-pill {
+    padding: 0.4rem 0.85rem;
+    border-radius: 30px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .tier-selector-pill:hover, .tier-selector-pill.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+  }
+
+  /* Filters Card */
   .filters-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    border-radius: var(--radius);
+    padding: 1.35rem 1.5rem;
+    box-shadow: var(--shadow-sm);
     margin-bottom: 2rem;
   }
   .filters-card .form-label {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     font-weight: 700;
-    color: var(--text-color);
-    margin-bottom: 0.4rem;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
   }
   .filters-card .form-control, .filters-card .form-select {
     background-color: var(--bg-color);
     color: var(--text-color);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.65rem 1rem;
-    font-size: 0.9rem;
-    transition: all 0.2s ease-in-out;
+    border-radius: 12px;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
   }
   .filters-card .form-control:focus, .filters-card .form-select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 13, 110, 253), 0.15);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
   }
 
   /* Table Cards */
   .table-container-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
-    transition: box-shadow 0.3s;
-  }
-  .table-container-card:hover {
-    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    margin-bottom: 2rem;
   }
   .custom-table th {
     background-color: var(--bg-color);
-    color: var(--text-color);
+    color: var(--text-muted);
     font-family: 'Outfit', sans-serif;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     border-bottom: 2px solid var(--border-color);
-    padding: 1.25rem 1rem;
+    padding: 1.1rem 0.9rem;
+    white-space: nowrap;
   }
   .custom-table td {
-    padding: 1.15rem 1rem;
+    padding: 1.05rem 0.9rem;
     border-bottom: 1px solid var(--border-color);
     color: var(--text-color);
-    font-size: 0.92rem;
+    font-size: 0.9rem;
+    vertical-align: middle;
   }
   .custom-table tbody tr {
-    transition: background-color 0.2s ease;
+    transition: background-color 0.15s ease;
   }
   .custom-table tbody tr:hover td {
-    background-color: rgba(var(--primary-rgb, 13, 110, 253), 0.03);
+    background-color: rgba(99, 102, 241, 0.035);
   }
 
   /* Status Pills */
   .status-pill {
-    font-size: 0.75rem;
+    font-size: 0.73rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.4rem 0.8rem;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.75rem;
     border-radius: 30px;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+    white-space: nowrap;
   }
   .status-attivo {
     background-color: rgba(16, 185, 129, 0.1);
     color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.25);
   }
   .status-bloccato {
     background-color: rgba(239, 68, 68, 0.1);
     color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.25);
   }
   .status-inattivo {
     background-color: rgba(100, 116, 139, 0.1);
     color: #64748b;
-    border: 1px solid rgba(100, 116, 139, 0.2);
+    border: 1px solid rgba(100, 116, 139, 0.25);
   }
 
-  .zone-section-title {
-    font-family: 'Outfit', sans-serif;
-    font-weight: 800;
-    font-size: 1.35rem;
+  /* Penetration Progress Bar */
+  .penetration-container {
+    min-width: 110px;
+  }
+  .penetration-bar-bg {
+    height: 6px;
+    background-color: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .penetration-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 100%);
+    transition: width 0.4s ease;
+  }
+
+  /* View Mode Switcher */
+  .view-switcher-btn {
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
     color: var(--text-color);
-    margin-top: 2.5rem;
-    margin-bottom: 1rem;
-    display: flex;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
     align-items: center;
+    gap: 6px;
+  }
+  .view-switcher-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  }
+
+  /* Client Cards for Grid View */
+  .client-card-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.4rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.25s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     justify-content: space-between;
   }
+  .client-card-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
 
-  /* Action circles */
+  /* Action buttons */
   .action-btn-circle {
     width: 32px;
     height: 32px;
@@ -169,8 +273,38 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s;
+    border-radius: 10px;
+    transition: all 0.15s;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+    text-decoration: none;
+  }
+  .action-btn-circle:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .wa-quick-btn {
+    color: #25D366 !important;
+    background: rgba(37, 211, 102, 0.08) !important;
+    border-color: rgba(37, 211, 102, 0.25) !important;
+  }
+  .wa-quick-btn:hover {
+    background: #25D366 !important;
+    color: #ffffff !important;
+  }
+
+  .zone-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--text-color);
+    margin-top: 2rem;
+    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 </style>
 {% endblock %}
@@ -178,84 +312,183 @@
 {% block content %}
 <div class="container-fluid px-0">
 
-  <!-- Header Section -->
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <!-- Executive Header Banner -->
+  <div class="crm-header-card d-flex flex-wrap align-items-center justify-content-between gap-4">
     <div>
-      <h1 class="h2 mb-1 fw-bold">Anagrafica & Gestione Clienti</h1>
-      <p class="text-muted mb-0">Gestisci i dettagli commerciali, registra il fatturato settimanale ed analizza l'andamento del portfolio.</p>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem; letter-spacing: 0.05em;">COMMERCIAL INTELLIGENCE</span>
+        <span class="text-white-50 small">• Aggiornato al {{ current_year or "2026" }}</span>
+      </div>
+      <h1 class="display-6 fw-bold mb-1 text-white">Anagrafica & Gestione Clienti</h1>
+      <p class="text-white-50 mb-0">Monitora i volumi commerciali, analizza il potenziale inespresso e pianifica le vendite.</p>
     </div>
 
-    <!-- POPUP LAUNCHER BUTTONS IN HEADER -->
+    <!-- Main Action Buttons -->
     <div class="d-flex flex-wrap gap-2">
-      <button type="button" class="btn btn-outline-primary rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalListaClienti">
-        <i class="bi bi-list-columns-reverse text-primary"></i> Directory Clienti
+      <button type="button" class="btn btn-outline-light rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalListaClienti">
+        <i class="bi bi-list-columns-reverse"></i> Directory
       </button>
 
-      <button type="button" class="btn btn-outline-info rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalStatisticheLavoro">
-        <i class="bi bi-bar-chart-line-fill text-info"></i> Statistiche Lavoro
+      <a href="{{ url_for('comparatore_listino') }}" class="btn btn-outline-warning text-white border-white-50 rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-calculator-fill text-warning"></i> Comparatore Offerte
+      </a>
+
+      <button type="button" class="btn btn-warning text-dark rounded-4 px-3 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalQuickWeeklyEntry" onclick="impostaDatePredefiniteQuick()">
+        <i class="bi bi-lightning-charge-fill"></i> Aggiornamento Settimanale
       </button>
 
-      <button type="button" class="btn btn-outline-warning rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm text-warning" data-bs-toggle="modal" data-bs-target="#modalQuickWeeklyEntry" onclick="impostaDatePredefiniteQuick()">
-        <i class="bi bi-lightning-charge-fill text-warning"></i> Aggiornamento Settimanale
-      </button>
-
-      <button type="button" class="btn btn-outline-success rounded-4 px-3 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm text-success" data-bs-toggle="modal" data-bs-target="#modalNuovoCliente">
-        <i class="bi bi-person-plus-fill text-success"></i> Nuovo Cliente
+      <button type="button" class="btn btn-primary rounded-4 px-3.5 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoCliente">
+        <i class="bi bi-person-plus-fill"></i> Nuovo Cliente
       </button>
     </div>
   </div>
 
-  {# KPI Counters Panel #}
-  {% set tot_clienti = stati_clienti|length %}
+  {# KPI Portfolio & Potential Cockpit #}
+  {% set tot_clienti = tutti_clienti|length %}
   {% set attivi = stati_clienti.values()|select('equalto', 'attivo')|list|length %}
   {% set bloccati = stati_clienti.values()|select('equalto', 'bloccato')|list|length %}
   {% set inattivi = stati_clienti.values()|select('equalto', 'inattivo')|list|length %}
 
-  <div class="d-flex flex-wrap gap-3 mb-4">
-    <div class="kpi-card kpi-card-primary">
-      <div class="kpi-card-details">
-        <h6>Clienti Totali</h6>
-        <div class="kpi-num text-primary font-monospace">{{ tot_clienti }}</div>
+  <div class="row g-3 mb-4">
+    <!-- Total Clients -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="kpi-card kpi-card-primary h-100">
+        <div class="kpi-card-details">
+          <h6>Clienti Totali</h6>
+          <div class="kpi-num text-primary font-monospace">{{ tot_clienti }}</div>
+          <span class="text-muted small" style="font-size: 0.72rem;">{{ zone|length }} zone servite</span>
+        </div>
+        <div class="fs-4"><i class="bi bi-people text-primary opacity-50"></i></div>
       </div>
-      <div class="fs-3"><i class="bi bi-people text-primary opacity-75"></i></div>
     </div>
-    <div class="kpi-card kpi-card-success">
-      <div class="kpi-card-details">
-        <h6>Attivi</h6>
-        <div class="kpi-num text-success font-monospace">{{ attivi }}</div>
+
+    <!-- Active Clients -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="kpi-card kpi-card-success h-100">
+        <div class="kpi-card-details">
+          <h6>Clienti Attivi</h6>
+          <div class="kpi-num text-success font-monospace">
+            <span class="status-pulse-dot pulse-green"></span>{{ attivi }}
+          </div>
+          <span class="text-success small fw-semibold" style="font-size: 0.72rem;">
+            {{ "%.0f"|format((attivi / tot_clienti * 100) if tot_clienti > 0 else 0) }}% del portfolio
+          </span>
+        </div>
+        <div class="fs-4"><i class="bi bi-check-circle text-success opacity-50"></i></div>
       </div>
-      <div class="fs-3"><i class="bi bi-check-circle text-success opacity-75"></i></div>
     </div>
-    <div class="kpi-card kpi-card-danger">
-      <div class="kpi-card-details">
-        <h6>Bloccati</h6>
-        <div class="kpi-num text-danger font-monospace">{{ bloccati }}</div>
+
+    <!-- Total Portfolio Revenue -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="kpi-card kpi-card-info h-100">
+        <div class="kpi-card-details">
+          <h6>Fatturato Portfolio</h6>
+          <div class="kpi-num text-info font-monospace" style="font-size: 1.45rem;">
+            € {{ "%.2f"|format(tot_fatturato_portfolio or 0) }}
+          </div>
+          <span class="text-muted small" style="font-size: 0.72rem;">Cumulativo registrato</span>
+        </div>
+        <div class="fs-4"><i class="bi bi-currency-euro text-info opacity-50"></i></div>
       </div>
-      <div class="fs-3"><i class="bi bi-exclamation-octagon text-danger opacity-75"></i></div>
     </div>
-    <div class="kpi-card kpi-card-secondary">
-      <div class="kpi-card-details">
-        <h6>Inattivi</h6>
-        <div class="kpi-num text-secondary font-monospace">{{ inattivi }}</div>
+
+    <!-- Average Revenue per Client -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="kpi-card kpi-card-purple h-100">
+        <div class="kpi-card-details">
+          <h6>Media / Cliente</h6>
+          <div class="kpi-num font-monospace" style="color: #8b5cf6; font-size: 1.45rem;">
+            € {{ "%.2f"|format(media_fatturato_cliente or 0) }}
+          </div>
+          <span class="text-muted small" style="font-size: 0.72rem;">Scontrino medio</span>
+        </div>
+        <div class="fs-4"><i class="bi bi-graph-up text-primary opacity-50"></i></div>
       </div>
-      <div class="fs-3"><i class="bi bi-clock-history text-secondary opacity-75"></i></div>
+    </div>
+
+    <!-- Potential Estimated Revenue (From Comparative Price Lists) -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="kpi-card kpi-card-warning h-100">
+        <div class="kpi-card-details">
+          <h6>Potenziale Stimato</h6>
+          <div class="kpi-num text-warning font-monospace" style="font-size: 1.45rem;">
+            € {{ "%.2f"|format(tot_potenziale_stimato or 0) }}
+          </div>
+          <span class="text-muted small" style="font-size: 0.72rem;">/ mese dai listini</span>
+        </div>
+        <div class="fs-4"><i class="bi bi-crosshair text-warning opacity-50"></i></div>
+      </div>
+    </div>
+
+    <!-- At Risk / Inactive Clients -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="kpi-card kpi-card-danger h-100">
+        <div class="kpi-card-details">
+          <h6>Attenzione Churn</h6>
+          <div class="kpi-num text-danger font-monospace">{{ clienti_a_rischio|length }}</div>
+          <span class="text-danger small" style="font-size: 0.72rem;">Bloccati o in calo</span>
+        </div>
+        <div class="fs-4"><i class="bi bi-exclamation-octagon text-danger opacity-50"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Intelligence Strip: Tiers & Quick Insights -->
+  <div class="intelligence-card">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="small fw-bold text-muted text-uppercase me-2"><i class="bi bi-funnel me-1"></i>Filtra per Tier:</span>
+        <button type="button" class="tier-selector-pill active" onclick="filtraPerTier('tutti', this)">
+          <span>Tutti ({{ tot_clienti }})</span>
+        </button>
+        <button type="button" class="tier-selector-pill" onclick="filtraPerTier('diamond', this)">
+          <span class="badge-tier badge-tier-diamond" style="padding: 2px 6px;">💎 Diamond</span>
+          <span class="badge bg-secondary bg-opacity-25 text-color rounded-pill">{{ tier_counts.diamond or 0 }}</span>
+        </button>
+        <button type="button" class="tier-selector-pill" onclick="filtraPerTier('gold', this)">
+          <span class="badge-tier badge-tier-gold" style="padding: 2px 6px;">🥇 Gold</span>
+          <span class="badge bg-secondary bg-opacity-25 text-color rounded-pill">{{ tier_counts.gold or 0 }}</span>
+        </button>
+        <button type="button" class="tier-selector-pill" onclick="filtraPerTier('silver', this)">
+          <span class="badge-tier badge-tier-silver" style="padding: 2px 6px;">🥈 Silver</span>
+          <span class="badge bg-secondary bg-opacity-25 text-color rounded-pill">{{ tier_counts.silver or 0 }}</span>
+        </button>
+        <button type="button" class="tier-selector-pill" onclick="filtraPerTier('bronze', this)">
+          <span class="badge-tier badge-tier-bronze" style="padding: 2px 6px;">🥉 Bronze</span>
+          <span class="badge bg-secondary bg-opacity-25 text-color rounded-pill">{{ tier_counts.bronze or 0 }}</span>
+        </button>
+      </div>
+
+      <!-- View Switcher -->
+      <div class="d-flex align-items-center gap-2 bg-light p-1 rounded-3 border">
+        <span class="small text-muted fw-bold px-2 d-none d-sm-inline">Vista:</span>
+        <button type="button" class="view-switcher-btn active" id="btnViewUnified" onclick="cambiaVista('unified')" title="Vista Tabella Unificata">
+          <i class="bi bi-table"></i> Tabella
+        </button>
+        <button type="button" class="view-switcher-btn" id="btnViewZone" onclick="cambiaVista('zone')" title="Vista Raggruppata per Zona">
+          <i class="bi bi-geo-alt"></i> Per Zona
+        </button>
+        <button type="button" class="view-switcher-btn" id="btnViewCards" onclick="cambiaVista('cards')" title="Vista Schede Commerciali">
+          <i class="bi bi-grid"></i> Schede
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Filters Card Panel -->
   <div class="filters-card">
-    <form method="get" class="row g-3 align-items-end">
-      <div class="col-12 col-sm-4 col-lg-3">
-        <label class="form-label mb-1" for="searchInput">Ricerca Testuale</label>
+    <form method="get" class="row g-3 align-items-end" id="formFiltriClienti">
+      <div class="col-12 col-md-4 col-lg-3">
+        <label class="form-label" for="liveSearchInput">Ricerca Istantanea</label>
         <div class="position-relative">
-          <input type="text" id="searchInput" name="search" class="form-control ps-4"
-                 placeholder="Cerca nome cliente..." value="{{ request.args.get('search', '') }}">
+          <input type="text" id="liveSearchInput" name="search" class="form-control ps-4"
+                 placeholder="Cerca per nome, zona o tel..." value="{{ request.args.get('search', '') }}" onkeyup="eseguiRicercaClientSide(this.value)">
           <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-muted small"></i>
         </div>
       </div>
 
-      <div class="col-6 col-sm-3 col-lg-2">
-        <label class="form-label mb-1" for="zonaSelect">Filtra per Zona</label>
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="zonaSelect">Zona Geografica</label>
         <select id="zonaSelect" name="zona" class="form-select" onchange="this.form.submit()">
           <option value="">Tutte le zone</option>
           {% for z in zone %}
@@ -264,156 +497,453 @@
         </select>
       </div>
 
-      <div class="col-6 col-sm-3 col-lg-2">
-        <label class="form-label mb-1" for="statoSelect">Stato Cliente</label>
-        <select id="statoSelect" name="stato" class="form-select" onchange="this.form.submit()">
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="statoSelect">Stato Cliente</label>
+        <select id="statoSelect" name="stato" class="form-select" onchange="filtraPerStato(this.value)">
           <option value="">Tutti gli stati</option>
-          <option value="attivo" {% if request.args.get('stato') == 'attivo' %}selected{% endif %}>Attivo</option>
-          <option value="bloccato" {% if request.args.get('stato') == 'bloccato' %}selected{% endif %}>Bloccato</option>
-          <option value="inattivo" {% if request.args.get('stato') == 'inattivo' %}selected{% endif %}>Inattivo</option>
+          <option value="attivo" {% if request.args.get('stato') == 'attivo' %}selected{% endif %}>🟢 Solo Attivi</option>
+          <option value="bloccato" {% if request.args.get('stato') == 'bloccato' %}selected{% endif %}>🔴 Bloccati / A Rischio</option>
+          <option value="inattivo" {% if request.args.get('stato') == 'inattivo' %}selected{% endif %}>⚪ Inattivi</option>
         </select>
       </div>
 
-      <div class="col-12 col-sm-2 col-lg-2">
-        <label class="form-label mb-1" for="orderSelect">Ordina per</label>
+      <div class="col-6 col-md-2 col-lg-2">
+        <label class="form-label" for="orderSelect">Ordina per</label>
         <select id="orderSelect" name="order" class="form-select" onchange="this.form.submit()">
-          <option value="zona" {% if request.args.get('order') == 'zona' or not request.args.get('order') %}selected{% endif %}>Zona</option>
-          <option value="fatturato" {% if request.args.get('order') == 'fatturato' %}selected{% endif %}>Fatturato</option>
+          <option value="fatturato" {% if request.args.get('order') == 'fatturato' or not request.args.get('order') %}selected{% endif %}>Fatturato (€)</option>
+          <option value="potenziale" {% if request.args.get('order') == 'potenziale' %}selected{% endif %}>Potenziale (€/m)</option>
+          <option value="andamento" {% if request.args.get('order') == 'andamento' %}selected{% endif %}>Crescita (%)</option>
+          <option value="nome" {% if request.args.get('order') == 'nome' %}selected{% endif %}>Nome (A-Z)</option>
+          <option value="zona" {% if request.args.get('order') == 'zona' %}selected{% endif %}>Zona</option>
         </select>
       </div>
 
-      <div class="col-12 col-sm-4 col-lg-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary rounded-4 w-100 fw-semibold">Applica Filtri</button>
+      <div class="col-6 col-md-4 col-lg-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary rounded-4 w-100 fw-semibold">Filtra</button>
         <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4 px-3" title="Resetta Filtri"><i class="bi bi-arrow-counterclockwise"></i></a>
       </div>
     </form>
   </div>
 
-  <!-- LISTA CLIENTI ZONA PER ZONA -->
-  {% if clienti_per_zona %}
-    {% for zona, clienti in clienti_per_zona.items() %}
-      {% set zona_label = zona if zona else 'Zona Non Specificata' %}
+  <!-- ======================================================= -->
+  <!-- VISTA 1: TABELLA UNIFICATA DIREZIONALE (PREDEFINITA)   -->
+  <!-- ======================================================= -->
+  <div id="containerViewUnified" class="view-container">
+    {% if tutti_clienti|length > 0 %}
+      <div class="table-container-card">
+        <div class="table-responsive">
+          <table class="table custom-table align-middle mb-0" id="tableUnifiedClienti">
+            <thead>
+              <tr>
+                <th style="width: 120px;" class="text-center">Stato</th>
+                <th>Cliente & Segmento</th>
+                <th style="width: 160px;">Zona & Logistica</th>
+                <th style="width: 130px;" class="text-center">Contatto Rapido</th>
+                <th style="width: 160px;">Penetrazione Catalogo</th>
+                <th class="text-end" style="width: 140px;">Fatturato Totale</th>
+                <th class="text-end" style="width: 140px;">Potenziale Stimato</th>
+                <th class="text-center" style="width: 110px;">Trend</th>
+                <th style="width: 140px;" class="text-center">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cliente in tutti_clienti %}
+                {% set stato = cliente.stato %}
+                <tr class="client-row"
+                    data-name="{{ cliente.nome|lower }}"
+                    data-zona="{{ cliente.zona|lower if cliente.zona else '' }}"
+                    data-tier="{{ cliente.tier }}"
+                    data-stato="{{ stato }}"
+                    data-tel="{{ cliente.tel_clean }}">
+                  
+                  <!-- Status -->
+                  <td class="text-center">
+                    {% if stato == 'attivo' %}
+                      <span class="status-pill status-attivo">
+                        <span class="status-pulse-dot pulse-green"></span>Attivo
+                      </span>
+                    {% elif stato == 'bloccato' %}
+                      <span class="status-pill status-bloccato">
+                        <i class="bi bi-x-circle-fill"></i>Bloccato
+                      </span>
+                    {% else %}
+                      <span class="status-pill status-inattivo">
+                        <i class="bi bi-slash-circle"></i>Inattivo
+                      </span>
+                    {% endif %}
+                  </td>
 
-      {% if not request.args.get('zona') or request.args.get('zona') == zona %}
-        <div class="zone-section-title">
-          <span>
-            <i class="bi bi-geo-alt-fill text-primary me-2"></i>{{ zona_label }}
-          </span>
-          <span class="badge bg-light text-secondary border fs-6 fw-normal">{{ clienti|length }} clienti</span>
+                  <!-- Client Name & Tier -->
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <a class="text-decoration-none fw-bold text-color hover-primary" href="{{ url_for('cliente_scheda', id=cliente.id) }}">
+                        {{ cliente.nome }}
+                      </a>
+                      <span class="badge-tier badge-tier-{{ cliente.tier }}">
+                        {{ cliente.tier_badge }}
+                      </span>
+                    </div>
+                    {% if cliente.visita_str %}
+                      <div class="small text-muted mt-0.5">
+                        <i class="bi bi-calendar-event text-primary me-1"></i>Visita: {{ cliente.visita_str }}
+                      </div>
+                    {% endif %}
+                  </td>
+
+                  <!-- Zone & Logistics -->
+                  <td>
+                    <div class="fw-semibold small"><i class="bi bi-geo-alt-fill me-1 text-primary"></i>{{ cliente.zona or '–' }}</div>
+                    {% if cliente.scarico_str %}
+                      <div class="text-muted" style="font-size: 0.74rem;">
+                        <i class="bi bi-truck me-1"></i>Scarico: <span class="fw-semibold text-color">{{ cliente.scarico_str }}</span>
+                      </div>
+                    {% endif %}
+                  </td>
+
+                  <!-- Quick Contact (WhatsApp) -->
+                  <td class="text-center">
+                    {% if cliente.tel_clean and cliente.tel_clean|length >= 8 %}
+                      <a href="https://wa.me/{{ cliente.tel_clean }}" target="_blank" rel="noopener"
+                         class="action-btn-circle wa-quick-btn me-1" title="Apri Chat WhatsApp ({{ cliente.telefono }})">
+                        <i class="bi bi-whatsapp"></i>
+                      </a>
+                      <a href="tel:{{ cliente.tel_clean }}" class="action-btn-circle" title="Chiama {{ cliente.telefono }}">
+                        <i class="bi bi-telephone-fill text-muted"></i>
+                      </a>
+                    {% else %}
+                      <span class="text-muted small fst-italic">–</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Catalog Penetration -->
+                  <td>
+                    <div class="penetration-container">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-bold text-muted" style="font-size: 0.74rem;">
+                          {{ cliente.num_prodotti_lavorati }} ref.
+                        </span>
+                        <span class="small fw-semibold text-color" style="font-size: 0.74rem;">
+                          {{ cliente.num_categorie_lavorate }}/{{ cliente.total_categories_count }} cat. ({{ cliente.penetrazione_categorie }}%)
+                        </span>
+                      </div>
+                      <div class="penetration-bar-bg" title="Copertura macro-categorie: {{ cliente.penetrazione_categorie }}%">
+                        <div class="penetration-bar-fill" style="width: {{ cliente.penetrazione_categorie }}%;"></div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Total Revenue -->
+                  <td class="text-end fw-bold font-monospace text-color">
+                    € {{ "%.2f"|format(cliente.fatturato_totale) }}
+                  </td>
+
+                  <!-- Potential Estimated Revenue -->
+                  <td class="text-end">
+                    {% if cliente.fatturato_stimato_mensile > 0 %}
+                      <span class="fw-bold font-monospace text-success">
+                        € {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}
+                      </span>
+                      <div class="text-muted" style="font-size: 0.7rem;">stimato / mese</div>
+                    {% else %}
+                      <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="badge bg-light text-muted border text-decoration-none" title="Calcola potenziale con comparatore">
+                        + Calcola
+                      </a>
+                    {% endif %}
+                  </td>
+
+                  <!-- Trend -->
+                  <td class="text-center">
+                    {% if cliente.andamento > 0 %}
+                      <span class="badge bg-success bg-opacity-10 text-success rounded-pill font-monospace px-2.5 py-1">
+                        <i class="bi bi-arrow-up-short"></i>+{{ cliente.andamento }}%
+                      </span>
+                    {% elif cliente.andamento < 0 %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill font-monospace px-2.5 py-1">
+                        <i class="bi bi-arrow-down-short"></i>{{ cliente.andamento }}%
+                      </span>
+                    {% else %}
+                      <span class="badge bg-light text-muted border rounded-pill font-monospace px-2 py-1">
+                        0%
+                      </span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Actions -->
+                  <td class="text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-1.5">
+                      <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="action-btn-circle" title="Visualizza Scheda Dettaglio">
+                        <i class="bi bi-eye text-primary"></i>
+                      </a>
+                      <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="action-btn-circle" title="Comparatore Listino & Risparmio">
+                        <i class="bi bi-calculator text-warning"></i>
+                      </a>
+                      <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="action-btn-circle" title="Modifica Anagrafica">
+                        <i class="bi bi-pencil text-secondary"></i>
+                      </a>
+                      <form action="{{ url_for('elimina_cliente', id=cliente.id) }}" method="POST"
+                            onsubmit="return confirm('Eliminare definitivamente questo cliente? L\'operazione non è reversibile.');"
+                            style="display:inline-block; margin:0;">
+                        <button type="submit" class="action-btn-circle" title="Elimina" style="color: #ef4444;">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+      </div>
+    {% else %}
+      <div class="alert alert-light text-center border p-5 rounded-4 shadow-sm">
+        <i class="bi bi-people fs-1 text-primary opacity-50 mb-3 d-block"></i>
+        <h5 class="fw-bold">Nessun cliente presente</h5>
+        <p class="text-muted">Aggiungi il tuo primo cliente o reimposta i filtri applicati.</p>
+        <button type="button" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold mt-2" data-bs-toggle="modal" data-bs-target="#modalNuovoCliente">
+          Aggiungi Cliente
+        </button>
+      </div>
+    {% endif %}
+  </div>
 
-        {% if clienti|length > 0 %}
-          <div class="table-container-card mb-4">
-            <div class="table-responsive">
-              <table class="table custom-table align-middle">
-                <thead>
-                  <tr>
-                    <th style="width: 130px;" class="text-center">Stato</th>
-                    <th>Nome Cliente</th>
-                    <th style="width: 150px;">Zona</th>
-                    <th class="text-center" style="width: 140px;">Andamento</th>
-                    <th class="text-end" style="width: 180px;">Fatturato Totale</th>
-                    <th style="width: 160px;" class="text-center">Azioni</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for cliente in clienti %}
+  <!-- ======================================================= -->
+  <!-- VISTA 2: LISTA RAGGRUPPATA PER ZONA                    -->
+  <!-- ======================================================= -->
+  <div id="containerViewZone" class="view-container d-none">
+    {% if clienti_per_zona %}
+      {% for zona, clienti in clienti_per_zona.items() %}
+        {% set zona_label = zona if zona else 'Zona Non Specificata' %}
+        {% set tot_zona = fatturato_per_zona.get(zona_label, 0) %}
+
+        {% if not request.args.get('zona') or request.args.get('zona') == zona %}
+          <div class="zone-section-title">
+            <span class="d-flex align-items-center gap-2">
+              <i class="bi bi-geo-alt-fill text-primary"></i>
+              <span>{{ zona_label }}</span>
+              <span class="badge bg-light text-secondary border fs-6 fw-normal ms-2">{{ clienti|length }} clienti</span>
+            </span>
+            <span class="badge bg-primary-light text-primary border border-primary-subtle font-monospace px-3 py-1.5 rounded-pill" style="font-size: 0.85rem;">
+              Fatturato Zona: € {{ "%.2f"|format(tot_zona) }}
+            </span>
+          </div>
+
+          {% if clienti|length > 0 %}
+            <div class="table-container-card mb-4">
+              <div class="table-responsive">
+                <table class="table custom-table align-middle mb-0">
+                  <thead>
                     <tr>
-                      <td class="text-center">
-                        {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
-                        {% if stato == 'attivo' %}
-                          <span class="status-pill status-attivo">
-                            <i class="bi bi-check-circle-fill me-1"></i>Attivo
-                          </span>
-                        {% elif stato == 'bloccato' %}
-                          <span class="status-pill status-bloccato">
-                            <i class="bi bi-x-circle-fill me-1"></i>Bloccato
-                          </span>
-                        {% else %}
-                          <span class="status-pill status-inattivo">
-                            <i class="bi bi-slash-circle me-1"></i>Inattivo
-                          </span>
-                        {% endif %}
-                      </td>
-
-                      <td>
-                        <a class="text-decoration-none fw-bold text-color hover-primary" href="{{ url_for('cliente_scheda', id=cliente.id) }}">
-                          {{ cliente.nome }}
-                        </a>
-                      </td>
-
-                      <td>
-                        <span class="text-muted small fw-semibold"><i class="bi bi-geo-alt me-1 text-primary"></i>{{ cliente.zona or '–' }}</span>
-                      </td>
-
-                      <td class="text-center">
-                        {% set andamento = andamento_clienti.get(cliente.id) %}
-                        {% if andamento is not none %}
-                          {% if andamento > 0 %}
-                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill font-monospace px-2.5 py-1.5">
-                              <i class="bi bi-arrow-up-short"></i>+{{ andamento }}%
+                      <th style="width: 120px;" class="text-center">Stato</th>
+                      <th>Nome Cliente & Segmento</th>
+                      <th style="width: 150px;">Logistica / Scarico</th>
+                      <th class="text-center" style="width: 120px;">Trend</th>
+                      <th class="text-end" style="width: 160px;">Fatturato Totale</th>
+                      <th class="text-end" style="width: 160px;">Potenziale (€/m)</th>
+                      <th style="width: 140px;" class="text-center">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for cliente in clienti %}
+                      {% set stato = stati_clienti.get(cliente.id, 'inattivo') %}
+                      <tr>
+                        <td class="text-center">
+                          {% if stato == 'attivo' %}
+                            <span class="status-pill status-attivo">
+                              <span class="status-pulse-dot pulse-green"></span>Attivo
                             </span>
-                          {% elif andamento < 0 %}
-                            <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill font-monospace px-2.5 py-1.5">
-                              <i class="bi bi-arrow-down-short"></i>{{ andamento }}%
+                          {% elif stato == 'bloccato' %}
+                            <span class="status-pill status-bloccato">
+                              <i class="bi bi-x-circle-fill"></i>Bloccato
                             </span>
                           {% else %}
-                            <span class="badge bg-light text-muted border rounded-pill font-monospace px-2.5 py-1.5">
-                              0%
+                            <span class="status-pill status-inattivo">
+                              <i class="bi bi-slash-circle"></i>Inattivo
                             </span>
                           {% endif %}
-                        {% else %}
-                          <span class="text-muted small">N/A</span>
-                        {% endif %}
-                      </td>
+                        </td>
 
-                      <td class="text-end fw-bold font-monospace text-success">
-                        {% if cliente.fatturato_totale is not none %}
-                          € {{ "%.2f"|format(cliente.fatturato_totale) }}
-                        {% else %}
-                          <span class="text-muted small fst-italic">€ 0.00</span>
-                        {% endif %}
-                      </td>
+                        <td>
+                          <div class="d-flex align-items-center gap-2">
+                            <a class="text-decoration-none fw-bold text-color hover-primary" href="{{ url_for('cliente_scheda', id=cliente.id) }}">
+                              {{ cliente.nome }}
+                            </a>
+                            <span class="badge-tier badge-tier-{{ cliente.tier }}">
+                              {{ cliente.tier_badge }}
+                            </span>
+                          </div>
+                          {% if cliente.visita_str %}
+                            <div class="small text-muted" style="font-size: 0.74rem;">
+                              <i class="bi bi-calendar-event me-1 text-primary"></i>{{ cliente.visita_str }}
+                            </div>
+                          {% endif %}
+                        </td>
 
-                      <td class="text-center">
-                        <div class="d-flex align-items-center justify-content-center gap-2">
-                          <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-outline-primary btn-sm action-btn-circle" title="Visualizza Scheda">
-                            <i class="bi bi-eye"></i>
-                          </a>
-                          <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-outline-warning btn-sm action-btn-circle" title="Modifica">
-                            <i class="bi bi-pencil"></i>
-                          </a>
-                          <form action="{{ url_for('elimina_cliente', id=cliente.id) }}" method="POST"
-                                onsubmit="return confirm('Sei sicuro di voler eliminare definitivamente questo cliente? Questa operazione cancellerà anche i suoi listini e non è reversibile.');"
-                                style="display:inline-block; margin:0;">
-                            <button type="submit" class="btn btn-outline-danger btn-sm action-btn-circle" title="Elimina">
-                              <i class="bi bi-trash"></i>
-                            </button>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+                        <td>
+                          <span class="text-muted small"><i class="bi bi-truck me-1"></i>{{ cliente.scarico_str or '–' }}</span>
+                        </td>
+
+                        <td class="text-center">
+                          {% set andamento = andamento_clienti.get(cliente.id, 0) %}
+                          {% if andamento > 0 %}
+                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill font-monospace px-2 py-1">
+                              +{{ andamento }}%
+                            </span>
+                          {% elif andamento < 0 %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill font-monospace px-2 py-1">
+                              {{ andamento }}%
+                            </span>
+                          {% else %}
+                            <span class="badge bg-light text-muted border rounded-pill font-monospace px-2 py-1">0%</span>
+                          {% endif %}
+                        </td>
+
+                        <td class="text-end fw-bold font-monospace text-color">
+                          € {{ "%.2f"|format(cliente.fatturato_totale or 0) }}
+                        </td>
+
+                        <td class="text-end font-monospace text-success fw-bold">
+                          {% if cliente.fatturato_stimato_mensile and cliente.fatturato_stimato_mensile > 0 %}
+                            € {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}
+                          {% else %}
+                            <span class="text-muted small fw-normal">–</span>
+                          {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                          <div class="d-flex align-items-center justify-content-center gap-1.5">
+                            <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="action-btn-circle" title="Scheda">
+                              <i class="bi bi-eye text-primary"></i>
+                            </a>
+                            <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="action-btn-circle" title="Comparatore">
+                              <i class="bi bi-calculator text-warning"></i>
+                            </a>
+                            <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="action-btn-circle" title="Modifica">
+                              <i class="bi bi-pencil text-secondary"></i>
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- VISTA 3: SCHEDE COMMERCIALI (CARDS)                    -->
+  <!-- ======================================================= -->
+  <div id="containerViewCards" class="view-container d-none">
+    <div class="row g-3 mb-5" id="gridCardsClienti">
+      {% for cliente in tutti_clienti %}
+        {% set stato = cliente.stato %}
+        <div class="col-12 col-md-6 col-xl-4 client-card-col"
+             data-name="{{ cliente.nome|lower }}"
+             data-zona="{{ cliente.zona|lower if cliente.zona else '' }}"
+             data-tier="{{ cliente.tier }}"
+             data-stato="{{ stato }}">
+          <div class="client-card-item">
+            <div>
+              <!-- Card Top Header -->
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                <div>
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge-tier badge-tier-{{ cliente.tier }}">
+                      {{ cliente.tier_badge }}
+                    </span>
+                    {% if stato == 'attivo' %}
+                      <span class="status-pill status-attivo py-0.5" style="font-size: 0.68rem;">Attivo</span>
+                    {% elif stato == 'bloccato' %}
+                      <span class="status-pill status-bloccato py-0.5" style="font-size: 0.68rem;">Bloccato</span>
+                    {% else %}
+                      <span class="status-pill status-inattivo py-0.5" style="font-size: 0.68rem;">Inattivo</span>
+                    {% endif %}
+                  </div>
+                  <h4 class="h5 fw-bold mb-0">
+                    <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="text-color text-decoration-none hover-primary">
+                      {{ cliente.nome }}
+                    </a>
+                  </h4>
+                  <div class="small text-muted mt-1">
+                    <i class="bi bi-geo-alt-fill text-primary me-1"></i>{{ cliente.zona or 'Zona non specificata' }}
+                  </div>
+                </div>
+                
+                {% if cliente.tel_clean and cliente.tel_clean|length >= 8 %}
+                  <a href="https://wa.me/{{ cliente.tel_clean }}" target="_blank" rel="noopener"
+                     class="btn btn-sm btn-outline-success rounded-circle d-flex align-items-center justify-content-center"
+                     style="width: 38px; height: 38px;" title="Chat WhatsApp">
+                    <i class="bi bi-whatsapp fs-5"></i>
+                  </a>
+                {% endif %}
+              </div>
+
+              <!-- Financial & Potential Box -->
+              <div class="p-3 rounded-3 bg-light border mb-3">
+                <div class="row g-2">
+                  <div class="col-6">
+                    <div class="text-muted small" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700;">Fatturato Reale</div>
+                    <div class="fw-bold font-monospace text-color fs-5">€ {{ "%.2f"|format(cliente.fatturato_totale) }}</div>
+                  </div>
+                  <div class="col-6 border-start ps-3">
+                    <div class="text-muted small" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700;">Potenziale / Mese</div>
+                    <div class="fw-bold font-monospace text-success fs-5">
+                      {% if cliente.fatturato_stimato_mensile > 0 %}
+                        € {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}
+                      {% else %}
+                        <span class="text-muted small fw-normal">Da stimare</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Logistics info -->
+              <div class="mb-3">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span class="text-muted"><i class="bi bi-truck me-1"></i>Scarico:</span>
+                  <span class="fw-semibold">{{ cliente.scarico_str or 'Standard' }}</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                  <span class="text-muted"><i class="bi bi-calendar-event me-1"></i>Visita:</span>
+                  <span class="fw-semibold">{{ cliente.visita_str or 'Non programmata' }}</span>
+                </div>
+              </div>
+
+              <!-- Penetration Bar -->
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center small mb-1">
+                  <span class="text-muted">Copertura Catalogo</span>
+                  <span class="fw-bold">{{ cliente.num_categorie_lavorate }}/{{ cliente.total_categories_count }} categorie ({{ cliente.penetrazione_categorie }}%)</span>
+                </div>
+                <div class="penetration-bar-bg">
+                  <div class="penetration-bar-fill" style="width: {{ cliente.penetrazione_categorie }}%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="d-flex gap-2 pt-3 border-top mt-2">
+              <a href="{{ url_for('cliente_scheda', id=cliente.id) }}" class="btn btn-outline-primary btn-sm rounded-3 fw-semibold flex-grow-1">
+                <i class="bi bi-eye me-1"></i>Scheda Completa
+              </a>
+              <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn btn-outline-warning btn-sm rounded-3 fw-semibold" title="Comparatore">
+                <i class="bi bi-calculator"></i>
+              </a>
+              <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-outline-secondary btn-sm rounded-3" title="Modifica">
+                <i class="bi bi-pencil"></i>
+              </a>
             </div>
           </div>
-        {% else %}
-          <div class="alert alert-light text-center border p-4 my-2 rounded-4">
-            <i class="bi bi-info-circle text-muted fs-3 mb-2 d-block"></i>
-            <span class="text-muted">Nessun cliente registrato in questa zona.</span>
-          </div>
-        {% endif %}
-      {% endif %}
-    {% endfor %}
-  {% else %}
-    <div class="alert alert-light text-center border p-5 rounded-4 shadow-sm">
-      <i class="bi bi-people fs-1 text-primary opacity-50 mb-3 d-block"></i>
-      <h5 class="fw-bold">Nessun cliente trovato</h5>
-      <p class="text-muted">Prova a resettare i filtri di ricerca o ad aggiungere una nuova anagrafica.</p>
-      <a href="{{ url_for('nuovo_cliente') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold mt-2">Aggiungi Cliente</a>
+        </div>
+      {% endfor %}
     </div>
-  {% endif %}
+  </div>
 
 </div>
 
@@ -1549,14 +2079,108 @@ async function caricaPromoScadenze() {
     }
   } catch (err) {
     console.error("Errore caricamento promo scadenze:", err);
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4"><i class="bi bi-exclamation-octagon-fill me-1"></i>Errore durante il recupero dei dati. Riprova.</td></tr>`;
   } finally {
     if (spinner) spinner.classList.add('d-none');
   }
 }
 
+// ============================================
+// CLIENT-SIDE INTERACTIVE FILTERS & VIEWS
+// ============================================
+let currentTierFilter = 'tutti';
+let currentStatoFilter = '';
+let currentSearchQuery = '';
+
+function cambiaVista(mode) {
+  const containerUnified = document.getElementById('containerViewUnified');
+  const containerZone = document.getElementById('containerViewZone');
+  const containerCards = document.getElementById('containerViewCards');
+  
+  const btnUnified = document.getElementById('btnViewUnified');
+  const btnZone = document.getElementById('btnViewZone');
+  const btnCards = document.getElementById('btnViewCards');
+
+  [btnUnified, btnZone, btnCards].forEach(b => b && b.classList.remove('active'));
+  [containerUnified, containerZone, containerCards].forEach(c => c && c.classList.add('d-none'));
+
+  if (mode === 'zone') {
+    if (containerZone) containerZone.classList.remove('d-none');
+    if (btnZone) btnZone.classList.add('active');
+  } else if (mode === 'cards') {
+    if (containerCards) containerCards.classList.remove('d-none');
+    if (btnCards) btnCards.classList.add('active');
+  } else {
+    if (containerUnified) containerUnified.classList.remove('d-none');
+    if (btnUnified) btnUnified.classList.add('active');
+  }
+
+  localStorage.setItem('horeca_clienti_view', mode);
+}
+
+function filtraPerTier(tier, btn) {
+  currentTierFilter = tier;
+  document.querySelectorAll('.tier-selector-pill').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  applicaFiltriClientSide();
+}
+
+function filtraPerStato(stato) {
+  currentStatoFilter = (stato || '').toLowerCase().trim();
+  applicaFiltriClientSide();
+}
+
+function eseguiRicercaClientSide(query) {
+  currentSearchQuery = (query || '').toLowerCase().trim();
+  applicaFiltriClientSide();
+}
+
+function applicaFiltriClientSide() {
+  // Filtra righe tabella unificata
+  const rows = document.querySelectorAll('#tableUnifiedClienti tbody tr.client-row');
+  rows.forEach(row => {
+    const name = row.getAttribute('data-name') || '';
+    const zona = row.getAttribute('data-zona') || '';
+    const tier = row.getAttribute('data-tier') || '';
+    const stato = row.getAttribute('data-stato') || '';
+    const tel = row.getAttribute('data-tel') || '';
+
+    const matchQuery = !currentSearchQuery || name.includes(currentSearchQuery) || zona.includes(currentSearchQuery) || tel.includes(currentSearchQuery);
+    const matchTier = currentTierFilter === 'tutti' || tier === currentTierFilter;
+    const matchStato = !currentStatoFilter || stato === currentStatoFilter;
+
+    if (matchQuery && matchTier && matchStato) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  // Filtra cards
+  const cards = document.querySelectorAll('#gridCardsClienti .client-card-col');
+  cards.forEach(card => {
+    const name = card.getAttribute('data-name') || '';
+    const zona = card.getAttribute('data-zona') || '';
+    const tier = card.getAttribute('data-tier') || '';
+    const stato = card.getAttribute('data-stato') || '';
+
+    const matchQuery = !currentSearchQuery || name.includes(currentSearchQuery) || zona.includes(currentSearchQuery);
+    const matchTier = currentTierFilter === 'tutti' || tier === currentTierFilter;
+    const matchStato = !currentStatoFilter || stato === currentStatoFilter;
+
+    if (matchQuery && matchTier && matchStato) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   impostaDatePredefiniteQuick();
+
+  // Ripristina preferenza vista salvata
+  const savedView = localStorage.getItem('horeca_clienti_view') || 'unified';
+  cambiaVista(savedView);
 
   const modalStat = document.getElementById('modalStatisticheLavoro');
   if (modalStat) {

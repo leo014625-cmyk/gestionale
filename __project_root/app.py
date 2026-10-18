@@ -722,13 +722,18 @@ def clienti():
 
     with get_db() as db:
         cur = db.cursor()
-        
-        # Singola query ottimizzata per estrarre i clienti e il fatturato aggregato
+        # Singola query ottimizzata per estrarre i clienti, dati commerciali e il fatturato aggregato
         query = '''
             SELECT 
                 c.id, 
                 c.nome, 
                 c.zona,
+                c.telefono,
+                c.giorno_visita_standard,
+                c.giorni_consegna_standard,
+                c.ora_visita_standard,
+                c.frequenza_visita,
+                COALESCE(c.fatturato_stimato_mensile, 0) AS fatturato_stimato_mensile,
                 COALESCE(SUM(f.totale), 0) AS fatturato_totale,
                 COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS totale_mese_corrente,
                 COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS totale_mese_prec,
@@ -753,10 +758,37 @@ def clienti():
         if condizioni:
             query += ' WHERE ' + ' AND '.join(condizioni)
             
-        query += ' GROUP BY c.id, c.nome, c.zona'
+        query += ' GROUP BY c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard, c.giorni_consegna_standard, c.ora_visita_standard, c.frequenza_visita, c.fatturato_stimato_mensile'
         
         cur.execute(query, params)
         clienti_rows = cur.fetchall()
+
+        # Dati lavorazione prodotti e penetrazione categorie
+        try:
+            cur.execute('''
+                SELECT 
+                    cp.cliente_id,
+                    COUNT(cp.prodotto_id) AS num_prodotti_lavorati,
+                    COUNT(DISTINCT p.categoria_id) AS num_categorie_lavorate
+                FROM clienti_prodotti cp
+                JOIN prodotti p ON cp.prodotto_id = p.id
+                WHERE cp.lavorato IS TRUE AND COALESCE(p.eliminato, FALSE) = FALSE
+                GROUP BY cp.cliente_id
+            ''')
+            worked_stats = {r['cliente_id']: r for r in cur.fetchall()}
+        except Exception:
+            db.rollback()
+            worked_stats = {}
+
+        try:
+            cur.execute('SELECT COUNT(*) AS total_cat FROM categorie')
+            total_categories_count = cur.fetchone()['total_cat'] or 6
+        except Exception:
+            db.rollback()
+            total_categories_count = 6
+
+        giorni_settimana = {'1': 'Lun', '2': 'Mar', '3': 'Mer', '4': 'Gio', '5': 'Ven', '6': 'Sab', '0': 'Dom'}
+        giorni_completi = {'1': 'Lunedì', '2': 'Martedì', '3': 'Mercoledì', '4': 'Giovedì', '5': 'Venerdì', '6': 'Sabato', '0': 'Domenica'}
 
         clienti_list = []
         stati_clienti = {}
@@ -764,17 +796,17 @@ def clienti():
 
         for row in clienti_rows:
             c_id = row['id']
-            fatturato_totale = row['fatturato_totale']
-            totale_mese_corrente = row['totale_mese_corrente']
-            totale_mese_prec = row['totale_mese_prec']
-            totale_due_mesi_fa = row['totale_due_mesi_fa']
+            fatturato_totale = float(row['fatturato_totale'] or 0.0)
+            totale_mese_corrente = float(row['totale_mese_corrente'] or 0.0)
+            totale_mese_prec = float(row['totale_mese_prec'] or 0.0)
+            totale_due_mesi_fa = float(row['totale_due_mesi_fa'] or 0.0)
 
             stato = ('attivo' if (totale_mese_corrente > 0 or totale_mese_prec > 0)
                      else 'bloccato' if totale_due_mesi_fa > 0
                      else 'inattivo')
             stati_clienti[c_id] = stato
 
-            # Calcola andamento (trend mensile: mese precedente rispetto a due mesi fa, es. Maggio rispetto ad Aprile)
+            # Calcola andamento (trend mensile: mese precedente rispetto a due mesi fa)
             if totale_due_mesi_fa > 0:
                 andamento = round(((totale_mese_prec - totale_due_mesi_fa) / totale_due_mesi_fa) * 100, 2)
             elif totale_mese_prec > 0:
@@ -783,14 +815,66 @@ def clienti():
                 andamento = 0.0
             andamento_clienti[c_id] = andamento
 
+            # Segmentazione Tier & Potenziale Commerciale
+            fatt_stim = float(row.get('fatturato_stimato_mensile') or 0.0)
+            if fatturato_totale >= 10000 or fatt_stim >= 2500:
+                tier = 'diamond'
+                tier_label = 'Diamond'
+                tier_badge = '💎 Top Player'
+            elif fatturato_totale >= 3000 or fatt_stim >= 1000:
+                tier = 'gold'
+                tier_label = 'Gold'
+                tier_badge = '🥇 Key Client'
+            elif fatturato_totale >= 500 or fatt_stim >= 300:
+                tier = 'silver'
+                tier_label = 'Silver'
+                tier_badge = '🥈 Standard'
+            else:
+                tier = 'bronze'
+                tier_label = 'Bronze'
+                tier_badge = '🥉 Occasionale'
+
+            num_prod_lav = worked_stats.get(c_id, {}).get('num_prodotti_lavorati', 0)
+            num_cat_lav = worked_stats.get(c_id, {}).get('num_categorie_lavorate', 0)
+            penetrazione = round((num_cat_lav / total_categories_count) * 100) if total_categories_count > 0 else 0
+
+            # Formattazione giorni consegna e visita
+            consegne_raw = (row.get('giorni_consegna_standard') or '').split(',')
+            consegne_nomi = [giorni_settimana[d.strip()] for d in consegne_raw if d.strip() in giorni_settimana]
+            scarico_str = ", ".join(consegne_nomi) if consegne_nomi else None
+
+            g_visita = str(row.get('giorno_visita_standard') or '')
+            visita_str = None
+            if g_visita in giorni_completi:
+                visita_str = giorni_completi[g_visita]
+                if row.get('ora_visita_standard'):
+                    visita_str += f" ore {str(row.get('ora_visita_standard'))[:5]}"
+
+            tel = row.get('telefono') or ''
+            tel_clean = re.sub(r'[^0-9]', '', tel)
+
             clienti_list.append({
                 'id': c_id,
                 'nome': row['nome'],
                 'zona': row['zona'],
+                'telefono': tel,
+                'tel_clean': tel_clean,
+                'scarico_str': scarico_str,
+                'visita_str': visita_str,
+                'tier': tier,
+                'tier_label': tier_label,
+                'tier_badge': tier_badge,
+                'num_prodotti_lavorati': num_prod_lav,
+                'num_categorie_lavorate': num_cat_lav,
+                'total_categories_count': total_categories_count,
+                'penetrazione_categorie': penetrazione,
+                'fatturato_stimato_mensile': fatt_stim,
                 'fatturato_totale': fatturato_totale,
                 'fatturato_corrente': totale_mese_corrente,
                 'fatturato_precedente': totale_mese_prec,
-                'fatturato_due_mesi_fa': totale_due_mesi_fa
+                'fatturato_due_mesi_fa': totale_due_mesi_fa,
+                'andamento': andamento,
+                'stato': stato
             })
 
         clienti_per_zona = defaultdict(list)
@@ -804,8 +888,33 @@ def clienti():
         zone = cur.fetchall()
         zone_lista = sorted([z['zona'] for z in zone if z['zona']])
 
+        # Ordinamento dinamico aggiuntivo
+        if order == 'fatturato':
+            clienti_list.sort(key=lambda c: c['fatturato_totale'], reverse=True)
+        elif order == 'potenziale':
+            clienti_list.sort(key=lambda c: c['fatturato_stimato_mensile'], reverse=True)
+        elif order == 'andamento':
+            clienti_list.sort(key=lambda c: c['andamento'], reverse=True)
+        elif order == 'nome':
+            clienti_list.sort(key=lambda c: c['nome'].lower())
+
         top_clienti = sorted(clienti_list, key=lambda c: c['fatturato_totale'], reverse=True)[:5]
         clienti_bloccati_list = [c for c in clienti_list if stati_clienti.get(c['id']) == 'bloccato']
+        clienti_a_rischio = [c for c in clienti_list if c['stato'] == 'bloccato' or c['andamento'] < -15]
+        clienti_in_crescita = [c for c in clienti_list if c['andamento'] > 0]
+        clienti_con_potenziale = [c for c in clienti_list if c['fatturato_stimato_mensile'] > 0]
+
+        # Indicatori di Portafoglio Complessivi
+        tot_fatturato_portfolio = sum(c['fatturato_totale'] for c in clienti_list)
+        media_fatturato_cliente = round(tot_fatturato_portfolio / len(clienti_list), 2) if clienti_list else 0.0
+        tot_potenziale_stimato = sum(c['fatturato_stimato_mensile'] for c in clienti_list)
+
+        tier_counts = {
+            'diamond': sum(1 for c in clienti_list if c['tier'] == 'diamond'),
+            'gold': sum(1 for c in clienti_list if c['tier'] == 'gold'),
+            'silver': sum(1 for c in clienti_list if c['tier'] == 'silver'),
+            'bronze': sum(1 for c in clienti_list if c['tier'] == 'bronze'),
+        }
 
         tab_attiva = request.args.get('tab', 'lista')
 
@@ -822,6 +931,13 @@ def clienti():
         fatturato_per_zona=dict(fatturato_per_zona),
         top_clienti=top_clienti,
         clienti_bloccati_list=clienti_bloccati_list,
+        clienti_a_rischio=clienti_a_rischio,
+        clienti_in_crescita=clienti_in_crescita,
+        clienti_con_potenziale=clienti_con_potenziale,
+        tot_fatturato_portfolio=tot_fatturato_portfolio,
+        media_fatturato_cliente=media_fatturato_cliente,
+        tot_potenziale_stimato=tot_potenziale_stimato,
+        tier_counts=tier_counts,
         tab_attiva=tab_attiva
     )
 
@@ -1691,10 +1807,93 @@ def cliente_scheda(id):
         except Exception:
             fatturato_settimanale_list = []
 
+        # Analisi Categorie e Potenziale Cross-Selling
+        categorie_analisi = []
+        prodotti_lavorati_set = set(prodotti_lavorati)
+        for cat in categorie:
+            cat_id = cat['id']
+            cat_prods = [p for p in prodotti if p.get('categoria_id') == cat_id]
+            lav_prods = [p for p in cat_prods if str(p['id']) in prodotti_lavorati_set]
+            non_lav_prods = [p for p in cat_prods if str(p['id']) not in prodotti_lavorati_set]
+            is_lavorata = len(lav_prods) > 0
+            penetr_cat = round((len(lav_prods) / len(cat_prods) * 100)) if cat_prods else 0
+
+            categorie_analisi.append({
+                'id': cat_id,
+                'nome': cat['nome'],
+                'is_lavorata': is_lavorata,
+                'num_lavorati': len(lav_prods),
+                'num_totali': len(cat_prods),
+                'prodotti_lavorati': lav_prods,
+                'suggeriti_cross_sell': non_lav_prods[:4],
+                'penetrazione': penetr_cat
+            })
+
+        cat_coperte_count = sum(1 for c in categorie_analisi if c['is_lavorata'])
+        tasso_penetrazione_macro = round((cat_coperte_count / len(categorie_analisi) * 100)) if categorie_analisi else 0
+        categorie_scoperte = [c['nome'] for c in categorie_analisi if not c['is_lavorata']]
+
+        potenziale_stimato_mensile = float(cliente.get('fatturato_stimato_mensile') or 0.0)
+        fatturato_totale_flt = float(fatturato_totale or 0.0)
+        mesi_attivi = len(fatturato_mensile)
+        media_mensile_reale = round(fatturato_totale_flt / mesi_attivi, 2) if mesi_attivi > 0 else 0.0
+        gap_potenziale = max(0.0, round(potenziale_stimato_mensile - media_mensile_reale, 2)) if potenziale_stimato_mensile > 0 else 0.0
+
+        if fatturato_totale_flt >= 10000 or potenziale_stimato_mensile >= 2500:
+            tier_cliente = {'code': 'diamond', 'label': 'Diamond', 'badge': '💎 Top Player (Tier A)'}
+        elif fatturato_totale_flt >= 3000 or potenziale_stimato_mensile >= 1000:
+            tier_cliente = {'code': 'gold', 'label': 'Gold', 'badge': '🥇 Key Client (Tier B)'}
+        elif fatturato_totale_flt >= 500 or potenziale_stimato_mensile >= 300:
+            tier_cliente = {'code': 'silver', 'label': 'Silver', 'badge': '🥈 Standard (Tier C)'}
+        else:
+            tier_cliente = {'code': 'bronze', 'label': 'Bronze', 'badge': '🥉 Occasionale (Tier D)'}
+
+        # Raccomandazioni commerciali proattive
+        raccomandazioni_commerciali = []
+        if categorie_scoperte:
+            raccomandazioni_commerciali.append({
+                'tipo': 'cross_selling',
+                'icon': 'bi-cart-plus-fill',
+                'color': 'primary',
+                'titolo': 'Opportunità di Cross-Selling',
+                'testo': f"Il cliente non acquista ancora dalle categorie: {', '.join(categorie_scoperte[:3])}. Presenta campioni e promozioni dedicate su queste linee per ampliare il valore dell'ordine medio."
+            })
+        if potenziale_stimato_mensile > 0 and media_mensile_reale < potenziale_stimato_mensile:
+            raccomandazioni_commerciali.append({
+                'tipo': 'potenziale',
+                'icon': 'bi-graph-up-arrow',
+                'color': 'success',
+                'titolo': f'Gap da Sviluppare (€ {gap_potenziale:.2f}/mese)',
+                'testo': f"In base al listino concordato nel comparatore (€ {potenziale_stimato_mensile:.2f}/mese), il cliente ha ancora € {gap_potenziale:.2f}/mese di potenziale inespresso rispetto alla media attuale (€ {media_mensile_reale:.2f}/mese)."
+            })
+        elif not potenziale_stimato_mensile:
+            raccomandazioni_commerciali.append({
+                'tipo': 'comparatore',
+                'icon': 'bi-calculator-fill',
+                'color': 'warning',
+                'titolo': 'Definisci il Listino Comparativo',
+                'testo': "Non è ancora stato generato un listino comparativo personalizzato. Usa il comparatore per analizzare il risparmio rispetto alla concorrenza e quantificare il fatturato atteso."
+            })
+        if stato_cliente == 'bloccato':
+            raccomandazioni_commerciali.append({
+                'tipo': 'alert',
+                'icon': 'bi-exclamation-triangle-fill',
+                'color': 'danger',
+                'titolo': 'Rischio Churn / Cliente Dormiente',
+                'testo': "Nessun acquisto registrato negli ultimi 60 giorni. Pianifica una chiamata o una visita prioritaria per verificare la situazione e riattivare le forniture."
+            })
+
     return render_template(
         "01_clienti/04_cliente_scheda.html",
         cliente=cliente,
         categorie=categorie,
+        categorie_analisi=categorie_analisi,
+        tasso_penetrazione_macro=tasso_penetrazione_macro,
+        categorie_scoperte=categorie_scoperte,
+        tier_cliente=tier_cliente,
+        gap_potenziale=gap_potenziale,
+        media_mensile_reale=media_mensile_reale,
+        raccomandazioni_commerciali=raccomandazioni_commerciali,
         prodotti=prodotti,
         prodotti_lavorati=prodotti_lavorati,
         prodotti_lavorati_full=prodotti_lavorati_full,
