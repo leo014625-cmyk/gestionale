@@ -1,14 +1,47 @@
 {% extends "01_base.html" %}
 
-{% block title %}Ordini Settimanali - Horeca Suite{% endblock %}
+{% block title %}Ordini & Scarichi Settimanali - Horeca Suite{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
-  /* Premium Orders Board Styling */
+  /* Weekly Orders Executive Cockpit Styling */
+  .orders-kpi-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    transition: transform 0.25s, box-shadow 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .orders-kpi-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+  }
+  .orders-kpi-card-primary::before { background: var(--primary); }
+  .orders-kpi-card-success::before { background: var(--success); }
+  .orders-kpi-card-warning::before { background: var(--warning); }
+  .orders-kpi-card-info::before { background: var(--accent); }
+
+  .orders-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Weekly Board Columns */
   .week-board-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1.25rem;
   }
   
@@ -21,11 +54,10 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 480px;
+    min-height: 520px;
     transition: transform 0.25s, box-shadow 0.25s;
   }
   .day-column-card:hover {
-    transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 
@@ -40,68 +72,64 @@
   .day-title {
     font-family: 'Outfit', sans-serif;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     color: var(--text-color);
     margin-bottom: 0;
   }
 
-  .client-order-item {
-    padding: 0.75rem;
+  /* Client Order Item Card */
+  .client-order-card {
+    padding: 0.85rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
-    background-color: var(--bg-color);
+    background-color: var(--card-bg);
     display: flex;
     flex-direction: column;
-    text-decoration: none;
-    transition: all 0.2s;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.65rem;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
   }
-  .client-order-item:hover {
+  .client-order-card.ordered {
+    border-left: 4px solid var(--success) !important;
+    background-color: rgba(16, 185, 129, 0.04);
+  }
+  .client-order-card.pending {
+    border-left: 4px solid var(--warning) !important;
+    background-color: rgba(245, 158, 11, 0.04);
+  }
+  .client-order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
     border-color: var(--primary);
-    background-color: var(--primary-light);
-    transform: translateX(3px);
   }
-  
+
   .client-order-name {
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: var(--text-color);
-    transition: color 0.2s;
+    text-decoration: none;
+    transition: color 0.15s;
   }
-  .client-order-item:hover .client-order-name {
+  .client-order-name:hover {
     color: var(--primary);
   }
 
   .client-order-zone {
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     color: var(--text-muted);
-    margin-top: 0.15rem;
     display: flex;
     align-items: center;
     gap: 4px;
+    margin-top: 0.15rem;
   }
 
-  /* Info banner bottom */
-  .instructions-banner {
-    background-color: var(--primary-light);
-    border: 1px solid rgba(99, 102, 241, 0.15);
+  /* Missing Checklist Alert Box */
+  .missing-checklist-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.08) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.3);
     border-radius: var(--radius);
     padding: 1.25rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-  }
-  .instructions-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background-color: var(--primary);
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    flex-shrink: 0;
+    margin-bottom: 2rem;
   }
 </style>
 {% endblock %}
@@ -109,24 +137,171 @@
 {% block content %}
 <div class="container-fluid px-0">
 
-  <!-- Header Section -->
+  <!-- Executive Header Section -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-      <h1 class="h2 mb-1">Ordini e Scarichi Settimanali</h1>
-      <p class="text-muted mb-0">Quadro riassuntivo dei giorni di consegna standard pianificati per ciascun cliente.</p>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary-light text-primary rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">LOGISTICA & CONSEGNE</span>
+        <span class="text-muted small">• Settimana {{ settimana_num }} / {{ anno_target }}</span>
+      </div>
+      <h1 class="display-6 fw-bold mb-1">Ordini e Scarichi Settimanali</h1>
+      <p class="text-muted mb-0">Controlla lo stato delle forniture programmate, sollecita gli ordini mancanti e tieni monitorati i volumi.</p>
     </div>
 
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('download_ordini_pdf') }}" class="btn btn-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-file-earmark-pdf"></i> Scarica PDF
+    <!-- Actions & Week Switcher -->
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <!-- Week Switcher -->
+      <div class="btn-group rounded-4 shadow-sm" role="group">
+        <a href="{{ url_for('ordini_settimanali', offset=offset_settimane - 1) }}" class="btn btn-outline-secondary rounded-start-4 px-3 py-2 fw-semibold" title="Settimana precedente">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+        <a href="{{ url_for('ordini_settimanali', offset=0) }}" class="btn {% if offset_settimane == 0 %}btn-primary{% else %}btn-outline-secondary{% endif %} px-3 py-2 fw-semibold">
+          Settimana Attuale
+        </a>
+        <a href="{{ url_for('ordini_settimanali', offset=offset_settimane + 1) }}" class="btn btn-outline-secondary rounded-end-4 px-3 py-2 fw-semibold" title="Settimana successiva">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </div>
+
+      <a href="{{ url_for('download_ordini_pdf') }}" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-file-earmark-pdf"></i> Scarica Programma PDF
       </a>
-      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-house-door"></i> Dashboard
+      
+      <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-people"></i> Anagrafica Clienti
       </a>
     </div>
   </div>
 
-  <!-- Weekly Board Grid Grid -->
+  <!-- KPI Metrics Bar -->
+  <div class="row g-3 mb-4">
+    <!-- Confirmed Orders -->
+    <div class="col-6 col-md-3">
+      <div class="orders-kpi-card orders-kpi-card-success">
+        <div>
+          <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Ordini Confermati</div>
+          <div class="fs-4 fw-bold font-monospace text-success mt-1">{{ tot_ordinati }} / {{ tot_ordinati + tot_mancanti }}</div>
+          <span class="small text-success fw-semibold">{{ percentuale_completata }}% del totale programmato</span>
+        </div>
+        <div class="fs-3 text-success opacity-50"><i class="bi bi-check-circle-fill"></i></div>
+      </div>
+    </div>
+
+    <!-- Weekly Confirmed Revenue -->
+    <div class="col-6 col-md-3">
+      <div class="orders-kpi-card orders-kpi-card-primary">
+        <div>
+          <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Fatturato Settimana</div>
+          <div class="fs-4 fw-bold font-monospace text-primary mt-1">€ {{ "%.2f"|format(totale_confermato) }}</div>
+          <span class="small text-muted">Dal {{ lunedi_target.strftime('%d/%m') }} al {{ domenica_target.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div class="fs-3 text-primary opacity-50"><i class="bi bi-currency-euro"></i></div>
+      </div>
+    </div>
+
+    <!-- Missing Orders / To Follow Up -->
+    <div class="col-6 col-md-3">
+      <div class="orders-kpi-card orders-kpi-card-warning">
+        <div>
+          <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Ordini Mancanti</div>
+          <div class="fs-4 fw-bold font-monospace text-warning mt-1">{{ tot_mancanti }} Clienti</div>
+          <span class="small text-warning fw-semibold">Da chiamare / sollecitare</span>
+        </div>
+        <div class="fs-3 text-warning opacity-50"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      </div>
+    </div>
+
+    <!-- Total Active Deliveries -->
+    <div class="col-6 col-md-3">
+      <div class="orders-kpi-card orders-kpi-card-info">
+        <div>
+          <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Scarichi Programmati</div>
+          <div class="fs-4 fw-bold font-monospace text-info mt-1">{{ tot_ordinati + tot_mancanti }}</div>
+          <span class="small text-muted">Clienti con scarico standard</span>
+        </div>
+        <div class="fs-3 text-info opacity-50"><i class="bi bi-truck"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMART REMINDER: Missing Orders Checklist (Se Manca Qualcosa) -->
+  {% if clienti_mancanti %}
+  <div class="missing-checklist-banner shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-2.5">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-bell-fill text-warning fs-4"></i>
+        <div>
+          <h5 class="fw-bold mb-0 text-color">Promemoria Ordini Mancanti ({{ clienti_mancanti|length }} Clienti)</h5>
+          <p class="small text-muted mb-0">Questi clienti hanno uno scarico previsto per questa settimana ma non hanno ancora registrato l'ordine.</p>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-outline-warning text-color rounded-pill px-3 fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMancanti" aria-expanded="false" aria-controls="collapseMancanti">
+        <i class="bi bi-list-task me-1"></i> Mostra Elenco Completo
+      </button>
+    </div>
+
+    <div class="collapse show" id="collapseMancanti">
+      <div class="row g-2 mt-2">
+        {% for c in clienti_mancanti %}
+          <div class="col-12 col-md-6 col-xl-4 client-missing-item" data-name="{{ c.nome|lower }}" data-zona="{{ (c.zona or '')|lower }}">
+            <div class="p-2.5 rounded-3 bg-card border d-flex align-items-center justify-content-between gap-2 shadow-xs" style="background-color: var(--card-bg);">
+              <div class="text-truncate">
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold small text-color text-decoration-none hover-primary">
+                  {{ c.nome }}
+                </a>
+                <div class="extra-small text-muted text-truncate" style="font-size: 0.72rem;">
+                  <i class="bi bi-geo-alt me-1"></i>{{ c.zona or '–' }}
+                </div>
+              </div>
+
+              <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                {% if c.whatsapp_clean %}
+                  <a href="https://wa.me/{{ c.whatsapp_clean }}?text=Ciao%20{{ c.nome|urlencode }},%20ti%20ricordo%20lo%20scarico%20previsto%20in%20settimana.%20Mi%20confermi%20la%20lista%20dei%20prodotti?"
+                     target="_blank" class="btn btn-sm btn-success rounded-pill px-2 py-1 text-white shadow-xs" title="Invia promemoria WhatsApp">
+                    <i class="bi bi-whatsapp"></i>
+                  </a>
+                {% endif %}
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-2.5 py-1 fw-semibold shadow-xs" 
+                        onclick="apriQuickOrderModal({{ c.id }}, '{{ c.nome|replace('\'', '\\\'') }}', '{{ lunedi_target.strftime('%Y-%m-%d') }}', '{{ domenica_target.strftime('%Y-%m-%d') }}')">
+                  <i class="bi bi-plus-lg me-1"></i>Ordina
+                </button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="p-3 rounded-4 bg-success bg-opacity-10 border border-success-subtle d-flex align-items-center gap-3 mb-4 shadow-sm">
+    <div class="rounded-circle bg-success text-white p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+      <i class="bi bi-check2-all fs-5"></i>
+    </div>
+    <div>
+      <h6 class="fw-bold text-success mb-0">Ottimo lavoro! Nessun ordine mancante per questa settimana.</h6>
+      <span class="small text-muted">Tutti i clienti con scarico programmato hanno confermato le loro forniture.</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Filter & Search Toolbar -->
+  <div class="p-3 rounded-4 bg-card border mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3 shadow-sm" style="background-color: var(--card-bg);">
+    <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
+      <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
+      <input type="text" id="filtroClientiOrdini" class="form-control rounded-3" placeholder="Filtra per nome cliente o zona..." oninput="filtraTabelloneOrdini(this.value)">
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <span class="small text-muted fw-semibold">Filtra stato:</span>
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-secondary active" id="btnFiltroTutti" onclick="impostaFiltroStato('tutti')">Tutti</button>
+        <button type="button" class="btn btn-outline-warning" id="btnFiltroMancanti" onclick="impostaFiltroStato('mancanti')">Solo Mancanti</button>
+        <button type="button" class="btn btn-outline-success" id="btnFiltroOrdinati" onclick="impostaFiltroStato('ordinati')">Solo Confermati</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Board Grid (Lunedì - Sabato, Domenica) -->
   <div class="week-board-container mb-5">
     {% set giorni = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'] %}
     {% for i in range(1, 8) %}
@@ -134,44 +309,239 @@
       {% set clienti_giorno = ordini_per_giorno.get(giorno_index|string, []) %}
       
       <div class="day-column-card">
+        <!-- Day Header -->
         <div class="day-header">
-          <h5 class="day-title">{{ giorni[i-1] }}</h5>
-          <span class="badge bg-primary-light text-primary border border-primary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.72rem; font-weight: 700;">
-            {{ clienti_giorno|length }} Clienti
+          <div>
+            <h5 class="day-title">{{ giorni[i-1] }}</h5>
+            <span class="text-muted small" style="font-size: 0.72rem;">{{ clienti_giorno|length }} scarichi pianificati</span>
+          </div>
+          <span class="badge bg-primary-light text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.75rem;">
+            {{ clienti_giorno|selectattr('ordinato', 'equalto', True)|list|length }} / {{ clienti_giorno|length }}
           </span>
         </div>
         
-        <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 420px;">
+        <!-- Day Column Items -->
+        <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 540px;">
           {% for c in clienti_giorno %}
-            <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="client-order-item">
-              <span class="client-order-name">{{ c.nome }}</span>
-              <span class="client-order-zone">
-                <i class="bi bi-geo-alt"></i>{{ c.zona or 'Zona N/D' }}
-              </span>
-            </a>
+            <div class="client-order-card {% if c.ordinato %}ordered{% else %}pending{% endif %} order-card-item"
+                 data-name="{{ c.nome|lower }}" 
+                 data-zona="{{ (c.zona or '')|lower }}"
+                 data-status="{% if c.ordinato %}ordinato{% else %}mancante{% endif %}">
+              
+              <!-- Card Top -->
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-1.5">
+                <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="client-order-name text-truncate" title="{{ c.nome }}">
+                  {{ c.nome }}
+                </a>
+                {% if c.ordinato %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.68rem; font-weight: 700;">
+                    € {{ "%.2f"|format(c.totale_ordine) }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill" style="font-size: 0.68rem; font-weight: 700;">
+                    In attesa
+                  </span>
+                {% endif %}
+              </div>
+
+              <!-- Zone & Info -->
+              <div class="client-order-zone mb-2">
+                <i class="bi bi-geo-alt opacity-75"></i>
+                <span class="text-truncate">{{ c.zona or 'Zona N/D' }}</span>
+              </div>
+
+              <!-- Card Action Buttons -->
+              <div class="d-flex align-items-center justify-content-between pt-1.5 border-top" style="border-color: var(--border-color) !important;">
+                {% if c.whatsapp_clean %}
+                  <a href="https://wa.me/{{ c.whatsapp_clean }}?text=Ciao%20{{ c.nome|urlencode }},%20ti%20ricordo%20la%20consegna%20di%20{{ giorni[i-1]|urlencode }}.%20Hai%20preparato%20l'ordine?"
+                     target="_blank" class="btn btn-xs btn-outline-success rounded-pill px-2 py-0.5" title="WhatsApp reminder" style="font-size: 0.72rem;">
+                    <i class="bi bi-whatsapp me-1"></i>Sollecita
+                  </a>
+                {% else %}
+                  <span class="text-muted extra-small" style="font-size: 0.72rem;">Nessun tel</span>
+                {% endif %}
+
+                <button type="button" class="btn btn-xs {% if c.ordinato %}btn-outline-secondary{% else %}btn-primary{% endif %} rounded-pill px-2.5 py-0.5 fw-semibold" 
+                        style="font-size: 0.72rem;"
+                        onclick="apriQuickOrderModal({{ c.id }}, '{{ c.nome|replace('\'', '\\\'') }}', '{{ lunedi_target.strftime('%Y-%m-%d') }}', '{{ domenica_target.strftime('%Y-%m-%d') }}', {{ c.totale_ordine or 0 }})">
+                  <i class="bi {% if c.ordinato %}bi-pencil-fill{% else %}bi-plus-lg{% endif %} me-1"></i>
+                  {% if c.ordinato %}Modifica{% else %}Registra{% endif %}
+                </button>
+              </div>
+
+            </div>
           {% else %}
-            <div class="text-center py-4 text-muted fst-italic" style="font-size: 0.8rem;">
-              <i class="bi bi-calendar-x d-block opacity-25 mb-1.5 fs-4"></i>
+            <div class="text-center py-5 text-muted fst-italic" style="font-size: 0.85rem;">
+              <i class="bi bi-calendar-x d-block opacity-25 mb-2 fs-3"></i>
               <span>Nessuno scarico previsto</span>
             </div>
           {% endfor %}
         </div>
+
       </div>
     {% endfor %}
   </div>
 
-  <!-- Operations Information Banner -->
-  <div class="instructions-banner shadow-sm">
-    <div class="instructions-icon">
-      <i class="bi bi-info-circle"></i>
-    </div>
-    <div>
-      <p class="mb-0 small fw-semibold text-primary">
-        I giorni di scarico standard per ciascun cliente possono essere configurati direttamente all'interno delle loro schede anagrafiche (cliccando su "Modifica Cliente"). 
-        Il tabellone settimanale si aggiorna automaticamente ad ogni salvataggio.
-      </p>
+</div>
+
+<!-- ================================================================= -->
+<!-- MODAL REGISTRAZIONE RAPIDA ORDINE SETTIMANALE -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalQuickOrderDirect" tabindex="-1" aria-labelledby="modalQuickOrderDirectLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-bottom px-4 py-3" style="border-color: var(--border-color) !important;">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalQuickOrderDirectLabel">
+          <i class="bi bi-cart-check-fill text-primary fs-4"></i>
+          <span>Registra Fornitura Settimanale</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <form id="formQuickOrderDirect" onsubmit="salvaQuickOrderDirect(event)">
+        <div class="modal-body p-4">
+          <input type="hidden" id="qo_cliente_id" name="cliente_id">
+          <input type="hidden" id="qo_data_inizio" name="data_inizio">
+          <input type="hidden" id="qo_data_fine" name="data_fine">
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">Cliente Selezionato</label>
+            <div class="fs-5 fw-bold text-primary" id="qo_cliente_nome">–</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">Importo Ordine / Fatturato Settimana (€)</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-muted fw-bold border-end-0">€</span>
+              <input type="number" step="0.01" min="0" class="form-control font-monospace fw-bold fs-5 border-start-0" id="qo_totale" placeholder="es. 450.00" required autofocus>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">Note Ordine (Opzionale)</label>
+            <input type="text" class="form-control rounded-3" id="qo_note" placeholder="es. Consegna anticipata, promozioni incluse...">
+          </div>
+
+          <div id="qo_alert_container"></div>
+        </div>
+
+        <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between" style="border-color: var(--border-color) !important;">
+          <button type="button" class="btn btn-outline-secondary rounded-4 px-3" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm" id="btnSalvaQuickOrder">
+            <i class="bi bi-check-circle-fill"></i> Salva Ordine
+          </button>
+        </div>
+      </form>
     </div>
   </div>
-
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  let statoFiltroAttivo = 'tutti';
+
+  function filtraTabelloneOrdini(query) {
+    const q = (query || '').toLowerCase().trim();
+    const cards = document.querySelectorAll('.order-card-item');
+
+    cards.forEach(card => {
+      const name = card.getAttribute('data-name') || '';
+      const zona = card.getAttribute('data-zona') || '';
+      const status = card.getAttribute('data-status') || '';
+
+      const matchText = !q || name.includes(q) || zona.includes(q);
+      let matchStatus = true;
+      if (statoFiltroAttivo === 'mancanti') matchStatus = (status === 'mancante');
+      if (statoFiltroAttivo === 'ordinati') matchStatus = (status === 'ordinato');
+
+      if (matchText && matchStatus) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Filtra anche promemoria mancanti in alto
+    const missingItems = document.querySelectorAll('.client-missing-item');
+    missingItems.forEach(item => {
+      const name = item.getAttribute('data-name') || '';
+      const zona = item.getAttribute('data-zona') || '';
+      if (!q || name.includes(q) || zona.includes(q)) {
+        item.style.display = '';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  }
+
+  function impostaFiltroStato(stato) {
+    statoFiltroAttivo = stato;
+    document.getElementById('btnFiltroTutti').className = (stato === 'tutti') ? 'btn btn-outline-secondary active' : 'btn btn-outline-secondary';
+    document.getElementById('btnFiltroMancanti').className = (stato === 'mancanti') ? 'btn btn-outline-warning active' : 'btn btn-outline-warning';
+    document.getElementById('btnFiltroOrdinati').className = (stato === 'ordinati') ? 'btn btn-outline-success active' : 'btn btn-outline-success';
+    filtraTabelloneOrdini(document.getElementById('filtroClientiOrdini').value);
+  }
+
+  function apriQuickOrderModal(clienteId, clienteNome, dataInizio, dataFine, importoEsistente = 0) {
+    document.getElementById('qo_cliente_id').value = clienteId;
+    document.getElementById('qo_cliente_nome').textContent = clienteNome;
+    document.getElementById('qo_data_inizio').value = dataInizio;
+    document.getElementById('qo_data_fine').value = dataFine;
+    document.getElementById('qo_totale').value = (importoEsistente > 0) ? importoEsistente.toFixed(2) : '';
+    document.getElementById('qo_note').value = '';
+    document.getElementById('qo_alert_container').innerHTML = '';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalQuickOrderDirect'));
+    modal.show();
+    setTimeout(() => {
+      document.getElementById('qo_totale').focus();
+    }, 400);
+  }
+
+  async function salvaQuickOrderDirect(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvaQuickOrder');
+    const alertBox = document.getElementById('qo_alert_container');
+
+    const payload = {
+      cliente_id: document.getElementById('qo_cliente_id').value,
+      totale: document.getElementById('qo_totale').value,
+      data_inizio: document.getElementById('qo_data_inizio').value,
+      data_fine: document.getElementById('qo_data_fine').value,
+      note: document.getElementById('qo_note').value
+    };
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Salvataggio...`;
+
+    try {
+      const res = await fetch('/api/ordini/registra_rapido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Errore durante il salvataggio');
+
+      btn.className = 'btn btn-success rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm';
+      btn.innerHTML = `<i class="bi bi-check-circle-fill"></i> Registrato!`;
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 700);
+
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="bi bi-check-circle-fill"></i> Salva Ordine`;
+      alertBox.innerHTML = `
+        <div class="alert alert-danger py-2 px-3 small rounded-3 mt-3">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> ${err.message}
+        </div>
+      `;
+    }
+  }
+</script>
 {% endblock %}

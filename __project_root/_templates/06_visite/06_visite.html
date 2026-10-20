@@ -1,6 +1,6 @@
 {% extends "01_base.html" %}
 
-{% block title %}Visite Clienti - Horeca Suite{% endblock %}
+{% block title %}Visite e Giri Clienti - Horeca Suite{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -24,7 +24,7 @@
   }
   .kpi-title {
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -47,8 +47,9 @@
   }
 
   .bg-soft-primary { background-color: var(--primary-light); color: var(--primary); }
-  .bg-soft-success { background-color: rgba(16, 185, 129, 0.1); color: var(--success); }
-  .bg-soft-warning { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
+  .bg-soft-success { background-color: rgba(16, 185, 129, 0.12); color: var(--success); }
+  .bg-soft-warning { background-color: rgba(245, 158, 11, 0.12); color: var(--warning); }
+  .bg-soft-danger { background-color: rgba(239, 68, 68, 0.12); color: var(--danger); }
   .bg-soft-info { background-color: var(--accent-light); color: var(--accent); }
 
   /* Calendar Card Override */
@@ -153,10 +154,32 @@
   }
   .agenda-row.completed {
     border-left-color: var(--success);
-    background-color: rgba(16, 185, 129, 0.03);
+    background-color: rgba(16, 185, 129, 0.04);
   }
-  body.dark-mode .agenda-row.completed {
-    background-color: rgba(16, 185, 129, 0.05);
+
+  /* Day column for Giri */
+  .giro-day-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    display: flex;
+    flex-column;
+    height: 100%;
+    min-height: 480px;
+  }
+  .giro-client-item {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.65rem;
+    transition: all 0.2s;
+  }
+  .giro-client-item:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
   }
 
   .quick-client-btn {
@@ -175,32 +198,38 @@
     transform: translateY(-2px);
   }
 
-  /* Modals overrides */
-  .modal-content {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
+  /* Nav tabs custom */
+  .nav-tabs-visite .nav-link {
+    color: var(--text-muted);
+    font-weight: 700;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0;
+    transition: all 0.2s;
   }
-  .modal-header {
+  .nav-tabs-visite .nav-link.active {
+    color: var(--primary);
+    background: transparent;
+    border-bottom-color: var(--primary);
+  }
+
+  /* High contrast table overrides */
+  .visite-table th {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 0.85rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .visite-table td {
+    padding: 0.85rem;
+    color: var(--text-color);
     border-bottom: 1px solid var(--border-color);
-  }
-  .modal-footer {
-    border-top: 1px solid var(--border-color);
-  }
-  .modal-body select, .modal-body input, .modal-body textarea {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.6rem 1rem;
-  }
-  .modal-body select:focus, .modal-body input:focus, .modal-body textarea:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
-    outline: none;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    vertical-align: middle;
   }
 </style>
 {% endblock %}
@@ -209,15 +238,15 @@
 <div class="container-fluid px-0">
 
   <!-- Header Section -->
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
     <div>
-      <h1 class="h2 mb-1">Gestione Visite Clienti</h1>
-      <p class="text-muted mb-0">Pianifica passaggi commerciali, tieni traccia degli esiti e sincronizza l'agenda sul tuo calendario iOS/macOS.</p>
+      <h1 class="h2 mb-1 fw-bold text-color">Visite & Giri Clienti</h1>
+      <p class="text-muted mb-0">Organizza i passaggi commerciali settimanali per zona, monitora i clienti da visitare e sincronizza con iOS/macOS.</p>
     </div>
     
     <div class="d-flex gap-2 flex-wrap">
       <button class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2" onclick="copyIcalLink()">
-        <i class="bi bi-calendar-event-fill"></i>
+        <i class="bi bi-calendar-event-fill text-primary"></i>
         <span>Sincronizza iPhone</span>
       </button>
       <button class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovaVisita">
@@ -227,13 +256,42 @@
     </div>
   </div>
 
+  <!-- Smart Reminders Banner -->
+  {% set count_ritardo = visite_in_ritardo|length if visite_in_ritardo else 0 %}
+  {% set count_mancanti = clienti_da_visitare|length if clienti_da_visitare else 0 %}
+  {% set tot_promemoria = count_ritardo + count_mancanti %}
+
+  {% if tot_promemoria > 0 %}
+  <div class="alert alert-warning border border-warning-subtle rounded-4 p-3 mb-4 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3" style="background-color: rgba(245, 158, 11, 0.08);">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center shadow-xs" style="width: 44px; height: 44px; font-size: 1.25rem;">
+        <i class="bi bi-bell-fill"></i>
+      </div>
+      <div>
+        <h6 class="fw-bold mb-0 text-color">
+          Promemoria Visite: 
+          {% if count_ritardo > 0 %}<span class="text-danger">{{ count_ritardo }} visite in ritardo</span>{% endif %}
+          {% if count_ritardo > 0 and count_mancanti > 0 %} e {% endif %}
+          {% if count_mancanti > 0 %}<span class="text-warning-emphasis">{{ count_mancanti }} clienti non visitati da oltre 30 giorni</span>{% endif %}!
+        </h6>
+        <p class="text-muted small mb-0">Contatta subito i clienti o pianifica il passaggio nel giro settimanale per non perdere ordini e fatturato.</p>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm" onclick="showTabPromemoria()">
+        <i class="bi bi-eye-fill me-1"></i> Visualizza Promemoria ({{ tot_promemoria }})
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- KPI summary cards -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <div class="visit-kpi-card">
         <div>
           <div class="kpi-title">In Agenda Oggi</div>
-          <div class="kpi-val text-primary" id="stat-today-count">0</div>
+          <div class="kpi-val text-primary" id="stat-today-count">{{ visite_oggi|length if visite_oggi else 0 }}</div>
         </div>
         <div class="kpi-icon-wrapper bg-soft-primary">
           <i class="bi bi-calendar-check"></i>
@@ -244,11 +302,11 @@
     <div class="col-6 col-md-3">
       <div class="visit-kpi-card">
         <div>
-          <div class="kpi-title">Effettuate Oggi</div>
-          <div class="kpi-val text-success" id="stat-completed-count">0</div>
+          <div class="kpi-title">Visite in Ritardo</div>
+          <div class="kpi-val text-danger">{{ count_ritardo }}</div>
         </div>
-        <div class="kpi-icon-wrapper bg-soft-success">
-          <i class="bi bi-check-circle"></i>
+        <div class="kpi-icon-wrapper bg-soft-danger">
+          <i class="bi bi-exclamation-triangle-fill"></i>
         </div>
       </div>
     </div>
@@ -256,8 +314,8 @@
     <div class="col-6 col-md-3">
       <div class="visit-kpi-card">
         <div>
-          <div class="kpi-title">In Programma Oggi</div>
-          <div class="kpi-val text-warning" id="stat-pending-count">0</div>
+          <div class="kpi-title">Da Visitare (>30gg)</div>
+          <div class="kpi-val text-warning">{{ count_mancanti }}</div>
         </div>
         <div class="kpi-icon-wrapper bg-soft-warning">
           <i class="bi bi-clock-history"></i>
@@ -268,109 +326,381 @@
     <div class="col-6 col-md-3">
       <div class="visit-kpi-card">
         <div>
-          <div class="kpi-title">Clienti Totali</div>
-          <div class="kpi-val text-color" id="stat-total-count">{{ tutti_clienti|length }}</div>
+          <div class="kpi-title">Clienti in Anagrafica</div>
+          <div class="kpi-val text-color">{{ tutti_clienti|length }}</div>
         </div>
         <div class="kpi-icon-wrapper bg-soft-info">
-          <i class="bi bi-people"></i>
+          <i class="bi bi-people-fill"></i>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Main Board Grid -->
-  <div class="row g-4 mb-4">
-    <!-- Agenda Timeline column -->
-    <div class="col-12 col-xl-5">
-      <div class="agenda-timeline-card d-flex flex-column" style="min-height: 580px;">
-        <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
-          <span class="fw-bold text-uppercase tracking-wider text-muted small"><i class="bi bi-clipboard-data-fill text-primary me-2"></i>Agenda Passaggi</span>
-          <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="prefillVisitWithCurrentDate()">
-            <i class="bi bi-plus-lg"></i> Aggiungi
-          </button>
-        </div>
+  <!-- Navigation Tabs -->
+  <ul class="nav nav-tabs nav-tabs-visite border-bottom mb-4" id="visiteTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-agenda-btn" data-bs-toggle="tab" data-bs-target="#tab-agenda" type="button" role="tab">
+        <i class="bi bi-calendar3 me-1"></i> Agenda & Calendario
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-giri-btn" data-bs-toggle="tab" data-bs-target="#tab-giri" type="button" role="tab">
+        <i class="bi bi-geo-alt-fill me-1 text-primary"></i> Giri Settimanali per Zona
+        <span class="badge rounded-pill bg-primary ms-1">{{ tutti_clienti|length }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link position-relative" id="tab-promemoria-btn" data-bs-toggle="tab" data-bs-target="#tab-promemoria" type="button" role="tab">
+        <i class="bi bi-bell-fill me-1 text-warning"></i> Promemoria Visite Mancanti
+        {% if tot_promemoria > 0 %}
+          <span class="badge rounded-pill bg-danger ms-1">{{ tot_promemoria }}</span>
+        {% endif %}
+      </button>
+    </li>
+  </ul>
 
-        <!-- Day navigator -->
-        <div class="d-flex align-items-center justify-content-between agenda-day-navigator mb-3">
-          <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(-1)"><i class="bi bg-transparent bi-chevron-left"></i></button>
-          <span class="fw-bold text-color small px-2" id="agenda-date-label">Oggi</span>
-          <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(1)"><i class="bi bg-transparent bi-chevron-right"></i></button>
-        </div>
+  <!-- Tab Content -->
+  <div class="tab-content" id="visiteTabsContent">
 
-        <!-- Daily Agenda List -->
-        <div class="flex-grow-1 overflow-y-auto" style="max-height: 430px;">
-          <div class="table-responsive border-0">
-            <table class="table align-middle border-0 m-0 d-none" id="daily-visits-table">
-              <tbody id="daily-visits-tbody">
-                <!-- Javascript populated -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Empty state -->
-          <div id="agenda-empty-state" class="text-center py-5">
-            <i class="bi bi-calendar-x fs-1 text-primary opacity-25 d-block mb-3"></i>
-            <h6 class="fw-bold text-color mb-1">Nessuna visita pianificata</h6>
-            <p class="text-muted small px-4 mb-0">Non ci sono appuntamenti in programma per questo giorno. Seleziona una data sul calendario o clicca Aggiungi per pianificare.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Monthly Planner Calendar Column -->
-    <div class="col-12 col-xl-7">
-      <div class="calendar-card" style="min-height: 580px;">
-        <div id="calendar"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bottom Legend & Quick Client Grid -->
-  <div class="row g-4">
-    <!-- Legend -->
-    <div class="col-12 col-md-4">
-      <div class="agenda-timeline-card">
-        <h6 class="fw-bold mb-3 text-uppercase small text-muted">Legenda Agende</h6>
-        <div class="d-flex flex-column gap-3">
-          <div class="d-flex align-items-center gap-3">
-            <span class="rounded-pill" style="width: 24px; height: 12px; background-color: var(--primary); display:inline-block"></span>
-            <div>
-              <div class="small fw-bold text-color">🔵 In programma</div>
-              <div class="text-muted small" style="font-size: 0.75rem;">Visita programmata da effettuare</div>
+    <!-- TAB 1: AGENDA & CALENDARIO -->
+    <div class="tab-pane fade show active" id="tab-agenda" role="tabpanel">
+      <div class="row g-4 mb-4">
+        <!-- Agenda Timeline column -->
+        <div class="col-12 col-xl-5">
+          <div class="agenda-timeline-card d-flex flex-column" style="min-height: 580px;">
+            <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
+              <span class="fw-bold text-uppercase tracking-wider text-muted small"><i class="bi bi-clipboard-data-fill text-primary me-2"></i>Agenda Passaggi Giornalieri</span>
+              <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="prefillVisitWithCurrentDate()">
+                <i class="bi bi-plus-lg"></i> Aggiungi
+              </button>
             </div>
-          </div>
-          <div class="d-flex align-items-center gap-3">
-            <span class="rounded-pill" style="width: 24px; height: 12px; background-color: var(--success); display:inline-block"></span>
-            <div>
-              <div class="small fw-bold text-color"> 🟢 Completata</div>
-              <div class="text-muted small" style="font-size: 0.75rem;">Visita effettuata con successo</div>
+
+            <!-- Day navigator -->
+            <div class="d-flex align-items-center justify-content-between agenda-day-navigator mb-3">
+              <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(-1)"><i class="bi bg-transparent bi-chevron-left"></i></button>
+              <span class="fw-bold text-color small px-2" id="agenda-date-label">Oggi</span>
+              <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(1)"><i class="bi bg-transparent bi-chevron-right"></i></button>
+            </div>
+
+            <!-- Daily Agenda List -->
+            <div class="flex-grow-1 overflow-y-auto" style="max-height: 430px;">
+              <div class="table-responsive border-0">
+                <table class="table align-middle border-0 m-0 d-none" id="daily-visits-table">
+                  <tbody id="daily-visits-tbody">
+                    <!-- Javascript populated -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Empty state -->
+              <div id="agenda-empty-state" class="text-center py-5">
+                <i class="bi bi-calendar-x fs-1 text-primary opacity-25 d-block mb-3"></i>
+                <h6 class="fw-bold text-color mb-1">Nessuna visita pianificata</h6>
+                <p class="text-muted small px-4 mb-0">Non ci sono appuntamenti in programma per questo giorno. Seleziona una data sul calendario o clicca Aggiungi per pianificare.</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Quick schedule list -->
-    <div class="col-12 col-md-8">
-      <div class="agenda-timeline-card">
-        <h6 class="fw-bold mb-3 text-uppercase small text-muted">Scelta Rapida Cliente per Visita</h6>
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-2" style="max-height: 180px; overflow-y: auto;">
-          {% for c in tutti_clienti[:15] %}
-            <div class="col">
-              <div class="quick-client-btn">
-                <div class="overflow-hidden">
-                  <p class="mb-0 fw-bold small text-color text-truncate" title="{{ c.nome }}">{{ c.nome }}</p>
-                  <small class="text-muted d-block text-truncate" style="font-size: 0.7rem;">{{ c.zona }}</small>
+        <!-- Monthly Planner Calendar Column -->
+        <div class="col-12 col-xl-7">
+          <div class="calendar-card" style="min-height: 580px;">
+            <div id="calendar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Client Grid -->
+      <div class="row g-4">
+        <div class="col-12">
+          <div class="agenda-timeline-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-bold mb-0 text-uppercase small text-muted"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>Pianificazione Rapida Visita da Anagrafica</h6>
+              <span class="text-muted small">Clicca sull'icona calendario per fissare subito una data</span>
+            </div>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-2" style="max-height: 220px; overflow-y: auto;">
+              {% for c in tutti_clienti %}
+                <div class="col">
+                  <div class="quick-client-btn">
+                    <div class="overflow-hidden">
+                      <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="mb-0 fw-bold small text-color text-truncate d-block text-decoration-none" title="{{ c.nome }}">{{ c.nome }}</a>
+                      <small class="text-muted d-block text-truncate" style="font-size: 0.72rem;"><i class="bi bi-geo-alt me-1"></i>{{ c.zona or 'Zona non def.' }}</small>
+                    </div>
+                    <button class="btn btn-sm btn-light border shadow-sm rounded-circle px-2 py-1 ms-2 text-primary" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')" title="Pianifica visita rapida">
+                      <i class="bi bi-calendar-plus-fill"></i>
+                    </button>
+                  </div>
                 </div>
-                <button class="btn btn-sm btn-light border shadow-sm rounded-circle px-1.5 py-0.5 ms-2 text-primary" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')" title="Pianifica visita">
-                  <i class="bi bi-calendar-plus-fill"></i>
-                </button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: GIRI SETTIMANALI PER ZONA -->
+    <div class="tab-pane fade" id="tab-giri" role="tabpanel">
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background-color: var(--card-bg);">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+          <div>
+            <h4 class="fw-bold mb-1 text-color"><i class="bi bi-signpost-split-fill text-primary me-2"></i>Pianificatore Giri Visite Settimanali</h4>
+            <p class="text-muted small mb-0">Assegna ogni cliente al suo giorno di passaggio fisso (es. Lunedì per il Centro, Martedì per la Costa). Puoi cambiare il giorno istantaneamente con il menu a tendina.</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill"><i class="bi bi-info-circle me-1 text-primary"></i>Le modifiche si salvano in tempo reale</span>
+          </div>
+        </div>
+
+        <!-- Days Grid (Lunedì - Sabato) -->
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+          {% for day_num in range(1, 7) %}
+            {% set day_info = giri_per_giorno.get(day_num, {'nome': giorni_nomi.get(day_num, 'Giorno ' ~ day_num), 'clienti': [], 'count': 0}) %}
+            <div class="col">
+              <div class="giro-day-card d-flex flex-column h-100">
+                <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                      {{ day_num }}
+                    </span>
+                    <h6 class="fw-bold mb-0 text-color">{{ day_info.nome }}</h6>
+                  </div>
+                  <span class="badge rounded-pill bg-primary px-2.5 py-1" style="font-size: 0.72rem;">{{ day_info.count }} clienti</span>
+                </div>
+
+                <!-- Client List in Day -->
+                <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 440px;" id="giro-day-container-{{ day_num }}">
+                  {% if day_info.clienti %}
+                    {% for c in day_info.clienti %}
+                      <div class="giro-client-item" id="giro-item-{{ c.id }}">
+                        <div class="d-flex align-items-start justify-content-between gap-2 mb-1.5">
+                          <div>
+                            <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold small text-color text-decoration-none d-block text-truncate" style="max-width: 170px;" title="{{ c.nome }}">{{ c.nome }}</a>
+                            <span class="text-muted small d-block" style="font-size: 0.72rem;"><i class="bi bi-geo-alt me-1"></i>{{ c.zona or 'Zona non def.' }}</span>
+                          </div>
+                          <div class="d-flex align-items-center gap-1">
+                            {% if c.telefono %}
+                              <a href="https://wa.me/{{ c.telefono|replace(' ', '')|replace('-', '')|replace('+', '') }}" target="_blank" class="btn btn-xs btn-outline-success rounded-circle px-1.5 py-0.5" title="WhatsApp">
+                                <i class="bi bi-whatsapp" style="font-size: 0.75rem;"></i>
+                              </a>
+                            {% endif %}
+                            <button type="button" class="btn btn-xs btn-outline-primary rounded-circle px-1.5 py-0.5" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')" title="Pianifica visita in agenda">
+                              <i class="bi bi-calendar-plus" style="font-size: 0.75rem;"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Day reassignment selector -->
+                        <div class="d-flex align-items-center justify-content-between gap-1 mt-2 pt-1 border-top" style="border-color: var(--border-color) !important;">
+                          <span class="text-muted" style="font-size: 0.68rem; font-weight: 600;">Giro:</span>
+                          <select class="form-select form-select-sm py-0 px-2 rounded-pill border" style="font-size: 0.72rem; width: auto; max-width: 130px; background-color: var(--card-bg); color: var(--text-color);" onchange="spostaClienteGiro('{{ c.id }}', this.value)">
+                            {% for d in range(1, 7) %}
+                              <option value="{{ d }}" {% if c.giorno_visita_standard == d %}selected{% endif %}>{{ giorni_nomi.get(d) }}</option>
+                            {% endfor %}
+                            <option value="0">Rimuovi da giro</option>
+                          </select>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="text-center py-5 text-muted">
+                      <i class="bi bi-inbox fs-2 opacity-25 d-block mb-1"></i>
+                      <small>Nessun cliente assegnato a questo giorno.</small>
+                    </div>
+                  {% endif %}
+                </div>
               </div>
             </div>
           {% endfor %}
         </div>
+
+        <!-- Unassigned Clients Drawer -->
+        {% set unassigned = giri_per_giorno.get(0, {}).get('clienti', []) %}
+        {% if unassigned %}
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h6 class="fw-bold mb-0 text-color"><i class="bi bi-question-circle-fill text-muted me-1"></i>Clienti non ancora assegnati a un Giro Settimanale ({{ unassigned|length }})</h6>
+            <span class="text-muted small">Assegnali a un giorno per ottimizzare i tuoi percorsi</span>
+          </div>
+          <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-2" style="max-height: 200px; overflow-y: auto;">
+            {% for c in unassigned %}
+              <div class="col" id="giro-item-{{ c.id }}">
+                <div class="p-2.5 rounded-3 border d-flex align-items-center justify-content-between gap-2" style="background-color: var(--bg-color);">
+                  <div class="overflow-hidden">
+                    <span class="fw-bold small text-color text-truncate d-block">{{ c.nome }}</span>
+                    <small class="text-muted d-block text-truncate" style="font-size: 0.7rem;">{{ c.zona or 'Nessuna zona' }}</small>
+                  </div>
+                  <select class="form-select form-select-sm py-0.5 px-2 rounded-pill border" style="font-size: 0.72rem; width: auto;" onchange="spostaClienteGiro('{{ c.id }}', this.value)">
+                    <option value="0" selected>Assegna giorno...</option>
+                    {% for d in range(1, 7) %}
+                      <option value="{{ d }}">{{ giorni_nomi.get(d) }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
+
+    <!-- TAB 3: PROMEMORIA VISITE MANCANTI -->
+    <div class="tab-pane fade" id="tab-promemoria" role="tabpanel">
+      <!-- Section 1: Visite in Ritardo -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background-color: var(--card-bg);">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <h5 class="fw-bold mb-0 text-color">Visite Pianificate in Ritardo ({{ count_ritardo }})</h5>
+          </div>
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1.5 fw-bold">Scadute e da chiudere</span>
+        </div>
+        <p class="text-muted small mb-3">Appuntamenti passati che risultano ancora aperti. Segnali come completati oppure riprogrammali a una data futura.</p>
+
+        {% if visite_in_ritardo %}
+          <div class="table-responsive">
+            <table class="table visite-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Data Pianificata</th>
+                  <th>Cliente</th>
+                  <th>Zona</th>
+                  <th>Obiettivo / Note</th>
+                  <th class="text-end">Azioni Rapide</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in visite_in_ritardo %}
+                  <tr>
+                    <td class="text-danger fw-bold font-monospace">
+                      <i class="bi bi-calendar-x me-1"></i>{{ v.data_visita.strftime('%d/%m/%Y') if v.data_visita else 'N/D' }}
+                      {% if v.ora_visita %}<small class="text-muted d-block">{{ v.ora_visita }}</small>{% endif %}
+                    </td>
+                    <td>
+                      <a href="{{ url_for('cliente_scheda', id=v.cliente_id) }}" class="fw-bold text-color text-decoration-none">{{ v.cliente_nome }}</a>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ v.zona or 'N/D' }}</span></td>
+                    <td>
+                      {% if v.note %}
+                        <span class="text-muted small fst-italic">"{{ v.note }}"</span>
+                      {% else %}
+                        <span class="text-muted small">–</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <div class="d-flex align-items-center justify-content-end gap-1.5">
+                        {% if v.telefono %}
+                          <a href="https://wa.me/{{ v.telefono|replace(' ', '')|replace('-', '')|replace('+', '') }}" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1" title="Contatta WhatsApp">
+                            <i class="bi bi-whatsapp me-1"></i> WhatsApp
+                          </a>
+                        {% endif %}
+                        <button class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-bold" onclick="toggleVisitStatus({{ v.id }})">
+                          <i class="bi bi-check-lg me-1"></i> Fatta
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1" onclick="loadVisitDetail({{ v.id }})" title="Modifica data">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-check-circle-fill text-success fs-1 d-block mb-2"></i>
+            <h6 class="fw-bold text-color mb-0">Ottimo lavoro! Nessuna visita arretrata</h6>
+            <small>Tutti gli appuntamenti passati sono stati registrati.</small>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Section 2: Clienti da Ricontattare (>30 giorni) -->
+      <div class="card border-0 shadow-sm rounded-4 p-4" style="background-color: var(--card-bg);">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+              <i class="bi bi-person-x-fill"></i>
+            </div>
+            <h5 class="fw-bold mb-0 text-color">Clienti da Ricontattare (Nessuna visita negli ultimi 30 giorni)</h5>
+          </div>
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-1.5 fw-bold">{{ count_mancanti }} clienti</span>
+        </div>
+        <p class="text-muted small mb-3">Questi clienti non ricevono una visita commerciale da più di 30 giorni o non sono mai stati visitati. Pianifica un passaggio per mantenere attiva la relazione.</p>
+
+        {% if clienti_da_visitare %}
+          <div class="table-responsive">
+            <table class="table visite-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Zona</th>
+                  <th>Giro Assegnato</th>
+                  <th>Ultima Visita Registrata</th>
+                  <th>Stato Ritardo</th>
+                  <th class="text-end">Azione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in clienti_da_visitare %}
+                  <tr>
+                    <td>
+                      <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold text-color text-decoration-none">{{ c.nome }}</a>
+                      {% if c.telefono %}
+                        <small class="text-muted d-block font-monospace">{{ c.telefono }}</small>
+                      {% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ c.zona or 'N/D' }}</span></td>
+                    <td>
+                      {% if c.giorno_visita_standard and c.giorno_visita_standard in giorni_nomi %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">{{ giorni_nomi[c.giorno_visita_standard] }}</span>
+                      {% else %}
+                        <span class="text-muted small">Non assegnato</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if c.ultima_visita %}
+                        <span class="text-color fw-semibold font-monospace">{{ c.ultima_visita.strftime('%d/%m/%Y') }}</span>
+                      {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill">Mai visitato</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if c.ultima_visita %}
+                        <span class="text-danger fw-bold font-monospace"><i class="bi bi-clock-history me-1"></i>Oltre 30 giorni fa</span>
+                      {% else %}
+                        <span class="text-danger fw-bold"><i class="bi bi-exclamation-circle me-1"></i>Nessuna visita</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <div class="d-flex align-items-center justify-content-end gap-1.5">
+                        {% if c.telefono %}
+                          <a href="https://wa.me/{{ c.telefono|replace(' ', '')|replace('-', '')|replace('+', '') }}" target="_blank" class="btn btn-sm btn-outline-success rounded-circle px-2 py-1" title="WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
+                          </a>
+                        {% endif %}
+                        <button class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')">
+                          <i class="bi bi-calendar-plus"></i> Pianifica Visita
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-check-all text-success fs-1 d-block mb-2"></i>
+            <h6 class="fw-bold text-color mb-0">Tutti i clienti sono stati visitati di recente!</h6>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -386,27 +716,27 @@
       <form action="{{ url_for('api_visite_save') }}" method="POST">
         <div class="modal-body p-4 d-flex flex-column gap-3">
           <div>
-            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Seleziona Cliente</label>
+            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Seleziona Cliente</label>
             <select class="form-select w-100 fw-semibold" name="cliente_id" id="select_cliente_id" required>
               <option value="">Seleziona un cliente...</option>
               {% for c in tutti_clienti %}
-                <option value="{{ c.id }}">{{ c.nome }} ({{ c.zona }})</option>
+                <option value="{{ c.id }}">{{ c.nome }} ({{ c.zona or 'N/D' }})</option>
               {% endfor %}
             </select>
           </div>
           <div class="row g-3">
             <div class="col-6">
-              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Data Passaggio</label>
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Data Passaggio</label>
               <input type="date" class="form-control w-100 fw-semibold" name="data_visita" id="input_data_visita" required>
             </div>
             <div class="col-6">
-              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Ora (Opzionale)</label>
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Ora (Opzionale)</label>
               <input type="time" class="form-control w-100 fw-semibold" name="ora_visita" id="input_ora_visita">
             </div>
           </div>
           <div>
-            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Note / Obiettivo Commerciale</label>
-            <textarea class="form-control w-100" name="note" id="input_note" rows="3" placeholder="Es: Consegna campioni campionario, rinnovo condizioni listino..."></textarea>
+            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Note / Obiettivo Commerciale</label>
+            <textarea class="form-control w-100" name="note" id="input_note" rows="3" placeholder="Es: Consegna campioni, rinnovo condizioni listino personalizzato..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -436,7 +766,6 @@ let currentAgendaDate = "";
 let calendar = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Today start date
   const oggi = new Date();
   currentAgendaDate = oggi.toISOString().split('T')[0];
   
@@ -461,7 +790,6 @@ document.addEventListener('DOMContentLoaded', function() {
     selectable: true,
     events: '/api/visite/get_events',
     
-    // Calendar Event click
     eventClick: function(info) {
       const id = info.event.id;
       if (id.startsWith('real_')) {
@@ -469,7 +797,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     
-    // Drag & drop event date
     eventDrop: function(info) {
       if (info.event.id.startsWith('real_')) {
         updateVisitDate(info.event);
@@ -478,7 +805,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
 
-    // Empty slot select
     select: function(info) {
       const selDate = info.startStr.split('T')[0];
       currentAgendaDate = selDate;
@@ -494,17 +820,55 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   calendar.render();
-  
-  // Load today's list on page start
   updateDailyAgenda(currentAgendaDate);
 
-  // Redraw calendar on theme changes to keep colors and lines cohesive
+  // Redraw calendar on tab switch
+  document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabEl => {
+    tabEl.addEventListener('shown.bs.tab', function(e) {
+      if (e.target.getAttribute('data-bs-target') === '#tab-agenda' && calendar) {
+        setTimeout(() => calendar.render(), 100);
+      }
+    });
+  });
+
   document.addEventListener("themeChanged", () => {
     setTimeout(() => {
       if (calendar) calendar.render();
     }, 100);
   });
 });
+
+function showTabPromemoria() {
+  const trigger = document.getElementById('tab-promemoria-btn');
+  if (trigger) {
+    const tab = new bootstrap.Tab(trigger);
+    tab.show();
+  }
+}
+
+// Move client to day in Giri Settimanali
+async function spostaClienteGiro(clienteId, giorno) {
+  try {
+    const resp = await fetch('/api/clienti/assegna_giro_visita', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: clienteId,
+        giorno_visita_standard: parseInt(giorno)
+      })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      // Reload page to re-render clean state or alert
+      window.location.reload();
+    } else {
+      alert("Errore nell'assegnazione del giro: " + (data.error || 'Riprova.'));
+    }
+  } catch(e) {
+    console.error("Errore spostamento giro:", e);
+    alert("Errore di rete durante lo spostamento del cliente.");
+  }
+}
 
 // Update daily timeline agenda (AJAX call)
 async function updateDailyAgenda(dateStr) {
@@ -513,7 +877,6 @@ async function updateDailyAgenda(dateStr) {
     const data = await resp.json();
     
     if (data.success) {
-      // Update label
       document.getElementById('agenda-date-label').innerHTML = formatItalianDate(dateStr);
       
       const tbody = document.getElementById('daily-visits-tbody');
@@ -538,7 +901,6 @@ async function updateDailyAgenda(dateStr) {
           }
           
           const rowClass = v.completata ? 'completed' : 'pending';
-          const badgeClass = v.completata ? 'bg-success-subtle text-success border border-success' : 'bg-primary-subtle text-primary border border-primary';
           const badgeText = v.completata ? 'Completata' : 'In programma';
           const iconCheck = v.completata ? 'bi-arrow-counterclockwise' : 'bi-check-lg';
           const btnCheckTitle = v.completata ? 'Segna da completare' : 'Segna come completata';
@@ -557,11 +919,11 @@ async function updateDailyAgenda(dateStr) {
           tr.className = `agenda-row ${rowClass} border-bottom`;
           tr.innerHTML = `
             <td class="ps-3 py-3" style="width: 70px;">
-              <span class="fw-bold text-color fs-6">${v.ora_visita || 'N/D'}</span>
+              <span class="fw-bold text-color fs-6 font-monospace">${v.ora_visita || 'N/D'}</span>
             </td>
             <td class="py-3">
-              <h6 class="fw-bold text-color mb-0">${v.cliente_nome}</h6>
-              <span class="text-muted small d-block"><i class="bi bi-geo-alt me-1"></i>${v.zona}</span>
+              <a href="/clienti/${v.cliente_id}" class="fw-bold text-color mb-0 text-decoration-none">${v.cliente_nome}</a>
+              <span class="text-muted small d-block"><i class="bi bi-geo-alt me-1"></i>${v.zona || 'N/D'}</span>
               ${v.note ? `<p class="mb-0 text-muted small mt-1 p-2 rounded border" style="font-style: italic; background-color: var(--bg-color); border-color: var(--border-color) !important;">"${v.note}"</p>` : ''}
             </td>
             <td class="py-3" style="width: 100px;">
@@ -580,12 +942,11 @@ async function updateDailyAgenda(dateStr) {
             </td>
           `;
           
-          // Apply individual styled badges colors directly to avoid default bootstrap colors overriding
           const badgeEl = tr.querySelector('.badge');
           if (v.completata) {
-            badgeEl.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+            badgeEl.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
             badgeEl.style.color = 'var(--success)';
-            badgeEl.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+            badgeEl.style.border = '1px solid rgba(16, 185, 129, 0.25)';
           } else {
             badgeEl.style.backgroundColor = 'var(--primary-light)';
             badgeEl.style.color = 'var(--primary)';
@@ -599,17 +960,14 @@ async function updateDailyAgenda(dateStr) {
         emptyState.classList.remove('d-none');
       }
       
-      // Update statistics
-      document.getElementById('stat-today-count').innerHTML = statToday;
-      document.getElementById('stat-completed-count').innerHTML = statCompleted;
-      document.getElementById('stat-pending-count').innerHTML = statPending;
+      const elStatToday = document.getElementById('stat-today-count');
+      if (elStatToday) elStatToday.innerHTML = statToday;
     }
   } catch(e) {
     console.error("Errore aggiornamento agenda:", e);
   }
 }
 
-// Navigation offset
 function navigateDay(offset) {
   const d = new Date(currentAgendaDate + "T00:00:00");
   d.setDate(d.getDate() + offset);
@@ -617,11 +975,9 @@ function navigateDay(offset) {
   
   calendar.gotoDate(currentAgendaDate);
   calendar.select(currentAgendaDate);
-  
   updateDailyAgenda(currentAgendaDate);
 }
 
-// Format date into standard italian string
 function formatItalianDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
@@ -629,7 +985,6 @@ function formatItalianDate(dateStr) {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-// Prefill form modale
 function prefillVisitWithCurrentDate() {
   document.getElementById('input_data_visita').value = currentAgendaDate;
   document.getElementById('input_ora_visita').value = "";
@@ -649,7 +1004,6 @@ function prefillVisit(cid, cname, date = '', time = '') {
   modal.show();
 }
 
-// Load visit dynamic details (AJAX)
 function loadVisitDetail(vid) {
   fetch('/api/visite/detail/' + vid)
     .then(response => response.text())
@@ -657,7 +1011,6 @@ function loadVisitDetail(vid) {
       const container = document.getElementById('contentModificaVisita');
       container.innerHTML = html;
       
-      // Inject close button styles or filters if inside dark-mode
       const closeBtn = container.querySelector('.btn-close');
       if (closeBtn) {
         closeBtn.style.filter = 'var(--theme-close-btn-filter, none)';
@@ -668,28 +1021,30 @@ function loadVisitDetail(vid) {
     });
 }
 
-// Toggle complete status (AJAX)
 async function toggleVisitStatus(vid) {
   try {
     const resp = await fetch(`/api/visite/toggle_completata/${vid}`, { method: 'POST' });
     const res = await resp.json();
     if (res.success) {
-      calendar.refetchEvents();
+      if (calendar) calendar.refetchEvents();
       updateDailyAgenda(currentAgendaDate);
+      // If we are in promemoria tab, reload to refresh counts
+      if (document.getElementById('tab-promemoria')?.classList.contains('active')) {
+        window.location.reload();
+      }
     }
   } catch(e) {
     alert("Impossibile aggiornare lo stato della visita.");
   }
 }
 
-// Toggle complete from modal details
 async function toggleVisitStatusDetail(vid) {
   try {
     const resp = await fetch(`/api/visite/toggle_completata/${vid}`, { method: 'POST' });
     const res = await resp.json();
     if (res.success) {
       bootstrap.Modal.getInstance(document.getElementById('modalModificaVisita')).hide();
-      calendar.refetchEvents();
+      if (calendar) calendar.refetchEvents();
       updateDailyAgenda(currentAgendaDate);
     }
   } catch(e) {
@@ -697,14 +1052,13 @@ async function toggleVisitStatusDetail(vid) {
   }
 }
 
-// Delete visit (AJAX)
 async function deleteVisit(vid) {
   if (!confirm("Sei sicuro di voler eliminare questo appuntamento?")) return;
   try {
     const resp = await fetch(`/api/visite/elimina/${vid}`, { method: 'POST' });
     const res = await resp.json();
     if (res.success) {
-      calendar.refetchEvents();
+      if (calendar) calendar.refetchEvents();
       updateDailyAgenda(currentAgendaDate);
     }
   } catch(e) {
@@ -712,7 +1066,6 @@ async function deleteVisit(vid) {
   }
 }
 
-// Delete visit from modal details
 async function deleteVisitDetail(vid) {
   if (!confirm("Sei sicuro di voler eliminare questo appuntamento?")) return;
   try {
@@ -720,7 +1073,7 @@ async function deleteVisitDetail(vid) {
     const res = await resp.json();
     if (res.success) {
       bootstrap.Modal.getInstance(document.getElementById('modalModificaVisita')).hide();
-      calendar.refetchEvents();
+      if (calendar) calendar.refetchEvents();
       updateDailyAgenda(currentAgendaDate);
     }
   } catch(e) {
@@ -728,7 +1081,6 @@ async function deleteVisitDetail(vid) {
   }
 }
 
-// Move drag event (AJAX)
 function updateVisitDate(event) {
   const data = {
     id: event.id.replace('real_', ''),
@@ -749,7 +1101,6 @@ function updateVisitDate(event) {
   });
 }
 
-// iCal synchronization copy
 function copyIcalLink() {
   const url = window.location.origin + "/ical/visite.ics?token=HorecaCalendar";
   navigator.clipboard.writeText(url).then(() => {

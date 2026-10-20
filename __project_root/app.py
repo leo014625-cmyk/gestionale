@@ -11,7 +11,7 @@ import json
 import sqlite3
 from functools import wraps
 from contextlib import contextmanager
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify, Response, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from jinja2 import FileSystemLoader
@@ -1772,15 +1772,17 @@ def cliente_scheda(id):
                         log_dict['data'] = datetime.min
             log_cliente.append(log_dict)
 
-        # List of worked products for the modal checklist
+        # List of worked products and client price list
         cur.execute('''
-            SELECT p.id, p.codice, p.nome, COALESCE(c.nome, '–') AS categoria_nome, cp.prezzo_attuale, cp.prezzo_offerta
+            SELECT cp.id as cp_id, p.id, p.codice, p.nome, COALESCE(c.nome, '–') AS categoria_nome,
+                   cp.prezzo_attuale, cp.prezzo_offerta, COALESCE(p.prezzo, 0.0) as prezzo_listino_base,
+                   cp.potenziale, cp.lavorato, cp.volte_mancante, cp.data_operazione
             FROM clienti_prodotti cp
             JOIN prodotti p ON cp.prodotto_id = p.id
             LEFT JOIN categorie c ON p.categoria_id = c.id
-            WHERE cp.cliente_id = %s AND cp.lavorato = TRUE AND COALESCE(p.eliminato, FALSE) = FALSE
+            WHERE (cp.cliente_id = %s OR cp.id_cliente = %s) AND COALESCE(p.eliminato, FALSE) = FALSE
             ORDER BY c.nome, p.nome
-        ''', (id,))
+        ''', (id, id))
         prodotti_lavorati_full = [dict(r) for r in cur.fetchall()]
 
         try:
@@ -5687,27 +5689,467 @@ def broadcast_preferenze():
 def visite_clienti():
     with get_db() as db_conn:
         cur = db_conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, nome, zona FROM clienti ORDER BY nome")
+        # Clienti per il form e pianificatore
+        cur.execute("SELECT id, nome, zona, telefono, giorno_visita_standard, ora_visita_standard, frequenza_visita FROM clienti ORDER BY nome")
         tutti_clienti = cur.fetchall()
-        cur.execute("SELECT id, nome, zona FROM clienti WHERE giorno_visita_standard IS NOT NULL LIMIT 10")
-        clienti_frequenti = cur.fetchall()
-    return render_template('06_visite/06_visite.html', tutti_clienti=tutti_clienti, clienti_frequenti=clienti_frequenti)
+
+        # Raggruppa clienti per giorno visita standard per il pianificatore giri (1=Lunedì .. 6=Sabato)
+        giorni_nomi = {
+            1: 'Lunedì', 2: 'Martedì', 3: 'Mercoledì', 4: 'Giovedì', 5: 'Venerdì', 6: 'Sabato',
+            '1': 'Lunedì', '2': 'Martedì', '3': 'Mercoledì', '4': 'Giovedì', '5': 'Venerdì', '6': 'Sabato'
+        }
+        raw_giri = {i: [] for i in range(1, 7)}
+        clienti_senza_giro = []
+        for c in tutti_clienti:
+            val = c.get('giorno_visita_standard')
+            try:
+                g_int = int(val) if val is not None else 0
+            except (ValueError, TypeError):
+                g_int = 0
+            if 1 <= g_int <= 6:
+                raw_giri[g_int].append(c)
+            else:
+                clienti_senza_giro.append(c)
+
+        giri_per_giorno = {}
+        for i in range(1, 7):
+            giri_per_giorno[i] = {
+                'nome': giorni_nomi[i],
+                'clienti': raw_giri[i],
+                'count': len(raw_giri[i])
+            }
+        giri_per_giorno[0] = {
+            'nome': 'Non Assegnati',
+            'clienti': clienti_senza_giro,
+            'count': len(clienti_senza_giro)
+        }
+
+        # Visite in programma oggi
+        cur.execute("""
+            SELECT v.id, v.data_visita, v.ora_visita, v.note, v.completata, c.id as cliente_id, c.nome as cliente_nome, c.zona, c.telefono
+            FROM visite v
+            JOIN clienti c ON v.cliente_id = c.id
+            WHERE v.data_visita = CURRENT_DATE
+            ORDER BY v.ora_visita ASC NULLS LAST, c.nome ASC
+        """)
+        visite_oggi = cur.fetchall()
+
+        # Visite da completare o in ritardo
+        cur.execute("""
+            SELECT v.id, v.data_visita, v.ora_visita, v.note, c.id as cliente_id, c.nome as cliente_nome, c.zona, c.telefono
+            FROM visite v
+            JOIN clienti c ON v.cliente_id = c.id
+            WHERE v.data_visita <= CURRENT_DATE AND (v.completata = FALSE OR v.completata IS NULL)
+            ORDER BY v.data_visita DESC, v.ora_visita ASC NULLS LAST
+            LIMIT 15
+        """)
+        visite_in_ritardo = cur.fetchall()
+
+        # Clienti attivi non visitati negli ultimi 30 giorni (Promemoria "se manca qualcosa")
+        try:
+            cur.execute("""
+                SELECT c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard, MAX(v.data_visita) as ultima_visita
+                FROM clienti c
+                LEFT JOIN visite v ON v.cliente_id = c.id AND v.completata IS TRUE
+                WHERE c.stato = 'attivo' OR c.stato IS NULL OR c.stato = 'automatico'
+                GROUP BY c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard
+                HAVING MAX(v.data_visita) IS NULL OR MAX(v.data_visita) < CURRENT_DATE - INTERVAL '30 days'
+                ORDER BY MAX(v.data_visita) ASC NULLS FIRST
+                LIMIT 25
+            """)
+            clienti_da_visitare = cur.fetchall()
+        except Exception as _e_vis:
+            db_conn.rollback()
+            cur.execute("SELECT id, nome, zona, telefono, giorno_visita_standard FROM clienti LIMIT 15")
+            clienti_da_visitare = cur.fetchall()
+
+    return render_template(
+        '06_visite/06_visite.html',
+        tutti_clienti=tutti_clienti,
+        giri_per_giorno=giri_per_giorno,
+        giorni_nomi=giorni_nomi,
+        clienti_senza_giro=clienti_senza_giro,
+        visite_oggi=visite_oggi,
+        visite_in_ritardo=visite_in_ritardo,
+        clienti_da_visitare=clienti_da_visitare
+    )
+
+@app.route('/api/clienti/assegna_giro_visita', methods=['POST'])
+@login_required
+def api_assegna_giro_visita():
+    data = request.get_json(silent=True) or request.form
+    try:
+        cliente_id = int(data.get('cliente_id'))
+        giorno = data.get('giorno')
+        giorno_val = int(giorno) if giorno and str(giorno).isdigit() else None
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("UPDATE clienti SET giorno_visita_standard = %s WHERE id = %s", (giorno_val, cliente_id))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Giro visita aggiornato!'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/ordini')
 @login_required
 def ordini_settimanali():
+    oggi = datetime.today().date()
+    # Calcola il lunedì della settimana corrente
+    lunedi_corrente = oggi - timedelta(days=oggi.weekday())
+    domenica_corrente = lunedi_corrente + timedelta(days=6)
+
+    offset = request.args.get('offset', default=0, type=int)
+    if offset != 0:
+        lunedi_target = lunedi_corrente + timedelta(weeks=offset)
+        domenica_target = lunedi_target + timedelta(days=6)
+    else:
+        lunedi_target = lunedi_corrente
+        domenica_target = domenica_corrente
+
+    settimana_num = lunedi_target.isocalendar()[1]
+    anno_target = lunedi_target.year
+
     with get_db() as db_conn:
         cur = db_conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, nome, zona, giorni_consegna_standard FROM clienti WHERE giorni_consegna_standard IS NOT NULL AND giorni_consegna_standard != ''")
-        clienti = cur.fetchall()
-        ordini_per_giorno = {}
-        for c in clienti:
-            days = c['giorni_consegna_standard'].split(',')
-            for d in days:
-                d = d.strip()
-                if d not in ordini_per_giorno: ordini_per_giorno[d] = []
-                ordini_per_giorno[d].append(c)
-    return render_template('01_clienti/07_ordini.html', ordini_per_giorno=ordini_per_giorno)
+
+        cur.execute("""
+            SELECT id, nome, zona, telefono, giorni_consegna_standard, COALESCE(fatturato_totale, 0) as fatturato_totale, stato
+            FROM clienti
+            WHERE (stato = 'attivo' OR stato IS NULL OR stato = 'automatico')
+            ORDER BY nome ASC
+        """)
+        tutti_clienti = cur.fetchall()
+
+        # Recupera fatturato_settimanale registrato per questa settimana o periodo
+        cur.execute("""
+            SELECT id, cliente_id, totale, note, data_inizio, data_fine, settimana, anno
+            FROM fatturato_settimanale
+            WHERE (data_inizio = %s AND data_fine = %s)
+               OR (settimana = %s AND anno = %s)
+        """, (lunedi_target, domenica_target, settimana_num, anno_target))
+        ordini_settimana = {r['cliente_id']: r for r in cur.fetchall()}
+
+        giorni_nomi = {
+            '1': 'Lunedì',
+            '2': 'Martedì',
+            '3': 'Mercoledì',
+            '4': 'Giovedì',
+            '5': 'Venerdì',
+            '6': 'Sabato',
+            '0': 'Domenica'
+        }
+
+        ordini_per_giorno = {str(i): [] for i in range(7)}
+        clienti_mancanti = []
+        clienti_ordinati = []
+        totale_confermato = 0.0
+
+        for c in tutti_clienti:
+            c_dict = dict(c)
+            tel_clean = (c_dict.get('telefono') or '').replace(' ', '').replace('+', '').replace('-', '')
+            c_dict['whatsapp_clean'] = tel_clean if tel_clean else ''
+
+            ordine = ordini_settimana.get(c_dict['id'])
+            if ordine and float(ordine['totale'] or 0) > 0:
+                c_dict['ordinato'] = True
+                c_dict['totale_ordine'] = float(ordine['totale'])
+                c_dict['note_ordine'] = ordine['note'] or ''
+                c_dict['ordine_id'] = ordine['id']
+                totale_confermato += c_dict['totale_ordine']
+                clienti_ordinati.append(c_dict)
+            else:
+                c_dict['ordinato'] = False
+                c_dict['totale_ordine'] = 0.0
+                c_dict['note_ordine'] = ''
+                c_dict['ordine_id'] = None
+
+            giorni_str = c_dict.get('giorni_consegna_standard') or ''
+            if giorni_str:
+                days = [d.strip() for d in giorni_str.split(',') if d.strip()]
+                for d in days:
+                    day_key = d
+                    if d.lower().startswith('lun'): day_key = '1'
+                    elif d.lower().startswith('mar'): day_key = '2'
+                    elif d.lower().startswith('mer'): day_key = '3'
+                    elif d.lower().startswith('gio'): day_key = '4'
+                    elif d.lower().startswith('ven'): day_key = '5'
+                    elif d.lower().startswith('sab'): day_key = '6'
+                    elif d.lower().startswith('dom'): day_key = '0'
+
+                    if day_key in ordini_per_giorno:
+                        ordini_per_giorno[day_key].append(c_dict)
+                        if not c_dict['ordinato'] and c_dict not in clienti_mancanti:
+                            clienti_mancanti.append(c_dict)
+            else:
+                if c_dict['ordinato']:
+                    ordini_per_giorno['1'].append(c_dict)
+
+        tot_ordinati = len(clienti_ordinati)
+        tot_mancanti = len(clienti_mancanti)
+        percentuale_completata = round((tot_ordinati / (tot_ordinati + tot_mancanti) * 100)) if (tot_ordinati + tot_mancanti) > 0 else 0
+
+    return render_template(
+        '01_clienti/07_ordini.html',
+        ordini_per_giorno=ordini_per_giorno,
+        giorni_nomi=giorni_nomi,
+        clienti_mancanti=clienti_mancanti,
+        totale_confermato=totale_confermato,
+        tot_ordinati=tot_ordinati,
+        tot_mancanti=tot_mancanti,
+        percentuale_completata=percentuale_completata,
+        lunedi_target=lunedi_target,
+        domenica_target=domenica_target,
+        settimana_num=settimana_num,
+        anno_target=anno_target,
+        offset_settimane=offset
+    )
+
+@app.route('/api/ordini/registra_rapido', methods=['POST'])
+@login_required
+def api_ordini_registra_rapido():
+    data = request.get_json(silent=True) or request.form
+    try:
+        cliente_id = int(data.get('cliente_id'))
+        totale = float(str(data.get('totale', 0)).replace(',', '.').strip())
+        data_inizio_str = data.get('data_inizio')
+        data_fine_str = data.get('data_fine')
+        note = data.get('note', '').strip()
+        data_inizio = datetime.strptime(data_inizio_str, '%Y-%m-%d').date()
+        data_fine = datetime.strptime(data_fine_str, '%Y-%m-%d').date()
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Parametri non validi: {str(e)}'}), 400
+
+    settimana = data_inizio.isocalendar()[1]
+    anno = data_inizio.year
+    mese = data_inizio.month
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("""
+                SELECT id FROM fatturato_settimanale
+                WHERE cliente_id = %s AND data_inizio = %s AND data_fine = %s
+            """, (cliente_id, data_inizio, data_fine))
+            row = cur.fetchone()
+            if row:
+                cur.execute("""
+                    UPDATE fatturato_settimanale
+                    SET totale = %s, note = %s
+                    WHERE id = %s
+                """, (totale, note, row['id']))
+            else:
+                cur.execute("""
+                    INSERT INTO fatturato_settimanale (cliente_id, data_inizio, data_fine, settimana, mese, anno, totale, note)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (cliente_id, data_inizio, data_fine, settimana, mese, anno, totale, note))
+
+            aggiorna_fatturato_totale(cliente_id, cur)
+            db.commit()
+            return jsonify({'success': True, 'message': 'Ordine registrato con successo!', 'totale': totale})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+# ============================
+# API: Listino Prezzi & Referenze Cliente
+# ============================
+@app.route('/api/clienti/<int:cliente_id>/listino/salva_prezzo', methods=['POST'])
+@login_required
+def api_salva_prezzo_listino_cliente(cliente_id):
+    data = request.get_json(silent=True) or request.form
+    try:
+        prodotto_id = int(data.get('prodotto_id'))
+        prezzo_attuale = float(str(data.get('prezzo_attuale', 0)).replace('€', '').replace(',', '.').strip())
+        prezzo_offerta_raw = data.get('prezzo_offerta')
+        prezzo_offerta = float(str(prezzo_offerta_raw).replace('€', '').replace(',', '.').strip()) if prezzo_offerta_raw else None
+        potenziale = bool(data.get('potenziale', False))
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Dati non validi: {str(e)}'}), 400
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("""
+                SELECT id FROM clienti_prodotti
+                WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
+            """, (cliente_id, cliente_id, prodotto_id, prodotto_id))
+            row = cur.fetchone()
+            if row:
+                cur.execute("""
+                    UPDATE clienti_prodotti
+                    SET prezzo_attuale = %s, prezzo_offerta = %s, potenziale = %s, lavorato = TRUE, data_operazione = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """, (prezzo_attuale, prezzo_offerta, potenziale, row['id']))
+            else:
+                cur.execute("""
+                    INSERT INTO clienti_prodotti (cliente_id, prodotto_id, prezzo_attuale, prezzo_offerta, potenziale, lavorato, data_operazione)
+                    VALUES (%s, %s, %s, %s, %s, TRUE, CURRENT_TIMESTAMP)
+                """, (cliente_id, prodotto_id, prezzo_attuale, prezzo_offerta, potenziale))
+
+            db.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Prezzo aggiornato con successo!',
+                'prezzo_attuale': round(prezzo_attuale, 2),
+                'prezzo_offerta': round(prezzo_offerta, 2) if prezzo_offerta else None
+            })
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/clienti/<int:cliente_id>/listino/aggiungi', methods=['POST'])
+@login_required
+def api_aggiungi_prodotto_listino_cliente(cliente_id):
+    data = request.get_json(silent=True) or request.form
+    try:
+        prodotto_id = int(data.get('prodotto_id'))
+        prezzo_attuale = float(str(data.get('prezzo_attuale', 0)).replace('€', '').replace(',', '.').strip())
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Dati non validi: {str(e)}'}), 400
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("""
+                SELECT id FROM clienti_prodotti
+                WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
+            """, (cliente_id, cliente_id, prodotto_id, prodotto_id))
+            row = cur.fetchone()
+            if row:
+                cur.execute("""
+                    UPDATE clienti_prodotti
+                    SET prezzo_attuale = %s, lavorato = TRUE, data_operazione = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """, (prezzo_attuale, row['id']))
+            else:
+                cur.execute("""
+                    INSERT INTO clienti_prodotti (cliente_id, prodotto_id, prezzo_attuale, lavorato, data_operazione)
+                    VALUES (%s, %s, %s, TRUE, CURRENT_TIMESTAMP)
+                """, (cliente_id, prodotto_id, prezzo_attuale))
+
+            db.commit()
+            return jsonify({'success': True, 'message': 'Prodotto aggiunto al listino del cliente!'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/clienti/<int:cliente_id>/listino/rimuovi/<int:prodotto_id>', methods=['POST'])
+@login_required
+def api_rimuovi_prodotto_listino_cliente(cliente_id, prodotto_id):
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("""
+                DELETE FROM clienti_prodotti
+                WHERE (cliente_id = %s OR id_cliente = %s) AND (prodotto_id = %s OR id_prodotto = %s)
+            """, (cliente_id, cliente_id, prodotto_id, prodotto_id))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Prodotto rimosso dal listino!'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/clienti/<int:cliente_id>/listino/scarica_pdf')
+@login_required
+def scarica_listino_cliente_pdf(cliente_id):
+    with get_db() as db:
+        cur = db.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM clienti WHERE id = %s", (cliente_id,))
+        cliente = cur.fetchone()
+        if not cliente:
+            flash("Cliente non trovato", "danger")
+            return redirect(url_for('clienti'))
+
+        cur.execute("""
+            SELECT p.id, p.codice, p.nome, COALESCE(c.nome, 'Altro') AS categoria_nome,
+                   cp.prezzo_attuale, cp.prezzo_offerta, COALESCE(p.prezzo, 0.0) as prezzo_listino_base,
+                   cp.potenziale, cp.lavorato
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON cp.prodotto_id = p.id
+            LEFT JOIN categorie c ON p.categoria_id = c.id
+            WHERE (cp.cliente_id = %s OR cp.id_cliente = %s) AND COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY c.nome, p.nome
+        """, (cliente_id, cliente_id))
+        prodotti_listino = cur.fetchall()
+
+    pdf = WeeklyOrdersPDF(orientation='P', unit='mm', format='A4')
+    pdf.alias_nb_pages()
+    pdf.add_page()
+
+    # Intestazione Personalizzata Listino Cliente
+    pdf.set_font('helvetica', 'B', 16)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 8, "Listino Prezzi Riservato", ln=True, align='L')
+    pdf.set_font('helvetica', 'B', 12)
+    pdf.set_text_color(67, 56, 202)
+    pdf.cell(0, 6, f"Cliente: {cliente['nome']} (Zona: {cliente.get('zona') or '–'})", ln=True, align='L')
+    pdf.set_font('helvetica', 'I', 9)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(0, 6, f"Offerta commerciale personalizzata generata il {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='L')
+    pdf.ln(4)
+
+    # Intestazione Tabella
+    pdf.set_fill_color(241, 245, 249)
+    pdf.set_draw_color(203, 213, 225)
+    pdf.set_font('helvetica', 'B', 9)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(28, 8, 'Codice', border=1, fill=True)
+    pdf.cell(85, 8, 'Descrizione Prodotto', border=1, fill=True)
+    pdf.cell(45, 8, 'Categoria', border=1, fill=True)
+    pdf.cell(32, 8, 'Prezzo Riservato', border=1, fill=True, align='R')
+    pdf.ln()
+
+    # Righe Tabella
+    pdf.set_font('helvetica', '', 9)
+    fill = False
+    for p in prodotti_listino:
+        if pdf.get_y() > 265:
+            pdf.add_page()
+            pdf.set_font('helvetica', 'B', 9)
+            pdf.cell(28, 8, 'Codice', border=1, fill=True)
+            pdf.cell(85, 8, 'Descrizione Prodotto', border=1, fill=True)
+            pdf.cell(45, 8, 'Categoria', border=1, fill=True)
+            pdf.cell(32, 8, 'Prezzo Riservato', border=1, fill=True, align='R')
+            pdf.ln()
+            pdf.set_font('helvetica', '', 9)
+
+        prezzo_str = f"EUR {float(p['prezzo_attuale'] or 0):.2f}"
+        pdf.set_fill_color(248, 250, 252) if fill else pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(28, 7, str(p['codice'] or '–'), border='B', fill=fill)
+        nome_prod = str(p['nome'] or '')
+        pdf.cell(85, 7, (nome_prod[:42] + '...') if len(nome_prod) > 45 else nome_prod, border='B', fill=fill)
+        cat_nome = str(p['categoria_nome'] or '')
+        pdf.cell(45, 7, cat_nome[:22], border='B', fill=fill)
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.set_text_color(5, 150, 105)
+        pdf.cell(32, 7, prezzo_str, border='B', fill=fill, align='R')
+        pdf.set_font('helvetica', '', 9)
+        pdf.ln()
+        fill = not fill
+
+    if not prodotti_listino:
+        pdf.cell(0, 15, "Nessun prodotto attualmente assegnato al listino del cliente.", border=1, align='C')
+
+    pdf_output = pdf.output(dest='S')
+    if isinstance(pdf_output, str):
+        pdf_bytes = pdf_output.encode('latin1')
+    else:
+        pdf_bytes = bytes(pdf_output)
+
+    clean_name = "".join(c for c in cliente['nome'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"Listino_{clean_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
 
 
 try:

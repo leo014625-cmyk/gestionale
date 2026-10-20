@@ -187,6 +187,32 @@
   .sheet-table tbody tr:hover td {
     background-color: var(--primary-light);
   }
+
+  /* Listino Prezzi Cliente High Contrast & Dark Mode */
+  .listino-row td {
+    color: var(--text-color);
+  }
+  body.dark-mode .input-prezzo-riservato,
+  body.dark-mode .input-prezzo-offerta {
+    background-color: var(--bg-color) !important;
+    color: #f8fafc !important;
+    border-color: var(--border-color) !important;
+  }
+  body.dark-mode .input-group-text {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #cbd5e1 !important;
+    border-color: var(--border-color) !important;
+  }
+  body.dark-mode .badge.bg-light.text-dark {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+  body.dark-mode #filtro-mesi {
+    background-color: var(--card-bg) !important;
+    color: #f8fafc !important;
+    border-color: var(--border-color) !important;
+  }
 </style>
 {% endblock %}
 
@@ -1080,6 +1106,170 @@
     </div>
   </div>
 
+  <!-- SECTION: LISTINO PERSONALIZZATO CLIENTE (PRODOTTI & PREZZI) -->
+  <div class="card border-0 shadow-sm rounded-4 mb-5 p-4" style="background-color: var(--card-bg);" id="sezione-listino-cliente">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h4 class="fw-bold mb-1 d-flex align-items-center gap-2 text-color">
+          <i class="bi bi-receipt-cutoff text-primary"></i>
+          <span>Listino Prezzi & Referenze Cliente</span>
+        </h4>
+        <p class="text-muted small mb-0">Gestisci i prodotti associati al cliente, imposta i prezzi di vendita concordati e le offerte speciali, oppure genera il PDF del listino riservato.</p>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-outline-success rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalCaricaListinoPdf">
+          <i class="bi bi-file-earmark-pdf-fill"></i>
+          <span>Carica / Aggiorna da PDF</span>
+        </button>
+        <button type="button" class="btn btn-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAggiungiProdottoListino">
+          <i class="bi bi-plus-circle-fill"></i>
+          <span>Aggiungi Prodotto</span>
+        </button>
+        <a href="{{ url_for('scarica_listino_cliente_pdf', cliente_id=cliente.id) }}" class="btn btn-dark rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm" target="_blank">
+          <i class="bi bi-printer-fill text-warning"></i>
+          <span>Scarica Listino PDF</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Referenze a Listino</div>
+          <div class="kpi-mini-val text-primary" id="listino-stat-totale">{{ prodotti_lavorati_full|length }}</div>
+          <span class="small text-muted">Totale prodotti assegnati</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prodotti Lavorati (Attivi)</div>
+          <div class="kpi-mini-val text-success" id="listino-stat-lavorati">{{ prodotti_lavorati_full|selectattr('lavorato', 'equalto', True)|list|length }}</div>
+          <span class="small text-success fw-semibold">Acquistati con regolarità</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prodotti Potenziali</div>
+          <div class="kpi-mini-val text-warning" id="listino-stat-potenziali">{{ prodotti_lavorati_full|selectattr('potenziale', 'equalto', True)|list|length }}</div>
+          <span class="small text-muted">Da proporre o in offerta</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card">
+          <div class="kpi-mini-title">Prezzi Personalizzati</div>
+          {% set custom_prices_count = prodotti_lavorati_full|selectattr('prezzo_attuale')|list|length %}
+          <div class="kpi-mini-val text-info">{{ custom_prices_count }}</div>
+          <span class="small text-muted">Con prezzo concordato</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter and Search Row -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+      <div class="position-relative flex-grow-1" style="max-width: 360px;">
+        <input type="text" class="form-control rounded-pill ps-4" id="inputFiltraListino" placeholder="🔍 Cerca per codice o nome prodotto..." oninput="filtraListinoCliente(this.value)">
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 active btn-filtro-tipo" onclick="filtraTipoListino('tutti', this)">Tutti ({{ prodotti_lavorati_full|length }})</button>
+        <button class="btn btn-sm btn-outline-success rounded-pill px-3 btn-filtro-tipo" onclick="filtraTipoListino('lavorato', this)">Solo Lavorati</button>
+        <button class="btn btn-sm btn-outline-warning rounded-pill px-3 btn-filtro-tipo" onclick="filtraTipoListino('potenziale', this)">Solo Potenziali</button>
+      </div>
+    </div>
+
+    <!-- Table of Client Products & Prices -->
+    <div class="table-responsive rounded-4 border">
+      <table class="table sheet-table align-middle mb-0" id="tabella-listino-cliente">
+        <thead>
+          <tr>
+            <th style="width: 100px;">Codice</th>
+            <th>Prodotto & Categoria</th>
+            <th class="text-end" style="width: 130px;">Listino Base (€)</th>
+            <th class="text-end" style="width: 160px;">Prezzo Riservato (€)</th>
+            <th class="text-end" style="width: 150px;">Prezzo Offerta (€)</th>
+            <th class="text-center" style="width: 110px;">Delta %</th>
+            <th class="text-center" style="width: 120px;">Stato</th>
+            <th class="text-end" style="width: 130px;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-listino-cliente">
+          {% for p in prodotti_lavorati_full %}
+            <tr class="listino-row" data-nome="{{ p.nome|lower }}" data-codice="{{ (p.codice or '')|lower }}" data-tipo="{% if p.lavorato %}lavorato{% elif p.potenziale %}potenziale{% else %}standard{% endif %}">
+              <td class="font-monospace fw-bold text-muted small">{{ p.codice or '–' }}</td>
+              <td>
+                <div class="fw-bold text-color">{{ p.nome }}</div>
+                <small class="badge bg-light text-muted border py-0.5 px-2 rounded-pill">{{ p.categoria_nome or 'Senza Categoria' }}</small>
+              </td>
+              <td class="text-end font-monospace text-muted">
+                {% if p.prezzo_listino_base %}
+                  € {{ "%.2f"|format(p.prezzo_listino_base) }}
+                {% else %}
+                  <span class="text-muted">–</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="input-group input-group-sm justify-content-end">
+                  <span class="input-group-text bg-light text-muted border-end-0">€</span>
+                  <input type="number" step="0.01" class="form-control form-control-sm text-end font-monospace fw-bold input-prezzo-riservato" id="input-prezzo-{{ p.prodotto_id }}" value="{{ '%.2f'|format(p.prezzo_attuale) if p.prezzo_attuale is not none else '' }}" placeholder="Listino" style="max-width: 95px;" onkeydown="if(event.key==='Enter') salvaPrezzoListino('{{ cliente.id }}', '{{ p.prodotto_id }}')">
+                </div>
+              </td>
+              <td class="text-end">
+                <div class="input-group input-group-sm justify-content-end">
+                  <span class="input-group-text bg-light text-muted border-end-0">€</span>
+                  <input type="number" step="0.01" class="form-control form-control-sm text-end font-monospace input-prezzo-offerta" id="input-offerta-{{ p.prodotto_id }}" value="{{ '%.2f'|format(p.prezzo_offerta) if p.prezzo_offerta is not none else '' }}" placeholder="Offerta" style="max-width: 95px;" onkeydown="if(event.key==='Enter') salvaPrezzoListino('{{ cliente.id }}', '{{ p.prodotto_id }}')">
+                </div>
+              </td>
+              <td class="text-center font-monospace small" id="delta-badge-{{ p.prodotto_id }}">
+                {% if p.prezzo_attuale and p.prezzo_listino_base and p.prezzo_listino_base > 0 %}
+                  {% set diff = ((p.prezzo_attuale - p.prezzo_listino_base) / p.prezzo_listino_base * 100)|round(1) %}
+                  {% if diff < 0 %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">{{ diff }}%</span>
+                  {% elif diff > 0 %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">+{{ diff }}%</span>
+                  {% else %}
+                    <span class="text-muted">0%</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">–</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if p.lavorato %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">Lavorato</span>
+                {% elif p.potenziale %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1">Potenziale</span>
+                {% else %}
+                  <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1">A listino</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="d-flex align-items-center justify-content-end gap-1">
+                  <button type="button" class="btn btn-sm btn-primary rounded-pill px-2 py-1" onclick="salvaPrezzoListino('{{ cliente.id }}', '{{ p.prodotto_id }}')" title="Salva prezzo concordato">
+                    <i class="bi bi-check-lg"></i> Salva
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger rounded-circle px-2 py-1" onclick="rimuoviProdottoListino('{{ cliente.id }}', '{{ p.prodotto_id }}')" title="Rimuovi dal listino cliente">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <i class="bi bi-receipt fs-1 opacity-25 d-block mb-2"></i>
+                <h6 class="fw-bold text-color mb-1">Nessun prodotto ancora presente nel listino di questo cliente</h6>
+                <p class="small text-muted mb-3">Carica la fattura/listino in PDF oppure aggiungi manualmente i prodotti dal catalogo per iniziare a gestire i prezzi concordati.</p>
+                <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#modalAggiungiProdottoListino">
+                  <i class="bi bi-plus-circle me-1"></i> Aggiungi Primo Prodotto
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Category Selector Grid -->
   <div class="card border-0 shadow-sm rounded-4 mb-5 p-4" style="background-color: var(--card-bg);">
     <h5 class="fw-bold text-uppercase tracking-wider text-muted small mb-3">
@@ -1129,6 +1319,106 @@
         <div class="modal-body" id="modal-body-content" style="padding: 1rem 1.5rem 1.5rem 1.5rem; min-height: 300px;">
           <!-- Loaded dynamically from template -->
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AGGIUNGI PRODOTTO A LISTINO CLIENTE -->
+  <div class="modal fade" id="modalAggiungiProdottoListino" tabindex="-1" aria-labelledby="modalAggiungiProdottoListinoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold text-primary" id="modalAggiungiProdottoListinoLabel">
+            <i class="bi bi-plus-circle-fill me-2"></i>Aggiungi Referenza a Listino Cliente
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--theme-close-btn-filter, none);"></button>
+        </div>
+        <form id="formAggiungiListino" onsubmit="event.preventDefault(); inviaAggiungiListino();">
+          <div class="modal-body p-4 d-flex flex-column gap-3">
+            <div>
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Seleziona Prodotto da Catalogo</label>
+              <select class="form-select w-100 fw-semibold" id="nuovo_listino_prodotto_id" required>
+                <option value="">Seleziona un prodotto...</option>
+                {% for p in prodotti %}
+                  <option value="{{ p.id }}">{{ p.codice ~ ' - ' if p.codice else '' }}{{ p.nome }} (€ {{ '%.2f'|format(p.prezzo or 0) }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="row g-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Prezzo Riservato (€)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light text-muted border-end-0">€</span>
+                  <input type="number" step="0.01" class="form-control" id="nuovo_listino_prezzo" placeholder="Es: 12.50">
+                </div>
+                <small class="text-muted" style="font-size: 0.7rem;">Lascia vuoto per usare listino base</small>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Prezzo Offerta (€)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light text-muted border-end-0">€</span>
+                  <input type="number" step="0.01" class="form-control" id="nuovo_listino_offerta" placeholder="Es: 9.90">
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Tipo Referenza</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="nuovo_listino_tipo" id="tipo_lavorato" value="lavorato" checked>
+                  <label class="form-check-label small fw-semibold text-color" for="tipo_lavorato">
+                    Lavorato (Attivo/Abituale)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="nuovo_listino_tipo" id="tipo_potenziale" value="potenziale">
+                  <label class="form-check-label small fw-semibold text-color" for="tipo_potenziale">
+                    Potenziale (Da proporre)
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-secondary rounded-4 px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="btn btn-primary rounded-4 px-4 fw-bold shadow-sm">Aggiungi al Listino</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CARICA LISTINO DA PDF -->
+  <div class="modal fade" id="modalCaricaListinoPdf" tabindex="-1" aria-labelledby="modalCaricaListinoPdfLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold text-success" id="modalCaricaListinoPdfLabel">
+            <i class="bi bi-file-earmark-pdf-fill me-2"></i>Carica / Importa Listino da PDF o Fattura
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--theme-close-btn-filter, none);"></button>
+        </div>
+        <form action="{{ url_for('importa_pdf_lavorati_auto', cliente_id=cliente.id) }}" method="POST" enctype="multipart/form-data">
+          <div class="modal-body p-4 d-flex flex-column gap-3">
+            <div class="p-3 rounded-3 border" style="background-color: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2) !important;">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="bi bi-magic text-success fs-5"></i>
+                <span class="fw-bold small text-color">Riconoscimento Automatico Prodotti</span>
+              </div>
+              <p class="small text-muted mb-0">Carica il PDF del listino o di un documento/fattura del cliente. Il sistema riconoscerà automaticamente i prodotti e li assocerà a questo cliente.</p>
+            </div>
+            <div>
+              <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">File PDF / Documento</label>
+              <input type="file" name="pdf_file" class="form-control" accept=".pdf" required>
+            </div>
+          </div>
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-secondary rounded-4 px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="btn btn-success rounded-4 px-4 fw-bold shadow-sm">
+              <i class="bi bi-cloud-arrow-up-fill me-1"></i> Carica e Aggiorna Listino
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -1955,6 +2245,134 @@ function filtraTabelleStatistiche4w(q) {
       r.classList.remove('d-none');
     } else {
       r.classList.add('d-none');
+    }
+  });
+}
+
+// ================== LISTINO PERSONALIZZATO CLIENTE ==================
+async function salvaPrezzoListino(clienteId, prodottoId) {
+  const inputP = document.getElementById(`input-prezzo-${prodottoId}`);
+  const inputO = document.getElementById(`input-offerta-${prodottoId}`);
+  const btn = event?.currentTarget || null;
+  
+  const prezzo = inputP ? inputP.value : null;
+  const offerta = inputO ? inputO.value : null;
+  
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/listino/salva_prezzo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prodotto_id: prodottoId,
+        prezzo_attuale: prezzo,
+        prezzo_offerta: offerta
+      })
+    });
+    const res = await resp.json();
+    if (res.success) {
+      const badgeDelta = document.getElementById(`delta-badge-${prodottoId}`);
+      if (badgeDelta && res.delta_perc !== null) {
+        if (res.delta_perc < 0) {
+          badgeDelta.innerHTML = `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">${res.delta_perc}%</span>`;
+        } else if (res.delta_perc > 0) {
+          badgeDelta.innerHTML = `<span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">+${res.delta_perc}%</span>`;
+        } else {
+          badgeDelta.innerHTML = `<span class="text-muted">0%</span>`;
+        }
+      }
+      
+      if (btn) {
+        const origHtml = btn.innerHTML;
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+        btn.innerHTML = `<i class="bi bi-check-all"></i> Salvato!`;
+        setTimeout(() => {
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-primary');
+          btn.innerHTML = origHtml;
+        }, 1500);
+      }
+    } else {
+      alert("Errore salvataggio: " + (res.error || "Riprova"));
+    }
+  } catch(e) {
+    console.error("Errore salvataggio prezzo listino:", e);
+    alert("Errore di rete durante il salvataggio.");
+  }
+}
+
+async function rimuoviProdottoListino(clienteId, prodottoId) {
+  if (!confirm("Vuoi rimuovere questo prodotto dal listino personalizzato del cliente?")) return;
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/listino/rimuovi/${prodottoId}`, { method: 'POST' });
+    const res = await resp.json();
+    if (res.success) {
+      window.location.reload();
+    } else {
+      alert("Errore: " + (res.error || "Riprova"));
+    }
+  } catch(e) {
+    alert("Errore di connessione.");
+  }
+}
+
+async function inviaAggiungiListino() {
+  const clienteId = '{{ cliente.id }}';
+  const selectP = document.getElementById('nuovo_listino_prodotto_id');
+  const prodottoId = selectP.value;
+  if (!prodottoId) {
+    alert("Seleziona un prodotto.");
+    return;
+  }
+  const inputP = document.getElementById('nuovo_listino_prezzo');
+  const inputO = document.getElementById('nuovo_listino_offerta');
+  const isPotenziale = document.getElementById('tipo_potenziale').checked;
+
+  try {
+    const resp = await fetch(`/api/clienti/${clienteId}/listino/aggiungi`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prodotto_id: prodottoId,
+        prezzo_attuale: inputP.value,
+        prezzo_offerta: inputO.value,
+        potenziale: isPotenziale
+      })
+    });
+    const res = await resp.json();
+    if (res.success) {
+      window.location.reload();
+    } else {
+      alert("Errore aggiunta: " + (res.error || "Riprova"));
+    }
+  } catch(e) {
+    alert("Errore di rete.");
+  }
+}
+
+function filtraListinoCliente(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.listino-row').forEach(row => {
+    const nome = row.getAttribute('data-nome') || '';
+    const cod = row.getAttribute('data-codice') || '';
+    if (!term || nome.includes(term) || cod.includes(term)) {
+      row.classList.remove('d-none');
+    } else {
+      row.classList.add('d-none');
+    }
+  });
+}
+
+function filtraTipoListino(tipo, btn) {
+  document.querySelectorAll('.btn-filtro-tipo').forEach(b => b.classList.remove('active', 'btn-secondary', 'btn-success', 'btn-warning'));
+  btn.classList.add('active');
+  
+  document.querySelectorAll('.listino-row').forEach(row => {
+    const rowTipo = row.getAttribute('data-tipo');
+    if (tipo === 'tutti' || rowTipo === tipo) {
+      row.classList.remove('d-none');
+    } else {
+      row.classList.add('d-none');
     }
   });
 }
