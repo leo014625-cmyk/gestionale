@@ -2,85 +2,177 @@
 
 {% block title %}Gestione Categorie - Gestionale Horeca{% endblock %}
 
-{% block content %}
-<h1 class="mb-4">Gestione Categorie</h1>
+{% block styles %}
+{{ super() }}
+<style>
+  .cat-mgmt-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .cat-item-row {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+  }
+  .cat-item-row:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
+</style>
+{% endblock %}
 
-<!-- Form per aggiungere nuova categoria -->
-<form id="aggiungiCategoriaForm" method="POST" action="{{ url_for('aggiungi_categoria') }}" class="mb-4">
-  <div class="row g-2">
-    <div class="col-md-5">
-      <input type="text" name="nome_categoria" class="form-control" placeholder="Nuova categoria" required>
+{% block content %}
+<div class="container-fluid px-0">
+
+  <!-- Header -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1 fw-bold text-color">Gestione Categorie</h1>
+      <p class="text-muted mb-0">Organizza, aggiungi o elimina le categorie merceologiche del tuo catalogo prodotti.</p>
     </div>
-    <div class="col-md-5">
-      <input type="url" name="link_immagine" class="form-control" placeholder="Link immagine (opzionale)">
-    </div>
-    <div class="col-md-2">
-      <button class="btn btn-primary w-100" type="submit">➕ Aggiungi</button>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('prodotti') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Torna ai Prodotti</span>
+      </a>
     </div>
   </div>
-</form>
 
-<!-- Lista categorie esistenti con pulsanti modifica ed elimina -->
-<div class="list-group mb-5">
-  {% if categorie %}
-    {% for categoria in categorie %}
-    <div class="list-group-item d-flex justify-content-between align-items-center">
-      <div>
-        <strong>{{ categoria.nome }}</strong>
-        {% if categoria.immagine %}
-          <small class="text-muted d-block">📷 {{ categoria.immagine }}</small>
-        {% endif %}
+  <!-- Card Aggiungi Nuova Categoria -->
+  <div class="cat-mgmt-card mb-4">
+    <h5 class="fw-bold mb-3 text-color d-flex align-items-center gap-2">
+      <i class="bi bi-folder-plus text-primary"></i>
+      <span>Aggiungi Nuova Categoria</span>
+    </h5>
+    <form id="aggiungiCategoriaForm" method="POST" action="{{ url_for('aggiungi_categoria') }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-5">
+          <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Nome Categoria</label>
+          <input type="text" name="nome_categoria" class="form-control rounded-3" placeholder="Es: PASTA E RISO, BEVANDE..." required>
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Link Immagine (Opzionale)</label>
+          <input type="url" name="link_immagine" class="form-control rounded-3" placeholder="https://example.com/icon.png">
+        </div>
+        <div class="col-12 col-md-2">
+          <button class="btn btn-primary w-100 rounded-3 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-1.5" type="submit">
+            <i class="bi bi-plus-lg"></i> Aggiungi
+          </button>
+        </div>
       </div>
-      <div class="d-flex gap-2">
-        <!-- Bottone modifica -->
-        <button class="btn btn-sm btn-warning" 
-                data-bs-toggle="modal" 
-                data-bs-target="#modificaCategoriaModal"
-                data-nome="{{ categoria.nome }}"
-                data-immagine="{{ categoria.immagine or '' }}">
-          ✏️ Modifica
-        </button>
+    </form>
+  </div>
 
-        <!-- Bottone elimina -->
-        <form method="POST" action="{{ url_for('elimina_categoria', nome_categoria=categoria.nome) }}" 
-              onsubmit="return confirm('Eliminare la categoria {{ categoria.nome }}? Tutti i prodotti resteranno senza categoria.');">
-          <button class="btn btn-sm btn-danger">🗑️ Elimina</button>
-        </form>
+  <!-- Elenco Categorie Esistenti -->
+  <div class="cat-mgmt-card mb-5">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 pb-2 border-bottom">
+      <div class="d-flex align-items-center gap-2">
+        <h5 class="fw-bold mb-0 text-color">
+          <i class="bi bi-tags text-primary me-1"></i>Categorie Attive
+        </h5>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1" style="font-size: 0.75rem;">
+          {{ categorie|length }} categorie
+        </span>
+      </div>
+      <div class="position-relative" style="min-width: 260px;">
+        <input type="text" class="form-control form-control-sm rounded-pill ps-4" placeholder="🔍 Cerca categoria..." oninput="filtraCategorie(this.value)">
       </div>
     </div>
-    {% endfor %}
-  {% else %}
-    <div class="alert alert-warning text-center">
-      Nessuna categoria presente.
+
+    <div class="d-flex flex-column gap-1" id="elenco-categorie">
+      {% if categorie %}
+        {% for cat in categorie %}
+        <div class="cat-item-row d-flex flex-wrap align-items-center justify-content-between gap-3" data-nome="{{ cat.nome|lower }}">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 1.25rem;">
+              <i class="bi bi-folder-check"></i>
+            </div>
+            <div>
+              <h6 class="fw-bold mb-0 text-color fs-6">{{ cat.nome }}</h6>
+              <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge bg-light text-muted border rounded-pill" style="font-size: 0.72rem;">
+                  <i class="bi bi-box-seam me-1"></i>{{ cat.num_prodotti or 0 }} prodotti associati
+                </span>
+                {% if cat.immagine %}
+                  <small class="text-muted d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+                    <i class="bi bi-image"></i> Ha icona personalizzata
+                  </small>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <!-- Bottone Modifica -->
+            <button class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#modificaCategoriaModal"
+                    data-id="{{ cat.id }}"
+                    data-nome="{{ cat.nome }}"
+                    data-immagine="{{ cat.immagine or '' }}">
+              <i class="bi bi-pencil-fill"></i> Modifica
+            </button>
+
+            <!-- Bottone Elimina -->
+            <form method="POST" action="{{ url_for('elimina_categoria') }}" 
+                  onsubmit="return confirm('Sei sicuro di voler eliminare la categoria \'{{ cat.nome }}\'?\n\nI suoi {{ cat.num_prodotti or 0 }} prodotti non verranno cancellati, ma resteranno nel catalogo senza categoria.');">
+              <input type="hidden" name="categoria_id" value="{{ cat.id }}">
+              <input type="hidden" name="vecchio_nome" value="{{ cat.nome }}">
+              <button class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1" type="submit">
+                <i class="bi bi-trash3-fill"></i> Elimina
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-folder-x fs-1 opacity-25 d-block mb-2"></i>
+          <h6 class="fw-bold text-color">Nessuna categoria presente</h6>
+          <small>Crea la prima categoria usando il modulo in alto.</small>
+        </div>
+      {% endif %}
     </div>
-  {% endif %}
+  </div>
+
 </div>
 
-<a href="{{ url_for('prodotti') }}" class="btn btn-secondary mt-3">🔙 Torna ai prodotti</a>
-
-<!-- Modal modifica categoria -->
+<!-- Modal Modifica Categoria -->
 <div class="modal fade" id="modificaCategoriaModal" tabindex="-1" aria-labelledby="modificaCategoriaLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
       <form method="POST" action="{{ url_for('modifica_categoria') }}">
-        <div class="modal-header bg-warning">
-          <h5 class="modal-title" id="modificaCategoriaLabel">Modifica Categoria</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold text-color" id="modificaCategoriaLabel">
+            <i class="bi bi-pencil-square text-warning me-2"></i>Modifica Categoria
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi" style="filter: var(--theme-close-btn-filter, none);"></button>
         </div>
-        <div class="modal-body">
-          <input type="hidden" name="vecchio_nome" id="vecchioNomeCategoria">
-          <div class="mb-3">
-            <label for="nomeCategoria" class="form-label">Nome Categoria</label>
-            <input type="text" class="form-control" id="nomeCategoria" name="nome_categoria" required>
+        <div class="modal-body p-4 d-flex flex-column gap-3">
+          <input type="hidden" name="categoria_id" id="editCategoriaId">
+          <input type="hidden" name="vecchio_nome" id="editVecchioNome">
+          
+          <div>
+            <label for="editNomeCategoria" class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Nome Categoria</label>
+            <input type="text" class="form-control rounded-3" id="editNomeCategoria" name="nome_categoria" required>
           </div>
-          <div class="mb-3">
-            <label for="linkImmagine" class="form-label">Link immagine</label>
-            <input type="url" class="form-control" id="linkImmagine" name="link_immagine" placeholder="https://...">
+          <div>
+            <label for="editLinkImmagine" class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Link Immagine (Opzionale)</label>
+            <input type="url" class="form-control rounded-3" id="editLinkImmagine" name="link_immagine" placeholder="https://...">
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-warning">💾 Salva modifiche</button>
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-secondary rounded-4 px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-warning rounded-4 px-4 fw-bold shadow-sm">
+            <i class="bi bi-check-lg me-1"></i> Salva Modifiche
+          </button>
         </div>
       </form>
     </div>
@@ -91,17 +183,33 @@
 {% block scripts %}
 {{ super() }}
 <script>
+function filtraCategorie(q) {
+  const term = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.cat-item-row').forEach(row => {
+    const nome = row.getAttribute('data-nome') || '';
+    if (!term || nome.includes(term)) {
+      row.classList.remove('d-none');
+    } else {
+      row.classList.add('d-none');
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('modificaCategoriaModal');
-  modal.addEventListener('show.bs.modal', (event) => {
-    const button = event.relatedTarget;
-    const nome = button.getAttribute('data-nome');
-    const immagine = button.getAttribute('data-immagine');
+  if (modal) {
+    modal.addEventListener('show.bs.modal', (event) => {
+      const button = event.relatedTarget;
+      const cid = button.getAttribute('data-id') || '';
+      const nome = button.getAttribute('data-nome') || '';
+      const immagine = button.getAttribute('data-immagine') || '';
 
-    document.getElementById('vecchioNomeCategoria').value = nome;
-    document.getElementById('nomeCategoria').value = nome;
-    document.getElementById('linkImmagine').value = immagine;
-  });
+      document.getElementById('editCategoriaId').value = cid;
+      document.getElementById('editVecchioNome').value = nome;
+      document.getElementById('editNomeCategoria').value = nome;
+      document.getElementById('editLinkImmagine').value = immagine;
+    });
+  }
 });
 </script>
 {% endblock %}

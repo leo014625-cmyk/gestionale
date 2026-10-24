@@ -3651,15 +3651,24 @@ def clienti_prodotto(id):
 
 
 @app.route('/categorie')
+@login_required
 def gestisci_categorie():
     with get_db() as db:
         cur = db.cursor()
-        cur.execute('SELECT nome, immagine FROM categorie ORDER BY nome')
+        cur.execute('''
+            SELECT c.id, c.nome, c.immagine,
+                   COUNT(p.id) AS num_prodotti
+            FROM categorie c
+            LEFT JOIN prodotti p ON (p.categoria_id = c.id OR p.id_categoria = c.id) AND COALESCE(p.eliminato, FALSE) = FALSE
+            GROUP BY c.id, c.nome, c.immagine
+            ORDER BY c.nome
+        ''')
         categorie = cur.fetchall()
     return render_template('/02_prodotti/05_gestisci_categorie.html', categorie=categorie)
 
 
 @app.route('/categorie/aggiungi', methods=['POST'])
+@login_required
 def aggiungi_categoria():
     nome = request.form.get('nome_categoria', '').strip()
     immagine = request.form.get('link_immagine', '').strip() or None
@@ -3670,15 +3679,21 @@ def aggiungi_categoria():
 
     with get_db() as db:
         cur = db.cursor()
-        cur.execute('INSERT INTO categorie (nome, immagine) VALUES (%s, %s) ON CONFLICT DO NOTHING', (nome, immagine))
-        db.commit()
+        try:
+            cur.execute('INSERT INTO categorie (nome, immagine) VALUES (%s, %s) ON CONFLICT DO NOTHING', (nome, immagine))
+            db.commit()
+            flash(f"✅ Categoria '{nome}' aggiunta con successo.", "success")
+        except Exception as e:
+            db.rollback()
+            flash(f"⚠️ Errore durante l'aggiunta della categoria: {e}", "danger")
 
-    flash(f"✅ Categoria '{nome}' aggiunta.", "success")
     return redirect(url_for('gestisci_categorie'))
 
 
 @app.route('/categorie/modifica', methods=['POST'])
+@login_required
 def modifica_categoria():
+    categoria_id = request.form.get('categoria_id')
     vecchio_nome = request.form.get('vecchio_nome')
     nuovo_nome = request.form.get('nome_categoria', '').strip()
     immagine = request.form.get('link_immagine', '').strip() or None
@@ -3689,21 +3704,67 @@ def modifica_categoria():
 
     with get_db() as db:
         cur = db.cursor()
-        cur.execute('UPDATE categorie SET nome=%s, immagine=%s WHERE nome=%s', (nuovo_nome, immagine, vecchio_nome))
-        db.commit()
+        try:
+            if categoria_id:
+                cur.execute('UPDATE categorie SET nome=%s, immagine=%s WHERE id=%s', (nuovo_nome, immagine, categoria_id))
+            else:
+                cur.execute('UPDATE categorie SET nome=%s, immagine=%s WHERE nome=%s', (nuovo_nome, immagine, vecchio_nome))
+            db.commit()
+            flash(f"✏️ Categoria modificata in '{nuovo_nome}'.", "info")
+        except Exception as e:
+            db.rollback()
+            flash(f"⚠️ Errore durante la modifica della categoria: {e}", "danger")
 
-    flash(f"✏️ Categoria '{vecchio_nome}' modificata in '{nuovo_nome}'.", "info")
     return redirect(url_for('gestisci_categorie'))
 
 
-@app.route('/categorie/elimina/<nome_categoria>', methods=['POST'])
-def elimina_categoria(nome_categoria):
+@app.route('/categorie/elimina', methods=['POST'])
+@app.route('/categorie/elimina/<path:nome_categoria>', methods=['POST'])
+@app.route('/categorie/elimina_id/<int:categoria_id>', methods=['POST'])
+@login_required
+def elimina_categoria(nome_categoria=None, categoria_id=None):
+    form_id = request.form.get('categoria_id')
+    if form_id:
+        try:
+            categoria_id = int(form_id)
+        except ValueError:
+            pass
+
     with get_db() as db:
         cur = db.cursor()
-        cur.execute('DELETE FROM categorie WHERE nome=%s', (nome_categoria,))
-        db.commit()
+        try:
+            cat_row = None
+            if categoria_id:
+                cur.execute('SELECT id, nome FROM categorie WHERE id=%s', (categoria_id,))
+                cat_row = cur.fetchone()
+            elif nome_categoria:
+                cur.execute('SELECT id, nome FROM categorie WHERE nome=%s', (nome_categoria,))
+                cat_row = cur.fetchone()
 
-    flash(f"🗑️ Categoria '{nome_categoria}' eliminata.", "danger")
+            if not cat_row:
+                flash("⚠️ Categoria non trovata o già eliminata.", "warning")
+                return redirect(url_for('gestisci_categorie'))
+
+            c_id = cat_row['id']
+            c_nome = cat_row['nome']
+
+            # 1. Scollega i prodotti associati impostando categoria_id e id_categoria a NULL
+            # per rispettare i vincoli di Foreign Key (prodotti_categoria_id_fkey, prodotti_id_categoria_fkey)
+            cur.execute('''
+                UPDATE prodotti 
+                SET categoria_id = NULL, id_categoria = NULL 
+                WHERE categoria_id = %s OR id_categoria = %s
+            ''', (c_id, c_id))
+
+            # 2. Elimina definitivamente la categoria
+            cur.execute('DELETE FROM categorie WHERE id = %s', (c_id,))
+            db.commit()
+
+            flash(f"🗑️ Categoria '{c_nome}' eliminata con successo. I prodotti correlati sono stati conservati senza categoria.", "success")
+        except Exception as e:
+            db.rollback()
+            flash(f"❌ Impossibile eliminare la categoria: {e}", "danger")
+
     return redirect(url_for('gestisci_categorie'))
 
 # ============================
