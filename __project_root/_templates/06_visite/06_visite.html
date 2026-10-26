@@ -241,10 +241,51 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
     <div>
       <h1 class="h2 mb-1 fw-bold text-color">Visite & Giri Clienti</h1>
-      <p class="text-muted mb-0">Organizza i passaggi commerciali settimanali per zona, monitora i clienti da visitare e sincronizza con iOS/macOS.</p>
+      <p class="text-muted mb-0">Organizza i passaggi commerciali settimanali per zona, scarica i programmi in PDF per le tue uscite e sincronizza con iOS/macOS.</p>
     </div>
     
     <div class="d-flex gap-2 flex-wrap">
+      <!-- PDF Programma Download Dropdown -->
+      <div class="dropdown">
+        <button class="btn btn-outline-danger rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-xs dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-file-earmark-pdf-fill"></i>
+          <span>Scarica Programma PDF</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2" style="min-width: 290px; background-color: var(--card-bg); border: 1px solid var(--border-color) !important;">
+          <li><h6 class="dropdown-header text-uppercase text-muted fw-bold" style="font-size: 0.72rem;"><i class="bi bi-calendar-week me-1"></i>Programma Completo</h6></li>
+          <li>
+            <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 fw-bold text-color" href="{{ url_for('visite_programma_pdf', giorno='tutti') }}">
+              <i class="bi bi-calendar2-range-fill text-primary fs-5"></i>
+              <div>
+                <span>Giri Settimanali Completi (Lun-Sab)</span>
+                <small class="text-muted d-block fw-normal" style="font-size: 0.72rem;">Tutti i passaggi ordinati per orario e zona</small>
+              </div>
+            </a>
+          </li>
+          <li><hr class="dropdown-divider my-2"></li>
+          <li><h6 class="dropdown-header text-uppercase text-muted fw-bold" style="font-size: 0.72rem;"><i class="bi bi-signpost-split me-1"></i>Singoli Giorni di Giro</h6></li>
+          <div class="row row-cols-2 g-1 px-2 mb-1">
+            {% for d in range(1, 7) %}
+              <div class="col">
+                <a class="dropdown-item rounded-2 py-1.5 px-2 text-color fw-semibold small d-flex align-items-center gap-1.5" href="{{ url_for('visite_programma_pdf', giorno=d) }}">
+                  <i class="bi bi-file-text text-muted"></i> {{ giorni_nomi.get(d) }}
+                </a>
+              </div>
+            {% endfor %}
+          </div>
+          <li><hr class="dropdown-divider my-2"></li>
+          <li>
+            <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 fw-bold text-color" href="{{ url_for('visite_programma_pdf', data=oggi_iso) }}">
+              <i class="bi bi-calendar-check-fill text-success fs-5"></i>
+              <div>
+                <span>Agenda Visite di Oggi</span>
+                <small class="text-muted d-block fw-normal" style="font-size: 0.72rem;">Solo gli appuntamenti fissati per la giornata</small>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
       <button class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2" onclick="copyIcalLink()">
         <i class="bi bi-calendar-event-fill text-primary"></i>
         <span>Sincronizza iPhone</span>
@@ -377,9 +418,15 @@
 
             <!-- Day navigator -->
             <div class="d-flex align-items-center justify-content-between agenda-day-navigator mb-3">
-              <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(-1)"><i class="bi bg-transparent bi-chevron-left"></i></button>
-              <span class="fw-bold text-color small px-2" id="agenda-date-label">Oggi</span>
-              <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(1)"><i class="bi bg-transparent bi-chevron-right"></i></button>
+              <div class="d-flex align-items-center gap-1">
+                <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(-1)"><i class="bi bg-transparent bi-chevron-left"></i></button>
+                <span class="fw-bold text-color small px-2" id="agenda-date-label">Oggi</span>
+                <button class="btn btn-sm btn-light rounded-circle p-1 px-2 border-0 shadow-sm" onclick="navigateDay(1)"><i class="bi bg-transparent bi-chevron-right"></i></button>
+              </div>
+              <a id="agenda-pdf-btn" href="{{ url_for('visite_programma_pdf', data=oggi_iso) }}" class="btn btn-xs btn-outline-danger rounded-pill px-2.5 py-1 fw-bold d-flex align-items-center gap-1 shadow-xs text-decoration-none" title="Scarica programma PDF del giorno visualizzato">
+                <i class="bi bi-file-earmark-pdf-fill"></i>
+                <span style="font-size: 0.72rem;">PDF Giorno</span>
+              </a>
             </div>
 
             <!-- Daily Agenda List -->
@@ -441,13 +488,38 @@
     <!-- TAB 2: GIRI SETTIMANALI PER ZONA -->
     <div class="tab-pane fade" id="tab-giri" role="tabpanel">
       <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background-color: var(--card-bg);">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
           <div>
             <h4 class="fw-bold mb-1 text-color"><i class="bi bi-signpost-split-fill text-primary me-2"></i>Pianificatore Giri Visite Settimanali</h4>
-            <p class="text-muted small mb-0">Assegna ogni cliente al suo giorno di passaggio fisso (es. Lunedì per il Centro, Martedì per la Costa). Puoi cambiare il giorno istantaneamente con il menu a tendina.</p>
+            <p class="text-muted small mb-0">Assegna e ordina i passaggi commerciali per ciascun giorno, naviga con il GPS e scarica l'itinerario in PDF pronto per il giro.</p>
           </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{{ url_for('visite_programma_pdf', giorno='tutti') }}" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1.5 shadow-xs text-decoration-none" title="Scarica tutti i 6 giorni di giro in un unico documento PDF">
+              <i class="bi bi-file-earmark-pdf-fill"></i>
+              <span>Scarica Tutti i Giri (PDF)</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Filter bar: Zone & Search -->
+        <div class="p-3 rounded-4 mb-4 border d-flex flex-wrap align-items-center justify-content-between gap-3" style="background-color: var(--bg-color);">
+          <div class="d-flex align-items-center gap-2 flex-wrap" id="zone-filter-container">
+            <span class="text-muted small fw-bold text-uppercase me-1" style="font-size: 0.7rem;"><i class="bi bi-funnel-fill text-primary me-1"></i>Filtra Zona:</span>
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold zone-filter-pill active" onclick="filtraZonaGiri('tutte', this)" style="font-size: 0.78rem;">
+              Tutte le Zone
+            </button>
+            {% for z in zone_disponibili %}
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold zone-filter-pill" onclick="filtraZonaGiri('{{ z|lower }}', this)" style="font-size: 0.78rem;">
+                {{ z }}
+              </button>
+            {% endfor %}
+          </div>
+
           <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill"><i class="bi bi-info-circle me-1 text-primary"></i>Le modifiche si salvano in tempo reale</span>
+            <div class="input-group input-group-sm" style="max-width: 250px;">
+              <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
+              <input type="text" id="giroSearchInput" class="form-control border-start-0 rounded-end-pill" placeholder="Cerca cliente nel giro..." onkeyup="cercaNelGiro(this.value)">
+            </div>
           </div>
         </div>
 
@@ -455,54 +527,83 @@
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
           {% for day_num in range(1, 7) %}
             {% set day_info = giri_per_giorno.get(day_num, {'nome': giorni_nomi.get(day_num, 'Giorno ' ~ day_num), 'clienti': [], 'count': 0}) %}
-            <div class="col">
+            <div class="col giro-day-col" id="col-giro-{{ day_num }}">
               <div class="giro-day-card d-flex flex-column h-100">
                 <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
                   <div class="d-flex align-items-center gap-2">
-                    <span class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                    <span class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center shadow-xs" style="width: 28px; height: 28px; font-size: 0.82rem;">
                       {{ day_num }}
                     </span>
                     <h6 class="fw-bold mb-0 text-color">{{ day_info.nome }}</h6>
                   </div>
-                  <span class="badge rounded-pill bg-primary px-2.5 py-1" style="font-size: 0.72rem;">{{ day_info.count }} clienti</span>
+                  <div class="d-flex align-items-center gap-1.5">
+                    <a href="{{ url_for('visite_programma_pdf', giorno=day_num) }}" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-0.5 d-flex align-items-center gap-1 text-decoration-none shadow-xs" title="Scarica itinerario PDF stampabile di {{ day_info.nome }}">
+                      <i class="bi bi-file-earmark-pdf-fill"></i> <span style="font-size: 0.7rem;">PDF</span>
+                    </a>
+                    <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5 d-flex align-items-center gap-1 shadow-xs" onclick="apriAggiungiClienteGiro({{ day_num }}, '{{ day_info.nome }}')" title="Aggiungi cliente a questo giorno">
+                      <i class="bi bi-plus-lg"></i> <span style="font-size: 0.7rem;">Aggiungi</span>
+                    </button>
+                    <span class="badge rounded-pill bg-primary px-2 py-1 day-counter" style="font-size: 0.72rem;">{{ day_info.count }}</span>
+                  </div>
                 </div>
 
                 <!-- Client List in Day -->
-                <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 440px;" id="giro-day-container-{{ day_num }}">
+                <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 480px;" id="giro-day-container-{{ day_num }}">
                   {% if day_info.clienti %}
                     {% for c in day_info.clienti %}
-                      <div class="giro-client-item" id="giro-item-{{ c.id }}">
+                      <div class="giro-client-item" id="giro-item-{{ c.id }}" data-zona="{{ (c.zona or '')|lower }}" data-nome="{{ (c.nome or '')|lower }}">
                         <div class="d-flex align-items-start justify-content-between gap-2 mb-1.5">
-                          <div>
-                            <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold small text-color text-decoration-none d-block text-truncate" style="max-width: 170px;" title="{{ c.nome }}">{{ c.nome }}</a>
-                            <span class="text-muted small d-block" style="font-size: 0.72rem;"><i class="bi bi-geo-alt me-1"></i>{{ c.zona or 'Zona non def.' }}</span>
+                          <div class="d-flex align-items-start gap-1.5 overflow-hidden">
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-1.5 py-0.5 mt-0.5 fw-bold" style="font-size: 0.65rem;" title="Fermata #{{ loop.index }}">#{{ loop.index }}</span>
+                            <div class="overflow-hidden">
+                              <a href="{{ url_for('cliente_scheda', id=c.id) }}" class="fw-bold small text-color text-decoration-none d-block text-truncate" style="max-width: 145px;" title="{{ c.nome }}">{{ c.nome }}</a>
+                              <span class="text-muted small d-block text-truncate" style="font-size: 0.72rem;"><i class="bi bi-geo-alt me-1"></i>{{ c.zona or 'Zona non def.' }}</span>
+                            </div>
                           </div>
+
+                          <!-- Orario passaggio standard con click-to-edit -->
+                          <button type="button" class="btn btn-xs btn-light border rounded-pill px-1.5 py-0.5 text-primary fw-semibold flex-shrink-0 shadow-xs" style="font-size: 0.68rem;" data-id="{{ c.id }}" data-nome="{{ c.nome }}" data-ora="{{ c.ora_visita_standard or '' }}" data-day="{{ day_num }}" onclick="modificaOrarioGiroFromBtn(this)" title="Modifica orario passaggio programmato">
+                            <i class="bi bi-clock me-1"></i>{{ c.ora_visita_standard or '--:--' }}
+                          </button>
+                        </div>
+
+                        <!-- Action Toolbar -->
+                        <div class="d-flex align-items-center justify-content-between gap-1 mt-2 pt-1.5 border-top" style="border-color: var(--border-color) !important;">
                           <div class="d-flex align-items-center gap-1">
+                            <!-- GPS Navigation -->
+                            <a href="https://www.google.com/maps/search/?api=1&query={{ (c.nome ~ ' ' ~ (c.zona or ''))|urlencode }}" target="_blank" class="btn btn-xs btn-outline-info rounded-circle px-1.5 py-0.5" title="Naviga con Google Maps GPS">
+                              <i class="bi bi-geo-alt-fill" style="font-size: 0.75rem;"></i>
+                            </a>
                             {% if c.telefono %}
                               <a href="https://wa.me/{{ c.telefono|replace(' ', '')|replace('-', '')|replace('+', '') }}" target="_blank" class="btn btn-xs btn-outline-success rounded-circle px-1.5 py-0.5" title="WhatsApp">
                                 <i class="bi bi-whatsapp" style="font-size: 0.75rem;"></i>
                               </a>
+                              <a href="tel:{{ c.telefono }}" class="btn btn-xs btn-outline-secondary rounded-circle px-1.5 py-0.5" title="Chiama al telefono">
+                                <i class="bi bi-telephone-fill" style="font-size: 0.72rem;"></i>
+                              </a>
                             {% endif %}
-                            <button type="button" class="btn btn-xs btn-outline-primary rounded-circle px-1.5 py-0.5" onclick="prefillVisit('{{ c.id }}', '{{ c.nome }}')" title="Pianifica visita in agenda">
+                            <!-- 1-Click outcome logging modal -->
+                            <button type="button" class="btn btn-xs btn-success rounded-circle px-1.5 py-0.5" data-id="{{ c.id }}" data-nome="{{ c.nome }}" data-zona="{{ c.zona or '' }}" onclick="apriRegistraEsitoFromBtn(this)" title="Registra Visita Effettuata">
+                              <i class="bi bi-check2" style="font-size: 0.78rem;"></i>
+                            </button>
+                            <!-- Prefill calendar visit -->
+                            <button type="button" class="btn btn-xs btn-outline-primary rounded-circle px-1.5 py-0.5" data-id="{{ c.id }}" data-nome="{{ c.nome }}" data-ora="{{ c.ora_visita_standard or '' }}" onclick="prefillVisitFromBtn(this)" title="Pianifica data specifica in agenda">
                               <i class="bi bi-calendar-plus" style="font-size: 0.75rem;"></i>
                             </button>
                           </div>
-                        </div>
 
-                        <!-- Day reassignment selector -->
-                        <div class="d-flex align-items-center justify-content-between gap-1 mt-2 pt-1 border-top" style="border-color: var(--border-color) !important;">
-                          <span class="text-muted" style="font-size: 0.68rem; font-weight: 600;">Giro:</span>
-                          <select class="form-select form-select-sm py-0 px-2 rounded-pill border" style="font-size: 0.72rem; width: auto; max-width: 130px; background-color: var(--card-bg); color: var(--text-color);" onchange="spostaClienteGiro('{{ c.id }}', this.value)">
+                          <!-- Giorno reassign -->
+                          <select class="form-select form-select-sm py-0 px-1.5 rounded-pill border" style="font-size: 0.7rem; width: auto; max-width: 105px; background-color: var(--card-bg); color: var(--text-color);" onchange="spostaClienteGiro('{{ c.id }}', this.value)">
                             {% for d in range(1, 7) %}
                               <option value="{{ d }}" {% if c.giorno_visita_standard == d %}selected{% endif %}>{{ giorni_nomi.get(d) }}</option>
                             {% endfor %}
-                            <option value="0">Rimuovi da giro</option>
+                            <option value="0">Rimuovi</option>
                           </select>
                         </div>
                       </div>
                     {% endfor %}
                   {% else %}
-                    <div class="text-center py-5 text-muted">
+                    <div class="text-center py-5 text-muted empty-day-placeholder">
                       <i class="bi bi-inbox fs-2 opacity-25 d-block mb-1"></i>
                       <small>Nessun cliente assegnato a questo giorno.</small>
                     </div>
@@ -521,16 +622,16 @@
             <h6 class="fw-bold mb-0 text-color"><i class="bi bi-question-circle-fill text-muted me-1"></i>Clienti non ancora assegnati a un Giro Settimanale ({{ unassigned|length }})</h6>
             <span class="text-muted small">Assegnali a un giorno per ottimizzare i tuoi percorsi</span>
           </div>
-          <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-2" style="max-height: 200px; overflow-y: auto;">
+          <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-2" style="max-height: 220px; overflow-y: auto;">
             {% for c in unassigned %}
-              <div class="col" id="giro-item-{{ c.id }}">
+              <div class="col giro-client-item" id="giro-item-{{ c.id }}" data-zona="{{ (c.zona or '')|lower }}" data-nome="{{ (c.nome or '')|lower }}">
                 <div class="p-2.5 rounded-3 border d-flex align-items-center justify-content-between gap-2" style="background-color: var(--bg-color);">
                   <div class="overflow-hidden">
                     <span class="fw-bold small text-color text-truncate d-block">{{ c.nome }}</span>
                     <small class="text-muted d-block text-truncate" style="font-size: 0.7rem;">{{ c.zona or 'Nessuna zona' }}</small>
                   </div>
                   <select class="form-select form-select-sm py-0.5 px-2 rounded-pill border" style="font-size: 0.72rem; width: auto;" onchange="spostaClienteGiro('{{ c.id }}', this.value)">
-                    <option value="0" selected>Assegna giorno...</option>
+                    <option value="0" selected>Assegna giro...</option>
                     {% for d in range(1, 7) %}
                       <option value="{{ d }}">{{ giorni_nomi.get(d) }}</option>
                     {% endfor %}
@@ -757,6 +858,140 @@
   </div>
 </div>
 
+<!-- ================== MODALE REGISTRA ESITO VISITA RAPIDO ================== -->
+<div class="modal fade" id="modalRegistraEsito" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4" style="background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color) !important;">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold text-success d-flex align-items-center gap-2">
+          <i class="bi bi-check-circle-fill"></i> Registra Esito Visita
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--theme-close-btn-filter, none);"></button>
+      </div>
+      <div class="modal-body p-4 d-flex flex-column gap-3">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 0.7rem;">Cliente</span>
+          <h6 class="fw-bold mb-0 text-color" id="esito-cliente-nome">-</h6>
+          <small class="text-muted" id="esito-cliente-zona">-</small>
+          <input type="hidden" id="esito-cliente-id">
+        </div>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Data Visita</label>
+            <input type="date" class="form-control w-100 fw-semibold" id="esito-data-visita" value="{{ oggi_iso }}">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Ora</label>
+            <input type="time" class="form-control w-100 fw-semibold" id="esito-ora-visita">
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Esito Riscontrato</label>
+          <select class="form-select w-100 fw-semibold" id="esito-tipo-select" onchange="toggleEsitoOrdine(this.value)">
+            <option value="Visita effettuata con successo" selected> Visita effettuata con successo</option>
+            <option value="Ordine raccolto"> Ordine raccolto dal cliente</option>
+            <option value="Cliente chiuso / assente">⚠️ Cliente chiuso / assente</option>
+            <option value="Da ricontattare nei prossimi giorni">🔄 Da ricontattare nei prossimi giorni</option>
+          </select>
+        </div>
+
+        <div id="esito-ordine-box" class="p-3 rounded-3 border" style="background-color: rgba(16, 185, 129, 0.06); border-color: rgba(16, 185, 129, 0.25) !important;">
+          <label class="form-label small fw-bold text-success text-uppercase mb-1" style="font-size: 0.72rem;"><i class="bi bi-cart-check-fill me-1"></i>Importo Ordine Raccolto (EUR)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-end-0 fw-bold">EUR</span>
+            <input type="number" step="0.01" class="form-control border-start-0 fw-bold fs-6" id="esito-totale-ordine" placeholder="es. 250.00">
+          </div>
+          <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Lascia vuoto se non hai raccolto un ordine specifico.</small>
+        </div>
+
+        <div>
+          <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Note / Sintesi Conversazione</label>
+          <textarea class="form-control w-100" id="esito-note" rows="2" placeholder="Es: Prodotti richiesti, richiesta preventivo per nuovo listino, consegna volantino..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-top">
+        <button type="button" class="btn btn-secondary rounded-4 px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-success rounded-4 px-4 fw-bold shadow-sm" onclick="inviaRegistraEsito()">
+          <i class="bi bi-check2-circle me-1"></i> Salva Esito
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== MODALE MODIFICA ORARIO GIRO ================== -->
+<div class="modal fade" id="modalModificaOrarioGiro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow rounded-4" style="background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color) !important;">
+      <div class="modal-header border-bottom">
+        <h6 class="modal-title fw-bold text-color d-flex align-items-center gap-2">
+          <i class="bi bi-clock-history text-primary"></i> Orario Passaggio
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--theme-close-btn-filter, none);"></button>
+      </div>
+      <div class="modal-body p-3">
+        <p class="small text-muted mb-2 text-truncate fw-semibold" id="orario-modal-cliente-nome">-</p>
+        <input type="hidden" id="orario-modal-cliente-id">
+        <input type="hidden" id="orario-modal-day">
+
+        <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Orario Standard (HH:MM)</label>
+        <input type="time" class="form-control form-control-lg text-center fw-bold fs-4 mb-3" id="orario-modal-input">
+
+        <span class="text-muted small d-block mb-1.5" style="font-size: 0.7rem;">Orari Rapidi:</span>
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          {% for t in ['08:30', '09:30', '10:30', '11:30', '14:30', '15:30', '16:30'] %}
+            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5" onclick="document.getElementById('orario-modal-input').value='{{ t }}'">{{ t }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer border-top p-2">
+        <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="inviaModificaOrario()">Salva Orario</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== MODALE AGGIUNGI CLIENTE A GIRO ================== -->
+<div class="modal fade" id="modalAggiungiClienteGiro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4" style="background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color) !important;">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold text-primary d-flex align-items-center gap-2">
+          <i class="bi bi-person-plus-fill"></i> Aggiungi al Giro di <span id="aggiungi-giro-day-nome">-</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--theme-close-btn-filter, none);"></button>
+      </div>
+      <div class="modal-body p-4 d-flex flex-column gap-3">
+        <input type="hidden" id="aggiungi-giro-day-num">
+
+        <div>
+          <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Seleziona Cliente</label>
+          <select class="form-select w-100 fw-semibold" id="aggiungi-giro-cliente-select">
+            <option value="">Scegli un cliente...</option>
+            {% for c in tutti_clienti %}
+              <option value="{{ c.id }}">{{ c.nome }} ({{ c.zona or 'N/D' }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;">Orario Visita Consigliato (Opzionale)</label>
+          <input type="time" class="form-control w-100 fw-semibold" id="aggiungi-giro-orario" value="10:00">
+        </div>
+      </div>
+      <div class="modal-footer border-top">
+        <button type="button" class="btn btn-secondary rounded-4 px-4 fw-bold" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary rounded-4 px-4 fw-bold shadow-sm" onclick="inviaAggiungiClienteGiro()">
+          <i class="bi bi-plus-lg me-1"></i> Assegna al Giro
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -859,10 +1094,9 @@ async function spostaClienteGiro(clienteId, giorno) {
     });
     const data = await resp.json();
     if (data.success) {
-      // Reload page to re-render clean state or alert
       window.location.reload();
     } else {
-      alert("Errore nell'assegnazione del giro: " + (data.error || 'Riprova.'));
+      alert("Errore nell'assegnazione del giro: " + (data.message || 'Riprova.'));
     }
   } catch(e) {
     console.error("Errore spostamento giro:", e);
@@ -870,42 +1104,261 @@ async function spostaClienteGiro(clienteId, giorno) {
   }
 }
 
+// Filtro per zona nei Giri Settimanali
+function filtraZonaGiri(zona, btn) {
+  document.querySelectorAll('.zone-filter-pill').forEach(b => {
+    b.classList.remove('btn-primary', 'active');
+    b.classList.add('btn-outline-secondary');
+  });
+  if (btn) {
+    btn.classList.remove('btn-outline-secondary');
+    btn.classList.add('btn-primary', 'active');
+  }
+
+  const items = document.querySelectorAll('.giro-client-item');
+  items.forEach(it => {
+    const itemZona = (it.getAttribute('data-zona') || '').toLowerCase();
+    if (zona === 'tutte' || itemZona.includes(zona)) {
+      it.style.display = '';
+    } else {
+      it.style.display = 'none';
+    }
+  });
+  aggiornaConteggiVisibili();
+}
+
+// Ricerca in tempo reale nei Giri Settimanali
+function cercaNelGiro(query) {
+  const q = (query || '').toLowerCase().trim();
+  const items = document.querySelectorAll('.giro-client-item');
+  items.forEach(it => {
+    const nome = (it.getAttribute('data-nome') || '').toLowerCase();
+    const zona = (it.getAttribute('data-zona') || '').toLowerCase();
+    if (!q || nome.includes(q) || zona.includes(q)) {
+      it.style.display = '';
+    } else {
+      it.style.display = 'none';
+    }
+  });
+  aggiornaConteggiVisibili();
+}
+
+function aggiornaConteggiVisibili() {
+  for (let d = 1; d <= 6; d++) {
+    const container = document.getElementById(`giro-day-container-${d}`);
+    if (container) {
+      const visible = container.querySelectorAll('.giro-client-item:not([style*="display: none"])').length;
+      const col = document.getElementById(`col-giro-${d}`);
+      const counter = col ? col.querySelector('.day-counter') : null;
+      if (counter) counter.textContent = visible;
+    }
+  }
+}
+
+// Modale Registra Esito Visita Rapido
+function apriRegistraEsito(cid, cname, czona) {
+  document.getElementById('esito-cliente-id').value = cid;
+  document.getElementById('esito-cliente-nome').textContent = cname;
+  document.getElementById('esito-cliente-zona').textContent = czona || 'Zona non definita';
+
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('esito-ora-visita').value = `${hh}:${mm}`;
+  document.getElementById('esito-data-visita').value = currentAgendaDate || now.toISOString().split('T')[0];
+  document.getElementById('esito-tipo-select').value = "Visita effettuata con successo";
+  document.getElementById('esito-totale-ordine').value = "";
+  document.getElementById('esito-note').value = "";
+
+  toggleEsitoOrdine("Visita effettuata con successo");
+
+  const modal = new bootstrap.Modal(document.getElementById('modalRegistraEsito'));
+  modal.show();
+}
+
+function toggleEsitoOrdine(val) {
+  const box = document.getElementById('esito-ordine-box');
+  if (box) {
+    if (val === 'Ordine raccolto') {
+      box.classList.remove('opacity-75');
+      box.style.borderWidth = '2px';
+    } else {
+      box.classList.add('opacity-75');
+      box.style.borderWidth = '1px';
+    }
+  }
+}
+
+async function inviaRegistraEsito() {
+  const cid = document.getElementById('esito-cliente-id').value;
+  const dvisita = document.getElementById('esito-data-visita').value;
+  const ovisita = document.getElementById('esito-ora-visita').value;
+  const esito = document.getElementById('esito-tipo-select').value;
+  const totOrdine = document.getElementById('esito-totale-ordine').value;
+  const note = document.getElementById('esito-note').value;
+
+  if (!cid) return;
+
+  try {
+    const resp = await fetch('/api/visite/registra_esito_rapido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: cid,
+        data_visita: dvisita,
+        ora_visita: ovisita,
+        esito: esito,
+        totale_ordine: totOrdine,
+        note: note
+      })
+    });
+    const res = await resp.json();
+    if (res.success) {
+      bootstrap.Modal.getInstance(document.getElementById('modalRegistraEsito')).hide();
+      if (calendar) calendar.refetchEvents();
+      if (currentAgendaDate) updateDailyAgenda(currentAgendaDate);
+      alert("Esito visita registrato con successo!");
+    } else {
+      alert("Errore durante il salvataggio: " + (res.message || 'Riprova.'));
+    }
+  } catch(e) {
+    console.error(e);
+    alert("Errore di rete durante la registrazione dell'esito.");
+  }
+}
+
+function modificaOrarioGiroFromBtn(btn) {
+  modificaOrarioGiro(btn.dataset.id, btn.dataset.nome, btn.dataset.ora, btn.dataset.day);
+}
+function apriRegistraEsitoFromBtn(btn) {
+  apriRegistraEsito(btn.dataset.id, btn.dataset.nome, btn.dataset.zona);
+}
+function prefillVisitFromBtn(btn) {
+  prefillVisit(btn.dataset.id, btn.dataset.nome, '', btn.dataset.ora);
+}
+
+// Modale Modifica Orario Giro
+function modificaOrarioGiro(cid, cname, cora, cday) {
+  document.getElementById('orario-modal-cliente-id').value = cid;
+  document.getElementById('orario-modal-cliente-nome').textContent = cname;
+  document.getElementById('orario-modal-day').value = cday || '';
+  document.getElementById('orario-modal-input').value = cora || '09:30';
+
+  const modal = new bootstrap.Modal(document.getElementById('modalModificaOrarioGiro'));
+  modal.show();
+}
+
+async function inviaModificaOrario() {
+  const cid = document.getElementById('orario-modal-cliente-id').value;
+  const ora = document.getElementById('orario-modal-input').value;
+  const day = document.getElementById('orario-modal-day').value;
+
+  try {
+    const resp = await fetch('/api/clienti/aggiorna_orario_giro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: cid,
+        ora_visita_standard: ora,
+        giorno_visita_standard: day ? parseInt(day) : undefined
+      })
+    });
+    const res = await resp.json();
+    if (res.success) {
+      bootstrap.Modal.getInstance(document.getElementById('modalModificaOrarioGiro')).hide();
+      window.location.reload();
+    } else {
+      alert("Errore nell'aggiornamento dell'orario: " + (res.message || 'Riprova.'));
+    }
+  } catch(e) {
+    alert("Errore di rete.");
+  }
+}
+
+// Modale Aggiungi Cliente a Giro
+function apriAggiungiClienteGiro(dayNum, dayName) {
+  document.getElementById('aggiungi-giro-day-num').value = dayNum;
+  document.getElementById('aggiungi-giro-day-nome').textContent = dayName;
+  document.getElementById('aggiungi-giro-cliente-select').value = "";
+
+  const modal = new bootstrap.Modal(document.getElementById('modalAggiungiClienteGiro'));
+  modal.show();
+}
+
+async function inviaAggiungiClienteGiro() {
+  const dayNum = document.getElementById('aggiungi-giro-day-num').value;
+  const cid = document.getElementById('aggiungi-giro-cliente-select').value;
+  const ora = document.getElementById('aggiungi-giro-orario').value;
+
+  if (!cid) {
+    alert("Seleziona prima un cliente.");
+    return;
+  }
+
+  try {
+    const resp = await fetch('/api/clienti/aggiorna_orario_giro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: cid,
+        giorno_visita_standard: parseInt(dayNum),
+        ora_visita_standard: ora || null
+      })
+    });
+    const res = await resp.json();
+    if (res.success) {
+      bootstrap.Modal.getInstance(document.getElementById('modalAggiungiClienteGiro')).hide();
+      window.location.reload();
+    } else {
+      alert("Errore durante l'assegnazione: " + (res.message || 'Riprova.'));
+    }
+  } catch(e) {
+    alert("Errore di rete.");
+  }
+}
+
 // Update daily timeline agenda (AJAX call)
 async function updateDailyAgenda(dateStr) {
   try {
+    // Update PDF link for currently viewed agenda day
+    const pdfBtn = document.getElementById('agenda-pdf-btn');
+    if (pdfBtn) {
+      pdfBtn.href = `/visite/programma_pdf?data=${dateStr}`;
+    }
+
     const resp = await fetch(`/api/visite/giorno?date=${dateStr}`);
     const data = await resp.json();
-    
+
     if (data.success) {
       document.getElementById('agenda-date-label').innerHTML = formatItalianDate(dateStr);
-      
+
       const tbody = document.getElementById('daily-visits-tbody');
       const table = document.getElementById('daily-visits-table');
       const emptyState = document.getElementById('agenda-empty-state');
-      
+
       tbody.innerHTML = "";
-      
+
       let statToday = data.visite.length;
       let statCompleted = 0;
       let statPending = 0;
-      
+
       if (data.visite.length > 0) {
         table.classList.remove('d-none');
         emptyState.classList.add('d-none');
-        
+
         data.visite.forEach(v => {
           if (v.completata) {
             statCompleted++;
           } else {
             statPending++;
           }
-          
+
           const rowClass = v.completata ? 'completed' : 'pending';
-          const badgeText = v.completata ? 'Completata' : 'In programma';
+          const badgeText = v.completata ? 'Completata' : (v.tipo === 'giro' ? 'Giro Programmato' : 'In programma');
           const iconCheck = v.completata ? 'bi-arrow-counterclockwise' : 'bi-check-lg';
           const btnCheckTitle = v.completata ? 'Segna da completare' : 'Segna come completata';
           const btnCheckClass = v.completata ? 'btn-outline-primary' : 'btn-success';
-          
+
           let whatsappBtn = "";
           if (v.phone_normalized) {
             whatsappBtn = `
@@ -914,39 +1367,57 @@ async function updateDailyAgenda(dateStr) {
               </a>
             `;
           }
-          
+
+          // Delete button only for real visits
+          let deleteOrEsitoBtn = "";
+          if (v.tipo === 'real') {
+            deleteOrEsitoBtn = `
+              <button type="button" class="btn btn-sm btn-outline-danger rounded-circle shadow-sm px-2 py-1" onclick="deleteVisit('${v.id}')" title="Elimina visita">
+                <i class="bi bi-trash3"></i>
+              </button>
+            `;
+          } else {
+            deleteOrEsitoBtn = `
+              <button type="button" class="btn btn-sm btn-outline-info rounded-circle shadow-sm px-2 py-1" onclick="apriRegistraEsito('${v.cliente_id}', '${(v.cliente_nome||'').replace(/'/g, "\\'")}', '${v.zona||''}')" title="Registra Esito Visita">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+            `;
+          }
+
           const tr = document.createElement('tr');
           tr.className = `agenda-row ${rowClass} border-bottom`;
           tr.innerHTML = `
             <td class="ps-3 py-3" style="width: 70px;">
-              <span class="fw-bold text-color fs-6 font-monospace">${v.ora_visita || 'N/D'}</span>
+              <span class="fw-bold text-color fs-6 font-monospace">${v.ora_visita || '--:--'}</span>
             </td>
             <td class="py-3">
               <a href="/clienti/${v.cliente_id}" class="fw-bold text-color mb-0 text-decoration-none">${v.cliente_nome}</a>
               <span class="text-muted small d-block"><i class="bi bi-geo-alt me-1"></i>${v.zona || 'N/D'}</span>
               ${v.note ? `<p class="mb-0 text-muted small mt-1 p-2 rounded border" style="font-style: italic; background-color: var(--bg-color); border-color: var(--border-color) !important;">"${v.note}"</p>` : ''}
             </td>
-            <td class="py-3" style="width: 100px;">
+            <td class="py-3" style="width: 130px;">
               <span class="badge rounded-pill px-2 py-1" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">${badgeText}</span>
             </td>
-            <td class="pe-3 py-3 text-end" style="width: 130px;">
+            <td class="pe-3 py-3 text-end" style="width: 140px;">
               <div class="d-flex align-items-center justify-content-end gap-1">
-                <button type="button" class="btn btn-sm ${btnCheckClass} rounded-circle shadow-sm px-2 py-1" onclick="toggleVisitStatus(${v.id})" title="${btnCheckTitle}">
+                <button type="button" class="btn btn-sm ${btnCheckClass} rounded-circle shadow-sm px-2 py-1" onclick="toggleVisitStatus('${v.id}')" title="${btnCheckTitle}">
                   <i class="bi ${iconCheck}"></i>
                 </button>
                 ${whatsappBtn}
-                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle shadow-sm px-2 py-1" onclick="deleteVisit(${v.id})" title="Elimina visita">
-                  <i class="bi bi-trash3"></i>
-                </button>
+                ${deleteOrEsitoBtn}
               </div>
             </td>
           `;
-          
+
           const badgeEl = tr.querySelector('.badge');
           if (v.completata) {
             badgeEl.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
             badgeEl.style.color = 'var(--success)';
             badgeEl.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+          } else if (v.tipo === 'giro') {
+            badgeEl.style.backgroundColor = 'rgba(14, 165, 233, 0.12)';
+            badgeEl.style.color = '#0284c7';
+            badgeEl.style.border = '1px solid rgba(14, 165, 233, 0.25)';
           } else {
             badgeEl.style.backgroundColor = 'var(--primary-light)';
             badgeEl.style.color = 'var(--primary)';
@@ -959,7 +1430,7 @@ async function updateDailyAgenda(dateStr) {
         table.classList.add('d-none');
         emptyState.classList.remove('d-none');
       }
-      
+
       const elStatToday = document.getElementById('stat-today-count');
       if (elStatToday) elStatToday.innerHTML = statToday;
     }

@@ -5761,7 +5761,10 @@ def visite_clienti():
         }
         raw_giri = {i: [] for i in range(1, 7)}
         clienti_senza_giro = []
+        zone_set = set()
         for c in tutti_clienti:
+            if c.get('zona') and str(c['zona']).strip():
+                zone_set.add(str(c['zona']).strip())
             val = c.get('giorno_visita_standard')
             try:
                 g_int = int(val) if val is not None else 0
@@ -5771,6 +5774,13 @@ def visite_clienti():
                 raw_giri[g_int].append(c)
             else:
                 clienti_senza_giro.append(c)
+
+        # Ordina ogni giorno per orario (e poi alfabetico) per sequenza ottimale
+        for i in range(1, 7):
+            raw_giri[i].sort(key=lambda x: (str(x.get('ora_visita_standard') or '99:99')[:5], (x.get('nome') or '').lower()))
+
+        clienti_senza_giro.sort(key=lambda x: ((x.get('zona') or '').lower(), (x.get('nome') or '').lower()))
+        zone_disponibili = sorted(list(zone_set))
 
         giri_per_giorno = {}
         for i in range(1, 7):
@@ -5824,6 +5834,8 @@ def visite_clienti():
             cur.execute("SELECT id, nome, zona, telefono, giorno_visita_standard FROM clienti LIMIT 15")
             clienti_da_visitare = cur.fetchall()
 
+    oggi_iso = datetime.today().strftime('%Y-%m-%d')
+
     return render_template(
         '06_visite/06_visite.html',
         tutti_clienti=tutti_clienti,
@@ -5832,7 +5844,9 @@ def visite_clienti():
         clienti_senza_giro=clienti_senza_giro,
         visite_oggi=visite_oggi,
         visite_in_ritardo=visite_in_ritardo,
-        clienti_da_visitare=clienti_da_visitare
+        clienti_da_visitare=clienti_da_visitare,
+        zone_disponibili=zone_disponibili,
+        oggi_iso=oggi_iso
     )
 
 @app.route('/api/clienti/assegna_giro_visita', methods=['POST'])
@@ -5841,8 +5855,12 @@ def api_assegna_giro_visita():
     data = request.get_json(silent=True) or request.form
     try:
         cliente_id = int(data.get('cliente_id'))
-        giorno = data.get('giorno')
-        giorno_val = int(giorno) if giorno and str(giorno).isdigit() else None
+        giorno = data.get('giorno') if data.get('giorno') is not None else data.get('giorno_visita_standard')
+        try:
+            g_str = str(giorno).strip()
+            giorno_val = int(g_str) if g_str not in ('', '0', 'null', 'None') else None
+        except Exception:
+            giorno_val = None
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 
@@ -6342,6 +6360,513 @@ def download_ordini_pdf():
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=programma_scarichi_settimanali.pdf'
     return response
+
+
+# ==============================================================================
+# PROGRAMMA VISITE & GIRI PDF EXPORT
+# ==============================================================================
+
+def clean_pdf_text(text):
+    if text is None:
+        return ''
+    s = str(text)
+    replacements = {
+        '€': 'EUR',
+        '’': "'",
+        '‘': "'",
+        '“': '"',
+        '”': '"',
+        '–': '-',
+        '—': '-',
+        '…': '...',
+        '•': '-',
+        '°': 'o'
+    }
+    for k, v in replacements.items():
+        s = s.replace(k, v)
+    return s.encode('latin-1', 'replace').decode('latin-1')
+
+class VisiteProgrammaPDF(FPDF):
+    def __init__(self, titolo="Programma Visite Commerciali", sottotitolo="", orientation='P', unit='mm', format='A4'):
+        super().__init__(orientation=orientation, unit=unit, format=format)
+        self.titolo = clean_pdf_text(titolo)
+        self.sottotitolo = clean_pdf_text(sottotitolo)
+
+    def header(self):
+        self.set_font('helvetica', 'B', 14)
+        self.set_text_color(16, 185, 129)  # Emerald Horeca
+        self.cell(0, 8, self.titolo, ln=True, align='L')
+        if self.sottotitolo:
+            self.set_font('helvetica', 'B', 9.5)
+            self.set_text_color(51, 65, 85)
+            self.cell(0, 5, self.sottotitolo, ln=True, align='L')
+        self.set_font('helvetica', 'I', 8)
+        self.set_text_color(100, 116, 139)
+        self.cell(0, 5, f'Generato il {datetime.now().strftime("%d/%m/%Y alle %H:%M")} | Horeca Suite Gestionale', ln=True, align='L')
+        self.set_draw_color(203, 213, 225)
+        self.line(10, self.get_y() + 2, 200, self.get_y() + 2)
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-12)
+        self.set_font('helvetica', 'I', 8)
+        self.set_text_color(148, 163, 184)
+        self.cell(0, 8, f'Pagina {self.page_no()}/{{nb}} - Documento Operativo Visite Commerciali Horeca', align='C')
+
+def draw_visite_table_header(pdf):
+    pdf.set_fill_color(16, 185, 129)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('helvetica', 'B', 8.5)
+    pdf.set_draw_color(203, 213, 225)
+    pdf.cell(8, 7, '#', border=1, fill=True, align='C')
+    pdf.cell(14, 7, 'Ora', border=1, fill=True, align='C')
+    pdf.cell(56, 7, 'Cliente', border=1, fill=True, align='L')
+    pdf.cell(40, 7, 'Zona / Indirizzo', border=1, fill=True, align='L')
+    pdf.cell(32, 7, 'Telefono', border=1, fill=True, align='L')
+    pdf.cell(40, 7, 'Esito / Note / Ordine', border=1, fill=True, align='L')
+    pdf.ln()
+
+def draw_visite_row(pdf, idx, ora, nome, zona, tel, note_esito, fill):
+    if pdf.get_y() > 265:
+        pdf.add_page()
+        draw_visite_table_header(pdf)
+
+    if fill:
+        pdf.set_fill_color(248, 250, 252)
+    else:
+        pdf.set_fill_color(255, 255, 255)
+
+    pdf.set_text_color(30, 41, 59)
+    pdf.set_draw_color(226, 232, 240)
+
+    # # stop
+    pdf.set_font('helvetica', 'B', 8)
+    pdf.cell(8, 8, str(idx), border=1, fill=fill, align='C')
+
+    # Ora
+    pdf.set_font('helvetica', 'B', 8)
+    pdf.cell(14, 8, clean_pdf_text(ora or '--:--'), border=1, fill=fill, align='C')
+
+    # Nome
+    pdf.set_font('helvetica', 'B', 8.5)
+    clean_nome = clean_pdf_text(nome)
+    if len(clean_nome) > 30:
+        clean_nome = clean_nome[:28] + '..'
+    pdf.cell(56, 8, clean_nome, border=1, fill=fill, align='L')
+
+    # Zona
+    pdf.set_font('helvetica', '', 8)
+    clean_zona = clean_pdf_text(zona or 'N/D')
+    if len(clean_zona) > 22:
+        clean_zona = clean_zona[:20] + '..'
+    pdf.cell(40, 8, clean_zona, border=1, fill=fill, align='L')
+
+    # Telefono
+    pdf.set_font('helvetica', '', 7.5)
+    clean_tel = clean_pdf_text(tel or '-')
+    if len(clean_tel) > 17:
+        clean_tel = clean_tel[:15] + '..'
+    pdf.cell(32, 8, clean_tel, border=1, fill=fill, align='L')
+
+    # Esito / Checkbox / Note
+    pdf.set_font('helvetica', '', 7)
+    pdf.set_text_color(100, 116, 139)
+    clean_note = clean_pdf_text(note_esito or '[ ] Fatta  [ ] Ord: EUR ___')
+    if len(clean_note) > 24:
+        clean_note = clean_note[:22] + '..'
+    pdf.cell(40, 8, clean_note, border=1, fill=fill, align='L')
+    pdf.ln()
+
+@app.route('/visite/programma_pdf')
+@login_required
+def visite_programma_pdf():
+    giorno_param = request.args.get('giorno', default='tutti').strip()
+    data_param = request.args.get('data', default='').strip()
+    zona_param = request.args.get('zona', default='').strip()
+
+    giorni_nomi = {
+        1: 'Lunedì', 2: 'Martedì', 3: 'Mercoledì', 4: 'Giovedì', 5: 'Venerdì', 6: 'Sabato',
+        '1': 'Lunedì', '2': 'Martedì', '3': 'Mercoledì', '4': 'Giovedì', '5': 'Venerdì', '6': 'Sabato'
+    }
+
+    with get_db() as db_conn:
+        cur = db_conn.cursor(cursor_factory=RealDictCursor)
+
+        if data_param:
+            # Mode 1: Agenda per specifica data
+            try:
+                target_date = datetime.strptime(data_param, '%Y-%m-%d').date()
+            except Exception:
+                target_date = datetime.today().date()
+                data_param = target_date.strftime('%Y-%m-%d')
+
+            weekday_val = (target_date.weekday() + 1)
+            if weekday_val > 6:
+                weekday_val = 0
+
+            cur.execute("""
+                SELECT v.id, v.cliente_id, v.ora_visita, v.completata, v.note,
+                       c.nome as cliente_nome, c.zona, c.telefono
+                FROM visite v
+                JOIN clienti c ON v.cliente_id = c.id
+                WHERE v.data_visita = %s
+                ORDER BY v.ora_visita ASC NULLS LAST, c.nome ASC
+            """, (target_date,))
+            visite_giorno = cur.fetchall()
+            real_client_ids = {r['cliente_id'] for r in visite_giorno}
+
+            cur.execute("""
+                SELECT id as cliente_id, nome as cliente_nome, zona, telefono, ora_visita_standard as ora_visita
+                FROM clienti
+                WHERE giorno_visita_standard = %s
+                ORDER BY ora_visita_standard ASC NULLS LAST, nome ASC
+            """, (weekday_val,))
+            giro_clients = cur.fetchall()
+
+            all_items = list(visite_giorno)
+            for gc in giro_clients:
+                if gc['cliente_id'] not in real_client_ids:
+                    all_items.append({
+                        'cliente_id': gc['cliente_id'],
+                        'cliente_nome': gc['cliente_nome'],
+                        'zona': gc['zona'],
+                        'telefono': gc['telefono'],
+                        'ora_visita': gc['ora_visita'],
+                        'note': 'Giro programmato del giorno',
+                        'completata': False
+                    })
+
+            if zona_param:
+                all_items = [it for it in all_items if (it.get('zona') or '').lower() == zona_param.lower()]
+
+            all_items.sort(key=lambda x: (str(x.get('ora_visita') or '99:99')[:5], (x.get('cliente_nome') or '').lower()))
+
+            giorno_sett = giorni_nomi.get(weekday_val, 'Giorno')
+            data_formatted = target_date.strftime('%d/%m/%Y')
+            titolo = "Horeca Suite - Programma Visite del Giorno"
+            sottotitolo = f"Data: {data_formatted} ({giorno_sett}) | Totale: {len(all_items)} passaggi"
+
+            pdf = VisiteProgrammaPDF(titolo=titolo, sottotitolo=sottotitolo)
+            pdf.alias_nb_pages()
+            pdf.add_page()
+            draw_visite_table_header(pdf)
+
+            fill = False
+            for idx, item in enumerate(all_items, start=1):
+                note_box = "[X] Completata" if item.get('completata') else (item.get('note') or '[ ] OK  [ ] Ordine: EUR ___')
+                draw_visite_row(
+                    pdf,
+                    idx,
+                    item.get('ora_visita'),
+                    item.get('cliente_nome'),
+                    item.get('zona'),
+                    item.get('telefono'),
+                    note_box,
+                    fill
+                )
+                fill = not fill
+
+            if not all_items:
+                pdf.ln(5)
+                pdf.set_font('helvetica', 'I', 10)
+                pdf.set_text_color(100, 116, 139)
+                pdf.cell(0, 10, 'Nessun passaggio o visita programmata per questa data.', border=1, align='C')
+
+            filename = f"Programma_Visite_{data_param}.pdf"
+
+        elif giorno_param in ('1', '2', '3', '4', '5', '6'):
+            # Mode 2: Scheda itinerario singolo giorno
+            day_int = int(giorno_param)
+            day_name = giorni_nomi.get(day_int, f'Giorno {day_int}')
+
+            cur.execute("""
+                SELECT id, nome, zona, telefono, ora_visita_standard
+                FROM clienti
+                WHERE giorno_visita_standard = %s
+                ORDER BY ora_visita_standard ASC NULLS LAST, nome ASC
+            """, (day_int,))
+            clienti_giro = cur.fetchall()
+
+            if zona_param:
+                clienti_giro = [c for c in clienti_giro if (c.get('zona') or '').lower() == zona_param.lower()]
+
+            titolo = f"Horeca Suite - Giro Settimanale {day_name}"
+            sottotitolo = f"Itinerario Commerciale Programmato | Totale: {len(clienti_giro)} clienti"
+
+            pdf = VisiteProgrammaPDF(titolo=titolo, sottotitolo=sottotitolo)
+            pdf.alias_nb_pages()
+            pdf.add_page()
+            draw_visite_table_header(pdf)
+
+            fill = False
+            for idx, c in enumerate(clienti_giro, start=1):
+                draw_visite_row(
+                    pdf,
+                    idx,
+                    c.get('ora_visita_standard'),
+                    c.get('nome'),
+                    c.get('zona'),
+                    c.get('telefono'),
+                    '[ ] Fatta  [ ] Ord: EUR ___',
+                    fill
+                )
+                fill = not fill
+
+            if not clienti_giro:
+                pdf.ln(5)
+                pdf.set_font('helvetica', 'I', 10)
+                pdf.set_text_color(100, 116, 139)
+                pdf.cell(0, 10, f'Nessun cliente assegnato al giro di {day_name}.', border=1, align='C')
+
+            filename = f"Giro_{day_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+        else:
+            # Mode 3: Programma completo settimanale Lunedì - Sabato
+            cur.execute("""
+                SELECT id, nome, zona, telefono, giorno_visita_standard, ora_visita_standard
+                FROM clienti
+                WHERE giorno_visita_standard IN (1, 2, 3, 4, 5, 6)
+                ORDER BY giorno_visita_standard ASC, ora_visita_standard ASC NULLS LAST, nome ASC
+            """)
+            tutti = cur.fetchall()
+
+            if zona_param:
+                tutti = [c for c in tutti if (c.get('zona') or '').lower() == zona_param.lower()]
+
+            by_day = {i: [] for i in range(1, 7)}
+            for c in tutti:
+                g_val = c.get('giorno_visita_standard')
+                if g_val in by_day:
+                    by_day[g_val].append(c)
+
+            tot_clienti = len(tutti)
+            titolo = "Horeca Suite - Programma Giri Settimanali Completo"
+            sottotitolo = f"Pianificazione Commerciale Lunedì - Sabato | Totale: {tot_clienti} clienti"
+
+            pdf = VisiteProgrammaPDF(titolo=titolo, sottotitolo=sottotitolo)
+            pdf.alias_nb_pages()
+            pdf.add_page()
+
+            for day_int in range(1, 7):
+                day_name = giorni_nomi[day_int]
+                day_list = by_day[day_int]
+
+                if pdf.get_y() > 230:
+                    pdf.add_page()
+
+                # Sezione giorno
+                pdf.set_font('helvetica', 'B', 10.5)
+                pdf.set_fill_color(241, 245, 249)
+                pdf.set_text_color(15, 23, 42)
+                pdf.set_draw_color(203, 213, 225)
+                pdf.cell(0, 8, f"  GIRO {day_name.upper()} ({len(day_list)} clienti in itinerario)", border=1, ln=True, fill=True)
+                pdf.ln(1)
+
+                draw_visite_table_header(pdf)
+
+                if day_list:
+                    fill = False
+                    for idx, c in enumerate(day_list, start=1):
+                        draw_visite_row(
+                            pdf,
+                            idx,
+                            c.get('ora_visita_standard'),
+                            c.get('nome'),
+                            c.get('zona'),
+                            c.get('telefono'),
+                            '[ ] Fatta  [ ] Ord: EUR ___',
+                            fill
+                        )
+                        fill = not fill
+                else:
+                    pdf.set_font('helvetica', 'I', 8.5)
+                    pdf.set_text_color(148, 163, 184)
+                    pdf.cell(0, 6, "Nessun cliente assegnato per questo giorno.", border='B', ln=True, align='C')
+
+                pdf.ln(4)
+
+            filename = f"Programma_Giri_Settimanali_Horeca_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+    pdf_output = pdf.output(dest='S')
+    if isinstance(pdf_output, str):
+        pdf_bytes = pdf_output.encode('latin1')
+    else:
+        pdf_bytes = bytes(pdf_output)
+
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
+
+
+# ==============================================================================
+# VISITE & GIRI API OPERATIVE
+# ==============================================================================
+
+@app.route('/api/visite/giorno')
+@login_required
+def api_visite_giorno():
+    date_str = request.args.get('date') or datetime.today().strftime('%Y-%m-%d')
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        target_date = datetime.today().date()
+        date_str = target_date.strftime('%Y-%m-%d')
+
+    weekday_val = (target_date.weekday() + 1)
+    if weekday_val > 6:
+        weekday_val = 0
+
+    with get_db() as db_conn:
+        cur = db_conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT v.id, v.cliente_id, v.data_visita, v.ora_visita, v.completata, v.note,
+                   c.nome as cliente_nome, c.zona, c.telefono
+            FROM visite v
+            JOIN clienti c ON v.cliente_id = c.id
+            WHERE v.data_visita = %s
+            ORDER BY v.ora_visita ASC NULLS LAST, c.nome ASC
+        """, (target_date,))
+        real_visite = cur.fetchall()
+
+        real_client_ids = {r['cliente_id'] for r in real_visite}
+
+        visite_list = []
+        for rv in real_visite:
+            raw_phone = rv.get('telefono') or ''
+            phone_clean = ''.join(ch for ch in str(raw_phone) if ch.isdigit())
+            ora_val = rv.get('ora_visita')
+            ora_str = str(ora_val)[:5] if ora_val else ''
+            visite_list.append({
+                'id': rv['id'],
+                'cliente_id': rv['cliente_id'],
+                'cliente_nome': rv['cliente_nome'],
+                'zona': rv['zona'] or 'Zona non def.',
+                'telefono': rv['telefono'],
+                'phone_normalized': phone_clean,
+                'ora_visita': ora_str,
+                'note': rv['note'] or '',
+                'completata': bool(rv['completata']),
+                'tipo': 'real'
+            })
+
+        # Clienti ricorrenti del giro di questo giorno della settimana
+        cur.execute("""
+            SELECT id, nome, zona, telefono, ora_visita_standard
+            FROM clienti
+            WHERE giorno_visita_standard = %s
+            ORDER BY ora_visita_standard ASC NULLS LAST, nome ASC
+        """, (weekday_val,))
+        giro_clienti = cur.fetchall()
+
+        for gc in giro_clienti:
+            if gc['id'] not in real_client_ids:
+                raw_phone = gc.get('telefono') or ''
+                phone_clean = ''.join(ch for ch in str(raw_phone) if ch.isdigit())
+                ora_std = gc.get('ora_visita_standard')
+                ora_std_str = str(ora_std)[:5] if ora_std else ''
+                visite_list.append({
+                    'id': f"giro_{gc['id']}",
+                    'cliente_id': gc['id'],
+                    'cliente_nome': gc['nome'],
+                    'zona': gc['zona'] or 'Zona non def.',
+                    'telefono': gc.get('telefono'),
+                    'phone_normalized': phone_clean,
+                    'ora_visita': ora_std_str,
+                    'note': 'Giro programmato del giorno',
+                    'completata': False,
+                    'tipo': 'giro'
+                })
+
+        visite_list.sort(key=lambda x: (str(x['ora_visita'] or '99:99')[:5], (x['cliente_nome'] or '').lower()))
+
+    return jsonify({'success': True, 'date': date_str, 'visite': visite_list})
+
+
+@app.route('/api/visite/elimina/<int:id>', methods=['POST'])
+@login_required
+def api_visite_elimina(id):
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("DELETE FROM visite WHERE id = %s", (id,))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Visita eliminata'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/clienti/aggiorna_orario_giro', methods=['POST'])
+@login_required
+def api_clienti_aggiorna_orario_giro():
+    data = request.get_json(silent=True) or request.form
+    try:
+        cliente_id = int(data.get('cliente_id'))
+        ora = data.get('ora_visita_standard')
+        giorno = data.get('giorno_visita_standard')
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            if giorno is not None:
+                try:
+                    g_val = int(str(giorno).strip()) if str(giorno).strip() not in ('', '0', 'null', 'None') else None
+                except Exception:
+                    g_val = None
+                cur.execute("UPDATE clienti SET ora_visita_standard = %s, giorno_visita_standard = %s WHERE id = %s", (ora or None, g_val, cliente_id))
+            else:
+                cur.execute("UPDATE clienti SET ora_visita_standard = %s WHERE id = %s", (ora or None, cliente_id))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Orario aggiornato con successo!'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/visite/registra_esito_rapido', methods=['POST'])
+@login_required
+def api_visite_registra_esito_rapido():
+    data = request.get_json(silent=True) or request.form
+    try:
+        cliente_id = int(data.get('cliente_id'))
+        data_visita = data.get('data_visita') or datetime.today().strftime('%Y-%m-%d')
+        ora_visita = data.get('ora_visita') or datetime.now().strftime('%H:%M')
+        esito = data.get('esito') or 'Visita effettuata'
+        note_libere = (data.get('note') or '').strip()
+        totale_ordine = data.get('totale_ordine') or None
+
+        completata = (esito not in ('Cliente chiuso/assente', 'Da ricontattare'))
+
+        parti_nota = [f"[{esito}]"]
+        if note_libere:
+            parti_nota.append(note_libere)
+        if totale_ordine:
+            try:
+                tot_val = float(str(totale_ordine).replace(',', '.'))
+                parti_nota.append(f"Ordine: €{tot_val:.2f}")
+            except Exception:
+                parti_nota.append(f"Ordine: €{totale_ordine}")
+        nota_finale = " - ".join(parti_nota)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("""
+                INSERT INTO visite (cliente_id, data_visita, ora_visita, completata, note)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (cliente_id, data_visita, ora_visita, completata, nota_finale))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Esito visita registrato!'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/visite/save', methods=['POST'])
 @login_required
@@ -9548,17 +10073,43 @@ def api_visite_get_events():
     return jsonify(events)
 
 # ============================
-# ROUTE: api_visite_toggle_complete
+# ROUTE: api_visite_toggle_complete / api_visite_toggle_completata
 # ============================
-@app.route('/api/visite/toggle_complete/<int:id>', methods=['POST'])
+@app.route('/api/visite/toggle_complete/<path:id>', methods=['POST'])
+@app.route('/api/visite/toggle_completata/<path:id>', methods=['POST'])
 @login_required
 def api_visite_toggle_complete(id):
+    id_str = str(id).strip()
     with get_db() as db:
         cur = db.cursor()
-        cur.execute("UPDATE visite SET completata = NOT completata WHERE id = %s", (id,))
-        db.commit()
-    flash("Stato visita aggiornato.", "success")
-    return redirect(url_for('visite_clienti'))
+        if id_str.startswith('giro_'):
+            try:
+                cid = int(id_str.replace('giro_', ''))
+                ora_now = datetime.now().strftime('%H:%M')
+                cur.execute("""
+                    INSERT INTO visite (cliente_id, data_visita, ora_visita, completata, note)
+                    VALUES (%s, CURRENT_DATE, %s, TRUE, %s)
+                """, (cid, ora_now, 'Visita completata da giro settimanale'))
+                db.commit()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                    return jsonify({'success': True, 'completata': True})
+                flash("Visita registrata come completata!", "success")
+                return redirect(url_for('visite_clienti'))
+            except Exception as e:
+                db.rollback()
+                return jsonify({'success': False, 'message': str(e)}), 500
+        else:
+            try:
+                vid = int(id_str)
+                cur.execute("UPDATE visite SET completata = NOT COALESCE(completata, FALSE) WHERE id = %s", (vid,))
+                db.commit()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                    return jsonify({'success': True})
+                flash("Stato visita aggiornato.", "success")
+                return redirect(url_for('visite_clienti'))
+            except Exception as e:
+                db.rollback()
+                return jsonify({'success': False, 'message': str(e)}), 500
 
 # ============================
 # ROUTE: ical_visite
