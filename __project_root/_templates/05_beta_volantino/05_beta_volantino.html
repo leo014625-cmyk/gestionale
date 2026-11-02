@@ -4136,28 +4136,213 @@ document.addEventListener("DOMContentLoaded", () => {
   autoFitZoom();
   aggiornaListaPagineNav();
 
-  // Helper per attendere il caricamento delle immagini in un clone DOM prima del rendering canvas (con timeout di sicurezza)
-  function waitImagesLoaded(element) {
-    const imgs = Array.from(element.querySelectorAll("img"));
-    if (imgs.length === 0) return Promise.resolve();
-    
-    const perImagePromises = imgs.map(img => {
-      return new Promise((resolve) => {
-        if (img.complete && img.naturalWidth > 0) {
-          resolve();
-        } else {
-          let done = false;
-          const finish = () => { if (!done) { done = true; resolve(); } };
-          img.onload = finish;
-          img.onerror = finish;
-          setTimeout(finish, 1500); // Timeout max 1.5s per singola immagine
-        }
-      });
-    });
+  // Helper per convertire qualsiasi immagine in Data URL Base64 (evita blocchi CORS e caching di html2canvas)
+  async function urlABase64(url, fallbackImg) {
+    if (!url) return "";
+    if (url.startsWith("data:")) return url;
 
-    // Timeout globale max 2 secondi per evitare qualsiasi blocco della generazione
-    const globalTimeout = new Promise(resolve => setTimeout(resolve, 2000));
-    return Promise.race([Promise.all(perImagePromises), globalTimeout]);
+    // 1. Prova fetch dell'immagine come blob (funziona per tutte le immagini locali e CORS-enabled)
+    try {
+      const res = await fetch(url, { cache: "force-cache" });
+      if (res.ok) {
+        const blob = await res.blob();
+        const b64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => resolve(url);
+          reader.readAsDataURL(blob);
+        });
+        if (b64 && b64.startsWith("data:")) return b64;
+      }
+    } catch (e) {
+      console.warn("fetch blob non riuscito per:", url, e);
+    }
+
+    // 2. Fallback: disegna l'immagine già renderizzata a video su un canvas in memoria
+    if (fallbackImg && fallbackImg.naturalWidth && fallbackImg.naturalHeight) {
+      try {
+        const c = document.createElement("canvas");
+        c.width = fallbackImg.naturalWidth;
+        c.height = fallbackImg.naturalHeight;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(fallbackImg, 0, 0);
+        const b64 = c.toDataURL("image/png");
+        if (b64 && b64.startsWith("data:")) return b64;
+      } catch (e) {
+        console.warn("canvas toDataURL fallback non riuscito:", e);
+      }
+    }
+
+    return url;
+  }
+
+  // Cattura un foglio del volantino su Canvas assicurando che TUTTE le immagini siano caricate e posizionate
+  async function catturaFoglioCanvas(pageIndex) {
+    paginaCorrente = pageIndex;
+    visualizzaPaginaCorrente();
+    aggiornaListaPagineNav();
+
+    const origPage = pagine[pageIndex];
+    const w = parseInt(origPage.dataset.larghezza || "800", 10);
+    const h = parseInt(origPage.dataset.altezza || "1100", 10);
+
+    // Crea un wrapper fuori schermo con z-index positivo per evitare rendering troncati o nascosti
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-10000px";
+    wrapper.style.top = "0px";
+    wrapper.style.width = w + "px";
+    wrapper.style.height = h + "px";
+    wrapper.style.overflow = "hidden";
+    wrapper.style.zIndex = "99999";
+    wrapper.style.opacity = "1";
+    wrapper.style.pointerEvents = "none";
+    wrapper.style.background = "#ffffff";
+
+    const clone = origPage.cloneNode(true);
+    clone.style.position = "relative";
+    clone.style.left = "0px";
+    clone.style.top = "0px";
+    clone.style.transform = "none";
+    clone.style.transformOrigin = "top left";
+    clone.style.margin = "0";
+    clone.style.width = w + "px";
+    clone.style.height = h + "px";
+
+    clone.classList.remove("cella-selezionata");
+    clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
+    clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
+
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    // 1. Sfondo foglio: converti in base64
+    const bgImgUrl = origPage.dataset.bgImg || "";
+    if (bgImgUrl) {
+      const bgData = await urlABase64(bgImgUrl);
+      if (bgData) {
+        clone.style.backgroundImage = `url("${bgData}")`;
+      }
+    }
+
+    // 2. Header / Logo: converti in base64
+    const origHeaderImg = origPage.querySelector(".page-header img");
+    const cloneHeaderImg = clone.querySelector(".page-header img");
+    if (origHeaderImg && cloneHeaderImg) {
+      const headerData = await urlABase64(origHeaderImg.src, origHeaderImg);
+      if (headerData) {
+        cloneHeaderImg.src = headerData;
+      }
+    }
+
+    // 3. Immagini dei prodotti nelle celle
+    const origCells = Array.from(origPage.querySelectorAll(".cella-prodotto"));
+    const cloneCells = Array.from(clone.querySelectorAll(".cella-prodotto"));
+
+    for (let cIdx = 0; cIdx < cloneCells.length; cIdx++) {
+      const cell = cloneCells[cIdx];
+      const origCell = origCells[cIdx];
+      const titolo = cell.querySelector(".titolo")?.innerText || "";
+      const codice = cell.dataset.codice || "";
+      const origImg = origCell ? origCell.querySelector(".img-box img") : null;
+      let cloneImg = cell.querySelector(".img-box img");
+
+      const haImg = (cloneImg !== null && cloneImg.src && !cloneImg.src.includes("data:image/svg") && !cloneImg.src.includes("placeholder")) || (origImg !== null);
+
+      const isVuota = !codice && (titolo === "PRODOTTO" || titolo === "Nessun prodotto" || !titolo) && !haImg;
+      if (isVuota) {
+        cell.style.visibility = "hidden";
+        continue;
+      }
+
+      const imgBox = cell.querySelector(".img-box");
+      if (imgBox) {
+        let targetImg = cloneImg;
+        if (!targetImg) {
+          targetImg = document.createElement("img");
+          imgBox.innerHTML = "";
+          imgBox.appendChild(targetImg);
+        }
+
+        const srcToUse = (origImg && origImg.src) || (targetImg && targetImg.src) || cell.dataset.imgNoBg || cell.dataset.imgOriginal || "";
+        if (srcToUse) {
+          const base64Data = await urlABase64(srcToUse, origImg);
+          targetImg.src = base64Data || srcToUse;
+        }
+
+        const boxW = imgBox.clientWidth || imgBox.offsetWidth || 150;
+        const boxH = imgBox.clientHeight || imgBox.offsetHeight || 150;
+
+        const imgW = (origImg && origImg.naturalWidth) || targetImg.naturalWidth || 300;
+        const imgH = (origImg && origImg.naturalHeight) || targetImg.naturalHeight || 300;
+
+        const boxAspect = boxW / boxH;
+        const imgAspect = imgW / imgH;
+
+        let wFit, hFit;
+        if (imgAspect > boxAspect) {
+          wFit = boxW;
+          hFit = boxW / imgAspect;
+        } else {
+          hFit = boxH;
+          wFit = boxH * imgAspect;
+        }
+
+        const zoom = parseFloat(cell.dataset.imageZoom || "1.0") || 1.0;
+        const px = parseInt(cell.dataset.imagePosX || "50", 10) || 50;
+        const py = parseInt(cell.dataset.imagePosY || "50", 10) || 50;
+
+        const wZoomed = wFit * zoom;
+        const hZoomed = hFit * zoom;
+
+        const left = (boxW - wZoomed) * (px / 100);
+        const top = (boxH - hZoomed) * (py / 100);
+
+        imgBox.style.position = "relative";
+        imgBox.style.overflow = "hidden";
+
+        targetImg.style.position = "absolute";
+        targetImg.style.width = wZoomed + "px";
+        targetImg.style.height = hZoomed + "px";
+        targetImg.style.left = left + "px";
+        targetImg.style.top = top + "px";
+        targetImg.style.transform = "none";
+        targetImg.style.objectFit = "fill";
+        targetImg.style.objectPosition = "0 0";
+      }
+    }
+
+    // Attendi la decodifica delle immagini prima dello scatto html2canvas
+    const allCloneImgs = Array.from(clone.querySelectorAll("img"));
+    await Promise.all(allCloneImgs.map(img => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      if (img.decode) return img.decode().catch(() => {});
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 500);
+      });
+    }));
+
+    let canvas = null;
+    try {
+      canvas = await html2canvas(clone, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        allowTaint: true,
+        logging: false
+      });
+    } catch (err) {
+      console.warn("Primo tentativo html2canvas fallito, riprovo con impostazioni standard:", err);
+      canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff", logging: false });
+    } finally {
+      if (wrapper.parentNode) {
+        document.body.removeChild(wrapper);
+      }
+    }
+
+    return canvas;
   }
 
   /* -------------------------------------------------------------------
@@ -4192,119 +4377,19 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         for (let i = 0; i < pagine.length; i++) {
-          showToast(`Generazione PDF: foglio ${i + 1} di ${pagine.length}...`);
+          showToast(`Generazione PDF: elaborazione foglio ${i + 1} di ${pagine.length}...`);
           if (i > 0) pdf.addPage([w, h]);
 
-          paginaCorrente = i;
-          visualizzaPaginaCorrente();
-          
-          // Crea un clone temporaneo a scala reale 1:1 posizionato in modo fisso e sicuro fuori vista
-          const clone = pagine[i].cloneNode(true);
-          clone.style.position = "fixed";
-          clone.style.left = "0px";
-          clone.style.top = "0px";
-          clone.style.zIndex = "-9999";
-          clone.style.transform = "none";
-          clone.style.transformOrigin = "top left";
-          clone.style.pointerEvents = "none";
-          clone.style.opacity = "1";
-          
-          clone.classList.remove("cella-selezionata");
-          clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
-          clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
+          const canvas = await catturaFoglioCanvas(i);
+          if (!canvas) continue;
 
-          document.body.appendChild(clone);
-
-          // Attendiamo con timeout che le immagini siano pronte
-          await waitImagesLoaded(clone);
-
-          clone.querySelectorAll(".cella-prodotto").forEach(cell => {
-            const titolo = cell.querySelector(".titolo")?.innerText || "";
-            const codice = cell.dataset.codice || "";
-            const haImg = cell.querySelector(".img-box img") !== null;
-            
-            const isVuota = !codice && (titolo === "PRODOTTO" || !haImg);
-            
-            if (isVuota) {
-              cell.style.visibility = "hidden";
-            } else {
-              const imgBox = cell.querySelector(".img-box");
-              if (imgBox) {
-                const img = imgBox.querySelector("img");
-                if (img) {
-                  if (img.naturalWidth && img.naturalHeight) {
-                    const boxW = imgBox.clientWidth || imgBox.offsetWidth;
-                    const boxH = imgBox.clientHeight || imgBox.offsetHeight;
-                    
-                    if (boxW > 0 && boxH > 0) {
-                      const imgW = img.naturalWidth;
-                      const imgH = img.naturalHeight;
-                      
-                      const boxAspect = boxW / boxH;
-                      const imgAspect = imgW / imgH;
-                      
-                      let wFit, hFit;
-                      if (imgAspect > boxAspect) {
-                        wFit = boxW;
-                        hFit = boxW / imgAspect;
-                      } else {
-                        hFit = boxH;
-                        wFit = boxH * imgAspect;
-                      }
-                      
-                      const zoom = parseFloat(cell.dataset.imageZoom || "1.0");
-                      const px = parseInt(cell.dataset.imagePosX || "50", 10);
-                      const py = parseInt(cell.dataset.imagePosY || "50", 10);
-                      
-                      const wZoomed = wFit * zoom;
-                      const hZoomed = hFit * zoom;
-                      
-                      const left = (boxW - wZoomed) * (px / 100);
-                      const top = (boxH - hZoomed) * (py / 100);
-                      
-                      imgBox.style.position = "relative";
-                      imgBox.style.overflow = "hidden";
-                      
-                      img.style.position = "absolute";
-                      img.style.width = wZoomed + "px";
-                      img.style.height = hZoomed + "px";
-                      img.style.left = left + "px";
-                      img.style.top = top + "px";
-                      img.style.transform = "none";
-                      img.style.objectFit = "fill";
-                      img.style.objectPosition = "0 0";
-                    }
-                  }
-                }
-              }
-            }
-          });
-          
-          let canvas = null;
-          try {
-            canvas = await html2canvas(clone, { 
-              scale: 2, 
-              backgroundColor: "#ffffff",
-              useCORS: true,
-              allowTaint: true,
-              logging: false
-            });
-          } catch (canvasErr) {
-            console.warn("html2canvas primo tentativo fallito, riprovo con impostazioni minime:", canvasErr);
-            canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff", logging: false });
-          }
-          
-          if (clone.parentNode) {
-            document.body.removeChild(clone);
-          }
-          
           let imgDataUrl = null;
           try {
             imgDataUrl = canvas.toDataURL("image/png");
           } catch (taintErr) {
-            console.warn("Canvas tainted, fallback jpeg:", taintErr);
+            console.warn("Canvas fallback a jpeg:", taintErr);
             try {
-              imgDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+              imgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
             } catch (e2) {
               console.error("toDataURL fallito:", e2);
             }
@@ -4334,7 +4419,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* -------------------------------------------------------------------
-       ESPORTAZIONE PNG FOGLIO ATTIVO
+       ESPORTAZIONE PNG FOGLI ATTIVI
      ------------------------------------------------------------------- */
   const btnExportPng = document.getElementById("export-png");
   if (btnExportPng) {
@@ -4350,44 +4435,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         for (let i = 0; i < pagine.length; i++) {
-          showToast(`Generazione PNG: foglio ${i + 1} di ${pagine.length}...`);
-          paginaCorrente = i;
-          visualizzaPaginaCorrente();
-          aggiornaListaPagineNav();
+          showToast(`Generazione PNG: elaborazione foglio ${i + 1} di ${pagine.length}...`);
 
-          const clone = pagine[i].cloneNode(true);
-          clone.style.position = "fixed";
-          clone.style.left = "0px";
-          clone.style.top = "0px";
-          clone.style.zIndex = "-9999";
-          clone.style.transform = "none";
-          clone.style.transformOrigin = "top left";
-          clone.style.pointerEvents = "none";
-          clone.style.opacity = "1";
-          
-          clone.classList.remove("cella-selezionata");
-          clone.querySelectorAll(".cella-prodotto").forEach(c => c.classList.remove("cella-selezionata"));
-          clone.querySelectorAll(".no-export, .grid-move-toolbar").forEach(el => el.remove());
-
-          document.body.appendChild(clone);
-          await waitImagesLoaded(clone);
-
-          let canvas = null;
-          try {
-            canvas = await html2canvas(clone, { 
-              scale: 2, 
-              backgroundColor: "#ffffff",
-              useCORS: true,
-              allowTaint: true,
-              logging: false
-            });
-          } catch(e) {
-            canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff" });
-          }
-
-          if (clone.parentNode) {
-            document.body.removeChild(clone);
-          }
+          const canvas = await catturaFoglioCanvas(i);
+          if (!canvas) continue;
 
           const outCanvas = document.createElement("canvas");
           outCanvas.width = canvas.width;
@@ -4404,7 +4455,7 @@ document.addEventListener("DOMContentLoaded", () => {
           let dataUrl = null;
           try {
             dataUrl = outCanvas.toDataURL("image/png");
-          } catch(e) {
+          } catch (e) {
             dataUrl = outCanvas.toDataURL("image/jpeg", 0.95);
           }
 
@@ -4416,7 +4467,7 @@ document.addEventListener("DOMContentLoaded", () => {
             a.click();
             a.remove();
           }
-          
+
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
