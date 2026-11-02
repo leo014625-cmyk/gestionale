@@ -9358,12 +9358,25 @@ def salva_volantino_beta():
                                     zoom_val = 1.0
                                     pos_x_val = 50
                                     pos_y_val = 50
-                                
-                                cur.execute("""
-                                    UPDATE prodotti 
-                                    SET img_zoom = %s, img_pos_x = %s, img_pos_y = %s
-                                    WHERE codice = %s
-                                """, (zoom_val, pos_x_val, pos_y_val, code))
+                                img_src = cell.get("img") or cell.get("imgOriginal") or cell.get("imgNoBg") or ""
+                                img_filename = None
+                                if "/static/uploads/volantino_prodotti/" in img_src:
+                                    img_filename = img_src.split("/static/uploads/volantino_prodotti/")[-1].split("?")[0]
+                                elif img_src and not img_src.startswith("data:") and not img_src.startswith("http") and "/" not in img_src:
+                                    img_filename = img_src
+
+                                if img_filename:
+                                    cur.execute("""
+                                        UPDATE prodotti 
+                                        SET img_zoom = %s, img_pos_x = %s, img_pos_y = %s, immagine = %s
+                                        WHERE codice = %s
+                                    """, (zoom_val, pos_x_val, pos_y_val, img_filename, code))
+                                else:
+                                    cur.execute("""
+                                        UPDATE prodotti 
+                                        SET img_zoom = %s, img_pos_x = %s, img_pos_y = %s
+                                        WHERE codice = %s
+                                    """, (zoom_val, pos_x_val, pos_y_val, code))
                     conn.commit()
             except Exception as dberr:
                 print(f"Errore aggiornamento coordinate prodotti nel db di produzione: {dberr}")
