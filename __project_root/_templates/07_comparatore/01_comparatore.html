@@ -404,10 +404,10 @@
           <tr>
             <th style="width: 40px;" class="text-center">#</th>
             <th style="min-width: 240px;">Prodotto / Descrizione</th>
-            <th style="width: 115px;" class="col-num">Volume KG <small class="text-muted">/Mese</small></th>
-            <th style="width: 125px;" class="col-num">Prezzo Attuale <small class="text-muted">€/KG</small></th>
-            <th style="width: 125px;" class="col-num">Nostro Prezzo <small class="text-muted">€/KG</small></th>
-            <th style="width: 110px;" class="col-num">Risparmio <small class="text-muted">€/KG</small></th>
+            <th style="width: 135px;" class="col-num">Volume KG/PZ <small class="text-muted">/Mese</small></th>
+            <th style="width: 125px;" class="col-num">Prezzo Attuale <small class="text-muted">€/UM</small></th>
+            <th style="width: 125px;" class="col-num">Nostro Prezzo <small class="text-muted">€/UM</small></th>
+            <th style="width: 110px;" class="col-num">Risparmio <small class="text-muted">€/UM</small></th>
             <th style="width: 120px;" class="col-num">Spesa Attuale <small class="text-muted">€/Mese</small></th>
             <th style="width: 120px;" class="col-num">Nostra Spesa <small class="text-muted">€/Mese</small></th>
             <th style="width: 130px;" class="col-num text-success">Risparmio Mese</th>
@@ -1399,6 +1399,8 @@ document.addEventListener("DOMContentLoaded", () => {
     tbodyProdotti.innerHTML = "";
 
     let totVolMese = 0;
+    let totVolKgMese = 0;
+    let totVolPzMese = 0;
     let totSpesaAttualeMese = 0;
     let totSpesaNostraMese = 0;
     let totRisparmioMese = 0;
@@ -1417,6 +1419,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const vol = parseFloat(item.volume_kg) || 0;
         const pAtt = parseFloat(item.prezzo_attuale) || 0;
         const pNos = parseFloat(item.prezzo_nostro) || 0;
+        const um = (item.um || "kg").toLowerCase() === "pz" ? "pz" : "kg";
+        item.um = um;
 
         // Calcoli riga
         const diffKg = pAtt - pNos;
@@ -1428,6 +1432,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Aggiorna totali
         totVolMese += vol;
+        if (um === "pz") totVolPzMese += vol;
+        else totVolKgMese += vol;
         totSpesaAttualeMese += spesaAttMese;
         totSpesaNostraMese += spesaNosMese;
         totRisparmioMese += rispMese;
@@ -1454,8 +1460,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           <td class="col-num">
             <div class="input-group input-group-sm">
-              <input type="number" step="0.1" min="0" class="form-control form-control-sm text-end fw-bold text-primary input-row-change" data-field="volume_kg" value="${vol === 0 ? '' : vol}" placeholder="0">
-              <span class="input-group-text small px-1 bg-light text-muted">kg</span>
+              <input type="number" step="${um === 'pz' ? '1' : '0.1'}" min="0" class="form-control form-control-sm text-end fw-bold text-primary input-row-change" data-field="volume_kg" value="${vol === 0 ? '' : vol}" placeholder="0">
+              <select class="form-select form-select-sm px-1 bg-light text-dark fw-bold input-row-change" data-field="um" style="max-width: 50px; font-size: 0.74rem; cursor: pointer;" title="Seleziona unità di misura (KG o PZ)">
+                <option value="kg" ${um === 'kg' ? 'selected' : ''}>kg</option>
+                <option value="pz" ${um === 'pz' ? 'selected' : ''}>pz</option>
+              </select>
             </div>
           </td>
 
@@ -1474,7 +1483,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
 
           <td class="col-num font-monospace fw-semibold ${diffKg >= 0 ? 'text-success' : 'text-danger'}">
-            ${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/kg
+            ${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/${um}
           </td>
 
           <td class="col-num font-monospace text-muted">
@@ -1513,54 +1522,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Calcoli totali globali
-    const totVolAnno = totVolMese * 12;
-    const totSpesaAttualeAnno = totSpesaAttualeMese * 12;
-    const totSpesaNostraAnno = totSpesaNostraMese * 12;
-    const totRisparmioAnno = totRisparmioMese * 12;
-    const totPercRisp = (totSpesaAttualeMese > 0) ? ((totRisparmioMese / totSpesaAttualeMese) * 100) : 0;
-
     // Aggiorna badge conteggio
     badgeConteggioProdotti.textContent = prodottiState.length + (prodottiState.length === 1 ? " Prodotto" : " Prodotti");
 
-    // Aggiorna KPI cards
-    kpiVolumeMese.innerHTML = `${totVolMese.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="fs-6 text-muted fw-normal">kg/mese</span>`;
-    kpiVolumeAnno.innerHTML = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${totVolAnno.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kg</strong> all'anno`;
-
-    kpiSpesaAttualeMese.innerHTML = `${formatMoney(totSpesaAttualeMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
-    kpiSpesaAttualeAnno.innerHTML = `<i class="bi bi-calendar3"></i> <strong>${formatMoney(totSpesaAttualeAnno)}</strong> all'anno`;
-
-    kpiSpesaNostraMese.innerHTML = `${formatMoney(totSpesaNostraMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
-    kpiSpesaNostraAnno.innerHTML = `<i class="bi bi-check-all text-success"></i> <strong>${formatMoney(totSpesaNostraAnno)}</strong> all'anno`;
-
-    kpiRisparmioMese.innerHTML = `${formatMoney(totRisparmioMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
-    kpiRisparmioAnno.innerHTML = `<i class="bi bi-trophy-fill text-warning"></i> Risparmio: <strong>${formatMoney(totRisparmioAnno)} / ANNO!</strong>`;
-    
-    kpiPercTotale.textContent = (totPercRisp >= 0 ? "-" : "+") + Math.abs(totPercRisp).toFixed(1) + "%";
-    kpiPercTotale.className = "badge rounded-pill px-2.5 py-1 " + (totPercRisp >= 0 ? "bg-success text-white" : "bg-danger text-white");
-
-    // Aggiorna Footer Tabella
-    footTotVolume.textContent = formatKg(totVolMese);
-    footTotAttuale.textContent = formatMoney(totSpesaAttualeMese);
-    footTotNostro.textContent = formatMoney(totSpesaNostraMese);
-    footTotRisparmioMese.textContent = formatMoney(totRisparmioMese);
-    footTotRisparmioAnno.textContent = formatMoney(totRisparmioAnno);
-    footTotPerc.innerHTML = totPercRisp >= 0 
-      ? `<span class="badge-risparmio fs-6">-${totPercRisp.toFixed(1)}%</span>` 
-      : `<span class="badge-aumento fs-6">+${Math.abs(totPercRisp).toFixed(1)}%</span>`;
-
-    // Aggiorna Box Argomentazione Commerciale
-    const clientName = getClientName();
-    if (totRisparmioAnno > 0) {
-      boxArgomentazioneTitolo.innerHTML = `🎉 Con la nostra fornitura, <span class="text-primary">${escapeHtml(clientName)}</span> risparmia ben <span class="text-success">${formatMoney(totRisparmioAnno)}</span> all'anno!`;
-      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
-    } else if (totRisparmioAnno === 0) {
-      boxArgomentazioneTitolo.textContent = `Listino a parità economica per ${clientName}`;
-      boxArgomentazioneTesto.textContent = `I prezzi proposti eguagliano quelli attuali del cliente. È possibile valorizzare l'alta qualità della fornitura e i servizi logistici.`;
-    } else {
-      boxArgomentazioneTitolo.innerHTML = `La proposta supera di ${formatMoney(Math.abs(totRisparmioAnno))} all'anno il prezzo attuale`;
-      boxArgomentazioneTesto.textContent = `Verifica i prezzi unitari inseriti per evidenziare il margine competitivo per il cliente.`;
-    }
+    // Aggiorna KPI cards e Footer tramite updateGrandTotals()
+    updateGrandTotals();
   }
 
   function escapeHtml(text) {
@@ -1590,6 +1556,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (field === "volume_kg" || field === "prezzo_attuale" || field === "prezzo_nostro") {
         val = parseFloat(val) || 0;
+      } else if (field === "um") {
+        val = (val || "kg").toLowerCase() === "pz" ? "pz" : "kg";
+        const volInput = tr.querySelector("input[data-field='volume_kg']");
+        if (volInput) volInput.step = (val === "pz") ? "1" : "0.1";
       }
       if (prodottiState[idx]) {
         prodottiState[idx][field] = val;
@@ -1614,6 +1584,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const vol = parseFloat(item.volume_kg) || 0;
     const pAtt = parseFloat(item.prezzo_attuale) || 0;
     const pNos = parseFloat(item.prezzo_nostro) || 0;
+    const um = (item.um || "kg").toLowerCase() === "pz" ? "pz" : "kg";
 
     const diffKg = pAtt - pNos;
     const spesaAttMese = vol * pAtt;
@@ -1624,9 +1595,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const tds = tr.querySelectorAll("td");
     if (tds.length >= 11) {
-      // Risparmio €/kg (colonna 5)
+      // Risparmio €/um (colonna 5)
       tds[5].className = `col-num font-monospace fw-semibold ${diffKg >= 0 ? 'text-success' : 'text-danger'}`;
-      tds[5].textContent = `${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/kg`;
+      tds[5].textContent = `${diffKg >= 0 ? '+' : ''}${diffKg.toFixed(2)} €/${um}`;
       
       // Spesa Attuale (colonna 6)
       tds[6].textContent = formatMoney(spesaAttMese);
@@ -1657,6 +1628,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateGrandTotals() {
     let totVolMese = 0;
+    let totVolKgMese = 0;
+    let totVolPzMese = 0;
     let totSpesaAttualeMese = 0;
     let totSpesaNostraMese = 0;
     let totRisparmioMese = 0;
@@ -1665,7 +1638,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const vol = parseFloat(item.volume_kg) || 0;
       const pAtt = parseFloat(item.prezzo_attuale) || 0;
       const pNos = parseFloat(item.prezzo_nostro) || 0;
+      const um = (item.um || "kg").toLowerCase() === "pz" ? "pz" : "kg";
       totVolMese += vol;
+      if (um === "pz") totVolPzMese += vol;
+      else totVolKgMese += vol;
       totSpesaAttualeMese += (vol * pAtt);
       totSpesaNostraMese += (vol * pNos);
       totRisparmioMese += (vol * (pAtt - pNos));
@@ -1677,8 +1653,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const totRisparmioAnno = totRisparmioMese * 12;
     const totPercRisp = (totSpesaAttualeMese > 0) ? ((totRisparmioMese / totSpesaAttualeMese) * 100) : 0;
 
-    kpiVolumeMese.innerHTML = `${totVolMese.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="fs-6 text-muted fw-normal">kg/mese</span>`;
-    kpiVolumeAnno.innerHTML = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${totVolAnno.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kg</strong> all'anno`;
+    let volMeseLabel = "";
+    let volAnnoLabel = "";
+    let footVolLabel = "";
+    if (totVolPzMese > 0 && totVolKgMese > 0) {
+      volMeseLabel = `${totVolKgMese.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="fs-6 text-muted fw-normal">kg</span> + ${totVolPzMese.toLocaleString('it-IT', { maximumFractionDigits: 0 })} <span class="fs-6 text-muted fw-normal">pz</span>`;
+      volAnnoLabel = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${(totVolKgMese * 12).toFixed(0)} kg + ${(totVolPzMese * 12).toFixed(0)} pz</strong> all'anno`;
+      footVolLabel = `${totVolKgMese.toFixed(1)} kg + ${totVolPzMese.toFixed(0)} pz`;
+    } else if (totVolPzMese > 0) {
+      volMeseLabel = `${totVolPzMese.toLocaleString('it-IT', { maximumFractionDigits: 0 })} <span class="fs-6 text-muted fw-normal">pz/mese</span>`;
+      volAnnoLabel = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${(totVolPzMese * 12).toLocaleString('it-IT', { maximumFractionDigits: 0 })} pz</strong> all'anno`;
+      footVolLabel = `${totVolPzMese.toFixed(0)} pz`;
+    } else {
+      volMeseLabel = `${totVolKgMese.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span class="fs-6 text-muted fw-normal">kg/mese</span>`;
+      volAnnoLabel = `<i class="bi bi-arrow-repeat text-secondary"></i> <strong>${totVolAnno.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kg</strong> all'anno`;
+      footVolLabel = formatKg(totVolKgMese);
+    }
+
+    kpiVolumeMese.innerHTML = volMeseLabel;
+    kpiVolumeAnno.innerHTML = volAnnoLabel;
 
     kpiSpesaAttualeMese.innerHTML = `${formatMoney(totSpesaAttualeMese)} <span class="fs-6 text-muted fw-normal">/mese</span>`;
     kpiSpesaAttualeAnno.innerHTML = `<i class="bi bi-calendar3"></i> <strong>${formatMoney(totSpesaAttualeAnno)}</strong> all'anno`;
@@ -1692,7 +1685,7 @@ document.addEventListener("DOMContentLoaded", () => {
     kpiPercTotale.textContent = (totPercRisp >= 0 ? "-" : "+") + Math.abs(totPercRisp).toFixed(1) + "%";
     kpiPercTotale.className = "badge rounded-pill px-2.5 py-1 " + (totPercRisp >= 0 ? "bg-success text-white" : "bg-danger text-white");
 
-    footTotVolume.textContent = formatKg(totVolMese);
+    footTotVolume.textContent = footVolLabel;
     footTotAttuale.textContent = formatMoney(totSpesaAttualeMese);
     footTotNostro.textContent = formatMoney(totSpesaNostraMese);
     footTotRisparmioMese.textContent = formatMoney(totRisparmioMese);
@@ -1704,7 +1697,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const clientName = getClientName();
     if (totRisparmioAnno > 0) {
       boxArgomentazioneTitolo.innerHTML = `🎉 Con la nostra fornitura, <span class="text-primary">${escapeHtml(clientName)}</span> risparmia ben <span class="text-success">${formatMoney(totRisparmioAnno)}</span> all'anno!`;
-      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${totVolMese.toFixed(0)} kg al mese), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
+      boxArgomentazioneTesto.textContent = `A parità di volume di acquisto (${footVolLabel} al mese), il cliente ottiene un taglio netto del ${totPercRisp.toFixed(1)}% sui costi mensili, trattenendo ${formatMoney(totRisparmioMese)} di margine puro ogni mese in cassa.`;
+    } else if (totRisparmioAnno === 0) {
+      boxArgomentazioneTitolo.textContent = `Listino a parità economica per ${clientName}`;
+      boxArgomentazioneTesto.textContent = `I prezzi proposti eguagliano quelli attuali del cliente. È possibile valorizzare l'alta qualità della fornitura e i servizi logistici.`;
+    } else {
+      boxArgomentazioneTitolo.innerHTML = `La proposta supera di ${formatMoney(Math.abs(totRisparmioAnno))} all'anno il prezzo attuale`;
+      boxArgomentazioneTesto.textContent = `Verifica i prezzi unitari inseriti per evidenziare il margine competitivo per il cliente.`;
     }
   }
 

@@ -752,10 +752,10 @@
         <tr>
           <th style="width: 28px;">#</th>
           <th>Prodotto / Descrizione</th>
-          <th class="col-right" style="width: 85px;">Vol. KG/M</th>
+          <th class="col-right" style="width: 85px;">Vol. Mese</th>
           <th class="col-right" style="width: 90px;">Attuale</th>
           <th class="col-right" style="width: 90px;">Nostra Offerta</th>
-          <th class="col-right" style="width: 85px;">Diff. KG</th>
+          <th class="col-right" style="width: 85px;">Diff. Unit.</th>
           <th class="col-right" style="width: 95px;">Spesa Mese</th>
           <th class="col-right" style="width: 105px; color: #059669;">Risp. Anno</th>
           <th class="col-center" style="width: 65px;">%</th>
@@ -765,6 +765,7 @@
         {% set ns = namespace(tot_vol=0, tot_att=0, tot_nos=0, tot_risp_m=0) %}
         {% for p in prodotti %}
           {% set vol = p.volume_kg|float(0) %}
+          {% set um_p = (p.um or 'kg')|lower %}
           {% set pa = p.prezzo_attuale|float(0) %}
           {% set pn = p.prezzo_nostro|float(0) %}
           {% set diff = pa - pn %}
@@ -785,7 +786,7 @@
               <strong contenteditable="true">{{ p.nome }}</strong>
               {% if p.codice %}<br><small style="color: #64748b; font-family: monospace;">{{ p.codice }}</small>{% endif %}
             </td>
-            <td class="col-right font-monospace">{{ "%.1f"|format(vol) }} kg</td>
+            <td class="col-right font-monospace">{{ "%.0f"|format(vol) if um_p == 'pz' else "%.1f"|format(vol) }} {{ um_p }}</td>
             <td class="col-right font-monospace" style="color: #64748b;">€ {{ "%.2f"|format(pa) }}</td>
             <td class="col-right font-monospace" style="color: #4338ca; font-weight: 600;">€ {{ "%.2f"|format(pn) }}</td>
             <td class="col-right font-monospace" style="color: #059669; font-weight: 600;">{{ '-' if diff >= 0 else '+' }}€ {{ "%.2f"|format(diff|abs) }}</td>

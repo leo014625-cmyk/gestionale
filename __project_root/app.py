@@ -11665,7 +11665,7 @@ def comparatore_scarica_pdf_diretto(id):
         pdf.set_font('helvetica', 'B', 8)
         
         pdf.cell(60, 7, '  Articolo / Descrizione', fill=True)
-        pdf.cell(20, 7, 'Vol. kg/m', align='R', fill=True)
+        pdf.cell(20, 7, 'Vol. Mese', align='R', fill=True)
         pdf.cell(22, 7, 'Prz Attuale', align='R', fill=True)
         pdf.cell(22, 7, 'Nostro Prz', align='R', fill=True)
         pdf.cell(22, 7, 'Diff. Unit.', align='R', fill=True)
@@ -11680,6 +11680,7 @@ def comparatore_scarica_pdf_diretto(id):
             if not isinstance(p, dict): continue
             nome_p = (p.get('nome') or 'Articolo')[:32]
             vol_p = float(p.get('volume_kg') or 0)
+            um_p = str(p.get('um') or 'kg').lower()
             pa_p = float(p.get('prezzo_attuale') or 0)
             pn_p = float(p.get('prezzo_nostro') or 0)
             diff_p = pa_p - pn_p
@@ -11690,7 +11691,8 @@ def comparatore_scarica_pdf_diretto(id):
             pdf.set_text_color(15, 23, 42)
             
             pdf.cell(60, 6.5, _clean_str(f"  {nome_p}"), fill=True)
-            pdf.cell(20, 6.5, _clean_str(f"{vol_p:.1f} kg" if vol_p > 0 else "-"), align='R', fill=True)
+            vol_fmt = (f"{vol_p:.0f} pz" if um_p == 'pz' else f"{vol_p:.1f} kg") if vol_p > 0 else "-"
+            pdf.cell(20, 6.5, _clean_str(vol_fmt), align='R', fill=True)
             
             pdf.set_text_color(100, 116, 139)
             pdf.cell(22, 6.5, _clean_str(f"EUR {pa_p:.2f}"), align='R', fill=True)
