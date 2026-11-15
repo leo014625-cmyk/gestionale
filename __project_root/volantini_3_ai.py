@@ -15,7 +15,7 @@ _GET_DB = None
 _EXTRACT_PDF_FN = None
 _GET_OPENAI_CFG_FN = None
 
-PREGIS_LOGO_URL = "https://us-east-1.tixte.net/uploads/leonardogiorgini.tixte.co/logo-pregis-bordo.png"
+PREGIS_LOGO_URL = "/static/img/logo-pregis-ufficiale.png"
 
 
 def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
@@ -381,7 +381,6 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
 
     return {
         "brand_header": "PREGIS",
-        "brand_sub": "eccellenza nella ristorazione",
         "logo_url": PREGIS_LOGO_URL,
         "logo_mode": "logo_and_title",
         "titolo": default_title,
@@ -393,7 +392,6 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
         "ai_beautified": ai_beautified,
         "show_ai_descriptions": True,
         "per_page": per_page,
-        "footer_brand": "PREGIS S.p.A.",
         "pages": pages
     }
 
