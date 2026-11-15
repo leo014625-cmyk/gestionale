@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import base64
 import tempfile
 import requests
 import werkzeug.utils
@@ -21,7 +22,6 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
     _EXTRACT_PDF_FN = extract_pdf_fn
     _GET_OPENAI_CFG_FN = get_openai_cfg_fn
 
-    # Assicura tabella volantini_3_ai
     try:
         with _GET_DB() as conn:
             cur = conn.cursor()
@@ -30,8 +30,8 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
                     id SERIAL PRIMARY KEY,
                     titolo TEXT NOT NULL,
                     sottotitolo TEXT,
-                    stile TEXT DEFAULT 'luxury_gold',
-                    layout_mode TEXT DEFAULT 'bento_editorial',
+                    stile TEXT DEFAULT 'capecchi_autunno',
+                    layout_mode TEXT DEFAULT 'capecchi_10',
                     dati_json TEXT NOT NULL,
                     creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -45,7 +45,7 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
 
 
 # ==============================================================================
-# MOTORE AI CREATIVO PER ABBELLIMENTO PRODOTTI, COPY E DIREZIONE ARTISTICA
+# MOTORE AI PER PULIZIA NOMI, ESTRAZIONE MARCHIO/IMBALLO E STILE CAPECCHI PRO
 # ==============================================================================
 ABBREV_MAP = {
     r'\bFIL\.?\b': 'Filetto',
@@ -56,7 +56,7 @@ ABBREV_MAP = {
     r'\bSURG\.?\b': 'Surgelato',
     r'\bFRESC[OA]\.?\b': 'Fresco',
     r'\bNAZ\.?\b': 'Nazionale',
-    r'\bscot\.?\b': 'Scottona',
+    r'\bSCOT\.?\b': 'Scottona',
     r'\bGAMB\.?\b': 'Gambero',
     r'\bMAZZ\.?\b': 'Mazzancolla',
     r'\bCALAM\.?\b': 'Calamaro',
@@ -65,25 +65,33 @@ ABBREV_MAP = {
     r'\bMOZZ\.?\b': 'Mozzarella',
     r'\bFIOR\.?\b': 'Fiordilatte',
     r'\bPAT\.?\b': 'Patate',
-    r'\b RIST\.?\b': ' Ristorazione',
-    r'\bEXTRAV\.?\b': 'Extravergine',
+    r'\bRIST\.?\b': 'Ristorazione',
+    r'\bSTAG\.?\b': 'Stagionato',
+    r'\bS/PELLE\b': 's/pelle',
+    r'\bS/GLUT\b': 's/glutine',
 }
+
+KNOWN_BRANDS = [
+    "S.Alessandro", "Sant'Alessandro", "Trinità", "Trinita", "San Francesco",
+    "Sorrentino", "Simonini", "Salvatori", "Valpadana", "Sano", "Pregis",
+    "Rovagnati", "Beretta", "Fiorucci", "Negroni", "Villani", "Levoni",
+    "Casa Modena", "Citterio", "Galbani", "Granarolo", "Orogel", "Findus",
+    "McCain", "LambWeston", "Mutti", "De Cecco", "Barilla", "Voila", "Surgital"
+]
 
 
 def beautify_product_name(raw_name: str) -> str:
-    """Trasforma codici/nomi grezzi da fattura o PDF in titoli commerciali eleganti."""
     if not raw_name:
-        return "Prodotto Selezione Chef"
+        return "Prodotto Selezione"
     s = str(raw_name).strip()
     for pat, repl in ABBREV_MAP.items():
         s = re.sub(pat, repl, s, flags=re.IGNORECASE)
-    # Rimuove doppi spazi e formatta in Title Case intelligente preservando pesi (es. 200g, 1kg)
     words = s.split()
     out_words = []
-    small_words = {"di", "del", "della", "dei", "delle", "al", "alla", "con", "in", "da", "e", "per", "su"}
+    small_words = {"di", "del", "della", "dei", "delle", "al", "alla", "con", "in", "da", "e", "per", "su", "sv", "s/pelle", "s/glutine", "s/glut", "metà", "mesi"}
     for idx, w in enumerate(words):
         w_low = w.lower()
-        if re.match(r'^\d+[a-zA-Z]+$', w_low):
+        if re.match(r'^\d+[a-zA-Z/]+$', w_low) or "/" in w_low:
             out_words.append(w_low)
         elif idx > 0 and w_low in small_words:
             out_words.append(w_low)
@@ -94,187 +102,180 @@ def beautify_product_name(raw_name: str) -> str:
     return " ".join(out_words)
 
 
-def generate_smart_copy_and_badge(nome: str, categoria: str, idx: int) -> dict:
-    """Genera descrizione persuasiva HoReCa, badge accattivante e ruolo visivo."""
-    n_low = (nome or "").lower()
-    c_low = (categoria or "").lower()
+def extract_brand_and_imballo(raw_name: str, categoria: str = "", idx: int = 0) -> dict:
+    """Estrae eventuale marchio/linea e peso imballo dal nome o genera valori realistici."""
+    name_clean = raw_name or ""
+    brand_found = ""
 
-    if any(k in n_low or k in c_low for k in ["angus", "scottona", "manzo", "bovin", "filetto", "costata", "entrecote", "hamburger", "burger", "pollo", "suin", "carne", "salsiccia", "wurstel"]):
-        descriptions = [
-            "Taglio selezionato ad alta resa in cottura, tenero e succoso al palato.",
-            "Selezione garantita per bracerie e ristorazione: frollatura e calibro costanti.",
-            "Gusto intenso e marezzatura equilibrata, ideale per piatti gourmet e griglia.",
-            "Materia prima scelta con zero scarto in cucina e tenuta perfetta in piastra."
-        ]
-        badges = ["🔥 SCELTA GRILL", "🥩 TAGLIO NOBILE", "⭐ TOP STEAKHOUSE", "🔪 ALTA RESA"]
-        theme_hint = "steakhouse_fire"
-    elif any(k in n_low or k in c_low for k in ["salmone", "polpo", "gamber", "mazzancoll", "calamar", "seppi", "tonno", "pesce", "ittic", "merluzz", "baccala", "cozz", "vongol", "orata", "branzino", "spada"]):
-        descriptions = [
-            "Selezionato all'origine e lavorato per preservare intatta la texture del mare.",
-            "Ideale per crudi, antipasti di mare e secondi piatti ad alto valore aggiunto.",
-            "Calibro uniforme e polpa soda: resa eccellente in padella, forno o griglia.",
-            "Qualità superiore per ristoranti di pesce e bistrot contemporanei."
-        ]
-        badges = ["🌊 SELEZIONE MARE", "💎 QUALITÀ EXTRA", "⭐ SCELTA CHEF", "❄️ FRESCHEZZA TOP"]
-        theme_hint = "mare_bistrot"
-    elif any(k in n_low or k in c_low for k in ["mozzarell", "fiordilatte", "burrata", "formagg", "grana", "parmigiano", "prosciutt", "salame", "speck", "bresaola", "mortadella", "salum", "latticin", "panna", "burro"]):
-        descriptions = [
-            "Filatura e stagionatura d'eccellenza per pizzerie gourmet e taglieri ricercati.",
-            "Gusto autentico della tradizione casearia e norcina italiana.",
-            "Perfetta scioglievolezza in forno e profumo ricco, pensato per i professionisti.",
-            "Selezione artigianale ad alta rotazione per antipasti e farciture premium."
-        ]
-        badges = ["🇮🇹 ECCELLENZA DOP", "🍕 TOP PIZZERIA", "⭐ SELEZIONE ORO", "💎 GOURMET"]
-        theme_hint = "tradizione_italiana"
-    elif any(k in n_low or k in c_low for k in ["patat", "verd", "orto", "pomodor", "fungh", "carciof", "melanzan", "olio", "farina", "pasta", "riso"]):
-        descriptions = [
-            "Croccantezza superiore e doratura impeccabile, pensata per alti volumi Ho.Re.Ca.",
-            "Ingrediente base indispensabile con standard qualitativo costante tutto l'anno.",
-            "Massima resa in cucina e sapore ricco, selezionato dai migliori raccolti."
-        ]
-        badges = ["🌿 100% SCELTO", "⚡ SUPER RESA", "⭐ TOP CUCINA", "🔥 OFFERTA MESE"]
-        theme_hint = "tradizione_italiana"
-    elif any(k in n_low or k in c_low for k in ["torta", "dolc", "dessert", "tiramis", "gelat", "cornett", "brioche", "cioccolat"]):
-        descriptions = [
-            "Pasticceria fine pronta al servizio: presentazione impeccabile e gusto avvolgente.",
-            "Il finale perfetto per conquistare il cliente e aumentare lo scontrino medio."
-        ]
-        badges = ["🍰 CHEF PASTRY", "✨ GOLOSITÀ TOP", "⭐ DESSERT GOURMET"]
-        theme_hint = "luxury_gold"
+    for b in KNOWN_BRANDS:
+        if re.search(r'\b' + re.escape(b) + r'\b', name_clean, re.IGNORECASE):
+            brand_found = b
+            name_clean = re.sub(r'\b' + re.escape(b) + r'\b', '', name_clean, flags=re.IGNORECASE).strip(" -–,")
+            break
+
+    # Cerca peso/imballo nel testo (es. "5.50 kg", "2,20 kg", "350g")
+    imballo = ""
+    m_imb = re.search(r'(?:imballo\s*)?(\d+[\.,]?\d*\s*(?:kg|gr|g|lt|ml|pz))', name_clean, re.IGNORECASE)
+    if m_imb:
+        imballo = f"Imballo {m_imb.group(1).lower()}"
     else:
-        descriptions = [
-            "Prodotto professionale ad alta rotazione selezionato per il canale Ho.Re.Ca.",
-            "Qualità certificata e convenienza garantita per la tua cucina professionale.",
-            "Scelto dai migliori professionisti della ristorazione per affidabilità e gusto."
-        ]
-        badges = ["🔥 SUPER PROMO", "⭐ SCELTA CHEF", "💎 PREMIUM", "⚡ BEST SELLER"]
-        theme_hint = "luxury_gold"
+        default_imballi = ["Imballo 5.50 kg", "Imballo 8.70 kg", "Imballo 2.20 kg", "Imballo 1.00 kg", "Imballo 3.88 kg", "Imballo 2.65 kg", "Imballo 7.20 kg", "Imballo 3.50 kg", "Imballo 3.00 kg", "Imballo 1.40 kg"]
+        imballo = default_imballi[idx % len(default_imballi)]
+
+    if not brand_found:
+        c_low = (categoria or "").lower()
+        n_low = name_clean.lower()
+        if any(k in n_low or k in c_low for k in ["prosciutt", "salame", "lonza", "speck", "bresaola", "mortadella", "salum"]):
+            fallback_brands = ["Antica Norcineria", "Selezione Riserva", "Maestri Salumieri", "Tradizione Italiana", "Gran Selezione"]
+        elif any(k in n_low or k in c_low for k in ["salmone", "polpo", "gamber", "pesce", "ittic", "calamar"]):
+            fallback_brands = ["Blue Ocean", "Riserva Mare", "Nordic Superior", "Pescato Scelto"]
+        elif any(k in n_low or k in c_low for k in ["angus", "scottona", "manzo", "hamburger", "carne"]):
+            fallback_brands = ["Prime Butchery", "Black Label Grill", "Selezione allevatori", "Master Beef"]
+        else:
+            fallback_brands = ["Alta Qualità Ho.Re.Ca.", "Selezione Chef", "Linea Professionale", "Specialità Gourmet"]
+        brand_found = fallback_brands[idx % len(fallback_brands)]
+
+    # Badge sottile opzionale di valorizzazione AI
+    n_low = name_clean.lower()
+    if "18 mesi" in n_low or "stag" in n_low:
+        badge = "STAGIONATURA SCELTA"
+    elif "alta qualita" in n_low or "alta qualità" in n_low or "gran dolcezza" in n_low:
+        badge = "ALTA QUALITÀ"
+    elif "piccante" in n_low or "ventricina" in n_low:
+        badge = "GUSTO DECISO"
+    elif "s/glut" in n_low:
+        badge = "SENZA GLUTINE"
+    else:
+        badges = ["OFFERTA TOP", "SCELTA CHEF", "ALTA RESA", "QUALITÀ EXTRA", "BEST SELLER"]
+        badge = badges[idx % len(badges)]
 
     return {
-        "descrizione_ai": descriptions[idx % len(descriptions)],
-        "badge_ai": badges[idx % len(badges)],
-        "theme_hint": theme_hint
+        "titolo_pulito": beautify_product_name(name_clean),
+        "brand": brand_found,
+        "imballo": imballo,
+        "badge": badge
     }
 
 
-def detect_best_theme_and_header(products: list, filename: str = "") -> dict:
-    """Determina il tema grafico migliore e genera titolo/sottotitolo d'impatto."""
-    hints = {}
-    for idx, p in enumerate(products):
-        info = generate_smart_copy_and_badge(p.get("nome", ""), p.get("categoria", ""), idx)
-        th = info["theme_hint"]
-        hints[th] = hints.get(th, 0) + 1
-
-    best_theme = "luxury_gold"
-    if hints:
-        best_theme = max(hints.items(), key=lambda x: x[1])[0]
-
-    mesi_it = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-               "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-    mese_corrente = mesi_it[datetime.now().month - 1]
-
-    theme_headers = {
-        "steakhouse_fire": {
-            "titolo": "GRANDE SELEZIONE CARNI & GRILL",
-            "sottotitolo": f"Tagli Nobili, Frollature Scelte & Specialità Braceria • {mese_corrente} {datetime.now().year}",
-            "tagline": "QUALITÀ SUPERIORE PER LA RISTORAZIONE"
-        },
-        "mare_bistrot": {
-            "titolo": "TESORI DEL MARE & BISTROT",
-            "sottotitolo": f"Selezioni Ittiche Pregiate per Ristoranti d'Eccellenza • {mese_corrente} {datetime.now().year}",
-            "tagline": "FRESCHEZZA E RESA IN CUCINA"
-        },
-        "tradizione_italiana": {
-            "titolo": "SAPORI D'ITALIA & PIZZERIA GOURMET",
-            "sottotitolo": f"Ingredienti Scelti, Latticini & Dispensa Professionale • {mese_corrente} {datetime.now().year}",
-            "tagline": "LA TRADIZIONE CHE FA LA DIFFERENZA"
-        },
-        "pop_promo": {
-            "titolo": "SUPER OFFERTE LAMPO HO.RE.CA.",
-            "sottotitolo": f"Occasioni Imperdibili a Stock Limitato • {mese_corrente} {datetime.now().year}",
-            "tagline": "MASSIMO RISPARMIO · ALTA ROTAZIONE"
-        },
-        "luxury_gold": {
-            "titolo": f"COLLEZIONE GOURMET {mese_corrente.upper()}",
-            "sottotitolo": "Selezione Esclusiva di Prodotti Premium per la Ristorazione Professionale",
-            "tagline": "EXCELLENCE FOOD SERVICE"
-        }
-    }
-    hdr = theme_headers.get(best_theme, theme_headers["luxury_gold"])
-    return {
-        "stile": best_theme,
-        "layout_mode": "bento_editorial",
-        "titolo": hdr["titolo"],
-        "sottotitolo": hdr["sottotitolo"],
-        "tagline": hdr["tagline"]
-    }
+def split_price_parts(prezzo_val) -> tuple:
+    """Divide il prezzo in parte intera (es. '8') e centesimi (es. '80')."""
+    if isinstance(prezzo_val, (int, float)):
+        num = float(prezzo_val)
+    else:
+        s = str(prezzo_val or "0").replace("€", "").strip()
+        m = re.search(r'(\d+[\.,]\d{1,2}|\d+)', s)
+        num = float(m.group(1).replace(",", ".")) if m else 0.0
+    if num <= 0:
+        return ("0", "00", "0,00")
+    fmt = f"{num:.2f}"
+    parts = fmt.split(".")
+    return (parts[0], parts[1], fmt.replace(".", ","))
 
 
-def call_openai_for_flyer_3(products: list, user_prompt: str = "", current_flyer: dict = None):
-    """Se la chiave OpenAI è attiva, usa GPT-4o per abbellire testi, scegliere hero, colori e layout."""
+def get_mesi_stagione_default():
+    mesi_it = ["GENNAIO", "FEBBRAIO", "MARZO", "APRILE", "MAGGIO", "GIUGNO",
+               "LUGLIO", "AGOSTO", "SETTEMBRE", "OTTOBRE", "NOVEMBRE", "DICEMBRE"]
+    m_idx = datetime.now().month
+    mese_nome = mesi_it[m_idx - 1]
+    if m_idx in (9, 10, 11):
+        stile = "capecchi_autunno"
+    elif m_idx in (12, 1, 2):
+        stile = "capecchi_inverno"
+    elif m_idx in (6, 7, 8):
+        stile = "capecchi_estate"
+    else:
+        stile = "capecchi_primavera"
+    return f"PROMO {mese_nome}", stile
+
+
+def call_openai_vision_or_enrich(products: list, user_prompt: str = "", image_b64: str = None):
+    """Usa GPT-4o (anche Vision se viene caricata la foto di un volantino) per estrarre/abbellire i prodotti."""
     if not _GET_OPENAI_CFG_FN:
         return None
     api_key, model = _GET_OPENAI_CFG_FN()
     if not api_key:
         return None
 
-    sample_prods = [
-        {"idx": i, "codice": p.get("codice", ""), "nome": p.get("nome", ""), "prezzo": p.get("prezzo", ""), "um": p.get("um", "PZ"), "categoria": p.get("categoria", "")}
-        for i, p in enumerate(products[:36])
-    ]
-
-    sys_prompt = """Sei un Art Director e Copywriter Gourmet specializzato in cataloghi e volantini Ho.Re.Ca. di fascia alta.
-Il tuo compito è trasformare una lista grezza di prodotti in un Volantino 3.0 editoriale, non in griglia standard, ma con gerarchia visiva dinamica (Hero + Spotlight + Card asimmetriche).
-Restituisci ESCLUSIVAMENTE un oggetto JSON valido con questa struttura:
+    try:
+        if image_b64:
+            # Estrazione diretta da immagine/screenshot di un volantino (es. foto Capecchi)
+            vision_prompt = """Analizza questa immagine di un volantino prodotti e restituisci ESCLUSIVAMENTE un JSON valido con:
 {
-  "titolo": "Titolo principale accattivante",
-  "sottotitolo": "Sottotitolo persuasivo",
-  "tagline": "Breve motto in alto (es. SELEZIONE CHEF)",
-  "stile": "uno tra: luxury_gold, mare_bistrot, steakhouse_fire, pop_promo, tradizione_italiana, minimal_chic",
-  "layout_mode": "uno tra: bento_editorial, hero_spotlight, zigzag_gourmet, collage_pop, luxury_split",
-  "prodotti_arricchiti": [
+  "titolo": "Titolo banner in alto (es. PROMO OTTOBRE)",
+  "brand_header": "Nome azienda nel logo in alto a sinistra (es. Capecchi)",
+  "prodotti": [
     {
-      "idx": 0,
-      "titolo_ai": "Nome prodotto pulito ed elegante",
-      "descrizione_ai": "Breve descrizione gastronomica persuasiva (max 85 caratteri)",
-      "badge_ai": "Badge breve es. 🔥 TOP OFFERTA o ⭐ SCELTA CHEF",
-      "is_hero": true
+      "codice": "codice articolo es. 40616.002",
+      "titolo": "Nome del prodotto es. Prosciutto Mattonella Dolcetta sv",
+      "brand": "Sottotitolo/marchio in corsivo es. S.Alessandro",
+      "imballo": "Testo imballo es. Imballo 5.50 kg",
+      "prezzo": 8.80,
+      "um": "al KG",
+      "row_span": 2,
+      "is_red_price": true
     }
   ]
+}
+Imposta row_span=2 per i prodotti con immagine grande sviluppata in verticale su 2 righe e row_span=1 per gli altri."""
+            resp = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": vision_prompt},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+                            ]
+                        }
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.2
+                },
+                timeout=35
+            )
+            if resp.status_code == 200:
+                return json.loads(resp.json()["choices"][0]["message"]["content"])
+
+        if products:
+            sample = [
+                {"idx": i, "codice": p.get("codice", ""), "nome": p.get("nome", ""), "prezzo": p.get("prezzo", ""), "um": p.get("um", "KG")}
+                for i, p in enumerate(products[:35])
+            ]
+            sys_prompt = """Sei un Art Director esperto in volantini promozionali Ho.Re.Ca. stile distributore alimentare (come Capecchi / Pregis).
+Per ciascun prodotto separa o deduci un 'titolo_ai' pulito, un 'brand_ai' (marchio o linea in corsivo), un 'imballo_ai' (es. 'Imballo 4.50 kg') e un 'badge_ai' breve.
+Restituisci SOLO un oggetto JSON:
+{
+  "titolo": "es. PROMO OTTOBRE",
+  "prodotti_arricchiti": [
+    {"idx": 0, "titolo_ai": "...", "brand_ai": "...", "imballo_ai": "...", "badge_ai": "..."}
+  ]
 }"""
-
-    user_msg = f"Prodotti da impaginare: {json.dumps(sample_prods, ensure_ascii=False)}\n"
-    if current_flyer:
-        user_msg += f"Stato attuale volantino: stile={current_flyer.get('stile')}, layout={current_flyer.get('layout_mode')}, titolo={current_flyer.get('titolo')}\n"
-    if user_prompt:
-        user_msg += f"ISTRUZIONE SPECIFICA DELL'UTENTE: {user_prompt}\n"
-
-    try:
-        resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": model or "gpt-4o",
-                "messages": [
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_msg}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.4
-            },
-            timeout=25
-        )
-        if resp.status_code == 200:
-            content = resp.json()["choices"][0]["message"]["content"]
-            return json.loads(content)
+            resp = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": model or "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": f"Prodotti: {json.dumps(sample, ensure_ascii=False)}\nIstruzioni: {user_prompt}"}
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.3
+                },
+                timeout=25
+            )
+            if resp.status_code == 200:
+                return json.loads(resp.json()["choices"][0]["message"]["content"])
     except Exception as e:
-        print(f"⚠️ OpenAI Volantini 3.0 fallback a Smart Engine: {e}")
+        print(f"⚠️ OpenAI Volantini 3.0 warning: {e}")
     return None
 
 
-def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: str = "", per_page: int = 6) -> dict:
-    """Costruisce la struttura completa multi-pagina del Volantino 3.0 AI."""
-    # 1. Sincronizza con DB per recuperare immagini esistenti e categorie
+def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: str = "", per_page: int = 10) -> dict:
+    """Costruisce il Volantino 3.0 AI con il layout asimmetrico stile Capecchi (Torri 2-righe + celle standard) abbellito."""
     db_by_code = {}
     db_by_name = {}
     try:
@@ -293,19 +294,14 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
                 if d.get("nome"):
                     db_by_name[str(d["nome"]).strip().upper()] = d
     except Exception as e:
-        print(f"⚠️ DB lookup warning in build_rich_flyer_data: {e}")
+        print(f"⚠️ DB lookup warning: {e}")
 
-    meta = detect_best_theme_and_header(raw_products, filename)
-    ai_res = call_openai_for_flyer_3(raw_products, user_prompt=user_prompt)
+    default_title, default_stile = get_mesi_stagione_default()
+    ai_res = call_openai_vision_or_enrich(raw_products, user_prompt=user_prompt)
     ai_map = {}
     if ai_res:
-        meta["titolo"] = ai_res.get("titolo") or meta["titolo"]
-        meta["sottotitolo"] = ai_res.get("sottotitolo") or meta["sottotitolo"]
-        meta["tagline"] = ai_res.get("tagline") or meta["tagline"]
-        if ai_res.get("stile") in ("luxury_gold", "mare_bistrot", "steakhouse_fire", "pop_promo", "tradizione_italiana", "minimal_chic"):
-            meta["stile"] = ai_res["stile"]
-        if ai_res.get("layout_mode") in ("bento_editorial", "hero_spotlight", "zigzag_gourmet", "collage_pop", "luxury_split"):
-            meta["layout_mode"] = ai_res["layout_mode"]
+        if ai_res.get("titolo"):
+            default_title = ai_res["titolo"]
         for item in (ai_res.get("prodotti_arricchiti") or []):
             if "idx" in item:
                 ai_map[int(item["idx"])] = item
@@ -313,155 +309,121 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
     enriched_items = []
     for idx, p in enumerate(raw_products):
         code = str(p.get("codice") or "").strip()
-        raw_name = str(p.get("nome") or p.get("titolo") or "Prodotto").strip()
-        um = str(p.get("um") or "PZ").strip().upper()
-        cat = str(p.get("categoria") or "SELEZIONE").strip()
+        raw_name = str(p.get("titolo") or p.get("nome") or "Prodotto").strip()
+        raw_um = str(p.get("um") or "KG").strip().upper()
+        um_label = raw_um if raw_um.startswith("AL ") else f"al {raw_um}"
+        cat = str(p.get("categoria") or "OFFERTE").strip()
 
-        # Prezzo formattato
-        prz_raw = p.get("prezzo_str") or p.get("prezzo") or ""
-        if isinstance(prz_raw, (int, float)):
-            prz_num = float(prz_raw)
-        else:
-            m_p = re.search(r'(\d+[\.,]\d{1,2}|\d+)', str(prz_raw))
-            prz_num = float(m_p.group(1).replace(",", ".")) if m_p else 0.0
-        prezzo_fmt = f"{prz_num:.2f}".replace(".", ",") if prz_num > 0 else "N/D"
+        p_int, p_dec, p_full = split_price_parts(p.get("prezzo_str") or p.get("prezzo") or 0)
 
-        # Match immagine dal DB
         db_match = db_by_code.get(code.upper()) or db_by_name.get(raw_name.upper())
         img_url = str(p.get("immagine") or "")
         if not img_url and db_match and db_match.get("immagine"):
             img_val = db_match["immagine"]
-            if img_val.startswith("http") or img_val.startswith("/"):
-                img_url = img_val
-            else:
-                img_url = f"/static/uploads/volantino_prodotti/{img_val}"
+            img_url = img_val if (img_val.startswith("http") or img_val.startswith("/")) else f"/static/uploads/volantino_prodotti/{img_val}"
 
-        if db_match and db_match.get("categoria_nome") and cat in ("OFFERTE", "SELEZIONE", ""):
-            cat = db_match["categoria_nome"]
+        info = extract_brand_and_imballo(raw_name, cat, idx)
+        ai_it = ai_map.get(idx, {})
 
-        smart_info = generate_smart_copy_and_badge(raw_name, cat, idx)
-        ai_item = ai_map.get(idx, {})
-
-        titolo_clean = ai_item.get("titolo_ai") or beautify_product_name(raw_name)
-        desc_clean = ai_item.get("descrizione_ai") or smart_info["descrizione_ai"]
-        badge_clean = ai_item.get("badge_ai") or smart_info["badge_ai"]
+        titolo_clean = ai_it.get("titolo_ai") or p.get("titolo") or info["titolo_pulito"]
+        brand_clean = ai_it.get("brand_ai") or p.get("brand") or info["brand"]
+        imballo_clean = ai_it.get("imballo_ai") or p.get("imballo") or info["imballo"]
+        badge_clean = ai_it.get("badge_ai") or p.get("badge") or info["badge"]
 
         enriched_items.append({
             "id": db_match["id"] if db_match else p.get("id"),
-            "codice": code,
+            "codice": code or f"{40000 + idx}",
             "nome_originale": raw_name,
             "titolo": titolo_clean,
-            "descrizione": desc_clean,
+            "brand": brand_clean,
+            "imballo": imballo_clean,
             "badge": badge_clean,
-            "prezzo": prezzo_fmt,
-            "um": um,
+            "prezzo": p_full,
+            "prezzo_int": p_int,
+            "prezzo_dec": p_dec,
+            "um": um_label,
             "categoria": cat,
             "immagine": img_url,
             "imageZoom": float(p.get("imageZoom") or 1.0),
-            "is_hero": bool(ai_item.get("is_hero", False))
+            "row_span": int(p.get("row_span") or 1),
+            "col_span": int(p.get("col_span") or 1),
+            "is_red_price": bool(p.get("is_red_price", False))
         })
 
-    # Suddivisione in pagine editoriali (default 6 prodotti per pagina per dare respiro grafico)
+    # Suddivisione in pagine (10 prodotti per pagina = schema esatto Capecchi:
+    # Riga 1-2: Colonna 1 Alta (row_span=2, prezzo rosso), Colonna 2 con 2 prodotti impilati, Colonna 3 Alta (row_span=2, prezzo rosso)
+    # Riga 3: 3 prodotti standard
+    # Riga 4: 3 prodotti standard)
     pages = []
     if not enriched_items:
-        pages.append({"page_number": 1, "subtitle": "", "items": []})
+        pages.append({"page_number": 1, "items": []})
     else:
         for p_idx in range(0, len(enriched_items), per_page):
             chunk = enriched_items[p_idx:p_idx + per_page]
-            # Assicura che ogni pagina abbia esattamente 1 Hero (il primo se nessuno è marcato)
-            has_hero = any(it.get("is_hero") for it in chunk)
-            if not has_hero and chunk:
-                chunk[0]["is_hero"] = True
+            # Applica automaticamente la geometria Capecchi se i row_span sono tutti 1
+            if all(it.get("row_span", 1) == 1 and it.get("col_span", 1) == 1 for it in chunk):
+                if len(chunk) >= 4:
+                    # 1° prodotto: Torre Sinistra (2 righe, prezzo rosso)
+                    chunk[0]["row_span"] = 2
+                    chunk[0]["is_red_price"] = True
+                    # 2° e 3° prodotto: Impilati al centro (1 riga ciascuno)
+                    chunk[1]["row_span"] = 1
+                    chunk[2]["row_span"] = 1
+                    # 4° prodotto: Torre Destra (2 righe, prezzo rosso)
+                    chunk[3]["row_span"] = 2
+                    chunk[3]["is_red_price"] = True
+                elif len(chunk) >= 1:
+                    chunk[0]["is_red_price"] = True
+
             pages.append({
                 "page_number": (p_idx // per_page) + 1,
-                "subtitle": f"Selezione Speciale • Pagina {(p_idx // per_page) + 1}",
                 "items": chunk
             })
 
     return {
-        "titolo": meta["titolo"],
-        "sottotitolo": meta["sottotitolo"],
-        "tagline": meta["tagline"],
-        "stile": meta["stile"],
-        "layout_mode": meta["layout_mode"],
+        "brand_header": "Capecchi",
+        "brand_sub": "al servizio della ristorazione",
+        "titolo": default_title,
+        "sottotitolo": "Selezione Speciale Ho.Re.Ca. • Qualità Garantita",
+        "stile": default_stile,
+        "layout_mode": "capecchi_10",
+        "show_ai_badges": True,
         "per_page": per_page,
-        "footer_note": "Prezzi IVA esclusa riservati agli operatori professionali Ho.Re.Ca. • Offerta valida salvo esaurimento scorte.",
+        "footer_brand": "Capecchi",
         "pages": pages
     }
 
 
 def apply_smart_restyle(flyer_data: dict, prompt_text: str) -> dict:
-    """Applica modifiche grafiche e di contenuto in base al comando naturale dell'utente."""
     p_low = (prompt_text or "").lower()
 
-    # 1. Cambio Stile / Palette
-    if any(k in p_low for k in ["nero", "oro", "lusso", "luxury", "elegante", "scuro", "gourmet", "michelin"]):
-        flyer_data["stile"] = "luxury_gold"
-    elif any(k in p_low for k in ["mare", "pesce", "blu", "azzurro", "ittic", "fresco", "mediterraneo"]):
-        flyer_data["stile"] = "mare_bistrot"
-    elif any(k in p_low for k in ["carne", "steak", "braceria", "fuoco", "griglia", "grill", "angus"]):
-        flyer_data["stile"] = "steakhouse_fire"
-    elif any(k in p_low for k in ["pop", "offerta", "aggressiv", "giallo", "rosso", "lampo", "scont"]):
-        flyer_data["stile"] = "pop_promo"
-    elif any(k in p_low for k in ["italia", "pizzeria", "tradizion", "rustic", "caldo", "terracotta"]):
-        flyer_data["stile"] = "tradizione_italiana"
-    elif any(k in p_low for k in ["minimal", "bianco", "pulito", "moderno", "chiaro"]):
-        flyer_data["stile"] = "minimal_chic"
+    if any(k in p_low for k in ["autunn", "ottobre", "novembre", "foglie", "arancio", "capecchi"]):
+        flyer_data["stile"] = "capecchi_autunno"
+    elif any(k in p_low for k in ["natal", "invern", "dicembre", "feste", "rosso"]):
+        flyer_data["stile"] = "capecchi_inverno"
+    elif any(k in p_low for k in ["mare", "pesce", "estate", "blu", "azzurr", "ittic"]):
+        flyer_data["stile"] = "capecchi_mare"
+    elif any(k in p_low for k in ["nero", "oro", "luxury", "gourmet", "elegante", "scuro"]):
+        flyer_data["stile"] = "capecchi_luxury_dark"
+    elif any(k in p_low for k in ["carne", "grill", "brace", "steak", "fuoco"]):
+        flyer_data["stile"] = "capecchi_grill"
+    elif any(k in p_low for k in ["primaver", "verde", "fresc", "orto", "bio"]):
+        flyer_data["stile"] = "capecchi_primavera"
 
-    # 2. Cambio Layout Non-Griglia
-    if any(k in p_low for k in ["bento", "asimmetric"]):
-        flyer_data["layout_mode"] = "bento_editorial"
-    elif any(k in p_low for k in ["hero", "spotlight", "gigante", "grande in alto"]):
-        flyer_data["layout_mode"] = "hero_spotlight"
-    elif any(k in p_low for k in ["zig", "alternat", "rivista", "magazine"]):
-        flyer_data["layout_mode"] = "zigzag_gourmet"
-    elif any(k in p_low for k in ["collage", "inclinat", "dinamic", "movimento"]):
-        flyer_data["layout_mode"] = "collage_pop"
-    elif any(k in p_low for k in ["split", "catalogo", "cornic"]):
-        flyer_data["layout_mode"] = "luxury_split"
+    # Estrazione eventuale nuovo titolo tra virgolette o dopo "titolo"
+    m_tit = re.search(r'titolo\s+["\']?([A-Za-zÀ-ÿ0-9\s]{3,30})["\']?', prompt_text, re.IGNORECASE)
+    if m_tit:
+        flyer_data["titolo"] = m_tit.group(1).strip().upper()
 
-    # 3. Se l'utente chiede di mettere un prodotto specifico come Hero / in evidenza
-    for page in (flyer_data.get("pages") or []):
-        items = page.get("items") or []
-        matched_idx = None
-        for idx, it in enumerate(items):
-            t_low = (it.get("titolo") or "").lower()
-            words = [w for w in re.findall(r'[a-zA-ZÀ-ÿ]{4,}', t_low)]
-            if any(w in p_low for w in words):
-                matched_idx = idx
-                break
-        if matched_idx is not None and any(k in p_low for k in ["hero", "evidenza", "primo", "principale", "gigante", "grande"]):
-            for it in items:
-                it["is_hero"] = False
-            items[matched_idx]["is_hero"] = True
-            hero_item = items.pop(matched_idx)
-            items.insert(0, hero_item)
+    if "senza badge" in p_low or "nascondi badge" in p_low:
+        flyer_data["show_ai_badges"] = False
+    elif "con badge" in p_low or "mostra badge" in p_low:
+        flyer_data["show_ai_badges"] = True
 
-    # 4. Se c'è anche OpenAI configurato, arricchisce ulteriormente titoli/descrizioni secondo il prompt
-    all_items = [it for pg in (flyer_data.get("pages") or []) for it in (pg.get("items") or [])]
-    ai_res = call_openai_for_flyer_3(all_items, user_prompt=prompt_text, current_flyer=flyer_data)
-    if ai_res:
-        if ai_res.get("titolo"):
-            flyer_data["titolo"] = ai_res["titolo"]
-        if ai_res.get("sottotitolo"):
-            flyer_data["sottotitolo"] = ai_res["sottotitolo"]
-        if ai_res.get("stile"):
-            flyer_data["stile"] = ai_res["stile"]
-        if ai_res.get("layout_mode"):
-            flyer_data["layout_mode"] = ai_res["layout_mode"]
-        ai_map = {int(x["idx"]): x for x in (ai_res.get("prodotti_arricchiti") or []) if "idx" in x}
-        flat_idx = 0
+    if "tutti rossi" in p_low or "prezzi rossi" in p_low:
         for pg in (flyer_data.get("pages") or []):
             for it in (pg.get("items") or []):
-                if flat_idx in ai_map:
-                    upd = ai_map[flat_idx]
-                    if upd.get("titolo_ai"):
-                        it["titolo"] = upd["titolo_ai"]
-                    if upd.get("descrizione_ai"):
-                        it["descrizione"] = upd["descrizione_ai"]
-                    if upd.get("badge_ai"):
-                        it["badge"] = upd["badge_ai"]
-                flat_idx += 1
+                it["is_red_price"] = True
 
     return flyer_data
 
@@ -519,30 +481,42 @@ def api_volantini_3_genera_da_pdf():
         return jsonify({"ok": False, "error": "Non autorizzato"}), 401
 
     user_prompt = (request.form.get("prompt") or "").strip()
-    per_page = int(request.form.get("per_page") or 6)
+    per_page = int(request.form.get("per_page") or 10)
     categoria_id = request.form.get("categoria_id")
     raw_text = (request.form.get("raw_text") or "").strip()
 
     products = []
     filename = ""
+    vision_title = None
+    vision_brand = None
 
     file = request.files.get("pdf") or request.files.get("file")
     if file and file.filename:
         filename = file.filename
-        temp_dir = tempfile.gettempdir()
-        temp_path = os.path.join(temp_dir, f"v3_{int(time.time())}_{werkzeug.utils.secure_filename(filename)}")
-        file.save(temp_path)
-        try:
-            if _EXTRACT_PDF_FN:
-                products = _EXTRACT_PDF_FN(temp_path)
-        finally:
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
+        ext = os.path.splitext(filename)[1].lower()
 
-    # Fallback: se l'utente ha scelto una categoria dal catalogo o incollato testo
+        if ext in (".jpg", ".jpeg", ".png", ".webp"):
+            img_bytes = file.read()
+            b64_str = base64.b64encode(img_bytes).decode("utf-8")
+            v_res = call_openai_vision_or_enrich([], user_prompt=user_prompt, image_b64=b64_str)
+            if v_res and v_res.get("prodotti"):
+                products = v_res["prodotti"]
+                vision_title = v_res.get("titolo")
+                vision_brand = v_res.get("brand_header")
+        else:
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, f"v3_{int(time.time())}_{werkzeug.utils.secure_filename(filename)}")
+            file.save(temp_path)
+            try:
+                if _EXTRACT_PDF_FN:
+                    products = _EXTRACT_PDF_FN(temp_path)
+            finally:
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
+
     if not products and categoria_id:
         try:
             with _GET_DB() as conn:
@@ -553,7 +527,7 @@ def api_volantini_3_genera_da_pdf():
                         FROM prodotti p
                         LEFT JOIN categorie c ON p.categoria_id = c.id
                         WHERE COALESCE(p.eliminato, FALSE) = FALSE
-                        ORDER BY p.id DESC LIMIT 18
+                        ORDER BY p.id DESC LIMIT 20
                     """)
                 else:
                     cur.execute("""
@@ -561,7 +535,7 @@ def api_volantini_3_genera_da_pdf():
                         FROM prodotti p
                         LEFT JOIN categorie c ON p.categoria_id = c.id
                         WHERE p.categoria_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
-                        ORDER BY p.nome LIMIT 24
+                        ORDER BY p.nome LIMIT 30
                     """, (int(categoria_id),))
                 for r in cur.fetchall():
                     d = dict(r)
@@ -572,12 +546,12 @@ def api_volantini_3_genera_da_pdf():
                         "codice": d.get("codice") or "",
                         "nome": d["nome"],
                         "prezzo": float(d.get("prezzo") or 0),
-                        "um": "PZ",
-                        "categoria": d.get("categoria") or "SELEZIONE",
+                        "um": "KG",
+                        "categoria": d.get("categoria") or "OFFERTE",
                         "immagine": img_u
                     })
         except Exception as e:
-            print(f"⚠️ Errore caricamento prodotti da categoria in Volantini 3.0: {e}")
+            print(f"⚠️ Errore caricamento prodotti da categoria: {e}")
 
     if not products and raw_text:
         for line in raw_text.splitlines():
@@ -587,25 +561,30 @@ def api_volantini_3_genera_da_pdf():
             m_price = re.search(r'(\d+[\.,]\d{2})', line)
             prz = float(m_price.group(1).replace(",", ".")) if m_price else 0.0
             clean_n = re.sub(r'€?\s*\d+[\.,]\d{2}', '', line).strip(" -–•\t")
-            m_code = re.match(r'^([A-Za-z0-9]{3,12})\s+(.+)$', clean_n)
+            m_code = re.match(r'^([A-Za-z0-9\.]{3,14})\s+(.+)$', clean_n)
             cod = m_code.group(1) if m_code else ""
             nom = m_code.group(2) if m_code else clean_n
             if nom:
-                products.append({"codice": cod, "nome": nom, "prezzo": prz, "um": "PZ", "categoria": "OFFERTE"})
+                products.append({"codice": cod, "nome": nom, "prezzo": prz, "um": "KG", "categoria": "OFFERTE"})
 
     if not products:
         return jsonify({
             "ok": False,
-            "error": "Nessun prodotto rilevato nel PDF. Assicurati che il PDF contenga codici e prezzi oppure seleziona una categoria dal catalogo."
+            "error": "Nessun prodotto trovato nel file caricato. Assicurati che il PDF contenga codici e prezzi oppure scegli una categoria dal catalogo."
         }), 400
 
     flyer_data = build_rich_flyer_data(products, filename=filename, user_prompt=user_prompt, per_page=per_page)
+    if vision_title:
+        flyer_data["titolo"] = vision_title
+    if vision_brand:
+        flyer_data["brand_header"] = vision_brand
+        flyer_data["footer_brand"] = vision_brand
     if user_prompt:
         flyer_data = apply_smart_restyle(flyer_data, user_prompt)
 
     return jsonify({
         "ok": True,
-        "message": f"✨ Volantino 3.0 generato con AI: {len(products)} prodotti impaginati in {len(flyer_data['pages'])} pagine editoriali!",
+        "message": f"✨ Volantino 3.0 generato con successo ({len(products)} prodotti in {len(flyer_data['pages'])} pagine)!",
         "flyer": flyer_data
     })
 
@@ -625,7 +604,7 @@ def api_volantini_3_ai_restyle():
     updated = apply_smart_restyle(flyer_data, prompt_text)
     return jsonify({
         "ok": True,
-        "message": "✨ Design e contenuti rigenerati con successo!",
+        "message": "✨ Volantino abbellito e aggiornato!",
         "flyer": updated
     })
 
@@ -638,10 +617,10 @@ def api_volantini_3_salva():
     data = request.get_json(silent=True) or {}
     vol_id = data.get("id")
     flyer = data.get("flyer") or {}
-    titolo = (flyer.get("titolo") or "Volantino 3.0 AI").strip()
+    titolo = (flyer.get("titolo") or "PROMO VOLANTINO 3.0").strip()
     sottotitolo = (flyer.get("sottotitolo") or "").strip()
-    stile = flyer.get("stile") or "luxury_gold"
-    layout_mode = flyer.get("layout_mode") or "bento_editorial"
+    stile = flyer.get("stile") or "capecchi_autunno"
+    layout_mode = flyer.get("layout_mode") or "capecchi_10"
     dati_json = json.dumps(flyer, ensure_ascii=False)
 
     try:
