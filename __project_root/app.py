@@ -11772,13 +11772,13 @@ def comparatore_scarica_pdf_diretto(id):
         return redirect(url_for('comparatore_stampa', id=id))
 
 # ============================
-# AGENTE OPERATIVO AI (OPENAI GPT-4o + FALLBACK LOCALE)
+# AGENTE OPERATIVO AI (OPENAI GPT-4o + FALLBACK LOCALE) & VOLANTINI 3.0 AI
 # ============================
 try:
     import sys as _sys
     if BASE_DIR not in _sys.path:
         _sys.path.insert(0, BASE_DIR)
-    from ai_agent import init_ai_agent
+    from ai_agent import init_ai_agent, get_openai_config
     init_ai_agent(
         app=app,
         get_db_fn=get_db,
@@ -11789,9 +11789,16 @@ try:
         get_vol_cfg_fn=get_volantini_impostazioni_dict,
         base_dir=BASE_DIR
     )
-    print("✅ Agente AI inizializzato correttamente")
+    from volantini_3_ai import init_volantini_3
+    init_volantini_3(
+        app=app,
+        get_db_fn=get_db,
+        extract_pdf_fn=extract_products_from_pdf_robust,
+        get_openai_cfg_fn=get_openai_config
+    )
+    print("✅ Agente AI & Volantini 3.0 inizializzati correttamente")
 except Exception as _e_ai:
-    print(f"⚠️ Errore inizializzazione Agente AI: {_e_ai}")
+    print(f"⚠️ Errore inizializzazione Agente AI / Volantini 3.0: {_e_ai}")
 
 # ============================
 # AVVIO APP

@@ -854,9 +854,17 @@
       </li>
 
       <li class="nav-item">
-        <a class="nav-link {% if request.path.startswith('/beta-volantini') or request.path.startswith('/beta-volantino') or request.path.startswith('/volantini') %}active{% endif %}" href="{{ url_for('lista_volantini_beta') }}">
+        <a class="nav-link {% if request.path.startswith('/beta-volantini') or request.path.startswith('/beta-volantino') or (request.path.startswith('/volantini') and not request.path.startswith('/volantini-3')) %}active{% endif %}" href="{{ url_for('lista_volantini_beta') }}">
           <i class="bi bi-palette-fill"></i>
           <span>Volantini & Promo</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link {% if request.path.startswith('/volantini-3') %}active{% endif %}" href="/volantini-3">
+          <i class="bi bi-magic text-warning"></i>
+          <span>Volantini 3.0 AI</span>
+          <span class="badge rounded-pill ms-auto shadow-sm" style="background: linear-gradient(135deg, #4f46e5, #db2777); color: #fff; font-size: 0.62rem; padding: 3px 6px;">3.0 AI</span>
         </a>
       </li>
 

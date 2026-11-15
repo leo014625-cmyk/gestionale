@@ -1,0 +1,1460 @@
+{% extends "01_base.html" %}
+{% block title %}Volantini 3.0 AI Studio — Creazione Editoriale Intelligente{% endblock %}
+
+{% block styles %}
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Montserrat:wght@500;600;700;800;900&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* ==========================================================================
+     STUDIO WORKSPACE LAYOUT
+     ========================================================================== */
+  .v3-studio-wrap {
+    display: grid;
+    grid-template-columns: 370px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 3rem;
+  }
+  @media (max-width: 1199px) {
+    .v3-studio-wrap {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .v3-control-panel {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    position: sticky;
+    top: 16px;
+    overflow: hidden;
+  }
+
+  .v3-panel-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+    color: #fff;
+    padding: 1.15rem 1.25rem;
+  }
+
+  .v3-dropzone {
+    border: 2px dashed #8b5cf6;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(219, 39, 119, 0.05));
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .v3-dropzone:hover, .v3-dropzone.dragover {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(219, 39, 119, 0.12));
+    border-color: #db2777;
+    transform: translateY(-2px);
+  }
+
+  .v3-style-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  .v3-style-btn, .v3-layout-btn {
+    border: 1.5px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    transition: all 0.2s;
+    color: var(--bs-body-color);
+  }
+  .v3-style-btn:hover, .v3-layout-btn:hover {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.05);
+  }
+  .v3-style-btn.active, .v3-layout-btn.active {
+    border-color: #7c3aed;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(124, 58, 237, 0.18));
+    color: #6d28d9;
+    box-shadow: 0 3px 10px rgba(124, 58, 237, 0.15);
+  }
+  .dark-mode .v3-style-btn.active, .dark-mode .v3-layout-btn.active {
+    color: #c4b5fd;
+  }
+
+  .v3-color-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.4);
+  }
+
+  /* ==========================================================================
+     CANVAS AREA & A4 EDITORIAL MAGAZINE PAGES
+     ========================================================================== */
+  .v3-canvas-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.04);
+    border-radius: 20px;
+    min-height: 820px;
+  }
+  .dark-mode .v3-canvas-area {
+    background: rgba(0, 0, 0, 0.25);
+  }
+
+  .v3-page {
+    width: 860px;
+    min-height: 1216px; /* Proporzione A4 verticale editoriale */
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 38px 40px 32px 40px;
+    font-family: 'Montserrat', sans-serif;
+    transition: background 0.35s ease, color 0.35s ease;
+  }
+
+  @media (max-width: 960px) {
+    .v3-page {
+      width: 100%;
+      min-height: auto;
+      padding: 24px 20px;
+    }
+  }
+
+  /* Decorazioni di sfondo artistiche */
+  .v3-page-bg-decor {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .v3-page-content {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ==========================================================================
+     6 TEMI EDITORIALI AI (NON-STANDARD, RICCHI DI ATMOSFERA)
+     ========================================================================== */
+  /* 1. LUXURY GOLD & OBSIDIAN */
+  .v3-page[data-theme="luxury_gold"] {
+    background:
+      radial-gradient(circle at 18% 12%, rgba(245, 158, 11, 0.24), transparent 48%),
+      radial-gradient(circle at 85% 82%, rgba(217, 119, 6, 0.20), transparent 52%),
+      linear-gradient(160deg, #090d16 0%, #111827 52%, #070a12 100%);
+    color: #f8fafc;
+    --v3-accent: #f59e0b;
+    --v3-accent-2: #fbbf24;
+    --v3-card-bg: rgba(30, 41, 59, 0.78);
+    --v3-card-border: rgba(245, 158, 11, 0.38);
+    --v3-text-main: #ffffff;
+    --v3-text-muted: #cbd5e1;
+    --v3-price-bg: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --v3-price-text: #090d16;
+    --v3-badge-bg: rgba(245, 158, 11, 0.2);
+    --v3-badge-text: #fde68a;
+    --v3-title-font: 'Playfair Display', serif;
+  }
+
+  /* 2. MARE & BISTROT MEDITERRANEO */
+  .v3-page[data-theme="mare_bistrot"] {
+    background:
+      radial-gradient(circle at 85% 12%, rgba(56, 189, 248, 0.38), transparent 48%),
+      radial-gradient(circle at 12% 88%, rgba(20, 184, 166, 0.28), transparent 52%),
+      linear-gradient(160deg, #042f49 0%, #075985 52%, #0c4a6e 100%);
+    color: #f0f9ff;
+    --v3-accent: #38bdf8;
+    --v3-accent-2: #2dd4bf;
+    --v3-card-bg: rgba(255, 255, 255, 0.94);
+    --v3-card-border: rgba(56, 189, 248, 0.55);
+    --v3-text-main: #0f172a;
+    --v3-text-muted: #475569;
+    --v3-price-bg: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    --v3-price-text: #ffffff;
+    --v3-badge-bg: #e0f2fe;
+    --v3-badge-text: #0369a1;
+    --v3-title-font: 'Playfair Display', serif;
+  }
+
+  /* 3. STEAKHOUSE & BRACERIA FIRE */
+  .v3-page[data-theme="steakhouse_fire"] {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.35), transparent 55%),
+      radial-gradient(circle at 88% 85%, rgba(234, 88, 12, 0.25), transparent 50%),
+      linear-gradient(165deg, #140707 0%, #1c1917 55%, #0c0a09 100%);
+    color: #fafaf9;
+    --v3-accent: #ef4444;
+    --v3-accent-2: #f97316;
+    --v3-card-bg: rgba(28, 25, 23, 0.88);
+    --v3-card-border: rgba(239, 68, 68, 0.42);
+    --v3-text-main: #fafaf9;
+    --v3-text-muted: #d6d3d1;
+    --v3-price-bg: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+    --v3-price-text: #ffffff;
+    --v3-badge-bg: rgba(220, 38, 38, 0.25);
+    --v3-badge-text: #fca5a5;
+    --v3-title-font: 'Oswald', sans-serif;
+  }
+
+  /* 4. POP SUPER PROMO */
+  .v3-page[data-theme="pop_promo"] {
+    background:
+      radial-gradient(circle at 15% 15%, rgba(250, 204, 21, 0.38), transparent 45%),
+      radial-gradient(circle at 90% 80%, rgba(249, 115, 22, 0.35), transparent 50%),
+      linear-gradient(150deg, #991b1b 0%, #dc2626 50%, #7f1d1d 100%);
+    color: #ffffff;
+    --v3-accent: #facc15;
+    --v3-accent-2: #fde047;
+    --v3-card-bg: #ffffff;
+    --v3-card-border: #0f172a;
+    --v3-text-main: #0f172a;
+    --v3-text-muted: #334155;
+    --v3-price-bg: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+    --v3-price-text: #0f172a;
+    --v3-badge-bg: #fef08a;
+    --v3-badge-text: #991b1b;
+    --v3-title-font: 'Oswald', sans-serif;
+  }
+
+  /* 5. TRADIZIONE ITALIANA & PIZZERIA GOURMET */
+  .v3-page[data-theme="tradizione_italiana"] {
+    background:
+      radial-gradient(circle at 85% 10%, rgba(180, 83, 9, 0.14), transparent 45%),
+      radial-gradient(circle at 15% 90%, rgba(21, 128, 61, 0.12), transparent 50%),
+      linear-gradient(160deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
+    color: #451a03;
+    --v3-accent: #b45309;
+    --v3-accent-2: #15803d;
+    --v3-card-bg: rgba(255, 255, 255, 0.95);
+    --v3-card-border: rgba(180, 83, 9, 0.32);
+    --v3-text-main: #292524;
+    --v3-text-muted: #57534e;
+    --v3-price-bg: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+    --v3-price-text: #ffffff;
+    --v3-badge-bg: #dcfce7;
+    --v3-badge-text: #166534;
+    --v3-title-font: 'Playfair Display', serif;
+  }
+
+  /* 6. MINIMAL CHIC CONTEMPORARY */
+  .v3-page[data-theme="minimal_chic"] {
+    background:
+      radial-gradient(circle at 10% 10%, rgba(79, 70, 229, 0.12), transparent 48%),
+      radial-gradient(circle at 90% 90%, rgba(236, 72, 153, 0.10), transparent 48%),
+      linear-gradient(160deg, #f8fafc 0%, #eef2ff 100%);
+    color: #0f172a;
+    --v3-accent: #4f46e5;
+    --v3-accent-2: #db2777;
+    --v3-card-bg: #ffffff;
+    --v3-card-border: rgba(79, 70, 229, 0.22);
+    --v3-text-main: #0f172a;
+    --v3-text-muted: #475569;
+    --v3-price-bg: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    --v3-price-text: #ffffff;
+    --v3-badge-bg: #e0e7ff;
+    --v3-badge-text: #3730a3;
+    --v3-title-font: 'Montserrat', sans-serif;
+  }
+
+  /* ==========================================================================
+     HEADER EDITORIALE DELLA PAGINA
+     ========================================================================== */
+  .v3-editorial-header {
+    text-align: center;
+    margin-bottom: 26px;
+    position: relative;
+    padding-bottom: 18px;
+    border-bottom: 2px solid var(--v3-card-border);
+  }
+  .v3-tagline-pill {
+    display: inline-block;
+    padding: 5px 16px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    background: var(--v3-price-bg);
+    color: var(--v3-price-text);
+    margin-bottom: 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+  .v3-main-title {
+    font-family: var(--v3-title-font);
+    font-size: 2.35rem;
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  }
+  .v3-sub-title {
+    font-size: 0.92rem;
+    font-weight: 500;
+    opacity: 0.88;
+  }
+
+  /* ==========================================================================
+     5 LAYOUT ASIMMETRICI NON-GRIGLIA (BENTO, HERO, ZIGZAG, COLLAGE, SPLIT)
+     ========================================================================== */
+  .v3-magazine-stage {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 18px;
+    flex: 1;
+    align-content: stretch;
+  }
+
+  .v3-card {
+    background: var(--v3-card-bg);
+    border: 1.5px solid var(--v3-card-border);
+    border-radius: 20px;
+    padding: 18px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+    backdrop-filter: blur(10px);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    overflow: hidden;
+    color: var(--v3-text-main);
+  }
+  .v3-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  }
+
+  /* BENTO EDITORIAL: Hero 7 col + 5 col, poi 5 col + 7 col, poi 6 + 6 */
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(1) {
+    grid-column: span 7;
+    grid-row: span 2;
+    padding: 24px;
+    border-width: 2.5px;
+  }
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(2) {
+    grid-column: span 5;
+    grid-row: span 2;
+  }
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(3) {
+    grid-column: span 5;
+  }
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(4) {
+    grid-column: span 7;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+  }
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(5),
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(6) {
+    grid-column: span 6;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(n+7) {
+    grid-column: span 4;
+  }
+
+  /* HERO SPOTLIGHT: 1° prodotto full-width 12 col orizzontale spettacolare, poi 6+6, poi 4+4+4 */
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(1) {
+    grid-column: span 12;
+    flex-direction: row;
+    align-items: center;
+    gap: 28px;
+    padding: 26px 30px;
+    border-width: 2.5px;
+  }
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(1) .v3-img-stage {
+    width: 45%;
+    height: 230px;
+    flex-shrink: 0;
+  }
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(2),
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(3) {
+    grid-column: span 6;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(n+4) {
+    grid-column: span 4;
+  }
+
+  /* ZIG-ZAG GOURMET MAGAZINE: Fasce editoriali alternate */
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(1) {
+    grid-column: span 8;
+    flex-direction: row;
+    align-items: center;
+    gap: 22px;
+  }
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(2) {
+    grid-column: span 4;
+  }
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(3) {
+    grid-column: span 4;
+  }
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(4) {
+    grid-column: span 8;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 22px;
+  }
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(n+5) {
+    grid-column: span 6;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* COLLAGE DINAMICO POP: Card inclinate con ombre nette e ritmo asimmetrico */
+  .v3-page[data-layout="collage_pop"] .v3-card {
+    border-width: 2.5px;
+    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.35);
+  }
+  .v3-page[data-layout="collage_pop"] .v3-card:nth-child(1) {
+    grid-column: span 7;
+    transform: rotate(-1.1deg);
+  }
+  .v3-page[data-layout="collage_pop"] .v3-card:nth-child(2) {
+    grid-column: span 5;
+    transform: rotate(1.2deg);
+  }
+  .v3-page[data-layout="collage_pop"] .v3-card:nth-child(3) {
+    grid-column: span 5;
+    transform: rotate(0.9deg);
+  }
+  .v3-page[data-layout="collage_pop"] .v3-card:nth-child(4) {
+    grid-column: span 7;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    transform: rotate(-0.8deg);
+  }
+  .v3-page[data-layout="collage_pop"] .v3-card:nth-child(n+5) {
+    grid-column: span 6;
+    transform: rotate(0.6deg);
+  }
+
+  /* LUXURY SPLIT: Cornici editoriali con piedistallo Hero */
+  .v3-page[data-layout="luxury_split"] .v3-card:nth-child(1) {
+    grid-column: span 12;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 26px;
+    padding: 26px;
+    border: 2px double var(--v3-accent);
+  }
+  .v3-page[data-layout="luxury_split"] .v3-card:nth-child(2) {
+    grid-column: span 7;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+  .v3-page[data-layout="luxury_split"] .v3-card:nth-child(3) {
+    grid-column: span 5;
+  }
+  .v3-page[data-layout="luxury_split"] .v3-card:nth-child(4) {
+    grid-column: span 5;
+  }
+  .v3-page[data-layout="luxury_split"] .v3-card:nth-child(5),
+  .v3-page[data-layout="luxury_split"] .v3-card:nth-child(6) {
+    grid-column: span 7;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* ==========================================================================
+     ELEMENTI INTERNI DELLE CARD PRODOTTO
+     ========================================================================== */
+  .v3-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    background: var(--v3-badge-bg);
+    color: var(--v3-badge-text);
+    width: fit-content;
+    margin-bottom: 8px;
+  }
+
+  .v3-img-stage {
+    width: 100%;
+    height: 155px;
+    border-radius: 14px;
+    background: radial-gradient(circle, rgba(255,255,255,0.92) 0%, rgba(241,245,249,0.75) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 10px;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .v3-card:nth-child(1) .v3-img-stage {
+    height: 225px;
+  }
+  /* Quando la card è in modalità row (orizzontale) */
+  .v3-card[style*="flex-direction: row"] .v3-img-stage,
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(4) .v3-img-stage,
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(5) .v3-img-stage,
+  .v3-page[data-layout="bento_editorial"] .v3-card:nth-child(6) .v3-img-stage,
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(2) .v3-img-stage,
+  .v3-page[data-layout="hero_spotlight"] .v3-card:nth-child(3) .v3-img-stage,
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(1) .v3-img-stage,
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(4) .v3-img-stage,
+  .v3-page[data-layout="zigzag_gourmet"] .v3-card:nth-child(n+5) .v3-img-stage {
+    width: 42%;
+    height: 145px;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .v3-img-stage img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18));
+    transition: transform 0.25s ease;
+  }
+
+  .v3-no-img-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 12px;
+  }
+
+  .v3-prod-code {
+    font-size: 0.65rem;
+    font-weight: 700;
+    opacity: 0.65;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  .v3-prod-title {
+    font-family: var(--v3-title-font);
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 3px 0 6px 0;
+  }
+  .v3-card:nth-child(1) .v3-prod-title {
+    font-size: 1.55rem;
+  }
+
+  .v3-prod-desc {
+    font-size: 0.76rem;
+    line-height: 1.38;
+    color: var(--v3-text-muted);
+    margin-bottom: 10px;
+  }
+
+  .v3-price-tag {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    background: var(--v3-price-bg);
+    color: var(--v3-price-text);
+    padding: 7px 16px;
+    border-radius: 14px;
+    font-weight: 900;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+    margin-top: auto;
+    width: fit-content;
+  }
+  .v3-price-currency {
+    font-size: 0.9rem;
+    font-weight: 800;
+  }
+  .v3-price-amount {
+    font-size: 1.45rem;
+    line-height: 1;
+    letter-spacing: -0.5px;
+  }
+  .v3-card:nth-child(1) .v3-price-amount {
+    font-size: 1.85rem;
+  }
+  .v3-price-um {
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.88;
+    text-transform: uppercase;
+  }
+
+  /* Toolbar flottante su ogni card (visibile solo in hover a schermo, nascosta in export PDF/PNG) */
+  .v3-card-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+  }
+  .v3-card:hover .v3-card-actions {
+    opacity: 1;
+  }
+  .v3-exporting .v3-card-actions {
+    display: none !important;
+  }
+
+  .v3-page-footer {
+    margin-top: 22px;
+    padding-top: 12px;
+    border-top: 1px solid var(--v3-card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    opacity: 0.8;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge rounded-pill px-3 py-1 fw-bold" style="background: linear-gradient(135deg, #4f46e5, #db2777); color: #fff;">
+        <i class="bi bi-stars me-1"></i>NOVITÀ AI STUDIO
+      </span>
+      <h1 class="h3 fw-bold mb-0">Volantini 3.0 AI — Editorial & Magazine Designer</h1>
+    </div>
+    <p class="text-muted small mb-0 mt-1">
+      Carica il PDF dei prodotti: l'Intelligenza Artificiale abbellisce i nomi, scrive le descrizioni gourmet e crea un volantino asimmetrico da rivista (non in griglia standard).
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#v3SavedArchiveModal">
+      <i class="bi bi-folder2-open me-1"></i>Archivio Volantini 3.0 ({{ saved_list|length }})
+    </button>
+    <button type="button" id="v3AutoFindPhotosBtn" class="btn btn-warning btn-sm fw-bold rounded-pill px-3 text-dark shadow-sm">
+      <i class="bi bi-magic me-1"></i>Auto-Completa Foto con AI
+    </button>
+    <button type="button" id="v3SaveFlyerBtn" class="btn btn-success btn-sm fw-bold rounded-pill px-3 shadow-sm">
+      <i class="bi bi-cloud-check-fill me-1"></i>Salva Volantino 3.0
+    </button>
+    <button type="button" id="v3ExportPdfBtn" class="btn btn-primary btn-sm fw-bold rounded-pill px-3 shadow-sm">
+      <i class="bi bi-file-earmark-pdf-fill me-1"></i>Scarica PDF Alta Resa
+    </button>
+  </div>
+</div>
+
+<div class="v3-studio-wrap">
+  <!-- ====================================================================
+       PANNELLO DI CONTROLLO SINISTRO (PDF UPLOAD + AI RESTYLE + TEMI/LAYOUT)
+       ==================================================================== -->
+  <aside class="v3-control-panel">
+    <div class="v3-panel-header">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-magic fs-5 text-warning"></i>
+          <span>Regia Creativa AI 3.0</span>
+        </div>
+        <span class="badge bg-white text-dark fw-bold" style="font-size: 0.68rem;">No-Grid Engine</span>
+      </div>
+      <div class="small mt-1" style="opacity: 0.9; font-size: 0.76rem;">
+        Dal tuo PDF a un catalogo gourmet in 1 clic
+      </div>
+    </div>
+
+    <div class="p-3">
+      <!-- 1. CARICAMENTO PDF PRODOTTI -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          1. Carica PDF Prodotti o Scegli Linea
+        </label>
+        <div id="v3PdfDropzone" class="v3-dropzone">
+          <input type="file" id="v3PdfInput" accept=".pdf" class="d-none">
+          <i class="bi bi-file-earmark-pdf-fill fs-2 text-danger d-block mb-1"></i>
+          <div class="fw-bold small" id="v3DropzoneTitle">Trascina qui il PDF dei Prodotti</div>
+          <div class="text-muted" style="font-size: 0.72rem;">oppure clicca per selezionare il file PDF</div>
+        </div>
+
+        <!-- Alternativa rapida: scegli categoria dal catalogo -->
+        <div class="input-group input-group-sm mt-2">
+          <span class="input-group-text bg-body-tertiary"><i class="bi bi-tags-fill text-primary"></i></span>
+          <select id="v3CatSelect" class="form-select">
+            <option value="">-- Oppure genera da Categoria Catalogo --</option>
+            <option value="all">🌟 Tutti i Prodotti Top a Catalogo</option>
+            {% for cat in categorie %}
+            <option value="{{ cat.id }}">{{ cat.nome }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" id="v3GenFromCatBtn" class="btn btn-outline-primary fw-bold">Genera</button>
+        </div>
+      </div>
+
+      <!-- 2. PROMPT DI ABBELLIMENTO AI -->
+      <div class="mb-3 p-2.5 rounded-3 border" style="background: rgba(124, 58, 237, 0.04);">
+        <label class="form-label small fw-bold d-flex align-items-center justify-content-between mb-1">
+          <span><i class="bi bi-stars text-primary me-1"></i>2. Chiedi all'AI come abbellirlo</span>
+        </label>
+        <textarea id="v3AiPromptInput" class="form-control form-control-sm mb-2" rows="2" placeholder="Es: Rendilo elegante nero e oro stile steakhouse, metti l'Hamburger come Hero gigante..."></textarea>
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          <button type="button" class="badge bg-light text-dark border border-secondary-subtle v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Stile Luxury Nero e Oro con layout Bento Asimmetrico e testi gourmet">✨ Luxury Nero & Oro</button>
+          <button type="button" class="badge bg-light text-dark border border-secondary-subtle v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Stile Mare & Bistrot fresco con Hero Gigante in alto">🌊 Speciale Mare</button>
+          <button type="button" class="badge bg-light text-dark border border-secondary-subtle v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Stile Steakhouse & Braceria con layout Zig-Zag da rivista">🔥 Braceria & Grill</button>
+          <button type="button" class="badge bg-light text-dark border border-secondary-subtle v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Stile Pop Super Promo ad alto impatto con Collage inclinato">⚡ Super Promo Pop</button>
+        </div>
+        <button type="button" id="v3ApplyAiRestyleBtn" class="btn btn-sm w-100 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, #4f46e5, #db2777);">
+          <i class="bi bi-wand me-1"></i>Abbellisci & Rigenera con AI
+        </button>
+      </div>
+
+      <!-- 3. LAYOUT DINAMICO NON-GRIGLIA -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          3. Architettura Visiva (No-Griglia)
+        </label>
+        <div class="v3-style-grid">
+          <button type="button" class="v3-layout-btn active" data-layout="bento_editorial">
+            <i class="bi bi-grid-1x2-fill text-primary"></i>
+            <span>Bento Asimmetrico</span>
+          </button>
+          <button type="button" class="v3-layout-btn" data-layout="hero_spotlight">
+            <i class="bi bi-aspect-ratio-fill text-danger"></i>
+            <span>Hero Gigante + Card</span>
+          </button>
+          <button type="button" class="v3-layout-btn" data-layout="zigzag_gourmet">
+            <i class="bi bi-distribute-vertical text-success"></i>
+            <span>Rivista Zig-Zag</span>
+          </button>
+          <button type="button" class="v3-layout-btn" data-layout="collage_pop">
+            <i class="bi bi-layers-half text-warning"></i>
+            <span>Collage Dinamico</span>
+          </button>
+          <button type="button" class="v3-layout-btn" style="grid-column: span 2;" data-layout="luxury_split">
+            <i class="bi bi-award-fill text-info"></i>
+            <span>Catalogo Luxury Piedistallo Chef</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. TEMA ARTISTICO & PALETTE -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          4. Atmosfera & Direzione Artistica
+        </label>
+        <div class="v3-style-grid">
+          <button type="button" class="v3-style-btn active" data-theme="luxury_gold">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#090d16,#f59e0b);"></span>
+            <span>Luxury Gold</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="mare_bistrot">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#042f49,#38bdf8);"></span>
+            <span>Mare & Bistrot</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="steakhouse_fire">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#180909,#ef4444);"></span>
+            <span>Steakhouse</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="pop_promo">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#dc2626,#facc15);"></span>
+            <span>Pop Promo</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="tradizione_italiana">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#fef3c7,#b45309);"></span>
+            <span>Tradizione IT</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="minimal_chic">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#f8fafc,#4f46e5);"></span>
+            <span>Minimal Chic</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 5. DENSITÀ PRODOTTI PER PAGINA -->
+      <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+        <label class="small fw-bold text-muted mb-0">Prodotti per Pagina:</label>
+        <select id="v3PerPageSelect" class="form-select form-select-sm w-auto fw-bold">
+          <option value="4">4 (Extra Respiro)</option>
+          <option value="5">5 (Bento Ideale)</option>
+          <option value="6" selected>6 (Magazine Standard)</option>
+          <option value="8">8 (Catalogo Ricco)</option>
+        </select>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ====================================================================
+       AREA CANVAS ANTEPRIMA LIVE VOLANTINO 3.0 (EDITABILE DIRETTAMENTE)
+       ==================================================================== -->
+  <section id="v3CanvasContainer" class="v3-canvas-area">
+    <!-- Renderizzato dinamicamente da JS -->
+  </section>
+</div>
+
+<!-- ======================================================================
+     MODAL: RICERCA / CAMBIO FOTO PRODOTTO CON AI
+     ====================================================================== -->
+<div class="modal fade" id="v3PhotoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold"><i class="bi bi-image-fill text-primary me-2"></i>Scegli o Cerca Immagine Prodotto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <input type="text" id="v3PhotoSearchInput" class="form-control" placeholder="Cerca foto prodotto (es. Filetto di Salmone, Hamburger Angus...)">
+          <button type="button" id="v3PhotoSearchBtn" class="btn btn-primary fw-bold">
+            <i class="bi bi-search me-1"></i>Cerca Foto Web
+          </button>
+        </div>
+        <div class="mb-3">
+          <label class="small fw-bold text-muted me-2">Oppure carica dal tuo PC:</label>
+          <input type="file" id="v3CustomPhotoUpload" accept="image/*" class="form-control form-control-sm">
+        </div>
+        <div id="v3PhotoResultsGrid" class="row g-2" style="max-height: 360px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================
+     MODAL: ARCHIVIO VOLANTINI 3.0 SALVATI
+     ====================================================================== -->
+<div class="modal fade" id="v3SavedArchiveModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold"><i class="bi bi-collection-play-fill text-primary me-2"></i>Archivio Volantini 3.0 AI</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if saved_list %}
+        <div class="list-group list-group-flush">
+          {% for v in saved_list %}
+          <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+            <div>
+              <div class="fw-bold">{{ v.titolo }}</div>
+              <div class="small text-muted">
+                Stile: <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ v.stile }}</span>
+                · Layout: <span class="badge bg-primary-subtle text-primary">{{ v.layout_mode }}</span>
+                · Aggiornato: {{ v.aggiornato_il }}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="/volantini-3?id={{ v.id }}" class="btn btn-sm btn-primary fw-bold">Apri</a>
+              <button type="button" class="btn btn-sm btn-outline-danger v3-del-saved-btn" data-id="{{ v.id }}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          Nessun Volantino 3.0 ancora salvato. Carica un PDF per crearne uno!
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  let currentFlyerId = {{ loaded_flyer.id if loaded_flyer else 'null' }};
+  let flyerData = {% if loaded_flyer and loaded_flyer.dati_json %}{{ loaded_flyer.dati_json | safe }}{% else %}null{% endif %};
+
+  // Stato demo iniziale se non è ancora stato caricato un PDF
+  if (!flyerData) {
+    flyerData = {
+      titolo: "COLLEZIONE GOURMET & SELEZIONE CHEF",
+      sottotitolo: "Eccellenze Gastronomiche Selezionate per Ristoranti, Bracerie e Bistrot",
+      tagline: "SPECIALE HO.RE.CA. 3.0",
+      stile: "luxury_gold",
+      layout_mode: "bento_editorial",
+      per_page: 6,
+      footer_note: "Prezzi IVA esclusa riservati agli operatori professionali Ho.Re.Ca. • Consegne garantite a temperatura controllata.",
+      pages: [
+        {
+          page_number: 1,
+          subtitle: "Selezione Principale • Pagina 1",
+          items: [
+            {
+              codice: "1001",
+              titolo: "Hamburger di Black Angus Scelto 200g",
+              descrizione: "Taglio nobile ad alta marezzatura, succoso e tenerissimo sulla griglia professionale.",
+              badge: "🔥 HERO OFFERTA",
+              prezzo: "11,90",
+              um: "KG",
+              immagine: "",
+              imageZoom: 1.0,
+              is_hero: true
+            },
+            {
+              codice: "2045",
+              titolo: "Filetto di Salmone Norvegese Superior",
+              descrizione: "Selezionato all'origine, spinato a mano e ideale per crudi o cotture espresse.",
+              badge: "🌊 TOP MARE",
+              prezzo: "18,50",
+              um: "KG",
+              immagine: "",
+              imageZoom: 1.0,
+              is_hero: false
+            },
+            {
+              codice: "3012",
+              titolo: "Polpo Verace Pulito Scelto T2/T3",
+              descrizione: "Polpa tenera e verace con resa altissima in cottura, zero scarto in cucina.",
+              badge: "⭐ SCELTA CHEF",
+              prezzo: "16,80",
+              um: "KG",
+              immagine: "",
+              imageZoom: 1.0,
+              is_hero: false
+            },
+            {
+              codice: "4088",
+              titolo: "Burrata Artigianale Pugliese 125g",
+              descrizione: "Cuore cremoso di stracciatella fresca per antipasti gourmet e pizzerie d'eccellenza.",
+              badge: "🇮🇹 ECCELLENZA IT",
+              prezzo: "1,65",
+              um: "PZ",
+              immagine: "",
+              imageZoom: 1.0,
+              is_hero: false
+            },
+            {
+              codice: "5019",
+              titolo: "Patata Dippers Rustica Con Buccia",
+              descrizione: "Croccantezza prolungata e doratura perfetta per accompagnamenti e pub.",
+              badge: "⚡ ALTA RESA",
+              prezzo: "2,95",
+              um: "KG",
+              immagine: "",
+              imageZoom: 1.0,
+              is_hero: false
+            },
+            {
+              codice: "6030",
+              titolo: "Mazzancolle Tropicali Sgusc. IQF",
+              descrizione: "Calibro uniforme e dolcissime al palato, pronte in pochi minuti.",
+              badge: "💎 PREMIUM",
+              prezzo: "14,20",
+              um: "KG",
+              immagine: "",
+              imageZoom: 1.0,
+              is_hero: false
+            }
+          ]
+        }
+      ]
+    };
+  }
+
+  const canvasContainer = document.getElementById("v3CanvasContainer");
+  const pdfDropzone = document.getElementById("v3PdfDropzone");
+  const pdfInput = document.getElementById("v3PdfInput");
+  const dropzoneTitle = document.getElementById("v3DropzoneTitle");
+  const aiPromptInput = document.getElementById("v3AiPromptInput");
+  const applyAiBtn = document.getElementById("v3ApplyAiRestyleBtn");
+  const perPageSelect = document.getElementById("v3PerPageSelect");
+  const catSelect = document.getElementById("v3CatSelect");
+  const genFromCatBtn = document.getElementById("v3GenFromCatBtn");
+  const autoPhotosBtn = document.getElementById("v3AutoFindPhotosBtn");
+  const saveFlyerBtn = document.getElementById("v3SaveFlyerBtn");
+  const exportPdfBtn = document.getElementById("v3ExportPdfBtn");
+
+  let activePhotoTarget = null; // { pageIdx, itemIdx }
+
+  function syncToolbarActiveStates() {
+    document.querySelectorAll(".v3-style-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.theme === flyerData.stile);
+    });
+    document.querySelectorAll(".v3-layout-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.layout === flyerData.layout_mode);
+    });
+  }
+
+  function repaginateItems(newPerPage) {
+    const allItems = [];
+    (flyerData.pages || []).forEach(pg => {
+      (pg.items || []).forEach(it => allItems.push(it));
+    });
+    flyerData.per_page = newPerPage;
+    const newPages = [];
+    for (let i = 0; i < allItems.length; i += newPerPage) {
+      const chunk = allItems.slice(i, i + newPerPage);
+      if (chunk.length > 0 && !chunk.some(x => x.is_hero)) {
+        chunk[0].is_hero = true;
+      }
+      newPages.push({
+        page_number: Math.floor(i / newPerPage) + 1,
+        subtitle: `Selezione Speciale • Pagina ${Math.floor(i / newPerPage) + 1}`,
+        items: chunk
+      });
+    }
+    flyerData.pages = newPages.length ? newPages : [{ page_number: 1, subtitle: "", items: [] }];
+    renderFlyer();
+  }
+
+  function renderFlyer() {
+    syncToolbarActiveStates();
+    canvasContainer.innerHTML = "";
+
+    const pages = flyerData.pages || [];
+    pages.forEach((page, pIdx) => {
+      const pageEl = document.createElement("div");
+      pageEl.className = "v3-page";
+      pageEl.setAttribute("data-theme", flyerData.stile || "luxury_gold");
+      pageEl.setAttribute("data-layout", flyerData.layout_mode || "bento_editorial");
+
+      const cardsHtml = (page.items || []).map((item, iIdx) => {
+        const zoom = item.imageZoom || 1.0;
+        const imgContent = item.immagine
+          ? `<img src="${item.immagine}" alt="${item.titolo}" style="transform: scale(${zoom});" crossorigin="anonymous">`
+          : `<div class="v3-no-img-placeholder">
+               <i class="bi bi-camera-fill fs-3 mb-1 text-primary"></i>
+               <span>Clicca per aggiungere o cercare foto AI</span>
+             </div>`;
+
+        return `
+          <article class="v3-card" data-pidx="${pIdx}" data-iidx="${iIdx}">
+            <div class="v3-card-actions">
+              <button type="button" class="btn btn-sm btn-warning py-0 px-2 fw-bold v3-make-hero-btn" title="Imposta come Prodotto Hero Principale della pagina">
+                ⭐ Hero
+              </button>
+              <button type="button" class="btn btn-sm btn-light py-0 px-1.5 v3-zoom-in-btn" title="Ingrandisci foto">+</button>
+              <button type="button" class="btn btn-sm btn-light py-0 px-1.5 v3-zoom-out-btn" title="Riduci foto">-</button>
+              <button type="button" class="btn btn-sm btn-danger py-0 px-1.5 v3-del-card-btn" title="Rimuovi prodotto">×</button>
+            </div>
+
+            <div class="v3-img-stage" data-pidx="${pIdx}" data-iidx="${iIdx}" title="Clicca per cambiare foto">
+              ${imgContent}
+            </div>
+
+            <div class="d-flex flex-column flex-grow-1 justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <span class="v3-card-badge" contenteditable="true" data-field="badge">${item.badge || "⭐ SELEZIONE"}</span>
+                  ${item.codice ? `<span class="v3-prod-code">COD. <span contenteditable="true" data-field="codice">${item.codice}</span></span>` : ""}
+                </div>
+                <h3 class="v3-prod-title" contenteditable="true" data-field="titolo">${item.titolo || "Prodotto"}</h3>
+                <p class="v3-prod-desc" contenteditable="true" data-field="descrizione">${item.descrizione || ""}</p>
+              </div>
+
+              <div class="v3-price-tag">
+                <span class="v3-price-currency">€</span>
+                <span class="v3-price-amount" contenteditable="true" data-field="prezzo">${item.prezzo || "0,00"}</span>
+                <span class="v3-price-um">/ <span contenteditable="true" data-field="um">${item.um || "PZ"}</span></span>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      pageEl.innerHTML = `
+        <div class="v3-page-content">
+          <header class="v3-editorial-header">
+            <div class="v3-tagline-pill" contenteditable="true" data-global="tagline">${flyerData.tagline || "SELEZIONE SPECIALE HO.RE.CA."}</div>
+            <h2 class="v3-main-title" contenteditable="true" data-global="titolo">${flyerData.titolo || "COLLEZIONE GOURMET"}</h2>
+            <div class="v3-sub-title" contenteditable="true" data-global="sottotitolo">${flyerData.sottotitolo || ""}</div>
+          </header>
+
+          <div class="v3-magazine-stage">
+            ${cardsHtml}
+          </div>
+        </div>
+
+        <footer class="v3-page-footer">
+          <span contenteditable="true" data-global="footer_note">${flyerData.footer_note || ""}</span>
+          <span class="fw-bold">PAG. ${pIdx + 1} / ${pages.length}</span>
+        </footer>
+      `;
+
+      canvasContainer.appendChild(pageEl);
+    });
+
+    bindCanvasEvents();
+  }
+
+  function bindCanvasEvents() {
+    // Modifica testi globali inline
+    canvasContainer.querySelectorAll("[data-global]").forEach(el => {
+      el.addEventListener("blur", () => {
+        const key = el.getAttribute("data-global");
+        flyerData[key] = el.innerText.trim();
+      });
+    });
+
+    // Modifica campi card inline
+    canvasContainer.querySelectorAll(".v3-card").forEach(card => {
+      const pIdx = parseInt(card.getAttribute("data-pidx"), 10);
+      const iIdx = parseInt(card.getAttribute("data-iidx"), 10);
+      const item = flyerData.pages[pIdx].items[iIdx];
+
+      card.querySelectorAll("[data-field]").forEach(fEl => {
+        fEl.addEventListener("blur", () => {
+          const field = fEl.getAttribute("data-field");
+          item[field] = fEl.innerText.trim();
+        });
+      });
+
+      // Promuovi a Hero (porta in prima posizione sulla pagina)
+      card.querySelector(".v3-make-hero-btn")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const items = flyerData.pages[pIdx].items;
+        items.forEach(it => it.is_hero = false);
+        item.is_hero = true;
+        items.splice(iIdx, 1);
+        items.unshift(item);
+        renderFlyer();
+      });
+
+      // Zoom + / -
+      card.querySelector(".v3-zoom-in-btn")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        item.imageZoom = Math.min(2.2, (item.imageZoom || 1.0) + 0.12);
+        renderFlyer();
+      });
+      card.querySelector(".v3-zoom-out-btn")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        item.imageZoom = Math.max(0.5, (item.imageZoom || 1.0) - 0.12);
+        renderFlyer();
+      });
+
+      // Elimina card
+      card.querySelector(".v3-del-card-btn")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        flyerData.pages[pIdx].items.splice(iIdx, 1);
+        renderFlyer();
+      });
+
+      // Clic su immagine per cercare/cambiare foto
+      card.querySelector(".v3-img-stage")?.addEventListener("click", () => {
+        activePhotoTarget = { pIdx, iIdx };
+        const qInput = document.getElementById("v3PhotoSearchInput");
+        qInput.value = item.titolo || item.nome_originale || "";
+        const modal = new bootstrap.Modal(document.getElementById("v3PhotoModal"));
+        modal.show();
+        searchProductPhotos(qInput.value);
+      });
+    });
+  }
+
+  // Cambio Tema
+  document.querySelectorAll(".v3-style-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      flyerData.stile = btn.dataset.theme;
+      renderFlyer();
+    });
+  });
+
+  // Cambio Layout Non-Griglia
+  document.querySelectorAll(".v3-layout-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      flyerData.layout_mode = btn.dataset.layout;
+      renderFlyer();
+    });
+  });
+
+  // Cambio Prodotti per Pagina
+  perPageSelect.addEventListener("change", () => {
+    repaginateItems(parseInt(perPageSelect.value, 10) || 6);
+  });
+
+  // Quick Chips Prompt AI
+  document.querySelectorAll(".v3-quick-ai-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      aiPromptInput.value = chip.getAttribute("data-prompt");
+      applyAiBtn.click();
+    });
+  });
+
+  // Upload PDF e generazione AI
+  pdfDropzone.addEventListener("click", () => pdfInput.click());
+  pdfDropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    pdfDropzone.classList.add("dragover");
+  });
+  pdfDropzone.addEventListener("dragleave", () => pdfDropzone.classList.remove("dragover"));
+  pdfDropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    pdfDropzone.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handlePdfGeneration(e.dataTransfer.files[0]);
+    }
+  });
+  pdfInput.addEventListener("change", () => {
+    if (pdfInput.files && pdfInput.files[0]) {
+      handlePdfGeneration(pdfInput.files[0]);
+    }
+  });
+
+  async function handlePdfGeneration(fileObj, catId = "") {
+    const origText = dropzoneTitle.innerHTML;
+    dropzoneTitle.innerHTML = `<span class="spinner-border spinner-border-sm text-primary me-1"></span>L'AI sta creando il Volantino 3.0...`;
+
+    const fd = new FormData();
+    if (fileObj) fd.append("pdf", fileObj);
+    if (catId) fd.append("categoria_id", catId);
+    fd.append("prompt", aiPromptInput.value.trim());
+    fd.append("per_page", perPageSelect.value);
+
+    try {
+      const res = await fetch("/api/volantini-3/genera-da-pdf", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.ok && data.flyer) {
+        flyerData = data.flyer;
+        renderFlyer();
+        dropzoneTitle.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${fileObj ? fileObj.name : "Catalogo"} impaginato!</span>`;
+      } else {
+        alert(data.error || "Errore durante la generazione del volantino.");
+        dropzoneTitle.innerHTML = origText;
+      }
+    } catch (err) {
+      alert("Errore di connessione: " + err.message);
+      dropzoneTitle.innerHTML = origText;
+    }
+  }
+
+  genFromCatBtn.addEventListener("click", () => {
+    if (!catSelect.value) {
+      alert("Seleziona prima una categoria dal menu a tendina.");
+      return;
+    }
+    handlePdfGeneration(null, catSelect.value);
+  });
+
+  // Restyle & Abbellimento con Prompt AI
+  applyAiBtn.addEventListener("click", async () => {
+    const prompt = aiPromptInput.value.trim();
+    if (!prompt) {
+      alert("Scrivi un'istruzione per l'AI (es. 'Stile nero e oro elegante con layout Hero Spotlight') o clicca uno dei suggerimenti rapidi.");
+      return;
+    }
+    applyAiBtn.disabled = true;
+    const origHtml = applyAiBtn.innerHTML;
+    applyAiBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Abbellimento AI in corso...`;
+    try {
+      const res = await fetch("/api/volantini-3/ai-restyle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flyer: flyerData, prompt: prompt })
+      });
+      const data = await res.json();
+      if (data.ok && data.flyer) {
+        flyerData = data.flyer;
+        renderFlyer();
+      }
+    } finally {
+      applyAiBtn.disabled = false;
+      applyAiBtn.innerHTML = origHtml;
+    }
+  });
+
+  // Ricerca Foto Prodotto (Singola & Auto-Completa Tutte)
+  async function searchProductPhotos(query) {
+    const grid = document.getElementById("v3PhotoResultsGrid");
+    grid.innerHTML = `<div class="col-12 text-center py-4"><span class="spinner-border text-primary"></span> Ricerca immagini migliori per <strong>${query}</strong>...</div>`;
+    try {
+      const res = await fetch(`/api/cerca_immagine?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      const urls = data.images || data.results || [];
+      if (!urls.length) {
+        grid.innerHTML = `<div class="col-12 text-center text-muted py-3">Nessuna immagine trovata. Prova con un termine più semplice.</div>`;
+        return;
+      }
+      grid.innerHTML = urls.slice(0, 12).map(u => `
+        <div class="col-4 col-md-3">
+          <div class="border rounded-3 p-2 text-center bg-light h-100 d-flex align-items-center justify-content-center v3-pick-img-card" style="cursor:pointer; height:120px;" data-url="${u}">
+            <img src="${u}" class="img-fluid" style="max-height:100px; object-fit:contain;">
+          </div>
+        </div>
+      `).join("");
+
+      grid.querySelectorAll(".v3-pick-img-card").forEach(cardEl => {
+        cardEl.addEventListener("click", async () => {
+          const chosenUrl = cardEl.getAttribute("data-url");
+          await assignPhotoToTarget(chosenUrl);
+          bootstrap.Modal.getInstance(document.getElementById("v3PhotoModal"))?.hide();
+        });
+      });
+    } catch (e) {
+      grid.innerHTML = `<div class="col-12 text-danger py-3">Errore ricerca foto: ${e.message}</div>`;
+    }
+  }
+
+  document.getElementById("v3PhotoSearchBtn").addEventListener("click", () => {
+    searchProductPhotos(document.getElementById("v3PhotoSearchInput").value.trim());
+  });
+
+  document.getElementById("v3CustomPhotoUpload").addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      await assignPhotoToTarget(ev.target.result);
+      bootstrap.Modal.getInstance(document.getElementById("v3PhotoModal"))?.hide();
+    };
+    reader.readAsDataURL(f);
+  });
+
+  async function assignPhotoToTarget(imgSrc) {
+    if (!activePhotoTarget) return;
+    const { pIdx, iIdx } = activePhotoTarget;
+    const item = flyerData.pages[pIdx].items[iIdx];
+    item.immagine = imgSrc;
+    renderFlyer();
+
+    // Salva anche nel DB prodotti così rimane memorizzata per il futuro
+    try {
+      const res = await fetch("/api/salva_immagine_db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_src: imgSrc, codice: item.codice || "", titolo: item.nome_originale || item.titolo })
+      });
+      const d = await res.json();
+      if (d.status === "ok" && d.url) {
+        item.immagine = d.url;
+        renderFlyer();
+      }
+    } catch (e) {
+      console.warn("Salvataggio immagine in background:", e);
+    }
+  }
+
+  // Auto-Completa tutte le foto mancanti con 1 clic
+  autoPhotosBtn.addEventListener("click", async () => {
+    autoPhotosBtn.disabled = true;
+    const orig = autoPhotosBtn.innerHTML;
+    let foundCount = 0;
+
+    for (let pIdx = 0; pIdx < flyerData.pages.length; pIdx++) {
+      const items = flyerData.pages[pIdx].items || [];
+      for (let iIdx = 0; iIdx < items.length; iIdx++) {
+        const it = items[iIdx];
+        if (!it.immagine) {
+          autoPhotosBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Cerco foto: ${it.titolo.slice(0, 18)}...`;
+          try {
+            const r = await fetch(`/api/cerca_immagine?q=${encodeURIComponent(it.titolo)}`);
+            const d = await r.json();
+            const imgs = d.images || d.results || [];
+            if (imgs.length > 0) {
+              activePhotoTarget = { pIdx, iIdx };
+              await assignPhotoToTarget(imgs[0]);
+              foundCount++;
+            }
+          } catch (e) {}
+        }
+      }
+    }
+    autoPhotosBtn.disabled = false;
+    autoPhotosBtn.innerHTML = orig;
+    renderFlyer();
+    alert(`✨ Completato! Trovate e applicate automaticamente ${foundCount} foto prodotto.`);
+  });
+
+  // Salvataggio Volantino 3.0 nel DB
+  saveFlyerBtn.addEventListener("click", async () => {
+    saveFlyerBtn.disabled = true;
+    const orig = saveFlyerBtn.innerHTML;
+    saveFlyerBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Salvataggio...`;
+    try {
+      const res = await fetch("/api/volantini-3/salva", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: currentFlyerId, flyer: flyerData })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        currentFlyerId = data.id;
+        saveFlyerBtn.innerHTML = `<i class="bi bi-check2-all me-1"></i>Salvato!`;
+        setTimeout(() => { saveFlyerBtn.innerHTML = orig; }, 2000);
+      } else {
+        alert("Errore salvataggio: " + (data.error || ""));
+        saveFlyerBtn.innerHTML = orig;
+      }
+    } finally {
+      saveFlyerBtn.disabled = false;
+    }
+  });
+
+  // Esportazione PDF Alta Risoluzione
+  exportPdfBtn.addEventListener("click", async () => {
+    exportPdfBtn.disabled = true;
+    const orig = exportPdfBtn.innerHTML;
+    exportPdfBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Generazione PDF HD...`;
+    canvasContainer.classList.add("v3-exporting");
+
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageEls = canvasContainer.querySelectorAll(".v3-page");
+
+      for (let i = 0; i < pageEls.length; i++) {
+        if (i > 0) pdf.addPage();
+        const canvas = await html2canvas(pageEls[i], {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null
+        });
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+      }
+
+      const cleanTitle = (flyerData.titolo || "Volantino_3_AI").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      pdf.save(`${cleanTitle}.pdf`);
+    } catch (err) {
+      alert("Errore esportazione PDF: " + err.message);
+    } finally {
+      canvasContainer.classList.remove("v3-exporting");
+      exportPdfBtn.disabled = false;
+      exportPdfBtn.innerHTML = orig;
+    }
+  });
+
+  // Eliminazione volantino salvato dall'archivio
+  document.querySelectorAll(".v3-del-saved-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Eliminare questo Volantino 3.0?")) return;
+      const id = btn.getAttribute("data-id");
+      const res = await fetch(`/api/volantini-3/elimina/${id}`, { method: "DELETE" });
+      const d = await res.json();
+      if (d.ok) window.location.reload();
+    });
+  });
+
+  renderFlyer();
+});
+</script>
+{% endblock %}
