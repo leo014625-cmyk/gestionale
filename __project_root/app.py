@@ -52,8 +52,10 @@ app = Flask(
     static_folder=STATIC_DIR
 )
 
-# Forza loader Jinja sulla cartella corretta
+# Forza loader Jinja sulla cartella corretta e abilita auto-reload dei template
 app.jinja_loader = FileSystemLoader(TEMPLATES_DIR)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
 
 # Secret key per session
 app.secret_key = 'la_tua_chiave_segreta_sicura'
@@ -11757,6 +11759,28 @@ def comparatore_scarica_pdf_diretto(id):
         traceback.print_exc()
         flash(f"Errore generazione PDF: {str(e)}", "danger")
         return redirect(url_for('comparatore_stampa', id=id))
+
+# ============================
+# AGENTE OPERATIVO AI (OPENAI GPT-4o + FALLBACK LOCALE)
+# ============================
+try:
+    import sys as _sys
+    if BASE_DIR not in _sys.path:
+        _sys.path.insert(0, BASE_DIR)
+    from ai_agent import init_ai_agent
+    init_ai_agent(
+        app=app,
+        get_db_fn=get_db,
+        sa_db=db,
+        volantino_model=VolantinoBeta,
+        extract_pdf_fn=extract_products_from_pdf_robust,
+        get_preset_fn=get_preset_default_dict,
+        get_vol_cfg_fn=get_volantini_impostazioni_dict,
+        base_dir=BASE_DIR
+    )
+    print("✅ Agente AI inizializzato correttamente")
+except Exception as _e_ai:
+    print(f"⚠️ Errore inizializzazione Agente AI: {_e_ai}")
 
 # ============================
 # AVVIO APP

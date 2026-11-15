@@ -883,6 +883,13 @@
           <span>Bot WhatsApp</span>
         </a>
       </li>
+
+      <li class="nav-item mt-2">
+        <a class="nav-link" href="javascript:void(0)" id="sidebarAiBtn" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff !important; font-weight: 700; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);">
+          <i class="bi bi-stars" style="color: #fde047 !important;"></i>
+          <span>Agente AI Operativo</span>
+        </a>
+      </li>
     </ul>
 
     <!-- Theme Toggle Button -->
@@ -932,6 +939,10 @@
         </div>
       </div>
       <div class="d-flex align-items-center gap-3">
+        <button type="button" id="topNavbarAiBtn" class="btn btn-sm rounded-pill fw-semibold d-flex align-items-center gap-2 px-3 py-1.5 shadow-sm" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; border: none;">
+          <i class="bi bi-stars"></i>
+          <span>Agente AI</span>
+        </button>
         <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-light border text-muted small fw-semibold">
           <i class="bi bi-shield-check text-success"></i>
           <span>Sistema Connesso</span>
@@ -1022,6 +1033,747 @@
         updateThemeUI(isDarkActive);
         document.dispatchEvent(new CustomEvent("themeChanged", { detail: { isDark: isDarkActive } }));
       });
+    });
+  </script>
+
+  <!-- ===================================================================== -->
+  <!-- AGENTE OPERATIVO AI HORECA (WIDGET FLOTTANTE + DRAWER CON ANTEPRIMA) -->
+  <!-- ===================================================================== -->
+  <style>
+    #aiAgentFab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1055;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.92rem;
+      box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    #aiAgentFab:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(79, 70, 229, 0.55);
+    }
+    #aiAgentDrawer {
+      position: fixed;
+      top: 0;
+      right: -560px;
+      width: 540px;
+      max-width: 100vw;
+      height: 100vh;
+      z-index: 1060;
+      background: var(--bs-body-bg, #ffffff);
+      border-left: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: -12px 0 40px rgba(15, 23, 42, 0.22);
+      display: flex;
+      flex-direction: column;
+      transition: right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #aiAgentDrawer.open {
+      right: 0;
+    }
+    .ai-drawer-header {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ai-quick-bar {
+      padding: 10px 14px;
+      background: rgba(79, 70, 229, 0.05);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .ai-quick-chip {
+      border: 1px solid rgba(79, 70, 229, 0.25);
+      background: var(--bs-body-bg, #ffffff);
+      color: var(--bs-body-color, #1e293b);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .ai-quick-chip:hover {
+      background: #4f46e5;
+      color: #ffffff;
+      border-color: #4f46e5;
+    }
+    .ai-messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .ai-msg {
+      max-width: 92%;
+      padding: 12px 15px;
+      border-radius: 14px;
+      font-size: 0.87rem;
+      line-height: 1.48;
+      word-break: break-word;
+    }
+    .ai-msg.bot {
+      align-self: flex-start;
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-bottom-left-radius: 4px;
+    }
+    .ai-msg.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+    }
+    .ai-preview-card {
+      background: var(--bs-body-bg, #ffffff);
+      border: 1.5px solid #6366f1;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 8px;
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.1);
+    }
+    .ai-preview-header {
+      background: rgba(99, 102, 241, 0.1);
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 0.84rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    }
+    .ai-preview-table-wrap {
+      max-height: 270px;
+      overflow-y: auto;
+    }
+    .ai-preview-table {
+      width: 100%;
+      font-size: 0.77rem;
+      border-collapse: collapse;
+    }
+    .ai-preview-table th {
+      position: sticky;
+      top: 0;
+      background: var(--bs-tertiary-bg, #f8fafc);
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      z-index: 1;
+    }
+    .ai-preview-table td {
+      padding: 5px 6px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      vertical-align: middle;
+    }
+    .ai-preview-input {
+      width: 100%;
+      padding: 3px 6px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 5px;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #0f172a);
+    }
+    .ai-input-footer {
+      padding: 12px 14px;
+      border-top: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--bs-body-bg, #ffffff);
+    }
+  </style>
+
+  <!-- Pulsante Flottante -->
+  <button type="button" id="aiAgentFab" title="Apri Assistente Operativo AI">
+    <i class="bi bi-stars fs-5"></i>
+    <span>Assistente AI</span>
+  </button>
+
+  <!-- Pannello Laterale Agente AI -->
+  <aside id="aiAgentDrawer" aria-label="Assistente Operativo AI">
+    <div class="ai-drawer-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;background:rgba(255,255,255,0.18);">
+          <i class="bi bi-robot fs-5"></i>
+        </div>
+        <div>
+          <div class="fw-bold d-flex align-items-center gap-2" style="font-size:0.95rem;">
+            <span>Agente AI Horeca</span>
+            <span id="aiEngineBadge" class="badge rounded-pill bg-warning text-dark" style="font-size:0.65rem;">Smart Mode</span>
+          </div>
+          <div id="aiContextLabel" style="font-size:0.72rem;opacity:0.85;">Pronto ad operare su prodotti, clienti e volantini</div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <button type="button" id="aiToggleSettingsBtn" class="btn btn-sm text-white" title="Impostazioni OpenAI API Key">
+          <i class="bi bi-gear-fill"></i>
+        </button>
+        <button type="button" id="aiCloseDrawerBtn" class="btn btn-sm text-white" title="Chiudi">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Box Impostazioni Chiave OpenAI (collassabile) -->
+    <div id="aiSettingsPanel" class="p-3 border-bottom d-none" style="background: rgba(79, 70, 229, 0.04);">
+      <div class="fw-bold small mb-2 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-key-fill text-primary me-1"></i>Configurazione OpenAI (ChatGPT / GPT-4o)</span>
+        <span id="aiSavedKeyStatus" class="badge bg-secondary">Non configurata</span>
+      </div>
+      <div class="row g-2 align-items-center">
+        <div class="col-8">
+          <input type="password" id="aiOpenaiKeyInput" class="form-control form-control-sm" placeholder="Incolla chiave sk-proj-..." autocomplete="off">
+        </div>
+        <div class="col-4">
+          <select id="aiOpenaiModelSelect" class="form-select form-select-sm">
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+          </select>
+        </div>
+        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+          <button type="button" id="aiSaveConfigBtn" class="btn btn-primary btn-sm px-3">Salva Chiave</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Azioni Rapide Contestuali -->
+    <div class="ai-quick-bar">
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_search_product">🔍 Chi lavora prodotto?</button>
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_import">📦 Carica Prodotti</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Categorizza tutti i prodotti senza categoria">🏷️ Auto-Categorizza</button>
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_client">👤 Prodotti per Cliente</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Crea un volantino 3x3 con i prodotti a catalogo">🎨 Crea Volantino</button>
+    </div>
+
+    <!-- Area Messaggi e Anteprime -->
+    <div id="aiMessagesArea" class="ai-messages-area">
+      <div class="ai-msg bot">
+        👋 Ciao <strong>Leonardo</strong>! Sono il tuo agente operativo.<br>
+        Posso:<br>
+        • 🔍 <strong>Cercare quale cliente lavora un singolo prodotto o prodotti simili</strong><br>
+        • 📦 <strong>Caricare prodotti aziendali</strong> (da lista o file PDF/Excel/CSV) e <strong>auto-categorizzarli</strong><br>
+        • 👤 <strong>Inserirli cliente per cliente</strong> e 🎨 <strong>creare volantini rapidamente</strong>.<br><br>
+        <span class="text-muted small"><i class="bi bi-shield-check text-success"></i> Ogni modifica ti verrà sempre mostrata in <strong>anteprima con tasto Conferma</strong> prima di salvare.</span>
+      </div>
+    </div>
+
+    <!-- Footer Input + Allegato File -->
+    <div class="ai-input-footer">
+      <div id="aiAttachedFileBanner" class="d-none mb-2 px-2 py-1 rounded bg-primary-subtle text-primary small d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-check-fill me-1"></i><span id="aiAttachedFileName"></span></span>
+        <button type="button" id="aiRemoveFileBtn" class="btn btn-sm p-0 text-danger"><i class="bi bi-x-circle-fill"></i></button>
+      </div>
+      <form id="aiChatForm" class="d-flex gap-2 align-items-end">
+        <input type="file" id="aiFileInput" accept=".pdf,.csv,.xlsx,.txt,.tsv" class="d-none">
+        <button type="button" id="aiAttachBtn" class="btn btn-outline-secondary btn-sm rounded-3 px-2.5 py-2" title="Allega PDF, Excel (.xlsx) o CSV">
+          <i class="bi bi-paperclip fs-6"></i>
+        </button>
+        <textarea id="aiUserPrompt" class="form-control form-control-sm rounded-3" rows="2" placeholder="Scrivi un comando, incolla prodotti o allega un file (PDF/Excel/CSV)..."></textarea>
+        <button type="submit" id="aiSendBtn" class="btn btn-primary btn-sm rounded-3 px-3 py-2 fw-bold">
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const fab = document.getElementById("aiAgentFab");
+      const topBtn = document.getElementById("topNavbarAiBtn");
+      const sidebarAiBtn = document.getElementById("sidebarAiBtn");
+      const drawer = document.getElementById("aiAgentDrawer");
+      const closeBtn = document.getElementById("aiCloseDrawerBtn");
+      const settingsBtn = document.getElementById("aiToggleSettingsBtn");
+      const settingsPanel = document.getElementById("aiSettingsPanel");
+      const saveConfigBtn = document.getElementById("aiSaveConfigBtn");
+      const keyInput = document.getElementById("aiOpenaiKeyInput");
+      const modelSelect = document.getElementById("aiOpenaiModelSelect");
+      const savedKeyStatus = document.getElementById("aiSavedKeyStatus");
+      const engineBadge = document.getElementById("aiEngineBadge");
+      const contextLabel = document.getElementById("aiContextLabel");
+      const messagesArea = document.getElementById("aiMessagesArea");
+      const chatForm = document.getElementById("aiChatForm");
+      const promptInput = document.getElementById("aiUserPrompt");
+      const fileInput = document.getElementById("aiFileInput");
+      const attachBtn = document.getElementById("aiAttachBtn");
+      const fileBanner = document.getElementById("aiAttachedFileBanner");
+      const fileNameSpan = document.getElementById("aiAttachedFileName");
+      const removeFileBtn = document.getElementById("aiRemoveFileBtn");
+
+      // Rileva contesto pagina (es. /clienti/15 o /prodotti)
+      function getPageContext() {
+        const path = window.location.pathname;
+        const mClient = path.match(/\/clienti\/(?:modifica\/)?(\d+)/);
+        return {
+          path: path,
+          cliente_id: mClient ? parseInt(mClient[1], 10) : null
+        };
+      }
+
+      function updateContextBanner() {
+        const ctx = getPageContext();
+        if (ctx.cliente_id) {
+          contextLabel.textContent = `📍 Scheda Cliente #${ctx.cliente_id} attiva`;
+        } else if (ctx.path.startsWith("/prodotti")) {
+          contextLabel.textContent = "📍 Pagina: Catalogo Prodotti Aziendali";
+        } else if (ctx.path.includes("volantin")) {
+          contextLabel.textContent = "📍 Pagina: Gestione & Editor Volantini";
+        }
+      }
+      updateContextBanner();
+
+      function openDrawer() {
+        drawer.classList.add("open");
+        loadAgentConfig();
+        setTimeout(() => promptInput.focus(), 150);
+      }
+
+      if (fab) fab.addEventListener("click", openDrawer);
+      if (topBtn) topBtn.addEventListener("click", openDrawer);
+      if (sidebarAiBtn) sidebarAiBtn.addEventListener("click", openDrawer);
+      if (closeBtn) closeBtn.addEventListener("click", () => drawer.classList.remove("open"));
+      if (settingsBtn) settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("d-none"));
+
+      async function loadAgentConfig() {
+        try {
+          const res = await fetch("/api/ai-agent/config");
+          const data = await res.json();
+          if (data.ok) {
+            if (data.has_key) {
+              engineBadge.textContent = data.model || "GPT-4o";
+              engineBadge.className = "badge rounded-pill bg-success text-white";
+              savedKeyStatus.textContent = `Attiva (${data.masked_key})`;
+              savedKeyStatus.className = "badge bg-success";
+            } else {
+              engineBadge.textContent = "Smart Mode";
+              engineBadge.className = "badge rounded-pill bg-warning text-dark";
+              savedKeyStatus.textContent = "Non configurata";
+              savedKeyStatus.className = "badge bg-secondary";
+            }
+            if (data.model) modelSelect.value = data.model;
+          }
+        } catch (err) {
+          console.warn("Errore caricamento config AI:", err);
+        }
+      }
+
+      saveConfigBtn.addEventListener("click", async () => {
+        const key = keyInput.value.trim();
+        const model = modelSelect.value;
+        saveConfigBtn.disabled = true;
+        try {
+          const res = await fetch("/api/ai-agent/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ api_key: key, model: model })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            keyInput.value = "";
+            await loadAgentConfig();
+            settingsPanel.classList.add("d-none");
+            appendMessage("bot", `✅ Configurazione salvata! Motore attivo: <strong>${data.has_key ? data.model : "Smart Mode"}</strong>.`);
+          }
+        } finally {
+          saveConfigBtn.disabled = false;
+        }
+      });
+
+      // Gestione file allegato
+      attachBtn.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files && fileInput.files[0]) {
+          fileNameSpan.textContent = fileInput.files[0].name;
+          fileBanner.classList.remove("d-none");
+        }
+      });
+      removeFileBtn.addEventListener("click", () => {
+        fileInput.value = "";
+        fileBanner.classList.add("d-none");
+      });
+
+      // Quick Chips
+      document.querySelectorAll(".ai-quick-chip").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const p = btn.getAttribute("data-prompt");
+          if (p === "prompt_search_product") {
+            promptInput.value = "Quale dei miei clienti lavora il prodotto ";
+            promptInput.focus();
+          } else if (p === "prompt_import") {
+            promptInput.value = "Aggiungi questi prodotti al catalogo:\n1001 Hamburger Black Angus 200g € 12,50\n1002 Filetto di Salmone Norvegese € 18,90";
+            promptInput.focus();
+          } else if (p === "prompt_client") {
+            promptInput.value = "Assegna al cliente questi prodotti:\n1001 Hamburger Black Angus 200g € 12,50";
+            promptInput.focus();
+          } else {
+            promptInput.value = p;
+            chatForm.requestSubmit();
+          }
+        });
+      });
+
+      // Invio con Invio (Shift+Invio per andare a capo)
+      promptInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          chatForm.requestSubmit();
+        }
+      });
+
+      function formatMarkdown(text) {
+        return (text || "")
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/`(.*?)`/g, "<code>$1</code>")
+          .replace(/\n/g, "<br>");
+      }
+
+      function appendMessage(role, htmlContent) {
+        const div = document.createElement("div");
+        div.className = `ai-msg ${role}`;
+        div.innerHTML = htmlContent;
+        messagesArea.appendChild(div);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+        return div;
+      }
+
+      function renderPendingActionCard(action) {
+        const card = document.createElement("div");
+        card.className = "ai-preview-card";
+
+        const categories = action.categories || ["CARNE", "PESCE E ITTICO", "SALUMI E LATTICINI", "ORTOFRUTTA E VERDURE", "DISPENSA E SECCO", "DOLCI E DESSERT", "BEVANDE E VINI", "OFFERTE"];
+        const items = action.items || [];
+
+        let extraControlsHtml = "";
+        if (action.type === "client_assignment") {
+          const optionsHtml = (action.clienti || []).map(c =>
+            `<option value="${c.id}" ${c.id === action.cliente_id ? "selected" : ""}>${c.nome} (${c.zona || "Zona N/D"})</option>`
+          ).join("");
+          extraControlsHtml = `
+            <div class="p-2 border-bottom bg-body-tertiary d-flex align-items-center gap-2">
+              <label class="small fw-bold text-nowrap mb-0">👤 Cliente:</label>
+              <select class="form-select form-select-sm ai-target-client-select">
+                <option value="">-- Seleziona Cliente --</option>
+                ${optionsHtml}
+              </select>
+            </div>
+          `;
+        } else if (action.type === "create_flyer") {
+          extraControlsHtml = `
+            <div class="p-2 border-bottom bg-body-tertiary row g-1 align-items-center">
+              <div class="col-6">
+                <input type="text" class="form-control form-control-sm ai-flyer-title" value="${action.titolo_volantino || 'Volantino Promo'}" placeholder="Titolo volantino">
+              </div>
+              <div class="col-3">
+                <select class="form-select form-select-sm ai-flyer-theme">
+                  <option value="promo_mensile" ${action.tema === 'promo_mensile' ? 'selected' : ''}>Promo Mensile</option>
+                  <option value="carne" ${action.tema === 'carne' ? 'selected' : ''}>Tema Carne</option>
+                  <option value="pesce" ${action.tema === 'pesce' ? 'selected' : ''}>Tema Pesce</option>
+                  <option value="volantino" ${action.tema === 'volantino' ? 'selected' : ''}>Standard</option>
+                </select>
+              </div>
+              <div class="col-3">
+                <select class="form-select form-select-sm ai-flyer-grid">
+                  <option value="3x3" ${(action.cols===3 && action.rows===3) ? 'selected' : ''}>Griglia 3x3</option>
+                  <option value="4x4" ${(action.cols===4 && action.rows===4) ? 'selected' : ''}>Griglia 4x4</option>
+                  <option value="2x2" ${(action.cols===2 && action.rows===2) ? 'selected' : ''}>Griglia 2x2</option>
+                  <option value="3x4" ${(action.cols===3 && action.rows===4) ? 'selected' : ''}>Griglia 3x4</option>
+                </select>
+              </div>
+            </div>
+          `;
+        }
+
+        const showPrice = action.type !== "auto_categorize";
+        const rowsHtml = items.map((it, idx) => `
+          <tr data-idx="${idx}">
+            <td style="width:26px;">
+              <input type="checkbox" class="form-check-input ai-row-check" checked>
+            </td>
+            <td style="width:72px;">
+              <input type="text" class="ai-preview-input ai-row-code" value="${(it.codice || '').replace(/"/g, '&quot;')}">
+            </td>
+            <td>
+              <input type="text" class="ai-preview-input ai-row-name" value="${(it.nome || '').replace(/"/g, '&quot;')}">
+            </td>
+            ${showPrice ? `
+            <td style="width:68px;">
+              <input type="number" step="0.01" class="ai-preview-input ai-row-price" value="${it.prezzo || 0}">
+            </td>` : ""}
+            <td style="width:125px;">
+              <input type="text" list="aiCatList_${Date.now()}" class="ai-preview-input ai-row-cat" value="${(it.categoria || '').replace(/"/g, '&quot;')}">
+            </td>
+          </tr>
+        `).join("");
+
+        const datalistId = `aiCatList_${Math.floor(Math.random() * 100000)}`;
+        const datalistHtml = `<datalist id="${datalistId}">${categories.map(c => `<option value="${c}">`).join("")}</datalist>`;
+
+        card.innerHTML = `
+          <div class="ai-preview-header">
+            <span><i class="bi bi-eye-fill text-primary me-1"></i>${action.title || "Anteprima Operazione"}</span>
+            <span class="badge bg-primary-subtle text-primary">${items.length} righe</span>
+          </div>
+          ${extraControlsHtml}
+          ${datalistHtml.replace(/aiCatList_\d+/, datalistId)}
+          <div class="ai-preview-table-wrap">
+            <table class="ai-preview-table">
+              <thead>
+                <tr>
+                  <th>✓</th>
+                  <th>Cod.</th>
+                  <th>Prodotto</th>
+                  ${showPrice ? "<th>€</th>" : ""}
+                  <th>Categoria</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml.replace(/aiCatList_\d+/g, datalistId)}
+              </tbody>
+            </table>
+          </div>
+          <div class="p-2 bg-body-tertiary border-top d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm ai-cancel-action-btn">
+              <i class="bi bi-x-lg"></i> Annulla
+            </button>
+            <button type="button" class="btn btn-success btn-sm fw-bold ai-confirm-action-btn">
+              <i class="bi bi-check2-circle"></i> Conferma e Salva
+            </button>
+          </div>
+        `;
+
+        const cancelBtn = card.querySelector(".ai-cancel-action-btn");
+        const confirmBtn = card.querySelector(".ai-confirm-action-btn");
+
+        cancelBtn.addEventListener("click", () => {
+          card.innerHTML = `<div class="p-2 text-muted small"><i class="bi bi-slash-circle me-1"></i>Operazione annullata dall'utente.</div>`;
+        });
+
+        confirmBtn.addEventListener("click", async () => {
+          confirmBtn.disabled = true;
+          confirmBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Salvataggio...`;
+
+          const updatedItems = [];
+          card.querySelectorAll("tbody tr").forEach((tr, i) => {
+            const baseItem = Object.assign({}, items[i] || {});
+            const checked = tr.querySelector(".ai-row-check")?.checked;
+            baseItem.excluded = !checked;
+            baseItem.codice = tr.querySelector(".ai-row-code")?.value.trim() || baseItem.codice;
+            baseItem.nome = tr.querySelector(".ai-row-name")?.value.trim() || baseItem.nome;
+            const priceEl = tr.querySelector(".ai-row-price");
+            if (priceEl) baseItem.prezzo = parseFloat(priceEl.value || "0") || 0;
+            const catEl = tr.querySelector(".ai-row-cat");
+            if (catEl) baseItem.categoria = catEl.value.trim();
+            updatedItems.push(baseItem);
+          });
+
+          const payload = {
+            type: action.type,
+            items: updatedItems
+          };
+
+          if (action.type === "client_assignment") {
+            const selClient = card.querySelector(".ai-target-client-select")?.value;
+            payload.cliente_id = selClient ? parseInt(selClient, 10) : action.cliente_id;
+          } else if (action.type === "create_flyer") {
+            payload.titolo_volantino = card.querySelector(".ai-flyer-title")?.value.trim() || action.titolo_volantino;
+            payload.tema = card.querySelector(".ai-flyer-theme")?.value || action.tema;
+            const gridVal = (card.querySelector(".ai-flyer-grid")?.value || "3x3").split("x");
+            payload.cols = parseInt(gridVal[0], 10) || 3;
+            payload.rows = parseInt(gridVal[1], 10) || 3;
+          }
+
+          try {
+            const res = await fetch("/api/ai-agent/execute", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (result.ok) {
+              card.innerHTML = `
+                <div class="p-3 bg-success-subtle text-success-emphasis">
+                  <div class="fw-bold mb-2">${formatMarkdown(result.message)}</div>
+                  <div class="d-flex gap-2 flex-wrap">
+                    ${result.redirect_url ? `<a href="${result.redirect_url}" class="btn btn-success btn-sm fw-semibold">${result.redirect_label || "Vai alla pagina"}</a>` : ""}
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="window.location.reload()">🔄 Aggiorna Pagina Corrente</button>
+                  </div>
+                </div>
+              `;
+            } else {
+              confirmBtn.disabled = false;
+              confirmBtn.innerHTML = `<i class="bi bi-check2-circle"></i> Conferma e Salva`;
+              appendMessage("bot", `⚠️ Errore: <strong>${result.error || "Impossibile completare l'operazione"}</strong>`);
+            }
+          } catch (err) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = `<i class="bi bi-check2-circle"></i> Conferma e Salva`;
+            appendMessage("bot", `⚠️ Errore di rete durante il salvataggio: ${err.message}`);
+          }
+        });
+
+        messagesArea.appendChild(card);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
+
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const text = promptInput.value.trim();
+        const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        if (!text && !file) return;
+
+        const userLabel = file ? `${text ? text + "<br>" : ""}<span class="badge bg-light text-dark mt-1"><i class="bi bi-paperclip"></i> ${file.name}</span>` : formatMarkdown(text);
+        appendMessage("user", userLabel);
+
+        promptInput.value = "";
+        fileInput.value = "";
+        fileBanner.classList.add("d-none");
+
+        const loadingEl = appendMessage("bot", `<span class="spinner-border spinner-border-sm text-primary me-2"></span>Sto elaborando la richiesta...`);
+
+        try {
+          let res;
+          if (file) {
+            const fd = new FormData();
+            fd.append("message", text);
+            fd.append("page_context", JSON.stringify(getPageContext()));
+            fd.append("file", file);
+            res = await fetch("/api/ai-agent/chat", { method: "POST", body: fd });
+          } else {
+            res = await fetch("/api/ai-agent/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: text, page_context: getPageContext() })
+            });
+          }
+
+          const data = await res.json();
+          loadingEl.remove();
+
+          if (!data.ok) {
+            appendMessage("bot", `⚠️ ${data.error || "Si è verificato un errore."}`);
+            return;
+          }
+
+          if (data.reply) {
+            appendMessage("bot", formatMarkdown(data.reply));
+          }
+          if (data.search_results) {
+            renderProductClientSearchResults(data.search_results);
+          }
+          if (data.pending_action) {
+            renderPendingActionCard(data.pending_action);
+          }
+        } catch (err) {
+          loadingEl.remove();
+          appendMessage("bot", `⚠️ Errore di comunicazione col server: ${err.message}`);
+        }
+      });
+
+      function renderProductClientSearchResults(sr) {
+        const card = document.createElement("div");
+        card.className = "ai-preview-card";
+
+        const exact = sr.exact_products || [];
+        const similar = sr.similar_products || [];
+        const crossSell = sr.cross_sell_clients || [];
+
+        const renderProductBlock = (p, isExact) => {
+          const clients = p.clienti || [];
+          const badgeColor = isExact ? "bg-primary" : "bg-secondary";
+          const clientsHtml = clients.length > 0
+            ? clients.map(c => {
+                const stBadge = c.stato === "Lavorato"
+                  ? `<span class="badge bg-success-subtle text-success border border-success-subtle">Lavorato</span>`
+                  : `<span class="badge bg-warning-subtle text-warning-emphasis border">${c.stato}</span>`;
+                const przTxt = c.prezzo_attuale > 0 ? `<strong>€ ${c.prezzo_attuale.toFixed(2)}</strong>` : `<span class="text-muted">Prezzo N/D</span>`;
+                return `
+                  <div class="d-flex justify-content-between align-items-center py-1 px-2 border-bottom small">
+                    <div>
+                      <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none">
+                        <i class="bi bi-person-badge me-1"></i>${c.cliente_nome}
+                      </a>
+                      ${c.zona ? `<span class="text-muted ms-1">(${c.zona})</span>` : ""}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                      ${przTxt}
+                      ${stBadge}
+                    </div>
+                  </div>
+                `;
+              }).join("")
+            : `<div class="text-muted small py-1 px-2 fst-italic">Nessun cliente lavora attualmente questo articolo.</div>`;
+
+          return `
+            <div class="mb-2 border rounded-2 overflow-hidden">
+              <div class="p-2 bg-body-tertiary d-flex justify-content-between align-items-center border-bottom">
+                <div class="small fw-bold">
+                  <span class="badge ${badgeColor} me-1">${p.codice || "S/C"}</span>
+                  ${p.nome}
+                </div>
+                <span class="badge bg-light text-dark border" style="font-size:0.68rem;">${p.categoria}</span>
+              </div>
+              <div>${clientsHtml}</div>
+            </div>
+          `;
+        };
+
+        const exactHtml = exact.length > 0
+          ? exact.map(p => renderProductBlock(p, true)).join("")
+          : `<div class="alert alert-light border small mb-2 py-2">Nessun prodotto a catalogo corrisponde esattamente a <strong>"${sr.query}"</strong>.</div>`;
+
+        const similarHtml = similar.length > 0
+          ? similar.map(p => renderProductBlock(p, false)).join("")
+          : `<div class="text-muted small">Nessun prodotto simile trovato.</div>`;
+
+        const crossSellHtml = crossSell.length > 0 ? `
+          <div class="mt-2 p-2 rounded-2 bg-warning-subtle border border-warning-subtle">
+            <div class="fw-bold small text-warning-emphasis mb-1">
+              <i class="bi bi-lightbulb-fill me-1"></i>Opportunità Cross-Selling (${crossSell.length} clienti lavorano un prodotto simile):
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              ${crossSell.map(c => `
+                <a href="/clienti/${c.cliente_id}" class="badge bg-white text-dark border text-decoration-none p-1.5" title="Lavora: ${c.prodotto_simile}">
+                  👤 ${c.cliente_nome} <span class="text-muted">(${c.prodotto_simile})</span>
+                </a>
+              `).join("")}
+            </div>
+          </div>
+        ` : "";
+
+        card.innerHTML = `
+          <div class="ai-preview-header">
+            <span><i class="bi bi-search text-primary me-1"></i>Clienti per "${sr.query}" e Simili</span>
+            <span class="badge bg-success-subtle text-success">${sr.totale_clienti_diretti} diretti · ${sr.totale_clienti_simili} simili</span>
+          </div>
+          <div class="p-2" style="max-height: 360px; overflow-y: auto;">
+            <div class="small fw-bold text-primary mb-1">🎯 Prodotto Cercato (${exact.length}):</div>
+            ${exactHtml}
+            <div class="small fw-bold text-secondary mt-3 mb-1">🔄 Prodotti Simili / Stessa Categoria (${similar.length}):</div>
+            ${similarHtml}
+            ${crossSellHtml}
+          </div>
+        `;
+
+        messagesArea.appendChild(card);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
     });
   </script>
 </body>
