@@ -15,6 +15,8 @@ _GET_DB = None
 _EXTRACT_PDF_FN = None
 _GET_OPENAI_CFG_FN = None
 
+PREGIS_LOGO_URL = "https://us-east-1.tixte.net/uploads/leonardogiorgini.tixte.co/logo-pregis-bordo.png"
+
 
 def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
     global _GET_DB, _EXTRACT_PDF_FN, _GET_OPENAI_CFG_FN
@@ -30,8 +32,8 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
                     id SERIAL PRIMARY KEY,
                     titolo TEXT NOT NULL,
                     sottotitolo TEXT,
-                    stile TEXT DEFAULT 'capecchi_autunno',
-                    layout_mode TEXT DEFAULT 'capecchi_10',
+                    stile TEXT DEFAULT 'pregis_autunno',
+                    layout_mode TEXT DEFAULT 'pregis_10',
                     dati_json TEXT NOT NULL,
                     creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -45,7 +47,7 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
 
 
 # ==============================================================================
-# MOTORE AI PER PULIZIA NOMI, ESTRAZIONE MARCHIO/IMBALLO E STILE CAPECCHI PRO
+# MOTORE AI PER PULIZIA NOMI, ESTRAZIONE MARCHIO/IMBALLO E ABBELLIMENTO PREGIS
 # ==============================================================================
 ABBREV_MAP = {
     r'\bFIL\.?\b': 'Filetto',
@@ -72,8 +74,8 @@ ABBREV_MAP = {
 }
 
 KNOWN_BRANDS = [
-    "S.Alessandro", "Sant'Alessandro", "Trinità", "Trinita", "San Francesco",
-    "Sorrentino", "Simonini", "Salvatori", "Valpadana", "Sano", "Pregis",
+    "Pregis", "S.Alessandro", "Sant'Alessandro", "Trinità", "Trinita", "San Francesco",
+    "Sorrentino", "Simonini", "Salvatori", "Valpadana", "Sano",
     "Rovagnati", "Beretta", "Fiorucci", "Negroni", "Villani", "Levoni",
     "Casa Modena", "Citterio", "Galbani", "Granarolo", "Orogel", "Findus",
     "McCain", "LambWeston", "Mutti", "De Cecco", "Barilla", "Voila", "Surgital"
@@ -82,7 +84,7 @@ KNOWN_BRANDS = [
 
 def beautify_product_name(raw_name: str) -> str:
     if not raw_name:
-        return "Prodotto Selezione"
+        return "Prodotto Selezione Pregis"
     s = str(raw_name).strip()
     for pat, repl in ABBREV_MAP.items():
         s = re.sub(pat, repl, s, flags=re.IGNORECASE)
@@ -102,8 +104,8 @@ def beautify_product_name(raw_name: str) -> str:
     return " ".join(out_words)
 
 
-def extract_brand_and_imballo(raw_name: str, categoria: str = "", idx: int = 0) -> dict:
-    """Estrae eventuale marchio/linea e peso imballo dal nome o genera valori realistici."""
+def extract_brand_imballo_and_copy(raw_name: str, categoria: str = "", idx: int = 0) -> dict:
+    """Estrae marchio, imballo, badge e genera una micro-descrizione gourmet per la versione abbellita AI."""
     name_clean = raw_name or ""
     brand_found = ""
 
@@ -113,7 +115,6 @@ def extract_brand_and_imballo(raw_name: str, categoria: str = "", idx: int = 0) 
             name_clean = re.sub(r'\b' + re.escape(b) + r'\b', '', name_clean, flags=re.IGNORECASE).strip(" -–,")
             break
 
-    # Cerca peso/imballo nel testo (es. "5.50 kg", "2,20 kg", "350g")
     imballo = ""
     m_imb = re.search(r'(?:imballo\s*)?(\d+[\.,]?\d*\s*(?:kg|gr|g|lt|ml|pz))', name_clean, re.IGNORECASE)
     if m_imb:
@@ -122,43 +123,57 @@ def extract_brand_and_imballo(raw_name: str, categoria: str = "", idx: int = 0) 
         default_imballi = ["Imballo 5.50 kg", "Imballo 8.70 kg", "Imballo 2.20 kg", "Imballo 1.00 kg", "Imballo 3.88 kg", "Imballo 2.65 kg", "Imballo 7.20 kg", "Imballo 3.50 kg", "Imballo 3.00 kg", "Imballo 1.40 kg"]
         imballo = default_imballi[idx % len(default_imballi)]
 
+    c_low = (categoria or "").lower()
+    n_low = name_clean.lower()
+
     if not brand_found:
-        c_low = (categoria or "").lower()
-        n_low = name_clean.lower()
         if any(k in n_low or k in c_low for k in ["prosciutt", "salame", "lonza", "speck", "bresaola", "mortadella", "salum"]):
-            fallback_brands = ["Antica Norcineria", "Selezione Riserva", "Maestri Salumieri", "Tradizione Italiana", "Gran Selezione"]
+            fallback_brands = ["Selezione Pregis", "Antica Norcineria", "Maestri Salumieri", "Riserva Pregis", "Gran Tradizione"]
         elif any(k in n_low or k in c_low for k in ["salmone", "polpo", "gamber", "pesce", "ittic", "calamar"]):
-            fallback_brands = ["Blue Ocean", "Riserva Mare", "Nordic Superior", "Pescato Scelto"]
+            fallback_brands = ["Pregis Mare", "Blue Ocean", "Nordic Superior", "Pescato Scelto"]
         elif any(k in n_low or k in c_low for k in ["angus", "scottona", "manzo", "hamburger", "carne"]):
-            fallback_brands = ["Prime Butchery", "Black Label Grill", "Selezione allevatori", "Master Beef"]
+            fallback_brands = ["Pregis Grill", "Prime Butchery", "Black Label", "Master Beef"]
         else:
-            fallback_brands = ["Alta Qualità Ho.Re.Ca.", "Selezione Chef", "Linea Professionale", "Specialità Gourmet"]
+            fallback_brands = ["Selezione Pregis", "Alta Qualità Ho.Re.Ca.", "Linea Chef Pregis", "Specialità Gourmet"]
         brand_found = fallback_brands[idx % len(fallback_brands)]
 
-    # Badge sottile opzionale di valorizzazione AI
-    n_low = name_clean.lower()
-    if "18 mesi" in n_low or "stag" in n_low:
-        badge = "STAGIONATURA SCELTA"
-    elif "alta qualita" in n_low or "alta qualità" in n_low or "gran dolcezza" in n_low:
-        badge = "ALTA QUALITÀ"
-    elif "piccante" in n_low or "ventricina" in n_low:
-        badge = "GUSTO DECISO"
-    elif "s/glut" in n_low:
-        badge = "SENZA GLUTINE"
+    # Micro-copy gourmet e badge per la modalità AI Beautified
+    if any(k in n_low or k in c_low for k in ["prosciutt", "salame", "lonza", "speck", "bresaola", "mortadella", "salum"]):
+        copies = [
+            "Stagionatura lenta e profumo intenso, resa perfetta al taglio con zero scarto.",
+            "Fetta morbida e sapore equilibrato per taglieri, antipasti e pizzerie gourmet.",
+            "Ricetta della tradizione norcina italiana selezionata per la ristorazione."
+        ]
+        badges = ["⭐ SELEZIONE PREGIS", "🔪 ZERO SCARTO", "🇮🇹 ALTA SALUMERIA", "🔥 TOP OFFERTA"]
+    elif any(k in n_low or k in c_low for k in ["salmone", "polpo", "gamber", "pesce", "ittic", "calamar", "mazzancoll"]):
+        copies = [
+            "Surgelazione rapida all'origine per preservare polpa soda e sapore di mare.",
+            "Calibro costante e altissima resa in cottura per secondi e antipasti di mare."
+        ]
+        badges = ["🌊 PREGIS MARE", "❄️ FRESCHEZZA TOP", "⭐ SCELTA CHEF", "💎 PREMIUM"]
+    elif any(k in n_low or k in c_low for k in ["angus", "scottona", "manzo", "hamburger", "carne", "pollo", "suin"]):
+        copies = [
+            "Taglio scelto ad alta marezzatura: tenero, succoso e costante sulla griglia.",
+            "Selezionato per steakhouse e ristoranti: tenuta in cottura superiore."
+        ]
+        badges = ["🔥 SPECIALE GRILL", "🥩 TAGLIO NOBILE", "⭐ TOP STEAKHOUSE", "🔪 ALTA RESA"]
     else:
-        badges = ["OFFERTA TOP", "SCELTA CHEF", "ALTA RESA", "QUALITÀ EXTRA", "BEST SELLER"]
-        badge = badges[idx % len(badges)]
+        copies = [
+            "Standard qualitativo superiore garantito da Pregis per i professionisti Ho.Re.Ca.",
+            "Prodotto ad alta rotazione con resa ottimale in cucina e massima convenienza."
+        ]
+        badges = ["⭐ SELEZIONE PREGIS", "🔥 SUPER PROMO", "💎 QUALITÀ EXTRA", "⚡ BEST SELLER"]
 
     return {
         "titolo_pulito": beautify_product_name(name_clean),
         "brand": brand_found,
         "imballo": imballo,
-        "badge": badge
+        "descrizione_ai": copies[idx % len(copies)],
+        "badge": badges[idx % len(badges)]
     }
 
 
 def split_price_parts(prezzo_val) -> tuple:
-    """Divide il prezzo in parte intera (es. '8') e centesimi (es. '80')."""
     if isinstance(prezzo_val, (int, float)):
         num = float(prezzo_val)
     else:
@@ -178,18 +193,17 @@ def get_mesi_stagione_default():
     m_idx = datetime.now().month
     mese_nome = mesi_it[m_idx - 1]
     if m_idx in (9, 10, 11):
-        stile = "capecchi_autunno"
+        stile = "pregis_autunno"
     elif m_idx in (12, 1, 2):
-        stile = "capecchi_inverno"
+        stile = "pregis_inverno"
     elif m_idx in (6, 7, 8):
-        stile = "capecchi_estate"
+        stile = "pregis_mare"
     else:
-        stile = "capecchi_primavera"
+        stile = "pregis_primavera"
     return f"PROMO {mese_nome}", stile
 
 
 def call_openai_vision_or_enrich(products: list, user_prompt: str = "", image_b64: str = None):
-    """Usa GPT-4o (anche Vision se viene caricata la foto di un volantino) per estrarre/abbellire i prodotti."""
     if not _GET_OPENAI_CFG_FN:
         return None
     api_key, model = _GET_OPENAI_CFG_FN()
@@ -198,17 +212,17 @@ def call_openai_vision_or_enrich(products: list, user_prompt: str = "", image_b6
 
     try:
         if image_b64:
-            # Estrazione diretta da immagine/screenshot di un volantino (es. foto Capecchi)
             vision_prompt = """Analizza questa immagine di un volantino prodotti e restituisci ESCLUSIVAMENTE un JSON valido con:
 {
-  "titolo": "Titolo banner in alto (es. PROMO OTTOBRE)",
-  "brand_header": "Nome azienda nel logo in alto a sinistra (es. Capecchi)",
+  "titolo": "Titolo banner in alto (es. PROMO NOVEMBRE)",
   "prodotti": [
     {
       "codice": "codice articolo es. 40616.002",
-      "titolo": "Nome del prodotto es. Prosciutto Mattonella Dolcetta sv",
-      "brand": "Sottotitolo/marchio in corsivo es. S.Alessandro",
+      "titolo": "Nome del prodotto pulito",
+      "brand": "Marchio o linea in corsivo",
       "imballo": "Testo imballo es. Imballo 5.50 kg",
+      "descrizione_ai": "Breve descrizione gastronomica accattivante (max 75 caratteri)",
+      "badge": "Badge breve es. ⭐ SELEZIONE PREGIS",
       "prezzo": 8.80,
       "um": "al KG",
       "row_span": 2,
@@ -241,16 +255,21 @@ Imposta row_span=2 per i prodotti con immagine grande sviluppata in verticale su
 
         if products:
             sample = [
-                {"idx": i, "codice": p.get("codice", ""), "nome": p.get("nome", ""), "prezzo": p.get("prezzo", ""), "um": p.get("um", "KG")}
+                {"idx": i, "codice": p.get("codice", ""), "nome": p.get("nome") or p.get("titolo", ""), "prezzo": p.get("prezzo", ""), "um": p.get("um", "KG")}
                 for i, p in enumerate(products[:35])
             ]
-            sys_prompt = """Sei un Art Director esperto in volantini promozionali Ho.Re.Ca. stile distributore alimentare (come Capecchi / Pregis).
-Per ciascun prodotto separa o deduci un 'titolo_ai' pulito, un 'brand_ai' (marchio o linea in corsivo), un 'imballo_ai' (es. 'Imballo 4.50 kg') e un 'badge_ai' breve.
+            sys_prompt = """Sei l'Art Director ufficiale di PREGIS S.p.A. (leader nella distribuzione Ho.Re.Ca.).
+Per ciascun prodotto genera:
+- 'titolo_ai': nome prodotto elegante e ben formattato
+- 'brand_ai': marchio o linea in corsivo (es. 'Selezione Pregis', 'Trinità', 'Simonini')
+- 'imballo_ai': formato confezione (es. 'Imballo 4.50 kg')
+- 'descrizione_ai': frase breve e persuasiva per chef/ristoratori (max 75 caratteri)
+- 'badge_ai': bollino breve (es. '⭐ SELEZIONE PREGIS', '🔥 SUPER PROMO', '🔪 ZERO SCARTO')
 Restituisci SOLO un oggetto JSON:
 {
-  "titolo": "es. PROMO OTTOBRE",
+  "titolo": "es. PROMO MENSILE PREGIS",
   "prodotti_arricchiti": [
-    {"idx": 0, "titolo_ai": "...", "brand_ai": "...", "imballo_ai": "...", "badge_ai": "..."}
+    {"idx": 0, "titolo_ai": "...", "brand_ai": "...", "imballo_ai": "...", "descrizione_ai": "...", "badge_ai": "..."}
   ]
 }"""
             resp = requests.post(
@@ -263,7 +282,7 @@ Restituisci SOLO un oggetto JSON:
                         {"role": "user", "content": f"Prodotti: {json.dumps(sample, ensure_ascii=False)}\nIstruzioni: {user_prompt}"}
                     ],
                     "response_format": {"type": "json_object"},
-                    "temperature": 0.3
+                    "temperature": 0.35
                 },
                 timeout=25
             )
@@ -274,8 +293,8 @@ Restituisci SOLO un oggetto JSON:
     return None
 
 
-def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: str = "", per_page: int = 10) -> dict:
-    """Costruisce il Volantino 3.0 AI con il layout asimmetrico stile Capecchi (Torri 2-righe + celle standard) abbellito."""
+def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: str = "", per_page: int = 10, ai_beautified: bool = True) -> dict:
+    """Costruisce il Volantino PREGIS 3.0 con struttura di base a 10 prodotti + abbellimento grafico AI."""
     db_by_code = {}
     db_by_name = {}
     try:
@@ -322,12 +341,13 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
             img_val = db_match["immagine"]
             img_url = img_val if (img_val.startswith("http") or img_val.startswith("/")) else f"/static/uploads/volantino_prodotti/{img_val}"
 
-        info = extract_brand_and_imballo(raw_name, cat, idx)
+        info = extract_brand_imballo_and_copy(raw_name, cat, idx)
         ai_it = ai_map.get(idx, {})
 
         titolo_clean = ai_it.get("titolo_ai") or p.get("titolo") or info["titolo_pulito"]
         brand_clean = ai_it.get("brand_ai") or p.get("brand") or info["brand"]
         imballo_clean = ai_it.get("imballo_ai") or p.get("imballo") or info["imballo"]
+        desc_clean = ai_it.get("descrizione_ai") or p.get("descrizione_ai") or info["descrizione_ai"]
         badge_clean = ai_it.get("badge_ai") or p.get("badge") or info["badge"]
 
         enriched_items.append({
@@ -337,6 +357,7 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
             "titolo": titolo_clean,
             "brand": brand_clean,
             "imballo": imballo_clean,
+            "descrizione_ai": desc_clean,
             "badge": badge_clean,
             "prezzo": p_full,
             "prezzo_int": p_int,
@@ -350,28 +371,24 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
             "is_red_price": bool(p.get("is_red_price", False))
         })
 
-    # Suddivisione in pagine (10 prodotti per pagina = schema esatto Capecchi:
-    # Riga 1-2: Colonna 1 Alta (row_span=2, prezzo rosso), Colonna 2 con 2 prodotti impilati, Colonna 3 Alta (row_span=2, prezzo rosso)
-    # Riga 3: 3 prodotti standard
-    # Riga 4: 3 prodotti standard)
     pages = []
     if not enriched_items:
         pages.append({"page_number": 1, "items": []})
     else:
         for p_idx in range(0, len(enriched_items), per_page):
             chunk = enriched_items[p_idx:p_idx + per_page]
-            # Applica automaticamente la geometria Capecchi se i row_span sono tutti 1
             if all(it.get("row_span", 1) == 1 and it.get("col_span", 1) == 1 for it in chunk):
                 if len(chunk) >= 4:
                     # 1° prodotto: Torre Sinistra (2 righe, prezzo rosso)
                     chunk[0]["row_span"] = 2
                     chunk[0]["is_red_price"] = True
-                    # 2° e 3° prodotto: Impilati al centro (1 riga ciascuno)
+                    # 2° prodotto: Colonna Centrale Riga 1
                     chunk[1]["row_span"] = 1
-                    chunk[2]["row_span"] = 1
-                    # 4° prodotto: Torre Destra (2 righe, prezzo rosso)
-                    chunk[3]["row_span"] = 2
-                    chunk[3]["is_red_price"] = True
+                    # 3° prodotto: Torre Destra (2 righe, prezzo rosso)
+                    chunk[2]["row_span"] = 2
+                    chunk[2]["is_red_price"] = True
+                    # 4° prodotto: Colonna Centrale Riga 2
+                    chunk[3]["row_span"] = 1
                 elif len(chunk) >= 1:
                     chunk[0]["is_red_price"] = True
 
@@ -381,15 +398,18 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
             })
 
     return {
-        "brand_header": "Capecchi",
-        "brand_sub": "al servizio della ristorazione",
+        "brand_header": "PREGIS",
+        "brand_sub": "eccellenza nella ristorazione",
+        "logo_url": PREGIS_LOGO_URL,
         "titolo": default_title,
-        "sottotitolo": "Selezione Speciale Ho.Re.Ca. • Qualità Garantita",
+        "sottotitolo": "Selezione Speciale Ho.Re.Ca. • Qualità Garantita Pregis",
         "stile": default_stile,
-        "layout_mode": "capecchi_10",
+        "layout_mode": "pregis_10",
+        "ai_beautified": ai_beautified,
         "show_ai_badges": True,
+        "show_ai_descriptions": True,
         "per_page": per_page,
-        "footer_brand": "Capecchi",
+        "footer_brand": "PREGIS S.p.A. — Divisione Ho.Re.Ca.",
         "pages": pages
     }
 
@@ -397,39 +417,56 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
 def apply_smart_restyle(flyer_data: dict, prompt_text: str) -> dict:
     p_low = (prompt_text or "").lower()
 
-    if any(k in p_low for k in ["autunn", "ottobre", "novembre", "foglie", "arancio", "capecchi"]):
-        flyer_data["stile"] = "capecchi_autunno"
-    elif any(k in p_low for k in ["natal", "invern", "dicembre", "feste", "rosso"]):
-        flyer_data["stile"] = "capecchi_inverno"
-    elif any(k in p_low for k in ["mare", "pesce", "estate", "blu", "azzurr", "ittic"]):
-        flyer_data["stile"] = "capecchi_mare"
-    elif any(k in p_low for k in ["nero", "oro", "luxury", "gourmet", "elegante", "scuro"]):
-        flyer_data["stile"] = "capecchi_luxury_dark"
-    elif any(k in p_low for k in ["carne", "grill", "brace", "steak", "fuoco"]):
-        flyer_data["stile"] = "capecchi_grill"
-    elif any(k in p_low for k in ["primaver", "verde", "fresc", "orto", "bio"]):
-        flyer_data["stile"] = "capecchi_primavera"
+    # Attiva sempre la modalità abbellita AI quando si chiede di migliorare/abbellire
+    flyer_data["ai_beautified"] = True
 
-    # Estrazione eventuale nuovo titolo tra virgolette o dopo "titolo"
+    if any(k in p_low for k in ["autunn", "ottobre", "novembre", "foglie", "arancio", "caldo"]):
+        flyer_data["stile"] = "pregis_autunno"
+    elif any(k in p_low for k in ["natal", "invern", "dicembre", "feste", "rosso"]):
+        flyer_data["stile"] = "pregis_inverno"
+    elif any(k in p_low for k in ["mare", "pesce", "estate", "blu", "azzurr", "ittic"]):
+        flyer_data["stile"] = "pregis_mare"
+    elif any(k in p_low for k in ["nero", "oro", "luxury", "gourmet", "elegante", "scuro", "premium"]):
+        flyer_data["stile"] = "pregis_luxury_dark"
+    elif any(k in p_low for k in ["carne", "grill", "brace", "steak", "fuoco", "salum"]):
+        flyer_data["stile"] = "pregis_grill"
+    elif any(k in p_low for k in ["primaver", "verde", "fresc", "orto", "bio"]):
+        flyer_data["stile"] = "pregis_primavera"
+
     m_tit = re.search(r'titolo\s+["\']?([A-Za-zÀ-ÿ0-9\s]{3,30})["\']?', prompt_text, re.IGNORECASE)
     if m_tit:
         flyer_data["titolo"] = m_tit.group(1).strip().upper()
 
-    if "senza badge" in p_low or "nascondi badge" in p_low:
-        flyer_data["show_ai_badges"] = False
-    elif "con badge" in p_low or "mostra badge" in p_low:
-        flyer_data["show_ai_badges"] = True
+    if "base" in p_low and ("classico" in p_low or "semplice" in p_low):
+        flyer_data["ai_beautified"] = False
 
-    if "tutti rossi" in p_low or "prezzi rossi" in p_low:
-        for pg in (flyer_data.get("pages") or []):
-            for it in (pg.get("items") or []):
-                it["is_red_price"] = True
+    # Rigenera descrizioni, nomi e badge con AI (OpenAI se presente + Smart Engine)
+    all_items = [it for pg in (flyer_data.get("pages") or []) for it in (pg.get("items") or [])]
+    ai_res = call_openai_vision_or_enrich(all_items, user_prompt=prompt_text)
+    ai_map = {}
+    if ai_res:
+        if ai_res.get("titolo"):
+            flyer_data["titolo"] = ai_res["titolo"]
+        for x in (ai_res.get("prodotti_arricchiti") or []):
+            if "idx" in x:
+                ai_map[int(x["idx"])] = x
+
+    flat_idx = 0
+    for pg in (flyer_data.get("pages") or []):
+        for it in (pg.get("items") or []):
+            info = extract_brand_imballo_and_copy(it.get("nome_originale") or it.get("titolo", ""), it.get("categoria", ""), flat_idx)
+            upd = ai_map.get(flat_idx, {})
+            it["titolo"] = upd.get("titolo_ai") or beautify_product_name(it.get("titolo", ""))
+            it["brand"] = upd.get("brand_ai") or it.get("brand") or info["brand"]
+            it["descrizione_ai"] = upd.get("descrizione_ai") or it.get("descrizione_ai") or info["descrizione_ai"]
+            it["badge"] = upd.get("badge_ai") or it.get("badge") or info["badge"]
+            flat_idx += 1
 
     return flyer_data
 
 
 # ==============================================================================
-# ROUTES VOLANTINI 3.0 AI STUDIO
+# ROUTES VOLANTINI 3.0 AI STUDIO (PREGIS)
 # ==============================================================================
 @volantini3_bp.route("/volantini-3")
 def pagina_volantini_3():
@@ -488,7 +525,6 @@ def api_volantini_3_genera_da_pdf():
     products = []
     filename = ""
     vision_title = None
-    vision_brand = None
 
     file = request.files.get("pdf") or request.files.get("file")
     if file and file.filename:
@@ -502,7 +538,6 @@ def api_volantini_3_genera_da_pdf():
             if v_res and v_res.get("prodotti"):
                 products = v_res["prodotti"]
                 vision_title = v_res.get("titolo")
-                vision_brand = v_res.get("brand_header")
         else:
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, f"v3_{int(time.time())}_{werkzeug.utils.secure_filename(filename)}")
@@ -573,18 +608,15 @@ def api_volantini_3_genera_da_pdf():
             "error": "Nessun prodotto trovato nel file caricato. Assicurati che il PDF contenga codici e prezzi oppure scegli una categoria dal catalogo."
         }), 400
 
-    flyer_data = build_rich_flyer_data(products, filename=filename, user_prompt=user_prompt, per_page=per_page)
+    flyer_data = build_rich_flyer_data(products, filename=filename, user_prompt=user_prompt, per_page=per_page, ai_beautified=True)
     if vision_title:
         flyer_data["titolo"] = vision_title
-    if vision_brand:
-        flyer_data["brand_header"] = vision_brand
-        flyer_data["footer_brand"] = vision_brand
     if user_prompt:
         flyer_data = apply_smart_restyle(flyer_data, user_prompt)
 
     return jsonify({
         "ok": True,
-        "message": f"✨ Volantino 3.0 generato con successo ({len(products)} prodotti in {len(flyer_data['pages'])} pagine)!",
+        "message": f"✨ Volantino PREGIS 3.0 generato e abbellito con AI ({len(products)} prodotti in {len(flyer_data['pages'])} pagine)!",
         "flyer": flyer_data
     })
 
@@ -604,7 +636,7 @@ def api_volantini_3_ai_restyle():
     updated = apply_smart_restyle(flyer_data, prompt_text)
     return jsonify({
         "ok": True,
-        "message": "✨ Volantino abbellito e aggiornato!",
+        "message": "✨ Volantino PREGIS abbellito con AI!",
         "flyer": updated
     })
 
@@ -617,10 +649,10 @@ def api_volantini_3_salva():
     data = request.get_json(silent=True) or {}
     vol_id = data.get("id")
     flyer = data.get("flyer") or {}
-    titolo = (flyer.get("titolo") or "PROMO VOLANTINO 3.0").strip()
+    titolo = (flyer.get("titolo") or "PROMO PREGIS 3.0").strip()
     sottotitolo = (flyer.get("sottotitolo") or "").strip()
-    stile = flyer.get("stile") or "capecchi_autunno"
-    layout_mode = flyer.get("layout_mode") or "capecchi_10"
+    stile = flyer.get("stile") or "pregis_autunno"
+    layout_mode = flyer.get("layout_mode") or "pregis_10"
     dati_json = json.dumps(flyer, ensure_ascii=False)
 
     try:
@@ -642,7 +674,7 @@ def api_volantini_3_salva():
                 r = cur.fetchone()
                 saved_id = r["id"] if r else None
             conn.commit()
-        return jsonify({"ok": True, "id": saved_id, "message": f"✅ Volantino 3.0 '{titolo}' salvato!"})
+        return jsonify({"ok": True, "id": saved_id, "message": f"✅ Volantino PREGIS '{titolo}' salvato!"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
