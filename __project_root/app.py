@@ -221,11 +221,20 @@ def get_db():
     if DATABASE_URL:
         try:
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=4)
-            yield conn
-            return
         except (psycopg2.OperationalError, psycopg2.Error) as e:
             print(f"⚠️ POSTGRESQL non disponibile: {e}")
             print("⚠️ Uso SQLite locale (gestionale.db)")
+            conn = None
+
+    if conn is not None:
+        try:
+            yield conn
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return
 
     sqlite_raw = sqlite3.connect(os.path.join(BASE_DIR, 'gestionale.db'))
     sqlite_raw.row_factory = sqlite3.Row

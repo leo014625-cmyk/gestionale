@@ -1215,13 +1215,17 @@
         </div>
         <div>
           <div class="fw-bold d-flex align-items-center gap-2" style="font-size:0.95rem;">
-            <span>Agente AI Horeca</span>
+            <span>Super-Agente AI Horeca</span>
             <span id="aiEngineBadge" class="badge rounded-pill bg-warning text-dark" style="font-size:0.65rem;">Smart Mode</span>
           </div>
-          <div id="aiContextLabel" style="font-size:0.72rem;opacity:0.85;">Pronto ad operare su prodotti, clienti e volantini</div>
+          <div id="aiContextLabel" style="font-size:0.72rem;opacity:0.85;">Chiedimi qualsiasi dato o modifica automatica sul sito</div>
         </div>
       </div>
-      <div class="d-flex align-items-center gap-1">
+      <div class="d-flex align-items-center gap-2">
+        <div class="form-check form-switch mb-0 d-flex align-items-center gap-1" title="Se attivo, l'assistente applica e sistema automaticamente le tue richieste sul sito">
+          <input class="form-check-input" type="checkbox" role="switch" id="aiAutoExecuteToggle" checked style="cursor:pointer;">
+          <label class="form-check-label text-white fw-semibold" for="aiAutoExecuteToggle" style="font-size:0.7rem;cursor:pointer;">⚡ Auto</label>
+        </div>
         <button type="button" id="aiToggleSettingsBtn" class="btn btn-sm text-white" title="Impostazioni OpenAI API Key">
           <i class="bi bi-gear-fill"></i>
         </button>
@@ -1255,22 +1259,26 @@
 
     <!-- Azioni Rapide Contestuali -->
     <div class="ai-quick-bar">
+      <button type="button" class="ai-quick-chip" data-prompt="Quanto abbiamo fatturato e quali sono i migliori clienti?">📊 Fatturato & Top</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Qual è la situazione delle visite e dei giri?">📅 Visite & Giri</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Qual è la situazione degli ordini di questa settimana e chi manca?">🚚 Ordini Settimana</button>
       <button type="button" class="ai-quick-chip" data-prompt="prompt_search_product">🔍 Chi lavora prodotto?</button>
       <button type="button" class="ai-quick-chip" data-prompt="prompt_import">📦 Carica Prodotti</button>
       <button type="button" class="ai-quick-chip" data-prompt="Categorizza tutti i prodotti senza categoria">🏷️ Auto-Categorizza</button>
-      <button type="button" class="ai-quick-chip" data-prompt="prompt_client">👤 Prodotti per Cliente</button>
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_client">👤 Prodotti Cliente</button>
       <button type="button" class="ai-quick-chip" data-prompt="Crea un volantino 3x3 con i prodotti a catalogo">🎨 Crea Volantino</button>
     </div>
 
     <!-- Area Messaggi e Anteprime -->
     <div id="aiMessagesArea" class="ai-messages-area">
       <div class="ai-msg bot">
-        👋 Ciao <strong>Leonardo</strong>! Sono il tuo agente operativo.<br>
-        Posso:<br>
-        • 🔍 <strong>Cercare quale cliente lavora un singolo prodotto o prodotti simili</strong><br>
-        • 📦 <strong>Caricare prodotti aziendali</strong> (da lista o file PDF/Excel/CSV) e <strong>auto-categorizzarli</strong><br>
-        • 👤 <strong>Inserirli cliente per cliente</strong> e 🎨 <strong>creare volantini rapidamente</strong>.<br><br>
-        <span class="text-muted small"><i class="bi bi-shield-check text-success"></i> Ogni modifica ti verrà sempre mostrata in <strong>anteprima con tasto Conferma</strong> prima di salvare.</span>
+        👋 Ciao <strong>Leonardo</strong>! Sono il tuo <strong>Super-Agente Operativo AI</strong>.<br>
+        Puoi chiedermi <strong>qualsiasi informazione</strong> sul gestionale oppure ordinarmi di <strong>sistemare in automatico</strong> qualsiasi sezione:<br>
+        • 📊 <strong>Sapere tutto sul sito</strong>: fatturato, top clienti, chi lavora un prodotto o simili, giri visite, ordini della settimana, schede clienti e catalogo<br>
+        • 👥 <strong>Clienti, Giri & Visite</strong>: <em>"Crea cliente...", "Sposta Blu Mare nel giro del Martedì alle 10:30", "Pianifica visita domani alle 15"</em><br>
+        • 💶 <strong>Ordini, Prezzi & Catalogo</strong>: <em>"Registra ordine di 450€ per...", "Aumenta del 5% i prezzi di Carne", "Cambia prezzo di..."</em><br>
+        • ⚖️ <strong>Comparatore, Prodotti & Volantini</strong>: carica listini PDF/Excel, assegna prodotti ai clienti, crea comparazioni (kg/pz) e volantini.<br><br>
+        <span class="text-muted small"><i class="bi bi-lightning-charge-fill text-warning"></i> Modalità <strong>⚡ Auto</strong> attiva: eseguo subito le modifiche richieste (disattivala in alto se preferisci prima l'anteprima).</span>
       </div>
     </div>
 
@@ -1648,10 +1656,12 @@
         const loadingEl = appendMessage("bot", `<span class="spinner-border spinner-border-sm text-primary me-2"></span>Sto elaborando la richiesta...`);
 
         try {
+          const autoExec = document.getElementById("aiAutoExecuteToggle")?.checked ?? true;
           let res;
           if (file) {
             const fd = new FormData();
             fd.append("message", text);
+            fd.append("auto_execute", autoExec ? "true" : "false");
             fd.append("page_context", JSON.stringify(getPageContext()));
             fd.append("file", file);
             res = await fetch("/api/ai-agent/chat", { method: "POST", body: fd });
@@ -1659,7 +1669,7 @@
             res = await fetch("/api/ai-agent/chat", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: text, page_context: getPageContext() })
+              body: JSON.stringify({ message: text, auto_execute: autoExec, page_context: getPageContext() })
             });
           }
 
@@ -1671,7 +1681,25 @@
             return;
           }
 
-          if (data.reply) {
+          if (data.auto_executed && data.auto_executed.ok) {
+            const ae = data.auto_executed;
+            const card = document.createElement("div");
+            card.className = "ai-preview-card border-success";
+            card.innerHTML = `
+              <div class="p-3 bg-success-subtle text-success-emphasis">
+                <div class="d-flex align-items-center gap-1 fw-bold small text-success mb-1">
+                  <i class="bi bi-check-circle-fill"></i> Operazione Eseguita Automaticamente
+                </div>
+                <div class="mb-2">${formatMarkdown(ae.message || data.reply || "Modifica applicata con successo.")}</div>
+                <div class="d-flex gap-2 flex-wrap">
+                  ${ae.redirect_url ? `<a href="${ae.redirect_url}" class="btn btn-success btn-sm fw-semibold">${ae.redirect_label || "Vai alla pagina"}</a>` : ""}
+                  <button type="button" class="btn btn-outline-success btn-sm" onclick="window.location.reload()">🔄 Aggiorna Pagina Corrente</button>
+                </div>
+              </div>
+            `;
+            messagesArea.appendChild(card);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+          } else if (data.reply) {
             appendMessage("bot", formatMarkdown(data.reply));
           }
           if (data.search_results) {
