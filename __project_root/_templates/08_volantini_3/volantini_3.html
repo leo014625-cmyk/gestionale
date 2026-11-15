@@ -1,54 +1,108 @@
 {% extends "01_base.html" %}
-{% block title %}Volantini 3.0 AI — PREGIS Editorial & Promo Studio{% endblock %}
+{% block title %}Volantini 3.0 AI — Studio Creativo PREGIS{% endblock %}
 
 {% block styles %}
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,600&family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
 <style>
   /* ==========================================================================
-     STUDIO WORKSPACE
+     SOVRASCRITTURA CONTAINER DI BASE: LATERALE SEMPRE AFFIANCATO
      ========================================================================== */
-  .v3-studio-wrap {
-    display: grid;
-    grid-template-columns: 370px 1fr;
-    gap: 1.5rem;
-    align-items: start;
-    margin-bottom: 3rem;
+  main.container {
+    max-width: 100% !important;
+    width: auto !important;
+    padding: 1.25rem 1.5rem !important;
   }
-  @media (max-width: 1199px) {
-    .v3-studio-wrap {
-      grid-template-columns: 1fr;
-    }
+
+  .v3-studio-wrap {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.5rem;
+    width: 100%;
+    margin-bottom: 3rem;
   }
 
   .v3-control-panel {
+    flex: 0 0 345px;
+    width: 345px;
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 18px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
     position: sticky;
     top: 16px;
-    overflow: hidden;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    z-index: 50;
   }
 
+  /* Scrollbar sottile ed elegante per il pannello laterale */
+  .v3-control-panel::-webkit-scrollbar {
+    width: 6px;
+  }
+  .v3-control-panel::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.45);
+    border-radius: 99px;
+  }
+
+  .v3-canvas-area {
+    flex: 1 1 0%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.75rem;
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.045);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 20px;
+    min-height: 850px;
+    overflow-x: auto;
+    position: relative;
+    z-index: 1;
+  }
+  .dark-mode .v3-canvas-area {
+    background: rgba(0, 0, 0, 0.32);
+  }
+
+  @media (max-width: 767px) {
+    .v3-studio-wrap {
+      flex-direction: column;
+    }
+    .v3-control-panel {
+      position: static;
+      flex: none;
+      width: 100%;
+      max-height: none;
+    }
+    .v3-canvas-area {
+      width: 100%;
+    }
+  }
+
+  /* Controlli del pannello sinistro */
   .v3-panel-header {
-    background: linear-gradient(135deg, #b91c1c 0%, #ea580c 55%, #d97706 100%);
+    background: linear-gradient(135deg, #991b1b 0%, #c2410c 55%, #d97706 100%);
     color: #fff;
-    padding: 1.1rem 1.25rem;
+    padding: 1rem 1.2rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
 
   .v3-dropzone {
     border: 2px dashed #ea580c;
     background: linear-gradient(135deg, rgba(234, 88, 12, 0.05), rgba(245, 158, 11, 0.06));
     border-radius: 14px;
-    padding: 1.05rem 0.9rem;
+    padding: 0.95rem 0.85rem;
     text-align: center;
     cursor: pointer;
-    transition: all 0.22s ease;
+    transition: all 0.2s ease;
   }
   .v3-dropzone:hover, .v3-dropzone.dragover {
     background: linear-gradient(135deg, rgba(234, 88, 12, 0.12), rgba(245, 158, 11, 0.14));
     border-color: #b91c1c;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 
   .v3-style-grid {
@@ -56,12 +110,12 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 0.45rem;
   }
-  .v3-style-btn, .v3-layout-btn {
+  .v3-style-btn, .v3-layout-btn, .v3-cardstyle-btn, .v3-logomode-btn {
     border: 1.5px solid var(--bs-border-color);
     background: var(--bs-body-bg);
     border-radius: 10px;
-    padding: 0.5rem 0.6rem;
-    font-size: 0.76rem;
+    padding: 0.48rem 0.58rem;
+    font-size: 0.74rem;
     font-weight: 700;
     text-align: left;
     display: flex;
@@ -69,30 +123,33 @@
     gap: 0.45rem;
     transition: all 0.18s;
     color: var(--bs-body-color);
+    cursor: pointer;
   }
-  .v3-style-btn:hover, .v3-layout-btn:hover {
+  .v3-style-btn:hover, .v3-layout-btn:hover, .v3-cardstyle-btn:hover, .v3-logomode-btn:hover {
     border-color: #ea580c;
     background: rgba(234, 88, 12, 0.05);
   }
-  .v3-style-btn.active, .v3-layout-btn.active {
+  .v3-style-btn.active, .v3-layout-btn.active, .v3-cardstyle-btn.active, .v3-logomode-btn.active {
     border-color: #ea580c;
     background: rgba(234, 88, 12, 0.11);
     color: #c2410c;
     box-shadow: 0 3px 10px rgba(234, 88, 12, 0.14);
   }
-  .dark-mode .v3-style-btn.active, .dark-mode .v3-layout-btn.active {
+  .dark-mode .v3-style-btn.active,
+  .dark-mode .v3-layout-btn.active,
+  .dark-mode .v3-cardstyle-btn.active,
+  .dark-mode .v3-logomode-btn.active {
     color: #fdba74;
   }
 
   .v3-color-dot {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     flex-shrink: 0;
-    border: 1px solid rgba(0,0,0,0.15);
+    border: 1px solid rgba(0, 0, 0, 0.18);
   }
 
-  /* Switcher Vista Base vs Vista Abbellita AI */
   .v3-mode-switcher {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -106,7 +163,7 @@
     border: none;
     border-radius: 9px;
     padding: 7px 10px;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 800;
     background: transparent;
     color: var(--bs-secondary-color);
@@ -115,296 +172,322 @@
   .v3-mode-btn.active-base {
     background: #ffffff;
     color: #0f172a;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   .v3-mode-btn.active-ai {
-    background: linear-gradient(135deg, #ea580c 0%, #b91c1c 100%);
+    background: linear-gradient(135deg, #ea580c 0%, #991b1b 100%);
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.28);
+  }
+
+  /* Wrapper scalabile per adattare il foglio A4 allo schermo senza rompere la stampa */
+  .v3-page-zoom-shell {
+    display: flex;
+    justify-content: center;
+    transform-origin: top center;
+    transition: transform 0.2s ease;
   }
 
   /* ==========================================================================
-     FOGLIO A4 VOLANTINO PREGIS (BASE + MODALITÀ AI BEAUTIFIED)
+     FOGLIO A4 VOLANTINO PREGIS — DESIGN SPONTANEO & SFONDI DECORATIVI
      ========================================================================== */
-  .v3-canvas-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2.5rem;
-    padding: 1.25rem;
-    background: rgba(15, 23, 42, 0.05);
-    border-radius: 20px;
-    min-height: 850px;
-  }
-  .dark-mode .v3-canvas-area {
-    background: rgba(0, 0, 0, 0.3);
-  }
-
   .v3-page {
     width: 850px;
     min-height: 1202px;
     background: #ffffff;
     color: #1f2937;
     position: relative;
-    border-radius: 4px;
+    border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.25);
+    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.22);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 20px 24px 18px 24px;
-    font-family: 'Montserrat', sans-serif;
+    padding: 26px 28px 20px 28px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     transition: all 0.3s ease;
-    --v3-line-color: #c89d54;
-    --v3-accent-main: #d90429;
-    --v3-brand-wedge: linear-gradient(135deg, #dc2626 0%, #ea580c 60%, #b91c1c 100%);
-    --v3-header-glow: #7f1d1d;
-    --v3-badge-bg: linear-gradient(135deg, #fef3c7, #fde68a);
-    --v3-badge-text: #92400e;
-    --v3-badge-border: #f59e0b;
-    --v3-ai-page-bg: linear-gradient(180deg, #fffdf9 0%, #ffffff 35%, #fffaf0 100%);
-    --v3-ai-card-bg: #ffffff;
-    --v3-ai-tower-bg: linear-gradient(165deg, #fffbeb 0%, #ffffff 55%, #fff7ed 100%);
-    --v3-ai-tower-border: rgba(234, 88, 12, 0.45);
+
+    /* Variabili di tema di default */
+    --v3-text-main: #1f2937;
+    --v3-text-muted: #64748b;
+    --v3-accent-main: #c2410c;
+    --v3-accent-soft: rgba(234, 88, 12, 0.14);
+    --v3-line-color: rgba(180, 120, 60, 0.35);
+    --v3-card-surface: rgba(255, 255, 255, 0.78);
+    --v3-card-border: rgba(217, 119, 6, 0.22);
+    --v3-hero-surface: rgba(255, 252, 245, 0.90);
+    --v3-hero-border: rgba(217, 119, 6, 0.42);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.22) 0%, rgba(254, 243, 199, 0.10) 48%, rgba(255, 255, 255, 0) 74%);
+    --v3-price-pill-bg: #1e293b;
+    --v3-price-pill-fg: #ffffff;
+    --v3-price-hot-bg: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    --v3-price-hot-fg: #ffffff;
   }
 
-  /* Quando è attiva la modalità ABBELLITA CON AI */
-  .v3-page.v3-ai-beautified {
-    background: var(--v3-ai-page-bg);
-    padding: 22px 26px 20px 26px;
-  }
-
-  /* Varianti Tematiche PREGIS */
-  .v3-page[data-theme="pregis_luxury_dark"] {
-    background: #0b0f19 !important;
-    color: #f8fafc;
-    --v3-line-color: #d97706;
-    --v3-accent-main: #fbbf24;
-    --v3-brand-wedge: linear-gradient(135deg, #d97706 0%, #78350f 100%);
-    --v3-header-glow: #000000;
-    --v3-badge-bg: rgba(245, 158, 11, 0.22);
-    --v3-badge-text: #fde68a;
-    --v3-badge-border: rgba(245, 158, 11, 0.55);
-    --v3-ai-page-bg: radial-gradient(circle at 20% 20%, rgba(217, 119, 6, 0.12), transparent 55%), linear-gradient(160deg, #090d16 0%, #111827 100%);
-    --v3-ai-card-bg: rgba(30, 41, 59, 0.78);
-    --v3-ai-tower-bg: linear-gradient(165deg, rgba(245, 158, 11, 0.16) 0%, rgba(15, 23, 42, 0.92) 100%);
-    --v3-ai-tower-border: rgba(245, 158, 11, 0.65);
-  }
-  .v3-page[data-theme="pregis_mare"] {
-    --v3-line-color: #0284c7;
-    --v3-accent-main: #0284c7;
-    --v3-brand-wedge: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    --v3-header-glow: #0c4a6e;
-    --v3-badge-bg: #e0f2fe;
-    --v3-badge-text: #0369a1;
-    --v3-badge-border: #38bdf8;
-    --v3-ai-page-bg: linear-gradient(180deg, #f0f9ff 0%, #ffffff 45%, #e0f2fe 100%);
-    --v3-ai-tower-bg: linear-gradient(165deg, #e0f2fe 0%, #ffffff 60%, #f0f9ff 100%);
-    --v3-ai-tower-border: rgba(2, 132, 199, 0.45);
-  }
-  .v3-page[data-theme="pregis_inverno"] {
-    --v3-line-color: #b91c1c;
-    --v3-accent-main: #dc2626;
-    --v3-brand-wedge: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%);
-    --v3-header-glow: #7f1d1d;
-    --v3-badge-bg: #fee2e2;
-    --v3-badge-text: #991b1b;
-    --v3-badge-border: #f87171;
-    --v3-ai-page-bg: linear-gradient(180deg, #fff5f5 0%, #ffffff 45%, #fef2f2 100%);
-    --v3-ai-tower-bg: linear-gradient(165deg, #fef2f2 0%, #ffffff 60%, #fff1f2 100%);
-    --v3-ai-tower-border: rgba(220, 38, 38, 0.45);
-  }
-  .v3-page[data-theme="pregis_grill"] {
-    --v3-line-color: #b45309;
-    --v3-accent-main: #dc2626;
-    --v3-brand-wedge: linear-gradient(135deg, #1c1917 0%, #44403c 100%);
-    --v3-header-glow: #7c2d12;
-  }
-  .v3-page[data-theme="pregis_primavera"] {
-    --v3-line-color: #15803d;
-    --v3-accent-main: #15803d;
-    --v3-brand-wedge: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-    --v3-header-glow: #14532d;
-    --v3-badge-bg: #dcfce7;
-    --v3-badge-text: #166534;
-    --v3-badge-border: #4ade80;
-    --v3-ai-page-bg: linear-gradient(180deg, #f0fdf4 0%, #ffffff 50%, #dcfce7 100%);
-    --v3-ai-tower-bg: linear-gradient(165deg, #dcfce7 0%, #ffffff 65%);
-    --v3-ai-tower-border: rgba(22, 163, 74, 0.45);
-  }
-
-  /* ==========================================================================
-     1. TESTATA PREGIS CON LOGO UFFICIALE E TEMA FOTOGRAFICO
-     ========================================================================== */
-  .v3-pregis-banner {
-    height: 122px;
-    border-radius: 6px;
-    position: relative;
+  /* SVG / Gradienti organici decorativi sullo sfondo della pagina (compatibile html2canvas) */
+  .v3-page-bg-ornaments {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 34px;
-    margin-bottom: 14px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  }
+  .v3-page-custom-bg {
+    position: absolute;
+    inset: 0;
     background-size: cover;
     background-position: center;
-  }
-  .v3-page.v3-ai-beautified .v3-pregis-banner {
-    border-radius: 14px;
-    height: 128px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
-    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    opacity: 0.32;
+    pointer-events: none;
+    z-index: 0;
   }
 
-  .v3-page[data-theme="pregis_autunno"] .v3-pregis-banner {
-    background-image:
-      linear-gradient(90deg, rgba(0,0,0,0.18) 0%, rgba(124, 45, 18, 0.42) 100%),
-      url("https://images.unsplash.com/photo-1507371341162-763b5e419408?auto=format&fit=crop&w=1200&q=80");
-  }
-  .v3-page[data-theme="pregis_inverno"] .v3-pregis-banner {
-    background-image:
-      linear-gradient(90deg, rgba(0,0,0,0.22) 0%, rgba(127, 29, 29, 0.5) 100%),
-      url("https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80");
-  }
-  .v3-page[data-theme="pregis_mare"] .v3-pregis-banner {
-    background-image:
-      linear-gradient(90deg, rgba(3, 105, 161, 0.3) 0%, rgba(12, 74, 110, 0.55) 100%),
-      url("https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=1200&q=80");
-  }
-  .v3-page[data-theme="pregis_grill"] .v3-pregis-banner {
-    background-image:
-      linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(124, 45, 18, 0.55) 100%),
-      url("https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=1200&q=80");
-  }
-  .v3-page[data-theme="pregis_primavera"] .v3-pregis-banner {
-    background-image:
-      linear-gradient(90deg, rgba(20, 83, 45, 0.25) 0%, rgba(21, 128, 61, 0.45) 100%),
-      url("https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80");
-  }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-pregis-banner {
-    background-image:
-      linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(180, 83, 9, 0.5) 100%),
-      url("https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80");
+  /* 6 Sfondi curati sotto i prodotti */
+  .v3-page.v3-ai-beautified[data-theme="sfondo_crema_organico"] {
+    background:
+      radial-gradient(circle at 10% 10%, rgba(251, 191, 36, 0.20) 0%, transparent 45%),
+      radial-gradient(circle at 90% 25%, rgba(234, 88, 12, 0.12) 0%, transparent 48%),
+      radial-gradient(circle at 18% 82%, rgba(245, 158, 11, 0.14) 0%, transparent 45%),
+      linear-gradient(170deg, #fffdf8 0%, #fdf6ea 52%, #f9edd9 100%);
+    color: #292524;
+    --v3-text-main: #292524;
+    --v3-text-muted: #78716c;
+    --v3-accent-main: #c2410c;
+    --v3-card-surface: rgba(255, 255, 255, 0.72);
+    --v3-card-border: rgba(217, 119, 6, 0.20);
+    --v3-hero-surface: rgba(255, 255, 255, 0.88);
+    --v3-hero-border: rgba(217, 119, 6, 0.42);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.26) 0%, rgba(253, 230, 138, 0.14) 52%, transparent 74%);
   }
 
-  /* Spicchio curvo PREGIS a sinistra */
-  .v3-brand-wedge {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 315px;
-    background: var(--v3-brand-wedge);
-    clip-path: ellipse(92% 115% at 8% 12%);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding-left: 24px;
-    z-index: 2;
-    box-shadow: 6px 0 18px rgba(0,0,0,0.28);
+  .v3-page.v3-ai-beautified[data-theme="sfondo_legno_bistrot"] {
+    background:
+      repeating-linear-gradient(12deg, rgba(168, 124, 79, 0.04) 0px, rgba(168, 124, 79, 0.04) 2px, transparent 2px, transparent 24px),
+      radial-gradient(circle at 82% 14%, rgba(217, 119, 6, 0.14) 0%, transparent 42%),
+      radial-gradient(circle at 15% 78%, rgba(146, 64, 14, 0.10) 0%, transparent 45%),
+      linear-gradient(165deg, #f8f1e7 0%, #f1e4d1 55%, #e8d5bc 100%);
+    color: #2c1e16;
+    --v3-text-main: #2c1e16;
+    --v3-text-muted: #6b5344;
+    --v3-accent-main: #9a3412;
+    --v3-card-surface: rgba(255, 251, 245, 0.74);
+    --v3-card-border: rgba(146, 64, 14, 0.18);
+    --v3-hero-surface: rgba(255, 252, 247, 0.90);
+    --v3-hero-border: rgba(180, 83, 9, 0.40);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(180, 83, 9, 0.20) 0%, rgba(245, 208, 169, 0.16) 50%, transparent 74%);
+    --v3-price-pill-bg: #451a03;
   }
 
-  .v3-pregis-logo-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .v3-pregis-logo-img {
-    max-height: 62px;
-    max-width: 210px;
-    object-fit: contain;
-    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.3));
-  }
-  .v3-brand-sub {
-    font-size: 0.56rem;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: rgba(255, 255, 255, 0.94);
-    font-weight: 700;
-    margin-top: 3px;
+  .v3-page.v3-ai-beautified[data-theme="sfondo_acquerello_orto"] {
+    background:
+      radial-gradient(circle at 85% 15%, rgba(74, 222, 128, 0.18) 0%, transparent 45%),
+      radial-gradient(circle at 12% 35%, rgba(163, 230, 53, 0.14) 0%, transparent 48%),
+      radial-gradient(circle at 75% 85%, rgba(52, 211, 153, 0.16) 0%, transparent 46%),
+      linear-gradient(170deg, #f7fcf7 0%, #eef7ee 52%, #e3f1e5 100%);
+    color: #142c1d;
+    --v3-text-main: #142c1d;
+    --v3-text-muted: #4b6b58;
+    --v3-accent-main: #15803d;
+    --v3-card-surface: rgba(255, 255, 255, 0.74);
+    --v3-card-border: rgba(22, 163, 74, 0.20);
+    --v3-hero-surface: rgba(255, 255, 255, 0.90);
+    --v3-hero-border: rgba(21, 128, 61, 0.38);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.20) 0%, rgba(187, 247, 208, 0.16) 52%, transparent 74%);
+    --v3-price-pill-bg: #14532d;
+    --v3-price-hot-bg: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   }
 
-  .v3-banner-title-wrap {
-    position: relative;
-    z-index: 3;
-    text-align: right;
-    max-width: 64%;
+  .v3-page.v3-ai-beautified[data-theme="sfondo_mediterraneo"] {
+    background:
+      radial-gradient(circle at 14% 12%, rgba(56, 189, 248, 0.20) 0%, transparent 46%),
+      radial-gradient(circle at 88% 78%, rgba(14, 165, 233, 0.16) 0%, transparent 48%),
+      radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.85) 0%, transparent 65%),
+      linear-gradient(175deg, #f3faff 0%, #e6f4fd 54%, #d7ecfb 100%);
+    color: #0c233c;
+    --v3-text-main: #0c233c;
+    --v3-text-muted: #476885;
+    --v3-accent-main: #0369a1;
+    --v3-card-surface: rgba(255, 255, 255, 0.76);
+    --v3-card-border: rgba(2, 132, 199, 0.20);
+    --v3-hero-surface: rgba(255, 255, 255, 0.90);
+    --v3-hero-border: rgba(2, 132, 199, 0.42);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(14, 165, 233, 0.20) 0%, rgba(186, 230, 253, 0.18) 52%, transparent 74%);
+    --v3-price-pill-bg: #0c4a6e;
+    --v3-price-hot-bg: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   }
-  .v3-banner-kicker {
-    display: none;
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #fef08a;
-    background: rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(6px);
-    padding: 3px 12px;
-    border-radius: 99px;
-    margin-bottom: 5px;
-    border: 1px solid rgba(255,255,255,0.25);
+
+  .v3-page.v3-ai-beautified[data-theme="sfondo_terracotta"] {
+    background:
+      radial-gradient(circle at 84% 14%, rgba(234, 88, 12, 0.18) 0%, transparent 46%),
+      radial-gradient(circle at 15% 80%, rgba(185, 28, 28, 0.12) 0%, transparent 48%),
+      linear-gradient(165deg, #fff7f2 0%, #fdece2 52%, #f9dfd0 100%);
+    color: #2b1610;
+    --v3-text-main: #2b1610;
+    --v3-text-muted: #7c4d3e;
+    --v3-accent-main: #b91c1c;
+    --v3-card-surface: rgba(255, 252, 249, 0.74);
+    --v3-card-border: rgba(194, 65, 12, 0.22);
+    --v3-hero-surface: rgba(255, 253, 251, 0.90);
+    --v3-hero-border: rgba(185, 28, 28, 0.38);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(234, 88, 12, 0.22) 0%, rgba(254, 215, 170, 0.18) 52%, transparent 74%);
+    --v3-price-pill-bg: #7c2d12;
   }
-  .v3-page.v3-ai-beautified .v3-banner-kicker {
-    display: inline-block;
-  }
-  .v3-banner-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 2.5rem;
-    font-weight: 900;
-    color: #ffffff;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    line-height: 1;
-    margin: 0;
-    text-shadow:
-      0 0 14px var(--v3-header-glow),
-      0 0 28px var(--v3-header-glow),
-      0 3px 6px rgba(0, 0, 0, 0.65);
+
+  .v3-page.v3-ai-beautified[data-theme="sfondo_ardesia_gold"] {
+    background:
+      radial-gradient(circle at 20% 18%, rgba(245, 158, 11, 0.16) 0%, transparent 48%),
+      radial-gradient(circle at 82% 82%, rgba(217, 119, 6, 0.12) 0%, transparent 48%),
+      linear-gradient(165deg, #1b202b 0%, #12161f 55%, #0c0f16 100%);
+    color: #f8fafc;
+    --v3-text-main: #f8fafc;
+    --v3-text-muted: #cbd5e1;
+    --v3-accent-main: #fbbf24;
+    --v3-line-color: rgba(251, 191, 36, 0.35);
+    --v3-card-surface: rgba(30, 38, 52, 0.78);
+    --v3-card-border: rgba(251, 191, 36, 0.24);
+    --v3-hero-surface: rgba(38, 46, 62, 0.90);
+    --v3-hero-border: rgba(251, 191, 36, 0.55);
+    --v3-pedestal-bg: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.24) 0%, rgba(245, 158, 11, 0.08) 50%, transparent 74%);
+    --v3-price-pill-bg: #334155;
+    --v3-price-hot-bg: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --v3-price-hot-fg: #111827;
   }
 
   /* ==========================================================================
-     2. GRIGLIA ASIMMETRICA A 3 COLONNE (BASE vs AI BEAUTIFIED)
+     1. TESTATA PULITA CON LOGO PREGIS (SENZA BANNER RETTANGOLARE SUPERIORE)
      ========================================================================== */
-  .v3-pregis-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: minmax(236px, 1fr);
-    grid-auto-flow: dense;
-    column-gap: 18px;
-    row-gap: 10px;
-    flex: 1;
+  .v3-top-logo-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 4px 6px 14px 6px;
+    margin-bottom: 10px;
+    border-bottom: 1.5px solid var(--v3-line-color);
   }
-  .v3-page.v3-ai-beautified .v3-pregis-grid {
-    column-gap: 14px;
-    row-gap: 14px;
+  .v3-top-logo-header.v3-logo-only {
+    justify-content: center;
+    text-align: center;
+    border-bottom: none;
+    padding-bottom: 12px;
   }
 
-  /* Stile Cella in Vista Base (pulito con linea inferiore oro) */
+  .v3-header-brand-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .v3-top-logo-header.v3-logo-only .v3-header-brand-block {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .v3-pregis-logo-img {
+    max-height: 66px;
+    max-width: 230px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.14));
+  }
+  .v3-top-logo-header.v3-logo-only .v3-pregis-logo-img {
+    max-height: 84px;
+    max-width: 280px;
+  }
+
+  .v3-brand-sub {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--v3-text-muted);
+    font-weight: 700;
+  }
+
+  .v3-header-title-block {
+    text-align: right;
+  }
+  .v3-top-logo-header.v3-logo-only .v3-header-title-block {
+    display: none;
+  }
+  .v3-spontaneous-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 2.05rem;
+    font-weight: 700;
+    line-height: 1.05;
+    margin: 0;
+    color: var(--v3-text-main);
+    letter-spacing: -0.3px;
+  }
+  .v3-spontaneous-sub {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--v3-accent-main);
+    margin-top: 2px;
+  }
+
+  /* ==========================================================================
+     2. DISPOSIZIONE PRODOTTI SPONTANEA & SFONDI SOTTO-PRODOTTI
+     ========================================================================== */
+  .v3-pregis-grid {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(238px, 1fr);
+    grid-auto-flow: dense;
+    gap: 16px;
+    flex: 1;
+  }
+
+  /* Struttura Base minimale (solo quando l'utente sceglie "Struttura Base") */
   .v3-cell {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     position: relative;
-    padding: 6px 4px 6px 4px;
-    border-bottom: 1.8px solid var(--v3-line-color);
+    padding: 8px 6px 8px 6px;
+    border-bottom: 1.5px solid #cbd5e1;
     transition: all 0.25s ease;
   }
 
-  /* TRASFORMAZIONE CELLA QUANDO "ABBELLITO CON AI" È ATTIVO */
-  .v3-page.v3-ai-beautified .v3-cell {
-    background: var(--v3-ai-card-bg);
-    border: 1px solid rgba(200, 157, 84, 0.32);
-    border-bottom: 3px solid var(--v3-line-color);
-    border-radius: 16px;
-    padding: 12px 13px 10px 13px;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  /* STILE SOTTO-PRODOTTI 1: CARD MORBIDA VETRO (Spontanea) */
+  .v3-page.v3-ai-beautified.v3-cardstyle-card_spontanea .v3-cell {
+    background: var(--v3-card-surface);
+    border: 1px solid var(--v3-card-border);
+    border-radius: 22px;
+    padding: 13px 14px 11px 14px;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    backdrop-filter: blur(8px);
   }
-  /* Le Torri a 2 righe in modalità AI diventano veri e propri Showcase Hero */
-  .v3-page.v3-ai-beautified .v3-cell.v3-row-span-2 {
-    background: var(--v3-ai-tower-bg);
-    border: 2px solid var(--v3-ai-tower-border);
-    box-shadow: 0 14px 32px rgba(234, 88, 12, 0.12);
+  .v3-page.v3-ai-beautified.v3-cardstyle-card_spontanea .v3-cell.v3-row-span-2,
+  .v3-page.v3-ai-beautified.v3-cardstyle-card_spontanea .v3-cell.v3-col-span-2 {
+    background: var(--v3-hero-surface);
+    border: 1.5px solid var(--v3-hero-border);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.10);
+  }
+
+  /* STILE SOTTO-PRODOTTI 2: ALONE & PEDANA MORBIDA (Niente cornici rigide, sfondi morbidi sotto i prodotti) */
+  .v3-page.v3-ai-beautified.v3-cardstyle-alone_organico .v3-cell {
+    background: transparent;
+    border: none;
+    border-radius: 24px;
+    padding: 10px 10px 8px 10px;
+  }
+  .v3-page.v3-ai-beautified.v3-cardstyle-alone_organico .v3-cell::before {
+    content: "";
+    position: absolute;
+    inset: 8px 4px 6px 4px;
+    border-radius: 28px;
+    background: var(--v3-card-surface);
+    opacity: 0.58;
+    z-index: 0;
+  }
+
+  /* STILE SOTTO-PRODOTTI 3: LIBERO SU SFONDO (Completamente integrato nello sfondo) */
+  .v3-page.v3-ai-beautified.v3-cardstyle-libero_su_sfondo .v3-cell {
+    background: transparent;
+    border: none;
+    padding: 8px 10px;
   }
 
   .v3-cell.v3-row-span-2 {
@@ -414,41 +497,41 @@
     grid-column: span 2;
   }
 
-  /* Intestazione cella: Nome prodotto + Brand in corsivo + Copy AI */
+  /* Intestazione cella: Nome prodotto + Brand in corsivo + Nota naturale */
   .v3-cell-header {
+    position: relative;
     z-index: 2;
     margin-bottom: 4px;
   }
   .v3-cell-title {
-    font-size: 0.95rem;
+    font-size: 0.94rem;
     font-weight: 700;
     line-height: 1.18;
-    color: inherit;
+    color: var(--v3-text-main);
     margin: 0 0 2px 0;
     letter-spacing: -0.2px;
   }
-  .v3-cell.v3-row-span-2 .v3-cell-title {
-    font-size: 1.08rem;
-    font-weight: 800;
+  .v3-cell.v3-row-span-2 .v3-cell-title,
+  .v3-cell.v3-col-span-2 .v3-cell-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.16rem;
+    font-weight: 700;
   }
   .v3-cell-brand {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-style: italic;
     font-weight: 600;
-    color: #64748b;
+    color: var(--v3-text-muted);
     line-height: 1.15;
   }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-cell-brand {
-    color: #94a3b8;
-  }
 
-  /* Descrizione Gourmet AI (visibile nella modalità Abbellita con AI) */
+  /* Nota spontanea sotto il brand (senza bollini/target) */
   .v3-cell-ai-desc {
     display: none;
-    font-size: 0.65rem;
-    line-height: 1.28;
-    color: #64748b;
-    margin-top: 3px;
+    font-size: 0.66rem;
+    line-height: 1.3;
+    color: var(--v3-text-muted);
+    margin-top: 4px;
     font-weight: 500;
   }
   .v3-page.v3-ai-beautified .v3-cell-ai-desc {
@@ -458,141 +541,160 @@
     display: none !important;
   }
 
-  /* Bollino AI Valorizzazione */
-  .v3-ai-pill {
-    display: none;
-    font-size: 0.55rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 99px;
-    background: var(--v3-badge-bg);
-    color: var(--v3-badge-text);
-    border: 1px solid var(--v3-badge-border);
-    margin-bottom: 4px;
-    width: fit-content;
-  }
-  .v3-page.v3-ai-beautified .v3-ai-pill {
-    display: inline-block;
-  }
-  .v3-hide-badges .v3-ai-pill {
-    display: none !important;
-  }
-
-  /* Area centrale immagine con piedistallo luminoso 3D in modalità AI */
+  /* Area immagine prodotto con PEDANA / SFONDO MORBIDO SOTTO IL PRODOTTO */
   .v3-cell-img-area {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    min-height: 115px;
+    min-height: 118px;
     cursor: pointer;
-  }
-  .v3-page.v3-ai-beautified .v3-cell-img-area {
-    background: radial-gradient(circle at 50% 55%, rgba(245, 158, 11, 0.14) 0%, rgba(255, 255, 255, 0) 68%);
-    border-radius: 12px;
+    z-index: 2;
+    padding: 4px;
   }
   .v3-cell.v3-row-span-2 .v3-cell-img-area {
-    min-height: 300px;
+    min-height: 290px;
+  }
+
+  .v3-product-pedestal {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    width: 84%;
+    height: 82%;
+    border-radius: 50%;
+    background: var(--v3-pedestal-bg);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .v3-page.v3-ai-beautified .v3-product-pedestal {
+    display: block;
+  }
+
+  /* Ombra d'appoggio naturale alla base del prodotto */
+  .v3-product-shadow {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%);
+    width: 62%;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.22) 0%, transparent 72%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .v3-page.v3-ai-beautified .v3-product-shadow {
+    display: block;
   }
 
   .v3-cell-img-area img {
+    position: relative;
+    z-index: 1;
     max-width: 92%;
-    max-height: 136px;
+    max-height: 138px;
     object-fit: contain;
-    filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.18));
+    filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.20));
     transition: transform 0.22s ease;
   }
-  .v3-page.v3-ai-beautified .v3-cell-img-area img {
-    filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.26));
-  }
   .v3-cell.v3-row-span-2 .v3-cell-img-area img {
-    max-height: 330px;
+    max-height: 315px;
+  }
+
+  /* Layout orizzontale automatico quando la cella è 2 colonne */
+  .v3-cell.v3-col-span-2 .v3-cell-img-area {
+    min-height: 150px;
+  }
+  .v3-cell.v3-col-span-2 .v3-cell-img-area img {
+    max-height: 165px;
   }
 
   .v3-no-photo-box {
+    position: relative;
+    z-index: 1;
     border: 1.5px dashed #cbd5e1;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 12px 8px;
     text-align: center;
-    color: #64748b;
+    color: var(--v3-text-muted);
     font-size: 0.66rem;
     font-weight: 600;
     width: 86%;
-    background: rgba(248, 250, 252, 0.7);
+    background: rgba(255, 255, 255, 0.55);
   }
   .v3-exporting .v3-no-photo-box {
     border-color: transparent;
     background: transparent;
   }
 
-  /* Barra inferiore della cella: Imballo + Codice a sinistra | Prezzo Split a destra */
+  /* Barra inferiore della cella: Imballo + Codice | Cartellino Prezzo Flottante */
   .v3-cell-bottom {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 6px;
-    padding-top: 4px;
-    z-index: 2;
+    gap: 8px;
+    padding-top: 6px;
   }
   .v3-cell-meta {
-    font-size: 0.66rem;
-    line-height: 1.22;
-    color: #3f3f46;
+    font-size: 0.65rem;
+    line-height: 1.25;
+    color: var(--v3-text-muted);
     font-weight: 500;
-  }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-cell-meta {
-    color: #cbd5e1;
   }
   .v3-cell-code {
     font-weight: 700;
-    color: #18181b;
-  }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-cell-code {
-    color: #f1f5f9;
+    color: var(--v3-text-main);
   }
 
-  /* PREZZO SPLIT (€ 8 ^80 / al KG) */
+  /* Cartellino Prezzo */
   .v3-split-price {
     display: flex;
     align-items: baseline;
     line-height: 0.85;
-    color: #27272a;
+    color: var(--v3-text-main);
     user-select: none;
     transition: all 0.2s;
   }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-split-price {
-    color: #f8fafc;
+  .v3-page.v3-ai-beautified .v3-split-price {
+    background: var(--v3-price-pill-bg);
+    color: var(--v3-price-pill-fg);
+    padding: 6px 11px 5px 10px;
+    border-radius: 14px;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.16);
   }
-  .v3-split-price.v3-price-red {
-    color: var(--v3-accent-main) !important;
+  .v3-page.v3-ai-beautified .v3-split-price .v3-sp-um {
+    color: rgba(255, 255, 255, 0.85);
   }
 
-  /* In modalità AI Beautified il prezzo delle card in evidenza ha un badge/pillola luminosa */
-  .v3-page.v3-ai-beautified .v3-split-price.v3-price-red {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    color: #ffffff !important;
-    padding: 6px 11px 5px 10px;
-    border-radius: 12px;
-    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28);
+  .v3-split-price.v3-price-red {
+    color: #dc2626;
   }
-  .v3-page.v3-ai-beautified .v3-split-price.v3-price-red .v3-sp-um {
-    color: rgba(255, 255, 255, 0.9) !important;
+  .v3-page.v3-ai-beautified .v3-split-price.v3-price-red {
+    background: var(--v3-price-hot-bg);
+    color: var(--v3-price-hot-fg) !important;
+    box-shadow: 0 8px 18px rgba(220, 38, 38, 0.28);
+  }
+  .v3-page.v3-ai-beautified[data-theme="sfondo_ardesia_gold"] .v3-split-price.v3-price-red .v3-sp-um {
+    color: rgba(17, 24, 39, 0.85) !important;
   }
 
   .v3-sp-euro {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 800;
     margin-right: 3px;
     align-self: flex-end;
     padding-bottom: 2px;
   }
   .v3-sp-int {
-    font-size: 2.55rem;
-    font-weight: 900;
-    letter-spacing: -1.5px;
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -1.2px;
     line-height: 0.82;
   }
   .v3-sp-right-stack {
@@ -603,36 +705,32 @@
     align-self: stretch;
   }
   .v3-sp-dec {
-    font-size: 1.05rem;
-    font-weight: 900;
+    font-size: 0.96rem;
+    font-weight: 800;
     line-height: 1;
   }
   .v3-sp-um {
-    font-size: 0.6rem;
+    font-size: 0.56rem;
     font-weight: 700;
-    color: #3f3f46;
+    color: var(--v3-text-muted);
     white-space: nowrap;
     margin-top: auto;
     padding-top: 2px;
   }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-sp-um {
-    color: #cbd5e1;
-  }
 
   /* ==========================================================================
-     3. FOOTER PREGIS CON LINEA DORATA E NUMERO PAGINA CENTRALE
+     3. FOOTER PULITO
      ========================================================================== */
   .v3-pregis-footer {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 14px;
     margin-top: 14px;
-    padding-top: 4px;
-    font-size: 0.78rem;
-    color: #3f3f46;
-  }
-  .v3-page[data-theme="pregis_luxury_dark"] .v3-pregis-footer {
-    color: #cbd5e1;
+    padding-top: 6px;
+    font-size: 0.75rem;
+    color: var(--v3-text-muted);
   }
   .v3-footer-brand {
     font-weight: 700;
@@ -647,6 +745,7 @@
   .v3-footer-pagenum {
     font-weight: 800;
     padding: 0 6px;
+    color: var(--v3-text-main);
   }
 
   /* ==========================================================================
@@ -654,14 +753,14 @@
      ========================================================================== */
   .v3-cell-toolbar {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 6px;
+    right: 6px;
     display: flex;
     gap: 3px;
     opacity: 0;
     transition: opacity 0.18s;
     z-index: 20;
-    background: rgba(15, 23, 42, 0.88);
+    background: rgba(15, 23, 42, 0.90);
     padding: 3px 5px;
     border-radius: 8px;
   }
@@ -692,61 +791,65 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
   <div>
     <div class="d-flex align-items-center gap-2">
-      <span class="badge rounded-pill px-3 py-1 fw-bold" style="background: linear-gradient(135deg, #dc2626, #ea580c); color: #fff;">
-        <i class="bi bi-stars me-1"></i>PREGIS AI STUDIO 3.0
+      <span class="badge rounded-pill px-3 py-1 fw-bold" style="background: linear-gradient(135deg, #b91c1c, #ea580c); color: #fff;">
+        <i class="bi bi-stars me-1"></i>VOLANTINI 3.0 AI
       </span>
-      <h1 class="h3 fw-bold mb-0">Volantini 3.0 AI — Improntato su PREGIS</h1>
+      <h1 class="h4 fw-bold mb-0">Studio Creativo Volantini PREGIS</h1>
     </div>
     <p class="text-muted small mb-0 mt-1">
-      Carica il PDF dei prodotti: il sistema crea la struttura di base a <strong>10 prodotti con Torri Verticali a 2 righe</strong> e con l'<strong>Intelligenza Artificiale</strong> la abbellisce con card 3D, bollini, copy gourmet e testata ufficiale <strong>PREGIS</strong>.
+      Tutte le selezioni restano fisse a sinistra mentre lavori. Carica il PDF prodotti, scegli uno sfondo morbido sotto gli articoli e personalizza logo e impaginazione spontanea.
     </p>
   </div>
-  <div class="d-flex flex-wrap gap-2">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 bg-body-tertiary border rounded-pill px-3 py-1">
+      <i class="bi bi-zoom-in text-muted small"></i>
+      <input type="range" id="v3ZoomSlider" min="55" max="110" step="5" value="85" style="width: 90px;" class="form-range mb-0">
+      <span id="v3ZoomLabel" class="small fw-bold" style="min-width: 36px;">85%</span>
+    </div>
     <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#v3SavedArchiveModal">
       <i class="bi bi-folder2-open me-1"></i>Archivio ({{ saved_list|length }})
     </button>
     <button type="button" id="v3AutoFindPhotosBtn" class="btn btn-warning btn-sm fw-bold rounded-pill px-3 text-dark shadow-sm">
-      <i class="bi bi-magic me-1"></i>Auto-Trova Foto con AI
+      <i class="bi bi-magic me-1"></i>Auto-Trova Foto AI
     </button>
     <button type="button" id="v3SaveFlyerBtn" class="btn btn-success btn-sm fw-bold rounded-pill px-3 shadow-sm">
-      <i class="bi bi-cloud-check-fill me-1"></i>Salva Volantino
+      <i class="bi bi-cloud-check-fill me-1"></i>Salva
     </button>
     <button type="button" id="v3ExportPdfBtn" class="btn btn-primary btn-sm fw-bold rounded-pill px-3 shadow-sm">
-      <i class="bi bi-file-earmark-pdf-fill me-1"></i>Scarica PDF Stampa HD
+      <i class="bi bi-file-earmark-pdf-fill me-1"></i>Scarica PDF HD
     </button>
   </div>
 </div>
 
 <div class="v3-studio-wrap">
   <!-- ====================================================================
-       PANNELLO DI CONTROLLO SINISTRO (PREGIS AI STUDIO)
+       PANNELLO SELEZIONI LATERALE FISSO (STICKY A SINISTRA)
        ==================================================================== -->
   <aside class="v3-control-panel">
     <div class="v3-panel-header">
       <div class="d-flex align-items-center justify-content-between">
         <div class="fw-bold d-flex align-items-center gap-2">
-          <i class="bi bi-stars fs-5 text-warning"></i>
-          <span>Regia Volantini PREGIS AI</span>
+          <i class="bi bi-sliders2 fs-5 text-warning"></i>
+          <span>Selezioni Volantino PREGIS</span>
         </div>
-        <span class="badge bg-white text-dark fw-bold" style="font-size: 0.66rem;">PREGIS PRO</span>
       </div>
-      <div class="small mt-1" style="opacity: 0.92; font-size: 0.74rem;">
-        Dalla struttura base al catalogo abbellito con AI
+      <div class="small mt-1" style="opacity: 0.92; font-size: 0.72rem;">
+        Pannello laterale sempre accessibile durante lo scroll
       </div>
     </div>
 
-    <div class="p-3">
-      <!-- SWITCHER IMMEDIATO: BASE CLASSICO vs ABBELLITO CON AI -->
-      <div class="mb-3">
+    <div class="p-3 d-flex flex-column gap-3">
+      <!-- SWITCHER IMMEDIATO: BASE vs ABBELLITO SPONTANEO AI -->
+      <div>
         <label class="form-label small fw-bold text-uppercase text-muted mb-1">
-          Modalità Grafica Volantino
+          Modalità Grafica
         </label>
         <div class="v3-mode-switcher">
           <button type="button" id="v3ModeBaseBtn" class="v3-mode-btn">
-            📋 Struttura Base
+            📋 Base Semplice
           </button>
           <button type="button" id="v3ModeAiBtn" class="v3-mode-btn active-ai">
             ✨ Abbellito con AI
@@ -754,23 +857,22 @@
         </div>
       </div>
 
-      <!-- 1. CARICA PDF O IMMAGINE VOLANTINO -->
-      <div class="mb-3">
+      <!-- 1. CARICA PDF O CATEGORIA -->
+      <div>
         <label class="form-label small fw-bold text-uppercase text-muted mb-1">
           1. Carica PDF Prodotti
         </label>
         <div id="v3PdfDropzone" class="v3-dropzone">
           <input type="file" id="v3PdfInput" accept=".pdf,.jpg,.jpeg,.png,.webp" class="d-none">
-          <i class="bi bi-file-earmark-pdf-fill fs-2 text-danger d-block mb-1"></i>
-          <div class="fw-bold small" id="v3DropzoneTitle">Trascina qui il PDF dei Prodotti</div>
-          <div class="text-muted" style="font-size: 0.71rem;">Estrae codici, imballi e prezzi e li abbellisce con AI</div>
+          <i class="bi bi-file-earmark-pdf-fill fs-3 text-danger d-block mb-1"></i>
+          <div class="fw-bold small" id="v3DropzoneTitle">Trascina qui il PDF</div>
+          <div class="text-muted" style="font-size: 0.69rem;">Genera e abbellisce con AI automaticamente</div>
         </div>
 
         <div class="input-group input-group-sm mt-2">
-          <span class="input-group-text bg-body-tertiary"><i class="bi bi-tags-fill text-danger"></i></span>
           <select id="v3CatSelect" class="form-select">
-            <option value="">-- O carica da Categoria Catalogo --</option>
-            <option value="all">🌟 Tutti i Prodotti a Catalogo</option>
+            <option value="">-- O da Categoria Catalogo --</option>
+            <option value="all">🌟 Tutti i Prodotti</option>
             {% for cat in categorie %}
             <option value="{{ cat.id }}">{{ cat.nome }}</option>
             {% endfor %}
@@ -779,109 +881,151 @@
         </div>
       </div>
 
-      <!-- 2. CHIEDI ALL'AI DI MIGLIORARLO E ABBELLIRLO -->
-      <div class="mb-3 p-2.5 rounded-3 border" style="background: rgba(234, 88, 12, 0.04);">
-        <label class="form-label small fw-bold mb-1">
-          <i class="bi bi-wand text-danger me-1"></i>2. Migliora e Abbellisci con AI
+      <!-- 2. LOGO TESTATA (AL POSTO DEL BANNER SUPERIORE) -->
+      <div>
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          2. Logo in Testata
         </label>
-        <textarea id="v3AiPromptInput" class="form-control form-control-sm mb-2" rows="2" placeholder="Es: Rendi i testi più accattivanti, metti tema Autunno Pregis e valorizza i prodotti principali..."></textarea>
-        <div class="d-flex flex-wrap gap-1 mb-2">
-          <button type="button" class="badge bg-light text-dark border v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Migliora nomi e descrizioni gourmet con tema Autunno Pregis">🍂 Promo Autunno Pregis</button>
-          <button type="button" class="badge bg-light text-dark border v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Tema Inverno e Festività rosso e oro Pregis">🎄 Promo Inverno Pregis</button>
-          <button type="button" class="badge bg-light text-dark border v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Tema Mare e Pesce azzurro Pregis">🌊 Speciale Mare Pregis</button>
-          <button type="button" class="badge bg-light text-dark border v3-quick-ai-chip" style="cursor:pointer;" data-prompt="Tema Luxury Dark nero e oro gourmet">✨ Luxury Nero & Oro</button>
+        <div class="v3-style-grid mb-2">
+          <button type="button" class="v3-logomode-btn active" data-logomode="logo_and_title">
+            <i class="bi bi-layout-text-sidebar text-danger"></i>
+            <span>Logo + Titolo</span>
+          </button>
+          <button type="button" class="v3-logomode-btn" data-logomode="logo_only">
+            <i class="bi bi-image text-warning"></i>
+            <span>Solo Logo Centrato</span>
+          </button>
         </div>
-        <button type="button" id="v3ApplyAiRestyleBtn" class="btn btn-sm w-100 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, #dc2626, #ea580c);">
-          <i class="bi bi-stars me-1"></i>Migliora e Abbellisci Ora con AI
+        <div class="d-flex gap-1">
+          <input type="file" id="v3LogoUploadInput" accept="image/*" class="d-none">
+          <button type="button" id="v3UploadLogoBtn" class="btn btn-outline-secondary btn-sm flex-grow-1" style="font-size: 0.72rem;">
+            <i class="bi bi-upload me-1"></i>Cambia Logo
+          </button>
+          <button type="button" id="v3ResetLogoBtn" class="btn btn-outline-secondary btn-sm" style="font-size: 0.72rem;" title="Ripristina logo PREGIS">
+            PREGIS
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. SFONDO CARINO SOTTO I PRODOTTI -->
+      <div>
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          3. Sfondo Sotto i Prodotti
+        </label>
+        <div class="v3-style-grid mb-2">
+          <button type="button" class="v3-style-btn active" data-theme="sfondo_crema_organico">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#fff8eb,#f5d08a);"></span>
+            <span>Crema & Onde</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="sfondo_legno_bistrot">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#f1e4d1,#b45309);"></span>
+            <span>Tavola Bistrot</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="sfondo_acquerello_orto">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#ecfdf5,#4ade80);"></span>
+            <span>Acquerello Verde</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="sfondo_mediterraneo">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#eff8ff,#38bdf8);"></span>
+            <span>Brezza Mare</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="sfondo_terracotta">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#fff1ea,#ea580c);"></span>
+            <span>Terracotta Calda</span>
+          </button>
+          <button type="button" class="v3-style-btn" data-theme="sfondo_ardesia_gold">
+            <span class="v3-color-dot" style="background: linear-gradient(135deg,#1e293b,#fbbf24);"></span>
+            <span>Ardesia & Oro</span>
+          </button>
+        </div>
+        <div class="d-flex gap-1">
+          <input type="file" id="v3BgUploadInput" accept="image/*" class="d-none">
+          <button type="button" id="v3UploadBgBtn" class="btn btn-outline-secondary btn-sm flex-grow-1" style="font-size: 0.72rem;">
+            <i class="bi bi-card-image me-1"></i>Carica Sfondo Tuo
+          </button>
+          <button type="button" id="v3ClearBgBtn" class="btn btn-outline-secondary btn-sm" style="font-size: 0.72rem;" title="Rimuovi immagine sfondo custom">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. STILE DI APPOGGIO SOTTO OGNI PRODOTTO -->
+      <div>
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          4. Stile Sotto Ogni Prodotto
+        </label>
+        <div class="v3-style-grid">
+          <button type="button" class="v3-cardstyle-btn active" data-cardstyle="card_spontanea">
+            <i class="bi bi-square-half text-danger"></i>
+            <span>Card Morbida</span>
+          </button>
+          <button type="button" class="v3-cardstyle-btn" data-cardstyle="alone_organico">
+            <i class="bi bi-circle-half text-warning"></i>
+            <span>Pedana Sfumata</span>
+          </button>
+          <button type="button" class="v3-cardstyle-btn" data-cardstyle="libero_su_sfondo" style="grid-column: span 2;">
+            <i class="bi bi-wind text-primary"></i>
+            <span>Libero Diretto sullo Sfondo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 5. RITMO IMPAGINAZIONE SPONTANEA -->
+      <div>
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
+          5. Ritmo Prodotti in Pagina
+        </label>
+        <div class="v3-style-grid">
+          <button type="button" class="v3-layout-btn active" data-preset="pregis_spontaneo">
+            <i class="bi bi-columns-gap text-danger"></i>
+            <span>Spontaneo Misto</span>
+          </button>
+          <button type="button" class="v3-layout-btn" data-preset="pregis_mosaico">
+            <i class="bi bi-grid-1x2 text-warning"></i>
+            <span>Mosaico Dinamico</span>
+          </button>
+          <button type="button" class="v3-layout-btn" data-preset="pregis_vetrina">
+            <i class="bi bi-star text-primary"></i>
+            <span>Vetrina Centrale</span>
+          </button>
+          <button type="button" class="v3-layout-btn" data-preset="pregis_compatto">
+            <i class="bi bi-grid-3x3-gap text-secondary"></i>
+            <span>Griglia Pulita</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 6. PROMPT AI SPONTANEO -->
+      <div class="p-2.5 rounded-3 border" style="background: rgba(234, 88, 12, 0.04);">
+        <label class="form-label small fw-bold mb-1">
+          <i class="bi bi-wand text-danger me-1"></i>6. Abbellisci o Modifica con AI
+        </label>
+        <textarea id="v3AiPromptInput" class="form-control form-control-sm mb-2" rows="2" placeholder="Es: Usa sfondo legno bistrot con pedana morbida e titolo Offerte di Stagione..."></textarea>
+        <button type="button" id="v3ApplyAiRestyleBtn" class="btn btn-sm w-100 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, #b91c1c, #ea580c);">
+          <i class="bi bi-stars me-1"></i>Applica Abbellimento AI
         </button>
       </div>
 
-      <!-- 3. SCHEMA IMPAGINAZIONE -->
-      <div class="mb-3">
-        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
-          3. Disposizione Prodotti sulla Pagina
-        </label>
-        <div class="v3-style-grid">
-          <button type="button" class="v3-layout-btn active" data-preset="pregis_torri">
-            <i class="bi bi-layout-three-columns text-danger"></i>
-            <span>Torri Laterali (10 Prod)</span>
-          </button>
-          <button type="button" class="v3-layout-btn" data-preset="pregis_centro">
-            <i class="bi bi-bounding-box-circles text-warning"></i>
-            <span>Torre Centrale</span>
-          </button>
-          <button type="button" class="v3-layout-btn" data-preset="pregis_scacchiera">
-            <i class="bi bi-grid-1x2 text-primary"></i>
-            <span>Alternato Dinamico</span>
-          </button>
-          <button type="button" class="v3-layout-btn" data-preset="pregis_uniforme">
-            <i class="bi bi-grid-3x3-gap text-secondary"></i>
-            <span>3x3 Compatto (9 Prod)</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 4. TEMA TESTATA STAGIONALE PREGIS -->
-      <div class="mb-3">
-        <label class="form-label small fw-bold text-uppercase text-muted mb-1">
-          4. Atmosfera & Testata PREGIS
-        </label>
-        <div class="v3-style-grid">
-          <button type="button" class="v3-style-btn active" data-theme="pregis_autunno">
-            <span class="v3-color-dot" style="background: linear-gradient(135deg,#dc2626,#f59e0b);"></span>
-            <span>Autunno Caldo</span>
-          </button>
-          <button type="button" class="v3-style-btn" data-theme="pregis_inverno">
-            <span class="v3-color-dot" style="background: linear-gradient(135deg,#991b1b,#fca5a5);"></span>
-            <span>Inverno & Feste</span>
-          </button>
-          <button type="button" class="v3-style-btn" data-theme="pregis_mare">
-            <span class="v3-color-dot" style="background: linear-gradient(135deg,#0284c7,#38bdf8);"></span>
-            <span>Pregis Mare</span>
-          </button>
-          <button type="button" class="v3-style-btn" data-theme="pregis_grill">
-            <span class="v3-color-dot" style="background: linear-gradient(135deg,#1c1917,#ea580c);"></span>
-            <span>Grill & Salumi</span>
-          </button>
-          <button type="button" class="v3-style-btn" data-theme="pregis_primavera">
-            <span class="v3-color-dot" style="background: linear-gradient(135deg,#16a34a,#86efac);"></span>
-            <span>Fresco & Orto</span>
-          </button>
-          <button type="button" class="v3-style-btn" data-theme="pregis_luxury_dark">
-            <span class="v3-color-dot" style="background: linear-gradient(135deg,#090d16,#f59e0b);"></span>
-            <span>Luxury Nero/Oro</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 5. OPZIONI EXTRA AI -->
+      <!-- 7. OPZIONI EXTRA -->
       <div class="pt-2 border-top d-flex flex-column gap-2">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="v3ToggleBadges" checked>
-            <label class="form-check-label small fw-bold" for="v3ToggleBadges">✨ Bollini Qualità AI</label>
-          </div>
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="v3ToggleDesc" checked>
-            <label class="form-check-label small fw-bold" for="v3ToggleDesc">📝 Copy Gourmet AI</label>
-          </div>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="v3ToggleDesc" checked>
+          <label class="form-check-label small fw-bold" for="v3ToggleDesc">📝 Note Prodotto AI</label>
         </div>
         <button type="button" id="v3AddProductBtn" class="btn btn-outline-primary btn-sm w-100 fw-bold">
-          + Aggiungi Prodotto alla Pagina
+          + Aggiungi Prodotto
         </button>
       </div>
     </div>
   </aside>
 
   <!-- ====================================================================
-       FOGLIO VOLANTINO LIVE PREGIS
+       AREA FOGLIO VOLANTINO PREGIS (A DESTRA, SCORRIMENTO INDIPENDENTE)
        ==================================================================== -->
   <section id="v3CanvasContainer" class="v3-canvas-area"></section>
 </div>
 
-<!-- ======================================================================
-     MODAL: RICERCA / UPLOAD FOTO PRODOTTO
-     ====================================================================== -->
+<!-- MODAL RICERCA / UPLOAD FOTO PRODOTTO -->
 <div class="modal fade" id="v3PhotoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -906,9 +1050,7 @@
   </div>
 </div>
 
-<!-- ======================================================================
-     MODAL: ARCHIVIO VOLANTINI 3.0 SALVATI
-     ====================================================================== -->
+<!-- MODAL ARCHIVIO VOLANTINI SALVATI -->
 <div class="modal fade" id="v3SavedArchiveModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -924,7 +1066,7 @@
             <div>
               <div class="fw-bold">{{ v.titolo }}</div>
               <div class="small text-muted">
-                Stile: <span class="badge bg-warning-subtle text-warning-emphasis">{{ v.stile }}</span>
+                Sfondo: <span class="badge bg-warning-subtle text-warning-emphasis">{{ v.stile }}</span>
                 · Aggiornato: {{ v.aggiornato_il }}
               </div>
             </div>
@@ -954,6 +1096,23 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const PREGIS_DEFAULT_LOGO = "https://us-east-1.tixte.net/uploads/leonardogiorgini.tixte.co/logo-pregis-bordo.png";
+  const VALID_THEMES = new Set([
+    "sfondo_crema_organico",
+    "sfondo_legno_bistrot",
+    "sfondo_acquerello_orto",
+    "sfondo_mediterraneo",
+    "sfondo_terracotta",
+    "sfondo_ardesia_gold"
+  ]);
+  const LEGACY_THEME_MAP = {
+    "pregis_autunno": "sfondo_crema_organico",
+    "pregis_inverno": "sfondo_terracotta",
+    "pregis_mare": "sfondo_mediterraneo",
+    "pregis_grill": "sfondo_legno_bistrot",
+    "pregis_primavera": "sfondo_acquerello_orto",
+    "pregis_luxury_dark": "sfondo_ardesia_gold"
+  };
+
   let currentFlyerId = {{ loaded_flyer.id if loaded_flyer else 'null' }};
   let flyerData = {% if loaded_flyer and loaded_flyer.dati_json %}{{ loaded_flyer.dati_json | safe }}{% else %}null{% endif %};
 
@@ -962,15 +1121,17 @@ document.addEventListener("DOMContentLoaded", () => {
       brand_header: "PREGIS",
       brand_sub: "eccellenza nella ristorazione",
       logo_url: PREGIS_DEFAULT_LOGO,
-      titolo: "PROMO MENSILE",
-      sottotitolo: "Selezione Esclusiva Ho.Re.Ca. • Qualità Garantita Pregis",
-      stile: "pregis_autunno",
-      layout_mode: "pregis_10",
+      logo_mode: "logo_and_title",
+      titolo: "Offerte del Mese",
+      sottotitolo: "Selezione gastronomica per la ristorazione",
+      stile: "sfondo_crema_organico",
+      card_style: "card_spontanea",
+      custom_bg_url: "",
+      layout_mode: "pregis_spontaneo",
       ai_beautified: true,
-      show_ai_badges: true,
       show_ai_descriptions: true,
       per_page: 10,
-      footer_brand: "PREGIS S.p.A. — Divisione Ho.Re.Ca.",
+      footer_brand: "PREGIS S.p.A.",
       pages: [
         {
           page_number: 1,
@@ -978,10 +1139,9 @@ document.addEventListener("DOMContentLoaded", () => {
             {
               codice: "40616.002",
               titolo: "Prosciutto Mattonella Dolcetta SV",
-              brand: "Selezione Pregis • S.Alessandro",
+              brand: "S.Alessandro",
               imballo: "Imballo 5.50 kg",
               descrizione_ai: "Stagionatura lenta e profumo intenso, fetta compatta con zero scarto al taglio.",
-              badge: "⭐ SELEZIONE PREGIS",
               prezzo_int: "8",
               prezzo_dec: "80",
               um: "al KG",
@@ -996,8 +1156,7 @@ document.addEventListener("DOMContentLoaded", () => {
               titolo: "Prosciutto Cotto Alta Qualità",
               brand: "Trinità",
               imballo: "Imballo 8.70 kg",
-              descrizione_ai: "Cottura lenta a vapore, morbido e delicato per antipasti e farciture gourmet.",
-              badge: "🔥 TOP OFFERTA",
+              descrizione_ai: "Cottura lenta a vapore, morbido e delicato per antipasti e farciture.",
               prezzo_int: "5",
               prezzo_dec: "99",
               um: "al KG",
@@ -1008,28 +1167,11 @@ document.addEventListener("DOMContentLoaded", () => {
               is_red_price: false
             },
             {
-              codice: "41115",
-              titolo: "Prosciutto Bauletto Stagionato 6 Mesi",
-              brand: "San Francesco",
-              imballo: "Imballo 1.00 kg",
-              descrizione_ai: "Lavorazione artigianale disossata a bauletto per affettatura rapida e regolare.",
-              badge: "💎 RISERVA 6 MESI",
-              prezzo_int: "9",
-              prezzo_dec: "79",
-              um: "al KG",
-              immagine: "",
-              imageZoom: 1.0,
-              row_span: 2,
-              col_span: 1,
-              is_red_price: true
-            },
-            {
               codice: "41480",
               titolo: "Salame Napoli Tradizionale",
               brand: "Sorrentino",
               imballo: "Imballo 2.20 kg",
-              descrizione_ai: "Grana media e leggera affumicatura naturale secondo l'antica ricetta campana.",
-              badge: "🇮🇹 TRADIZIONE",
+              descrizione_ai: "Grana media e leggera affumicatura naturale secondo ricetta campana.",
               prezzo_int: "8",
               prezzo_dec: "25",
               um: "al KG",
@@ -1044,10 +1186,24 @@ document.addEventListener("DOMContentLoaded", () => {
               titolo: "Prosciutto di Parma DOP 1/2 18 Mesi",
               brand: "Simonini",
               imballo: "Imballo 3.88 kg",
-              descrizione_ai: "Dolcezza inconfondibile certificata DOP, stagionato 18 mesi nelle colline parmensi.",
-              badge: "👑 DOP 18 MESI",
+              descrizione_ai: "Dolcezza naturale certificata DOP, stagionato 18 mesi nelle colline parmensi.",
               prezzo_int: "19",
               prezzo_dec: "30",
+              um: "al KG",
+              immagine: "",
+              imageZoom: 1.0,
+              row_span: 1,
+              col_span: 2,
+              is_red_price: true
+            },
+            {
+              codice: "41115",
+              titolo: "Prosciutto Bauletto Stagionato 6 Mesi",
+              brand: "San Francesco",
+              imballo: "Imballo 1.00 kg",
+              descrizione_ai: "Lavorazione artigianale disossata a bauletto per affettatura rapida e regolare.",
+              prezzo_int: "9",
+              prezzo_dec: "79",
               um: "al KG",
               immagine: "",
               imageZoom: 1.0,
@@ -1060,8 +1216,7 @@ document.addEventListener("DOMContentLoaded", () => {
               titolo: "Prosciutto Mattonella Dolcetta Metà",
               brand: "Sant'Alessandro",
               imballo: "Imballo 2.65 kg",
-              descrizione_ai: "Formato a metà sottovuoto pratico e veloce per una gestione ottimale del banco.",
-              badge: "🔪 ZERO SCARTO",
+              descrizione_ai: "Formato a metà sottovuoto pratico per una gestione ottimale del banco.",
               prezzo_int: "8",
               prezzo_dec: "80",
               um: "al KG",
@@ -1074,10 +1229,9 @@ document.addEventListener("DOMContentLoaded", () => {
             {
               codice: "40900.001",
               titolo: "Prosciutto Cotto s/pelle Gran Dolcezza",
-              brand: "Trinità • Senza Glutine",
+              brand: "Trinità",
               imballo: "Imballo 7.20 kg",
-              descrizione_ai: "Senza pelle e senza glutine, altissima resa per pizzerie, toast e gastronomia.",
-              badge: "🌿 SENZA GLUTINE",
+              descrizione_ai: "Senza pelle e senza glutine, ottima resa per pizzerie, toast e gastronomia.",
               prezzo_int: "3",
               prezzo_dec: "69",
               um: "al KG",
@@ -1092,8 +1246,7 @@ document.addEventListener("DOMContentLoaded", () => {
               titolo: "Salame Milano Classico",
               brand: "Salvatori",
               imballo: "Imballo 3.50 kg",
-              descrizione_ai: "Macinatura a chicco di riso e gusto dolce ed equilibrato, fetta sempre compatta.",
-              badge: "⭐ GRANA FINE",
+              descrizione_ai: "Macinatura fine e gusto equilibrato, fetta compatta ad ogni taglio.",
               prezzo_int: "7",
               prezzo_dec: "20",
               um: "al KG",
@@ -1108,8 +1261,7 @@ document.addEventListener("DOMContentLoaded", () => {
               titolo: "Salame Ventricina Piccante",
               brand: "Valpadana",
               imballo: "Imballo 3.00 kg",
-              descrizione_ai: "Nota speziata e peperoncino calibrato, ideale per pizze gourmet e taglieri rustici.",
-              badge: "🌶️ GUSTO DECISO",
+              descrizione_ai: "Speziatura equilibrata e peperoncino calibrato per taglieri rustici.",
               prezzo_int: "6",
               prezzo_dec: "99",
               um: "al KG",
@@ -1124,8 +1276,7 @@ document.addEventListener("DOMContentLoaded", () => {
               titolo: "Lonza Stagionata Amatriciana",
               brand: "Sano",
               imballo: "Imballo 1.40 kg",
-              descrizione_ai: "Marezzatura pregiata e legatura artigianale in corda, profumo intenso di spezie.",
-              badge: "💎 SPECIALITÀ",
+              descrizione_ai: "Legatura artigianale in corda e marezzatura equilibrata.",
               prezzo_int: "16",
               prezzo_dec: "20",
               um: "al KG",
@@ -1141,18 +1292,20 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // Normalizza vecchi salvataggi su brand PREGIS
+  // Normalizza salvataggi precedenti
   if (!flyerData.brand_header || flyerData.brand_header.toLowerCase() === "capecchi") {
     flyerData.brand_header = "PREGIS";
     flyerData.brand_sub = "eccellenza nella ristorazione";
-    flyerData.footer_brand = "PREGIS S.p.A. — Divisione Ho.Re.Ca.";
+    flyerData.footer_brand = "PREGIS S.p.A.";
   }
-  if (flyerData.stile && flyerData.stile.startsWith("capecchi_")) {
-    flyerData.stile = flyerData.stile.replace("capecchi_", "pregis_");
+  if (!flyerData.logo_url) flyerData.logo_url = PREGIS_DEFAULT_LOGO;
+  if (!flyerData.logo_mode) flyerData.logo_mode = "logo_and_title";
+  if (!flyerData.card_style) flyerData.card_style = "card_spontanea";
+  if (!VALID_THEMES.has(flyerData.stile)) {
+    flyerData.stile = LEGACY_THEME_MAP[flyerData.stile] || "sfondo_crema_organico";
   }
-  if (flyerData.ai_beautified === undefined) {
-    flyerData.ai_beautified = true;
-  }
+  if (flyerData.ai_beautified === undefined) flyerData.ai_beautified = true;
+  delete flyerData.show_ai_badges;
 
   const canvasContainer = document.getElementById("v3CanvasContainer");
   const modeBaseBtn = document.getElementById("v3ModeBaseBtn");
@@ -1167,13 +1320,51 @@ document.addEventListener("DOMContentLoaded", () => {
   const autoPhotosBtn = document.getElementById("v3AutoFindPhotosBtn");
   const saveFlyerBtn = document.getElementById("v3SaveFlyerBtn");
   const exportPdfBtn = document.getElementById("v3ExportPdfBtn");
-  const toggleBadges = document.getElementById("v3ToggleBadges");
   const toggleDesc = document.getElementById("v3ToggleDesc");
   const addProductBtn = document.getElementById("v3AddProductBtn");
+  const zoomSlider = document.getElementById("v3ZoomSlider");
+  const zoomLabel = document.getElementById("v3ZoomLabel");
+  const logoUploadInput = document.getElementById("v3LogoUploadInput");
+  const uploadLogoBtn = document.getElementById("v3UploadLogoBtn");
+  const resetLogoBtn = document.getElementById("v3ResetLogoBtn");
+  const bgUploadInput = document.getElementById("v3BgUploadInput");
+  const uploadBgBtn = document.getElementById("v3UploadBgBtn");
+  const clearBgBtn = document.getElementById("v3ClearBgBtn");
 
   let activePhotoTarget = null;
+  let currentZoomPct = 85;
+
+  // Calcola lo zoom iniziale ottimale in base allo spazio disponibile a destra del pannello
+  function autoFitInitialZoom() {
+    const availW = canvasContainer.clientWidth - 40;
+    if (availW > 320 && availW < 850) {
+      currentZoomPct = Math.max(55, Math.min(100, Math.floor((availW / 850) * 100 / 5) * 5));
+      zoomSlider.value = currentZoomPct;
+      zoomLabel.textContent = `${currentZoomPct}%`;
+    }
+  }
+
+  function applyCanvasZoom() {
+    const scale = currentZoomPct / 100;
+    canvasContainer.querySelectorAll(".v3-page-zoom-shell").forEach(shell => {
+      const page = shell.querySelector(".v3-page");
+      if (!page) return;
+      page.style.transform = `scale(${scale})`;
+      page.style.transformOrigin = "top center";
+      const h = page.offsetHeight || 1202;
+      shell.style.height = `${Math.round(h * scale)}px`;
+      shell.style.width = `${Math.round(850 * scale)}px`;
+    });
+  }
+
+  zoomSlider.addEventListener("input", () => {
+    currentZoomPct = parseInt(zoomSlider.value, 10) || 85;
+    zoomLabel.textContent = `${currentZoomPct}%`;
+    applyCanvasZoom();
+  });
 
   function ensurePriceSplit(item) {
+    if ("badge" in item) delete item.badge;
     if (!item.prezzo_int) {
       const raw = String(item.prezzo || "8,80").replace("€", "").trim();
       const parts = raw.split(/[\.,]/);
@@ -1182,34 +1373,72 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (!item.um) item.um = "al KG";
     if (!item.imballo) item.imballo = "Imballo 2.50 kg";
-    if (!item.brand) item.brand = "Selezione Pregis";
-    if (!item.descrizione_ai) item.descrizione_ai = "Qualità superiore selezionata da Pregis per la ristorazione professionale.";
+    if (!item.brand) item.brand = "Pregis";
+    if (!item.descrizione_ai) item.descrizione_ai = "Formato professionale per la ristorazione.";
+  }
+
+  function buildOrnamentsSvg(theme) {
+    let c1 = "rgba(245, 158, 11, 0.14)";
+    let c2 = "rgba(234, 88, 12, 0.08)";
+    if (theme === "sfondo_acquerello_orto") {
+      c1 = "rgba(34, 197, 94, 0.13)";
+      c2 = "rgba(132, 204, 22, 0.10)";
+    } else if (theme === "sfondo_mediterraneo") {
+      c1 = "rgba(14, 165, 233, 0.13)";
+      c2 = "rgba(56, 189, 248, 0.09)";
+    } else if (theme === "sfondo_terracotta") {
+      c1 = "rgba(234, 88, 12, 0.14)";
+      c2 = "rgba(185, 28, 28, 0.08)";
+    } else if (theme === "sfondo_ardesia_gold") {
+      c1 = "rgba(251, 191, 36, 0.12)";
+      c2 = "rgba(245, 158, 11, 0.06)";
+    }
+    return `
+      <svg class="v3-page-bg-ornaments" viewBox="0 0 850 1202" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M-40,160 C180,60 320,250 560,120 C720,30 820,90 890,40 L890,-20 L-40,-20 Z" fill="${c1}" />
+        <ellipse cx="760" cy="640" rx="220" ry="280" fill="${c2}" />
+        <ellipse cx="90" cy="960" rx="240" ry="200" fill="${c1}" />
+        <path d="M-30,1150 C200,1050 480,1230 880,1080 L880,1230 L-30,1230 Z" fill="${c2}" />
+      </svg>
+    `;
   }
 
   function renderFlyer() {
     const isAi = flyerData.ai_beautified !== false;
+    const cardStyle = flyerData.card_style || "card_spontanea";
+    const logoMode = flyerData.logo_mode || "logo_and_title";
+    const theme = VALID_THEMES.has(flyerData.stile) ? flyerData.stile : "sfondo_crema_organico";
+
     modeBaseBtn.classList.toggle("active-base", !isAi);
     modeAiBtn.classList.toggle("active-ai", isAi);
 
     document.querySelectorAll(".v3-style-btn").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.theme === flyerData.stile);
+      btn.classList.toggle("active", btn.dataset.theme === theme);
     });
-    toggleBadges.checked = flyerData.show_ai_badges !== false;
+    document.querySelectorAll(".v3-cardstyle-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.cardstyle === cardStyle);
+    });
+    document.querySelectorAll(".v3-logomode-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.logomode === logoMode);
+    });
     toggleDesc.checked = flyerData.show_ai_descriptions !== false;
 
     canvasContainer.innerHTML = "";
     const pages = flyerData.pages || [];
 
     pages.forEach((page, pIdx) => {
+      const zoomShell = document.createElement("div");
+      zoomShell.className = "v3-page-zoom-shell";
+
       const pageEl = document.createElement("div");
       const extraClasses = [
         isAi ? "v3-ai-beautified" : "",
-        flyerData.show_ai_badges === false ? "v3-hide-badges" : "",
+        `v3-cardstyle-${cardStyle}`,
         flyerData.show_ai_descriptions === false ? "v3-hide-descriptions" : ""
       ].filter(Boolean).join(" ");
 
       pageEl.className = `v3-page ${extraClasses}`;
-      pageEl.setAttribute("data-theme", flyerData.stile || "pregis_autunno");
+      pageEl.setAttribute("data-theme", theme);
 
       const cellsHtml = (page.items || []).map((item, iIdx) => {
         ensurePriceSplit(item);
@@ -1233,22 +1462,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return `
           <div class="v3-cell ${spanClasses}" data-pidx="${pIdx}" data-iidx="${iIdx}">
             <div class="v3-cell-toolbar">
-              <button type="button" class="v3-tbtn ${rSpan === 2 ? 'active' : ''}" data-act="toggle-tall" title="Estendi su 2 righe in verticale">↕️ 2 Righe</button>
-              <button type="button" class="v3-tbtn ${cSpan === 2 ? 'active' : ''}" data-act="toggle-wide" title="Estendi su 2 colonne">↔️ 2 Col</button>
-              <button type="button" class="v3-tbtn ${isRed ? 'active' : ''}" data-act="toggle-red" title="Prezzo Rosso in Evidenza">🔴 Rosso</button>
+              <button type="button" class="v3-tbtn ${rSpan === 2 ? 'active' : ''}" data-act="toggle-tall" title="Prodotto alto 2 righe">↕️ Alto</button>
+              <button type="button" class="v3-tbtn ${cSpan === 2 ? 'active' : ''}" data-act="toggle-wide" title="Prodotto largo 2 colonne">↔️ Largo</button>
+              <button type="button" class="v3-tbtn ${isRed ? 'active' : ''}" data-act="toggle-red" title="Evidenzia prezzo">🔴 Evidenzia</button>
               <button type="button" class="v3-tbtn" data-act="zoom-in" title="Ingrandisci immagine">+</button>
               <button type="button" class="v3-tbtn" data-act="zoom-out" title="Riduci immagine">−</button>
               <button type="button" class="v3-tbtn text-danger" data-act="del" title="Rimuovi prodotto">✕</button>
             </div>
 
             <div class="v3-cell-header">
-              <span class="v3-ai-pill" contenteditable="true" data-field="badge">${item.badge || "⭐ SELEZIONE PREGIS"}</span>
               <h3 class="v3-cell-title" contenteditable="true" data-field="titolo">${item.titolo || "Prodotto"}</h3>
-              <div class="v3-cell-brand" contenteditable="true" data-field="brand">${item.brand || "Selezione Pregis"}</div>
+              <div class="v3-cell-brand" contenteditable="true" data-field="brand">${item.brand || "Pregis"}</div>
               <div class="v3-cell-ai-desc" contenteditable="true" data-field="descrizione_ai">${item.descrizione_ai || ""}</div>
             </div>
 
-            <div class="v3-cell-img-area" data-pidx="${pIdx}" data-iidx="${iIdx}" title="Clicca per cercare o caricare la foto del prodotto">
+            <div class="v3-cell-img-area" data-pidx="${pIdx}" data-iidx="${iIdx}" title="Clicca per cercare o caricare la foto">
+              <div class="v3-product-pedestal"></div>
+              <div class="v3-product-shadow"></div>
               ${imgHtml}
             </div>
 
@@ -1271,41 +1501,47 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
       }).join("");
 
+      const ornamentsHtml = isAi ? buildOrnamentsSvg(theme) : "";
+      const customBgHtml = (isAi && flyerData.custom_bg_url)
+        ? `<div class="v3-page-custom-bg" style="background-image: url('${flyerData.custom_bg_url}');"></div>`
+        : "";
+
       pageEl.innerHTML = `
-        <div>
-          <!-- TESTATA UFFICIALE PREGIS CON SPICCHIO CURVO + TEMA STAGIONALE -->
-          <header class="v3-pregis-banner">
-            <div class="v3-brand-wedge">
-              <div class="v3-pregis-logo-wrap">
-                <img src="${flyerData.logo_url || PREGIS_DEFAULT_LOGO}" alt="PREGIS" class="v3-pregis-logo-img" crossorigin="anonymous" onerror="this.style.display='none'">
-                <span class="v3-brand-sub" contenteditable="true" data-global="brand_sub">${flyerData.brand_sub || "eccellenza nella ristorazione"}</span>
-              </div>
+        ${ornamentsHtml}
+        ${customBgHtml}
+        <div style="position: relative; z-index: 2;">
+          <!-- TESTATA PULITA CON LOGO PREGIS (SENZA BANNER RETTANGOLARE) -->
+          <header class="v3-top-logo-header ${logoMode === 'logo_only' ? 'v3-logo-only' : ''}">
+            <div class="v3-header-brand-block">
+              <img src="${flyerData.logo_url || PREGIS_DEFAULT_LOGO}" alt="PREGIS" class="v3-pregis-logo-img" crossorigin="anonymous" onerror="this.style.display='none'">
+              <span class="v3-brand-sub" contenteditable="true" data-global="brand_sub">${flyerData.brand_sub || "eccellenza nella ristorazione"}</span>
             </div>
-            <div class="v3-banner-title-wrap">
-              <div class="v3-banner-kicker" contenteditable="true" data-global="sottotitolo">${flyerData.sottotitolo || "SELEZIONE SPECIALE HO.RE.CA."}</div>
-              <h2 class="v3-banner-title" contenteditable="true" data-global="titolo">${flyerData.titolo || "PROMO MENSILE"}</h2>
+            <div class="v3-header-title-block">
+              <h2 class="v3-spontaneous-title" contenteditable="true" data-global="titolo">${flyerData.titolo || "Offerte del Mese"}</h2>
+              <div class="v3-spontaneous-sub" contenteditable="true" data-global="sottotitolo">${flyerData.sottotitolo || "Selezione gastronomica per la ristorazione"}</div>
             </div>
           </header>
 
-          <!-- GRIGLIA ASIMMETRICA A 3 COLONNE CON TORRI 2-RIGHE -->
+          <!-- GRIGLIA PRODOTTI SPONTANEA CON SFONDO MORBIDO SOTTO OGNI PRODOTTO -->
           <div class="v3-pregis-grid">
             ${cellsHtml}
           </div>
         </div>
 
-        <!-- FOOTER PREGIS -->
         <footer class="v3-pregis-footer">
-          <span class="v3-footer-brand" contenteditable="true" data-global="footer_brand">${flyerData.footer_brand || "PREGIS S.p.A. — Divisione Ho.Re.Ca."}</span>
+          <span class="v3-footer-brand" contenteditable="true" data-global="footer_brand">${flyerData.footer_brand || "PREGIS S.p.A."}</span>
           <div class="v3-footer-line"></div>
           <span class="v3-footer-pagenum" contenteditable="true">${page.page_number || (pIdx + 1)}</span>
           <div class="v3-footer-line"></div>
         </footer>
       `;
 
-      canvasContainer.appendChild(pageEl);
+      zoomShell.appendChild(pageEl);
+      canvasContainer.appendChild(zoomShell);
     });
 
     bindCellEvents();
+    requestAnimationFrame(applyCanvasZoom);
   }
 
   function bindCellEvents() {
@@ -1360,7 +1596,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Switch Base vs Abbellito con AI
+  // Modalità Base vs Abbellito Spontaneo
   modeBaseBtn.addEventListener("click", () => {
     flyerData.ai_beautified = false;
     renderFlyer();
@@ -1370,7 +1606,64 @@ document.addEventListener("DOMContentLoaded", () => {
     renderFlyer();
   });
 
-  // Preset geometrici pagina
+  // Selezione Logo mode & upload logo personalizzato
+  document.querySelectorAll(".v3-logomode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      flyerData.logo_mode = btn.dataset.logomode;
+      renderFlyer();
+    });
+  });
+  uploadLogoBtn.addEventListener("click", () => logoUploadInput.click());
+  logoUploadInput.addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      flyerData.logo_url = ev.target.result;
+      renderFlyer();
+    };
+    reader.readAsDataURL(f);
+  });
+  resetLogoBtn.addEventListener("click", () => {
+    flyerData.logo_url = PREGIS_DEFAULT_LOGO;
+    renderFlyer();
+  });
+
+  // Cambio Sfondo Sotto i Prodotti & Upload Sfondo Personalizzato
+  document.querySelectorAll(".v3-style-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      flyerData.stile = btn.dataset.theme;
+      flyerData.ai_beautified = true;
+      renderFlyer();
+    });
+  });
+  uploadBgBtn.addEventListener("click", () => bgUploadInput.click());
+  bgUploadInput.addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      flyerData.custom_bg_url = ev.target.result;
+      flyerData.ai_beautified = true;
+      renderFlyer();
+    };
+    reader.readAsDataURL(f);
+  });
+  clearBgBtn.addEventListener("click", () => {
+    flyerData.custom_bg_url = "";
+    renderFlyer();
+  });
+
+  // Cambio Stile Sotto-Prodotto (Card / Pedana / Libero)
+  document.querySelectorAll(".v3-cardstyle-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      flyerData.card_style = btn.dataset.cardstyle;
+      flyerData.ai_beautified = true;
+      renderFlyer();
+    });
+  });
+
+  // Ritmi Spontanei di Pagina
   document.querySelectorAll(".v3-layout-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".v3-layout-btn").forEach(b => b.classList.remove("active"));
@@ -1380,31 +1673,18 @@ document.addEventListener("DOMContentLoaded", () => {
       (flyerData.pages || []).forEach(pg => {
         const items = pg.items || [];
         items.forEach(it => { it.row_span = 1; it.col_span = 1; it.is_red_price = false; });
-        if (preset === "pregis_torri" && items.length >= 3) {
+        if (preset === "pregis_spontaneo" && items.length >= 4) {
           items[0].row_span = 2; items[0].is_red_price = true;
-          if (items[2]) { items[2].row_span = 2; items[2].is_red_price = true; }
-        } else if (preset === "pregis_centro" && items.length >= 2) {
+          if (items[3]) { items[3].col_span = 2; items[3].is_red_price = true; }
+        } else if (preset === "pregis_mosaico" && items.length >= 6) {
+          items[1].col_span = 2; items[1].is_red_price = true;
+          items[4].row_span = 2; items[4].is_red_price = true;
+        } else if (preset === "pregis_vetrina" && items.length >= 2) {
           items[1].row_span = 2; items[1].is_red_price = true;
-        } else if (preset === "pregis_scacchiera" && items.length >= 5) {
-          items[0].row_span = 2; items[0].is_red_price = true;
-          items[4].col_span = 2; items[4].is_red_price = true;
         }
       });
       renderFlyer();
     });
-  });
-
-  // Cambio Tema Stagionale Pregis
-  document.querySelectorAll(".v3-style-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      flyerData.stile = btn.dataset.theme;
-      renderFlyer();
-    });
-  });
-
-  toggleBadges.addEventListener("change", () => {
-    flyerData.show_ai_badges = toggleBadges.checked;
-    renderFlyer();
   });
 
   toggleDesc.addEventListener("change", () => {
@@ -1416,11 +1696,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const lastPage = flyerData.pages[flyerData.pages.length - 1];
     lastPage.items.push({
       codice: "40999",
-      titolo: "Nuova Specialità Pregis",
-      brand: "Selezione Pregis",
+      titolo: "Nuovo Articolo",
+      brand: "Pregis",
       imballo: "Imballo 2.50 kg",
-      descrizione_ai: "Selezionato da Pregis per garantire massima resa e qualità costante in cucina.",
-      badge: "⭐ SELEZIONE PREGIS",
+      descrizione_ai: "Selezionato per garantire resa costante nelle preparazioni quotidiane.",
       prezzo_int: "9",
       prezzo_dec: "90",
       um: "al KG",
@@ -1431,13 +1710,6 @@ document.addEventListener("DOMContentLoaded", () => {
       is_red_price: false
     });
     renderFlyer();
-  });
-
-  document.querySelectorAll(".v3-quick-ai-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      aiPromptInput.value = chip.getAttribute("data-prompt");
-      applyAiBtn.click();
-    });
   });
 
   // Upload PDF e generazione AI
@@ -1455,7 +1727,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function handlePdfGeneration(fileObj, catId = "") {
     const origText = dropzoneTitle.innerHTML;
-    dropzoneTitle.innerHTML = `<span class="spinner-border spinner-border-sm text-danger me-1"></span>Creazione & Abbellimento AI PREGIS in corso...`;
+    dropzoneTitle.innerHTML = `<span class="spinner-border spinner-border-sm text-danger me-1"></span>Creazione & Abbellimento AI...`;
 
     const fd = new FormData();
     if (fileObj) fd.append("pdf", fileObj);
@@ -1469,7 +1741,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.ok && data.flyer) {
         flyerData = data.flyer;
         renderFlyer();
-        dropzoneTitle.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Volantino PREGIS generato e abbellito!</span>`;
+        dropzoneTitle.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Volantino generato con AI!</span>`;
       } else {
         alert(data.error || "Errore durante la generazione.");
         dropzoneTitle.innerHTML = origText;
@@ -1486,10 +1758,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   applyAiBtn.addEventListener("click", async () => {
-    const prompt = aiPromptInput.value.trim() || "Migliora e abbellisci il volantino con stile Pregis gourmet";
+    const prompt = aiPromptInput.value.trim() || "Rendi il volantino più spontaneo e naturale con descrizioni autentiche";
     applyAiBtn.disabled = true;
     const orig = applyAiBtn.innerHTML;
-    applyAiBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Abbellimento AI in corso...`;
+    applyAiBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Abbellimento AI...`;
     try {
       const res = await fetch("/api/volantini-3/ai-restyle", {
         method: "POST",
@@ -1628,10 +1900,13 @@ document.addEventListener("DOMContentLoaded", () => {
     exportPdfBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Esportazione PDF HD...`;
     canvasContainer.classList.add("v3-exporting");
 
+    // Ripristina temporaneamente scala 100% per export PDF nitido
+    const pageEls = canvasContainer.querySelectorAll(".v3-page");
+    pageEls.forEach(p => { p.style.transform = "none"; });
+
     try {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageEls = canvasContainer.querySelectorAll(".v3-page");
 
       for (let i = 0; i < pageEls.length; i++) {
         if (i > 0) pdf.addPage();
@@ -1644,10 +1919,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const imgData = canvas.toDataURL("image/jpeg", 0.96);
         pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
       }
-      const cleanTitle = (flyerData.titolo || "Promo_PREGIS").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      const cleanTitle = (flyerData.titolo || "Volantino_PREGIS").replace(/[^a-zA-Z0-9_\-]/g, "_");
       pdf.save(`${cleanTitle}.pdf`);
     } finally {
       canvasContainer.classList.remove("v3-exporting");
+      applyCanvasZoom();
       exportPdfBtn.disabled = false;
       exportPdfBtn.innerHTML = orig;
     }
@@ -1663,7 +1939,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  autoFitInitialZoom();
   renderFlyer();
+  window.addEventListener("resize", () => {
+    autoFitInitialZoom();
+    applyCanvasZoom();
+  });
 });
 </script>
 {% endblock %}
