@@ -1,11 +1,16 @@
 import os
 import re
+import io
+import csv
 import json
 import time
+import html as html_mod
 import base64
 import tempfile
 import requests
 import werkzeug.utils
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 from datetime import datetime, date
 from flask import Blueprint, render_template, request, jsonify, session, url_for
 
@@ -50,6 +55,32 @@ def _fetch_saved_list(cur):
     return out
 
 
+def _ensure_prodotti_catalog_columns(conn):
+    """Assicura che la tabella prodotti abbia tutte le colonne del catalogo (PostgreSQL + SQLite)."""
+    cols = [
+        ("codice", "TEXT"),
+        ("descrizione", "TEXT"),
+        ("immagine", "TEXT"),
+        ("marca", "TEXT"),
+        ("confezionamento", "TEXT"),
+        ("prezzo", "REAL"),
+        ("eliminato", "BOOLEAN DEFAULT FALSE"),
+    ]
+    cur = conn.cursor()
+    is_sqlite = hasattr(cur, "_cursor")
+    if is_sqlite:
+        cur.execute("PRAGMA table_info(prodotti)")
+        existing = {row.get("name") for row in cur.fetchall()}
+        for col_name, col_type in cols:
+            if col_name not in existing:
+                cur.execute(f"ALTER TABLE prodotti ADD COLUMN {col_name} {col_type}")
+        conn.commit()
+    else:
+        for col_name, col_type in cols:
+            cur.execute(f"ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+        conn.commit()
+
+
 def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
     global _GET_DB, _EXTRACT_PDF_FN, _GET_OPENAI_CFG_FN
     _GET_DB = get_db_fn
@@ -60,6 +91,7 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
         with _GET_DB() as conn:
             cur = conn.cursor()
             _ensure_volantini3_table(cur)
+            _ensure_prodotti_catalog_columns(conn)
             conn.commit()
     except Exception as e:
         print(f"⚠️ init_volantini_3 table warning: {e}")
@@ -346,7 +378,7 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
         img_url = str(p.get("immagine") or "")
         if not img_url and db_match and db_match.get("immagine"):
             img_val = db_match["immagine"]
-            img_url = img_val if (img_val.startswith("http") or img_val.startswith("/")) else f"/static/uploads/volantino_prodotti/{img_val}"
+            img_url = img_val if (img_val.startswith("http") or img_val.startswith("/") or img_val.startswith("data:")) else f"/static/uploads/volantino_prodotti/{img_val}"
 
         info = extract_brand_imballo_and_copy(raw_name, cat, idx)
         ai_it = ai_map.get(idx, {})
@@ -584,7 +616,7 @@ def api_volantini_3_genera_da_pdf():
                 for r in cur.fetchall():
                     d = dict(r)
                     img_v = d.get("immagine") or ""
-                    img_u = f"/static/uploads/volantino_prodotti/{img_v}" if (img_v and not img_v.startswith("http") and not img_v.startswith("/")) else img_v
+                    img_u = f"/static/uploads/volantino_prodotti/{img_v}" if (img_v and not img_v.startswith("http") and not img_v.startswith("/") and not img_v.startswith("data:")) else img_v
                     products.append({
                         "id": d["id"],
                         "codice": d.get("codice") or "",
@@ -718,5 +750,730 @@ def api_volantini_3_elimina(vol_id):
             conn.commit()
             saved_list = _fetch_saved_list(cur)
         return jsonify({"ok": True, "saved_list": saved_list})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ==============================================================================
+# SCANNER & IMPORTATORE CATALOGO PREGIS (SOLA LETTURA DA SAFARI / WEB)
+# ==============================================================================
+class _DOMNode:
+    __slots__ = ("tag", "attrs", "children", "text_parts", "parent")
+
+    def __init__(self, tag, attrs, parent=None):
+        self.tag = (tag or "").lower()
+        self.attrs = {k.lower(): (v or "") for k, v in (attrs or [])}
+        self.children = []
+        self.text_parts = []
+        self.parent = parent
+
+    def get_text(self, sep=" "):
+        parts = []
+        for c in self.children:
+            if isinstance(c, str):
+                s = c.strip()
+                if s:
+                    parts.append(s)
+            else:
+                t = c.get_text(sep=sep)
+                if t:
+                    parts.append(t)
+        return re.sub(r'\s+', ' ', sep.join(parts)).strip()
+
+    def iter_descendants(self):
+        for c in self.children:
+            if isinstance(c, _DOMNode):
+                yield c
+                yield from c.iter_descendants()
+
+
+class _PregisDOMBuilder(HTMLParser):
+    VOID_TAGS = {"img", "br", "hr", "input", "meta", "link", "source"}
+    SKIP_TAGS = {"script", "style", "noscript", "svg"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.root = _DOMNode("root", [])
+        self.curr = self.root
+        self.skip_depth = 0
+        self.in_ld_json = False
+        self.ld_json_blocks = []
+        self._curr_ld = []
+
+    def handle_starttag(self, tag, attrs):
+        t = tag.lower()
+        attr_dict = {k.lower(): (v or "") for k, v in attrs}
+        if t == "script" and "ld+json" in attr_dict.get("type", "").lower():
+            self.in_ld_json = True
+            self._curr_ld = []
+            return
+        if t in self.SKIP_TAGS:
+            self.skip_depth += 1
+            return
+        if self.skip_depth > 0:
+            return
+        node = _DOMNode(t, attrs, parent=self.curr)
+        self.curr.children.append(node)
+        if t not in self.VOID_TAGS:
+            self.curr = node
+
+    def handle_endtag(self, tag):
+        t = tag.lower()
+        if t == "script" and self.in_ld_json:
+            self.in_ld_json = False
+            raw = "".join(self._curr_ld).strip()
+            if raw:
+                self.ld_json_blocks.append(raw)
+            self._curr_ld = []
+            return
+        if t in self.SKIP_TAGS:
+            if self.skip_depth > 0:
+                self.skip_depth -= 1
+            return
+        if self.skip_depth > 0 or t in self.VOID_TAGS:
+            return
+        p = self.curr
+        while p and p.tag != t and p is not self.root:
+            p = p.parent
+        if p and p.parent:
+            self.curr = p.parent
+
+    def handle_data(self, data):
+        if self.in_ld_json:
+            self._curr_ld.append(data)
+            return
+        if self.skip_depth > 0:
+            return
+        if data and data.strip():
+            self.curr.children.append(data)
+
+
+def _is_valid_product_img_url(url: str) -> bool:
+    if not url:
+        return False
+    u = url.strip()
+    if u.startswith("data:image/svg") or len(u) < 5:
+        return False
+    low = u.lower()
+    if any(bad in low for bad in ["favicon", "sprite", "spinner", "loading", "placeholder", "no-image", "pixel", "blank.gif", "1x1"]):
+        return False
+    return True
+
+
+def _pick_img_from_node(node: _DOMNode, base_url: str = "") -> str:
+    imgs = [node] if node.tag == "img" else [n for n in node.iter_descendants() if n.tag == "img"]
+    best = ""
+    for img in imgs:
+        cand = ""
+        for attr in ("data-zoom-image", "data-large_image", "data-large", "data-original", "data-lazy-src", "data-src", "src"):
+            v = img.attrs.get(attr, "").strip()
+            if _is_valid_product_img_url(v):
+                cand = v
+                break
+        if not cand and img.attrs.get("srcset"):
+            parts = [p.strip().split(" ")[0] for p in img.attrs["srcset"].split(",") if p.strip()]
+            if parts and _is_valid_product_img_url(parts[-1]):
+                cand = parts[-1]
+        if cand:
+            if cand.startswith("//"):
+                cand = "https:" + cand
+            elif base_url and not cand.startswith(("http://", "https://", "data:")):
+                cand = urljoin(base_url, cand)
+            if "logo" not in cand.lower():
+                return cand
+            if not best:
+                best = cand
+    return best
+
+
+def _extract_product_from_dom_block(block: _DOMNode, base_url: str = "", default_cat: str = "") -> dict:
+    attrs = block.attrs
+    full_text = block.get_text("\n")
+    if not full_text or len(full_text) < 3:
+        return {}
+
+    img_url = _pick_img_from_node(block, base_url=base_url)
+
+    # Codice da data-attributes o sotto-elementi dedicati
+    codice = ""
+    for k in ("data-sku", "data-codice", "data-code", "data-product-code", "data-art", "data-id-prodotto"):
+        if attrs.get(k):
+            codice = attrs[k].strip()
+            break
+
+    title_cand = ""
+    desc_cand = ""
+    marca_cand = attrs.get("data-brand", "").strip() or attrs.get("data-marca", "").strip()
+    cat_cand = attrs.get("data-category", "").strip() or attrs.get("data-categoria", "").strip() or default_cat
+    conf_cand = attrs.get("data-pack", "").strip() or attrs.get("data-confezionamento", "").strip()
+    price_cand = None
+
+    for n in block.iter_descendants():
+        cls = (n.attrs.get("class", "") + " " + n.attrs.get("id", "") + " " + n.attrs.get("itemprop", "")).lower()
+        t = n.get_text(" ")
+        if not t:
+            continue
+        if not codice and any(k in cls for k in ("sku", "codice", "code", "cod-", "art-code", "ref")):
+            m_c = re.search(r'(?:cod\.?|codice|art\.?|sku)?\s*[:#]?\s*([A-Z0-9\.\-\/]{3,20})', t, re.IGNORECASE)
+            if m_c and len(m_c.group(1)) <= 20:
+                codice = m_c.group(1).strip()
+        if not marca_cand and any(k in cls for k in ("brand", "marca", "produttore", "maker", "fornitore")):
+            marca_cand = re.sub(r'^(?:marca|brand|produttore)\s*[:\-]\s*', '', t, flags=re.IGNORECASE).strip()
+        if any(k in cls for k in ("categ", "reparto", "famiglia")) and len(t) < 60:
+            cat_cand = re.sub(r'^(?:categoria|reparto)\s*[:\-]\s*', '', t, flags=re.IGNORECASE).strip()
+        if not conf_cand and any(k in cls for k in ("conf", "pack", "imball", "pezz", "formato", "peso", "uom")):
+            conf_cand = re.sub(r'^(?:confezionamento|confezione|imballo|pezzatura)\s*[:\-]\s*', '', t, flags=re.IGNORECASE).strip()
+        if price_cand is None and any(k in cls for k in ("price", "prezzo", "costo")):
+            m_p = re.search(r'(\d+[\.,]\d{2})', t)
+            if m_p:
+                price_cand = float(m_p.group(1).replace(",", "."))
+        if not title_cand and (n.tag in ("h1", "h2", "h3", "h4", "h5") or any(k in cls for k in ("title", "name", "nome", "product-name", "descrizione-breve"))):
+            if len(t) >= 3 and not re.match(r'^[\d\.,\s€]+$', t):
+                title_cand = t
+        if not desc_cand and any(k in cls for k in ("desc", "summary", "dettagli", "note")):
+            if len(t) > len(title_cand) + 3:
+                desc_cand = t
+
+    # Estrazione regex sul testo del blocco come fallback
+    if not codice:
+        m_c = re.search(r'(?:cod\.?|codice|art\.?|sku)\s*[:#\-]?\s*([A-Z0-9]{2,}[A-Z0-9\.\-\/]{1,16})', full_text, re.IGNORECASE)
+        if m_c:
+            codice = m_c.group(1).strip()
+        else:
+            m_num = re.search(r'\b(\d{4,8}(?:\.\d{1,4})?)\b', full_text)
+            if m_num:
+                codice = m_num.group(1).strip()
+
+    if not marca_cand:
+        m_m = re.search(r'(?:marca|brand|produttore)\s*[:\-]\s*([^\n|•]{2,40})', full_text, re.IGNORECASE)
+        if m_m:
+            marca_cand = m_m.group(1).strip()
+
+    if not conf_cand:
+        m_k = re.search(r'(?:confezionamento|confezione|conf\.?|imballo|pezzatura|formato)\s*[:\-]?\s*([^\n|•]{2,45})', full_text, re.IGNORECASE)
+        if m_k:
+            conf_cand = m_k.group(1).strip()
+        else:
+            m_u = re.search(r'\b(\d+(?:[\.,]\d+)?\s*(?:x\s*\d+(?:[\.,]\d+)?)?\s*(?:kg|gr|g|lt|l|ml|cl|pz|cf|crt)\b(?:\s*x\s*\d+)?)', full_text, re.IGNORECASE)
+            if m_u:
+                conf_cand = m_u.group(1).strip()
+
+    if price_cand is None:
+        m_p = re.search(r'€\s*(\d+[\.,]\d{2})|(\d+[\.,]\d{2})\s*€', full_text)
+        if m_p:
+            p_raw = m_p.group(1) or m_p.group(2)
+            price_cand = float(p_raw.replace(",", "."))
+
+    if not title_cand:
+        for img in [n for n in block.iter_descendants() if n.tag == "img"]:
+            alt = (img.attrs.get("alt") or img.attrs.get("title") or "").strip()
+            if len(alt) >= 4 and "logo" not in alt.lower():
+                title_cand = alt
+                break
+
+    if not title_cand:
+        lines = [ln.strip() for ln in full_text.split("\n") if ln.strip()]
+        for ln in lines:
+            if len(ln) >= 4 and ln != codice and not re.match(r'^[\d\.,\s€]+$', ln):
+                if not any(ln.lower().startswith(pfx) for pfx in ("cod", "prezzo", "€", "aggiungi", "carrello")):
+                    title_cand = ln
+                    break
+
+    if not desc_cand:
+        lines = [ln.strip() for ln in full_text.split("\n") if ln.strip()]
+        desc_parts = [ln for ln in lines if ln != title_cand and ln != codice and not ln.lower().startswith("aggiungi")]
+        if desc_parts:
+            desc_cand = " — ".join(desc_parts[:4])[:320]
+
+    # Pulizia finale titolo dal prefisso codice
+    if codice and title_cand.startswith(codice):
+        title_cand = title_cand[len(codice):].strip(" -–:·")
+
+    return {
+        "codice": codice[:40],
+        "nome": title_cand[:180],
+        "descrizione": (desc_cand or title_cand)[:400],
+        "immagine": img_url,
+        "marca": marca_cand[:80],
+        "categoria": cat_cand[:80],
+        "confezionamento": conf_cand[:80],
+        "prezzo": price_cand
+    }
+
+
+def parse_pregis_catalog_payload(html_content: str = "", base_url: str = "", raw_text: str = "", items_list=None, default_category: str = "") -> list:
+    """Estrae prodotti da HTML/JSON/CSV/Testo Pregis mantenendo associazione codice <-> immagine."""
+    extracted = []
+
+    if isinstance(items_list, list) and items_list:
+        for obj in items_list:
+            if not isinstance(obj, dict):
+                continue
+            img = str(obj.get("immagine") or obj.get("image") or obj.get("img") or obj.get("foto") or "").strip()
+            if img and img.startswith("//"):
+                img = "https:" + img
+            elif img and base_url and not img.startswith(("http://", "https://", "data:", "/")):
+                img = urljoin(base_url, img)
+            raw_price = obj.get("prezzo") or obj.get("price")
+            p_val = None
+            if raw_price not in (None, "", "None"):
+                try:
+                    m_p = re.search(r'(\d+[\.,]?\d*)', str(raw_price).replace(",", "."))
+                    if m_p:
+                        p_val = float(m_p.group(1))
+                except Exception:
+                    pass
+            extracted.append({
+                "codice": str(obj.get("codice") or obj.get("sku") or obj.get("code") or "").strip(),
+                "nome": str(obj.get("nome") or obj.get("titolo") or obj.get("name") or "").strip(),
+                "descrizione": str(obj.get("descrizione") or obj.get("description") or obj.get("nome") or "").strip(),
+                "immagine": img,
+                "marca": str(obj.get("marca") or obj.get("brand") or "").strip(),
+                "categoria": str(obj.get("categoria") or obj.get("category") or default_category or "").strip(),
+                "confezionamento": str(obj.get("confezionamento") or obj.get("imballo") or obj.get("packaging") or "").strip(),
+                "prezzo": p_val
+            })
+        return extracted
+
+    if html_content and "<" in html_content:
+        builder = _PregisDOMBuilder()
+        builder.feed(html_content)
+        builder.close()
+
+        # 1. Controlla prima eventuali JSON-LD di Schema.org Product
+        for raw_ld in builder.ld_json_blocks:
+            try:
+                ld = json.loads(raw_ld)
+                objs = ld if isinstance(ld, list) else (ld.get("@graph") or [ld])
+                for o in objs:
+                    if isinstance(o, dict) and o.get("@type") in ("Product", "MenuItem"):
+                        img_ld = o.get("image")
+                        if isinstance(img_ld, list):
+                            img_ld = img_ld[0]
+                        elif isinstance(img_ld, dict):
+                            img_ld = img_ld.get("url")
+                        brand_ld = o.get("brand")
+                        if isinstance(brand_ld, dict):
+                            brand_ld = brand_ld.get("name", "")
+                        offers = o.get("offers") or {}
+                        if isinstance(offers, list):
+                            offers = offers[0] if offers else {}
+                        prz_ld = offers.get("price") if isinstance(offers, dict) else None
+                        try:
+                            prz_ld = float(str(prz_ld).replace(",", ".")) if prz_ld else None
+                        except Exception:
+                            prz_ld = None
+                        extracted.append({
+                            "codice": str(o.get("sku") or o.get("mpn") or o.get("gtin13") or "").strip(),
+                            "nome": str(o.get("name") or "").strip(),
+                            "descrizione": str(o.get("description") or o.get("name") or "").strip(),
+                            "immagine": urljoin(base_url, str(img_ld or "")) if (base_url and img_ld) else str(img_ld or ""),
+                            "marca": str(brand_ld or "").strip(),
+                            "categoria": str(o.get("category") or default_category or "").strip(),
+                            "confezionamento": "",
+                            "prezzo": prz_ld
+                        })
+            except Exception:
+                pass
+
+        # 2. Scansiona card/righe DOM candidate (evitando contenitori padri che contengono più card)
+        candidate_nodes = []
+        for node in builder.root.iter_descendants():
+            if node.tag not in ("div", "article", "li", "tr", "section"):
+                continue
+            cls = (node.attrs.get("class", "") + " " + node.attrs.get("itemtype", "")).lower()
+            has_prod_hint = any(k in cls for k in ("prod", "item", "card", "art", "box", "sku", "offerta", "scheda")) or bool(node.attrs.get("data-sku") or node.attrs.get("data-codice"))
+            if node.tag == "tr" or has_prod_hint:
+                img_count = sum(1 for d in node.iter_descendants() if d.tag == "img" and _is_valid_product_img_url(d.attrs.get("src", "") or d.attrs.get("data-src", "")))
+                nested_cards = sum(1 for d in node.iter_descendants() if d is not node and any(k in d.attrs.get("class", "").lower() for k in ("product-card", "product-item", "card-product", "scheda-prodotto")))
+                if nested_cards <= 1 and (img_count >= 1 or has_prod_hint or node.tag == "tr"):
+                    candidate_nodes.append(node)
+
+        for blk in candidate_nodes:
+            item = _extract_product_from_dom_block(blk, base_url=base_url, default_cat=default_category)
+            if item.get("nome") or item.get("codice"):
+                if item.get("immagine") or item.get("codice"):
+                    extracted.append(item)
+
+    # 3. Fallback da testo semplice / incollato (righe con codice + nome)
+    if not extracted and raw_text:
+        for raw_ln in raw_text.splitlines():
+            ln = raw_ln.strip()
+            if len(ln) < 4:
+                continue
+            m_p = re.search(r'(\d+[\.,]\d{2})', ln)
+            prz = float(m_p.group(1).replace(",", ".")) if m_p else None
+            ln_clean = re.sub(r'€?\s*\d+[\.,]\d{2}', '', ln).strip(" -–•\t")
+            m_c = re.match(r'^([A-Z0-9\.\-\/]{3,16})\s+(.+)$', ln_clean, re.IGNORECASE)
+            if m_c:
+                extracted.append({
+                    "codice": m_c.group(1).strip(),
+                    "nome": m_c.group(2).strip(),
+                    "descrizione": m_c.group(2).strip(),
+                    "immagine": "",
+                    "marca": "",
+                    "categoria": default_category,
+                    "confezionamento": "",
+                    "prezzo": prz
+                })
+
+    return extracted
+
+
+def _verify_and_clean_products(raw_items: list) -> dict:
+    """Verifica duplicati, prodotti senza immagini e anomalie prima della conferma importazione."""
+    dedup = {}
+    ordered_keys = []
+    duplicati_rimossi = 0
+    errori_estrazione = 0
+    warnings = []
+
+    for idx, it in enumerate(raw_items or []):
+        codice = str(it.get("codice") or "").strip()
+        nome = re.sub(r'\s+', ' ', html_mod.unescape(str(it.get("nome") or ""))).strip()
+        descrizione = re.sub(r'\s+', ' ', html_mod.unescape(str(it.get("descrizione") or nome))).strip()
+        immagine = str(it.get("immagine") or "").strip()
+        marca = str(it.get("marca") or "").strip()
+        categoria = str(it.get("categoria") or "").strip()
+        confezionamento = str(it.get("confezionamento") or "").strip()
+        prezzo = it.get("prezzo")
+
+        if not codice and (not nome or len(nome) < 2):
+            errori_estrazione += 1
+            if len(warnings) < 25:
+                warnings.append(f"Riga #{idx + 1}: record incompleto (mancano sia codice sia nome).")
+            continue
+
+        if not nome and codice:
+            nome = f"Articolo {codice}"
+            if len(warnings) < 25:
+                warnings.append(f"Codice {codice}: nome prodotto non rilevato nella pagina.")
+
+        key = f"C:{codice.upper()}" if codice else f"N:{nome.upper()}"
+        clean_rec = {
+            "codice": codice,
+            "nome": nome,
+            "descrizione": descrizione or nome,
+            "immagine": immagine,
+            "marca": marca,
+            "categoria": categoria or "Catalogo Pregis",
+            "confezionamento": confezionamento,
+            "prezzo": prezzo
+        }
+
+        if key in dedup:
+            duplicati_rimossi += 1
+            prev = dedup[key]
+            # Merge: preserva sempre l'associazione con l'immagine o i metadati più completi
+            if not prev["immagine"] and clean_rec["immagine"]:
+                prev["immagine"] = clean_rec["immagine"]
+            if len(clean_rec["descrizione"]) > len(prev["descrizione"]):
+                prev["descrizione"] = clean_rec["descrizione"]
+            if not prev["marca"] and clean_rec["marca"]:
+                prev["marca"] = clean_rec["marca"]
+            if not prev["confezionamento"] and clean_rec["confezionamento"]:
+                prev["confezionamento"] = clean_rec["confezionamento"]
+            if prev["prezzo"] is None and clean_rec["prezzo"] is not None:
+                prev["prezzo"] = clean_rec["prezzo"]
+            if (not prev["categoria"] or prev["categoria"] == "Catalogo Pregis") and clean_rec["categoria"]:
+                prev["categoria"] = clean_rec["categoria"]
+        else:
+            dedup[key] = clean_rec
+            ordered_keys.append(key)
+
+    valid_list = [dedup[k] for k in ordered_keys]
+    missing_img = [p for p in valid_list if not p.get("immagine")]
+    categories = sorted({p["categoria"] for p in valid_list if p.get("categoria")})
+
+    return {
+        "stats": {
+            "totale_estratti": len(raw_items or []),
+            "totale_validi_unici": len(valid_list),
+            "duplicati_rimossi": duplicati_rimossi,
+            "con_immagine": len(valid_list) - len(missing_img),
+            "senza_immagine": len(missing_img),
+            "errori_estrazione": errori_estrazione,
+            "categorie_rilevate": categories,
+            "warnings": warnings,
+            "codici_senza_immagine": [p.get("codice") or p.get("nome") for p in missing_img[:30]],
+        },
+        "preview_20": valid_list[:20],
+        "all_products": valid_list
+    }
+
+
+def _fetch_public_catalog_multi_page(start_url: str, max_pages: int = 18) -> list:
+    """Esegue solo richieste GET in sola lettura su pagine/categorie pubbliche accessibili dall'URL."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15"
+    }
+    visited = set()
+    queue = [start_url]
+    parsed_start = urlparse(start_url)
+    base_host = parsed_start.netloc
+    collected = []
+
+    while queue and len(visited) < max_pages:
+        curr_url = queue.pop(0)
+        if curr_url in visited:
+            continue
+        visited.add(curr_url)
+        try:
+            resp = requests.get(curr_url, headers=headers, timeout=12)
+            if resp.status_code != 200 or "text/html" not in resp.headers.get("Content-Type", "").lower():
+                continue
+            page_html = resp.text
+            items = parse_pregis_catalog_payload(html_content=page_html, base_url=curr_url)
+            collected.extend(items)
+
+            # Cerca link di paginazione o sottocategorie dello stesso catalogo (solo GET)
+            builder = _PregisDOMBuilder()
+            builder.feed(page_html)
+            builder.close()
+            for a in builder.root.iter_descendants():
+                if a.tag != "a":
+                    continue
+                href = a.attrs.get("href", "").strip()
+                if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
+                    continue
+                abs_u = urljoin(curr_url, href)
+                pu = urlparse(abs_u)
+                if pu.netloc != base_host:
+                    continue
+                low_u = abs_u.lower()
+                if any(tok in low_u for tok in ("page=", "/page/", "categ", "catalog", "prodott", "p=")):
+                    if abs_u not in visited and abs_u not in queue and len(queue) < 40:
+                        queue.append(abs_u)
+        except Exception as e:
+            print(f"⚠️ Catalog GET warning ({curr_url}): {e}")
+
+    return collected
+
+
+@volantini3_bp.route("/api/salva_immagine_db", methods=["POST"])
+def api_salva_immagine_db_alias():
+    """Alias usato da Volantini 3.0 per associare la foto scelta direttamente al prodotto in DB."""
+    if not session.get("logged_in"):
+        return jsonify({"status": "error", "message": "Non autorizzato"}), 401
+    from flask import current_app
+    view_fn = current_app.view_functions.get("api_salva_immagine_volantino_prodotto")
+    if view_fn:
+        return view_fn()
+    return jsonify({"status": "error", "message": "Endpoint immagini non disponibile"}), 500
+
+
+@volantini3_bp.route("/api/catalogo/analizza-pregis", methods=["POST"])
+def api_catalogo_analizza_pregis():
+    """Analizza il catalogo (HTML/URL/JSON/CSV/PDF) in sola lettura, verifica duplicati/immagini e restituisce anteprima 20 prodotti."""
+    if not session.get("logged_in"):
+        return jsonify({"ok": False, "error": "Non autorizzato"}), 401
+
+    raw_items = []
+    source_url = ""
+    html_text = ""
+    raw_text = ""
+    default_cat = ""
+
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        source_url = (payload.get("url") or payload.get("base_url") or "").strip()
+        html_text = (payload.get("html") or "").strip()
+        raw_text = (payload.get("raw_text") or "").strip()
+        default_cat = (payload.get("default_categoria") or "").strip()
+        items_json = payload.get("items") or payload.get("prodotti")
+        if isinstance(items_json, list):
+            raw_items.extend(parse_pregis_catalog_payload(base_url=source_url, items_list=items_json, default_category=default_cat))
+    else:
+        source_url = (request.form.get("url") or request.form.get("base_url") or "").strip()
+        html_text = (request.form.get("html") or "").strip()
+        raw_text = (request.form.get("raw_text") or "").strip()
+        default_cat = (request.form.get("default_categoria") or "").strip()
+        items_str = (request.form.get("items_json") or "").strip()
+        if items_str:
+            try:
+                parsed_js = json.loads(items_str)
+                if isinstance(parsed_js, list):
+                    raw_items.extend(parse_pregis_catalog_payload(base_url=source_url, items_list=parsed_js, default_category=default_cat))
+            except Exception:
+                pass
+
+        f = request.files.get("file")
+        if f and f.filename:
+            ext = os.path.splitext(f.filename)[1].lower()
+            content_bytes = f.read()
+            if ext in (".html", ".htm", ".txt"):
+                html_text = content_bytes.decode("utf-8", errors="ignore")
+            elif ext == ".json":
+                try:
+                    loaded = json.loads(content_bytes.decode("utf-8", errors="ignore"))
+                    arr = loaded if isinstance(loaded, list) else (loaded.get("prodotti") or loaded.get("all_products") or loaded.get("items") or [])
+                    raw_items.extend(parse_pregis_catalog_payload(base_url=source_url, items_list=arr, default_category=default_cat))
+                except Exception as e:
+                    return jsonify({"ok": False, "error": f"JSON non valido: {e}"}), 400
+            elif ext == ".csv":
+                try:
+                    text_csv = content_bytes.decode("utf-8-sig", errors="ignore")
+                    reader = csv.DictReader(io.StringIO(text_csv))
+                    csv_rows = [dict(r) for r in reader]
+                    raw_items.extend(parse_pregis_catalog_payload(base_url=source_url, items_list=csv_rows, default_category=default_cat))
+                except Exception as e:
+                    return jsonify({"ok": False, "error": f"CSV non valido: {e}"}), 400
+            elif ext == ".pdf" and _EXTRACT_PDF_FN:
+                tmp_path = os.path.join(tempfile.gettempdir(), f"cat_{int(time.time())}_{werkzeug.utils.secure_filename(f.filename)}")
+                with open(tmp_path, "wb") as wf:
+                    wf.write(content_bytes)
+                try:
+                    pdf_items = _EXTRACT_PDF_FN(tmp_path)
+                    raw_items.extend(parse_pregis_catalog_payload(items_list=pdf_items, default_category=default_cat))
+                finally:
+                    if os.path.exists(tmp_path):
+                        try:
+                            os.remove(tmp_path)
+                        except Exception:
+                            pass
+
+    if not raw_items and (html_text or raw_text):
+        raw_items.extend(parse_pregis_catalog_payload(
+            html_content=html_text,
+            base_url=source_url,
+            raw_text=raw_text,
+            default_category=default_cat
+        ))
+    elif not raw_items and source_url:
+        raw_items.extend(_fetch_public_catalog_multi_page(source_url))
+
+    verification = _verify_and_clean_products(raw_items)
+    if verification["stats"]["totale_validi_unici"] == 0:
+        return jsonify({
+            "ok": False,
+            "error": "Nessun prodotto rilevato dal contenuto fornito. Se il catalogo Pregis su Safari è protetto da login, usa lo Script Auto-Scanner Safari o copia la pagina da Safari e incollala nel riquadro."
+        }), 400
+
+    return jsonify({
+        "ok": True,
+        **verification
+    })
+
+
+@volantini3_bp.route("/api/catalogo/importa-pregis-confermato", methods=["POST"])
+def api_catalogo_importa_pregis_confermato():
+    """Importazione una tantum nel catalogo del sito dopo conferma utente."""
+    if not session.get("logged_in"):
+        return jsonify({"ok": False, "error": "Non autorizzato"}), 401
+
+    data = request.get_json(silent=True) or {}
+    products = data.get("prodotti") or []
+    forced_cat_id = data.get("categoria_id")
+    nuova_categoria = (data.get("nuova_categoria") or "").strip()
+
+    if not products:
+        return jsonify({"ok": False, "error": "Nessun prodotto da importare"}), 400
+
+    inseriti = 0
+    aggiornati = 0
+    categorie_create = 0
+
+    try:
+        with _GET_DB() as conn:
+            _ensure_prodotti_catalog_columns(conn)
+            cur = conn.cursor()
+
+            # Cache categorie esistenti
+            cur.execute("SELECT id, nome FROM categorie")
+            cat_cache = {str(r["nome"]).strip().lower(): r["id"] for r in cur.fetchall()}
+
+            def get_or_create_cat_id(cat_name: str):
+                nonlocal categorie_create
+                cn = (cat_name or "").strip()
+                if not cn:
+                    return None
+                k = cn.lower()
+                if k in cat_cache:
+                    return cat_cache[k]
+                cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cn,))
+                row_c = cur.fetchone()
+                new_cid = (row_c["id"] if isinstance(row_c, dict) else row_c[0]) if row_c else getattr(cur, "lastrowid", None)
+                cat_cache[k] = new_cid
+                categorie_create += 1
+                return new_cid
+
+            if nuova_categoria:
+                forced_cat_id = get_or_create_cat_id(nuova_categoria)
+            elif forced_cat_id:
+                try:
+                    forced_cat_id = int(forced_cat_id)
+                except Exception:
+                    forced_cat_id = None
+
+            # Carica indice prodotti esistenti
+            cur.execute("SELECT id, codice, nome, immagine FROM prodotti WHERE COALESCE(eliminato, FALSE) = FALSE")
+            by_code = {}
+            by_name = {}
+            for r in cur.fetchall():
+                d = dict(r)
+                if d.get("codice"):
+                    by_code[str(d["codice"]).strip().upper()] = d
+                if d.get("nome"):
+                    by_name[str(d["nome"]).strip().upper()] = d
+
+            for p in products:
+                codice = str(p.get("codice") or "").strip()
+                nome = str(p.get("nome") or "").strip()
+                if not nome and not codice:
+                    continue
+                if not nome:
+                    nome = f"Articolo {codice}"
+
+                descrizione = str(p.get("descrizione") or nome).strip()
+                immagine = str(p.get("immagine") or "").strip()
+                marca = str(p.get("marca") or "").strip()
+                confezionamento = str(p.get("confezionamento") or "").strip()
+                prezzo = p.get("prezzo")
+                try:
+                    prezzo = float(str(prezzo).replace(",", ".")) if prezzo not in (None, "") else None
+                except Exception:
+                    prezzo = None
+
+                cat_id = forced_cat_id if forced_cat_id else get_or_create_cat_id(p.get("categoria") or "Catalogo Pregis")
+
+                existing = (by_code.get(codice.upper()) if codice else None) or by_name.get(nome.upper())
+                if existing:
+                    cur.execute("""
+                        UPDATE prodotti
+                        SET nome = %s,
+                            codice = COALESCE(NULLIF(%s, ''), codice),
+                            descrizione = COALESCE(NULLIF(%s, ''), descrizione),
+                            immagine = COALESCE(NULLIF(%s, ''), immagine),
+                            marca = COALESCE(NULLIF(%s, ''), marca),
+                            confezionamento = COALESCE(NULLIF(%s, ''), confezionamento),
+                            prezzo = COALESCE(%s, prezzo),
+                            categoria_id = COALESCE(%s, categoria_id)
+                        WHERE id = %s
+                    """, (nome, codice, descrizione, immagine, marca, confezionamento, prezzo, cat_id, existing["id"]))
+                    aggiornati += 1
+                else:
+                    cur.execute("""
+                        INSERT INTO prodotti (codice, nome, descrizione, immagine, marca, confezionamento, prezzo, categoria_id, eliminato)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE)
+                        RETURNING id
+                    """, (codice or None, nome, descrizione, immagine or None, marca or None, confezionamento or None, prezzo, cat_id))
+                    ins_row = cur.fetchone()
+                    new_pid = (ins_row["id"] if isinstance(ins_row, dict) else ins_row[0]) if ins_row else getattr(cur, "lastrowid", None)
+                    rec_cache = {"id": new_pid, "codice": codice, "nome": nome, "immagine": immagine}
+                    if codice:
+                        by_code[codice.upper()] = rec_cache
+                    by_name[nome.upper()] = rec_cache
+                    inseriti += 1
+
+            conn.commit()
+
+        return jsonify({
+            "ok": True,
+            "inseriti": inseriti,
+            "aggiornati": aggiornati,
+            "categorie_create": categorie_create,
+            "totale": inseriti + aggiornati,
+            "message": f"✅ Importazione completata: {inseriti} nuovi prodotti aggiunti, {aggiornati} aggiornati ({categorie_create} nuove categorie)."
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

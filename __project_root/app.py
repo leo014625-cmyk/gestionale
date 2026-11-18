@@ -3398,6 +3398,22 @@ def prodotti():
 
     with get_db() as db:
         cur = db.cursor()
+        # Assicura la presenza delle colonne estese del catalogo (immagine, marca, confezionamento, descrizione)
+        try:
+            from volantini_3_ai import _ensure_prodotti_catalog_columns
+            _ensure_prodotti_catalog_columns(db)
+        except Exception:
+            pass
+
+        def _norm_prod_row(row_dict):
+            d = dict(row_dict)
+            img = (d.get('immagine') or '').strip()
+            if img and not img.startswith(('http://', 'https://', '/', 'data:')):
+                d['immagine'] = f"/static/uploads/volantino_prodotti/{img}"
+            else:
+                d['immagine'] = img
+            return d
+
         # Recupera tutte le categorie
         cur.execute('SELECT id, nome, immagine FROM categorie ORDER BY nome')
         categorie_rows = cur.fetchall()
@@ -3407,7 +3423,7 @@ def prodotti():
         prodotti_per_categoria = {}
         for c in categorie:
             query = '''
-                SELECT p.id, p.nome, p.codice, p.categoria_id
+                SELECT p.id, p.nome, p.codice, p.categoria_id, p.immagine, p.marca, p.confezionamento, p.descrizione, p.prezzo
                 FROM prodotti p
                 LEFT JOIN categorie c ON p.categoria_id = c.id
                 WHERE c.nome = %s AND COALESCE(p.eliminato, FALSE) = FALSE
@@ -3418,11 +3434,11 @@ def prodotti():
                 params.append(f'%{q}%')
             cur.execute(query, params)
             prodotti_rows = cur.fetchall()
-            prodotti_per_categoria[c['nome']] = [dict(p) for p in prodotti_rows]
+            prodotti_per_categoria[c['nome']] = [_norm_prod_row(p) for p in prodotti_rows]
 
         # Prodotti senza categoria
         query_senza = '''
-            SELECT p.id, p.nome, p.codice, p.categoria_id
+            SELECT p.id, p.nome, p.codice, p.categoria_id, p.immagine, p.marca, p.confezionamento, p.descrizione, p.prezzo
             FROM prodotti p
             WHERE p.categoria_id IS NULL AND COALESCE(p.eliminato, FALSE) = FALSE
         '''
@@ -3432,18 +3448,18 @@ def prodotti():
             params_senza.append(f'%{q}%')
         cur.execute(query_senza, params_senza)
         prodotti_senza_rows = cur.fetchall()
-        prodotti_senza_categoria = [dict(p) for p in prodotti_senza_rows]
+        prodotti_senza_categoria = [_norm_prod_row(p) for p in prodotti_senza_rows]
 
         # Tutti i prodotti attivi (per lo strumento di gestione massiva)
         cur.execute('''
-            SELECT p.id, p.nome, p.codice, p.categoria_id, c.nome AS categoria_nome
+            SELECT p.id, p.nome, p.codice, p.categoria_id, p.immagine, p.marca, p.confezionamento, p.descrizione, p.prezzo, c.nome AS categoria_nome
             FROM prodotti p
             LEFT JOIN categorie c ON p.categoria_id = c.id
             WHERE COALESCE(p.eliminato, FALSE) = FALSE
             ORDER BY p.nome
         ''')
         tutti_rows = cur.fetchall()
-        tutti_i_prodotti = [dict(r) for r in tutti_rows]
+        tutti_i_prodotti = [_norm_prod_row(r) for r in tutti_rows]
 
     return render_template(
         '02_prodotti/01_prodotti.html',

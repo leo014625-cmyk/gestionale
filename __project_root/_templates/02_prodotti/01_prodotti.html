@@ -169,6 +169,15 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2">
+      <button type="button"
+              id="btnOpenScannerSafari"
+              class="btn btn-dark rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm"
+              style="background: linear-gradient(135deg, #0f172a, #1d4ed8); border: none;"
+              data-bs-toggle="modal"
+              data-bs-target="#scannerSafariModal">
+        <i class="bi bi-compass-fill text-warning"></i> Importa Catalogo Pregis (Safari / Web)
+      </button>
+
       <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
         <i class="bi bi-plus-circle-fill"></i> Nuovo Prodotto
       </a>
@@ -408,6 +417,7 @@
                     <th style="width: 40px;" class="text-center">
                       <input type="checkbox" class="form-check-input cursor-pointer" id="selectAllGestione">
                     </th>
+                    <th style="width: 56px;">Foto</th>
                     <th>Codice</th>
                     <th>Nome Prodotto</th>
                     <th>Categoria</th>
@@ -439,6 +449,196 @@
     <i class="bi bi-house-door"></i> Torna alla home
   </a>
 
+</div>
+
+<!-- ======================================================================
+     MODAL: SCANNER & IMPORTATORE CATALOGO PREGIS DA SAFARI / WEB
+     ====================================================================== -->
+<div class="modal fade" id="scannerSafariModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+      <div class="modal-header border-0 text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #ea580c 100%);">
+        <div>
+          <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+            <i class="bi bi-compass-fill text-warning"></i>
+            Importazione Completa Catalogo Pregis (Sola Lettura da Safari)
+          </h5>
+          <div class="small text-white-50">
+            Estrae codice, nome/descrizione, immagine, marca, categoria, confezionamento e prezzo. Verifica duplicati/immagini prima di salvare sul sito.
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <!-- STEP 1: ACQUISIZIONE -->
+        <div id="safariStepInput">
+          <div class="row g-3">
+            <!-- Metodo A: Auto-Scanner Multi-Pagina / Multi-Categoria in Safari -->
+            <div class="col-12 col-lg-6">
+              <div class="p-3 rounded-4 border h-100 bg-body-tertiary">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                  <div>
+                    <span class="badge bg-primary mb-1">Metodo 1 · Tutte le Pagine &amp; Categorie</span>
+                    <h6 class="fw-bold mb-1">Auto-Scanner Safari Multi-Pagina (Sola Lettura)</h6>
+                  </div>
+                </div>
+                <ol class="small text-muted ps-3 mb-2">
+                  <li>Apri il catalogo <strong>Pregis</strong> su <strong>Safari</strong> (anche sotto login)</li>
+                  <li>Clicca <strong>Copia Script Scanner</strong> qui sotto</li>
+                  <li>In Safari premi <code>⌥ Option + ⌘ Cmd + C</code> (Console JavaScript), incolla e premi <strong>Invio</strong></li>
+                  <li>Lo script legge tutte le categorie e pagine in sola lettura e scarica <code>catalogo_pregis_completo.json</code> (e lo copia negli appunti)</li>
+                </ol>
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button" id="btnCopySafariScript" class="btn btn-primary btn-sm fw-bold rounded-pill px-3">
+                    <i class="bi bi-clipboard-check me-1"></i>Copia Script Auto-Scanner Safari
+                  </button>
+                  <button type="button" id="btnPasteJsonClipboard" class="btn btn-outline-primary btn-sm fw-bold rounded-pill px-3">
+                    <i class="bi bi-clipboard2-plus me-1"></i>Incolla Dati dagli Appunti
+                  </button>
+                </div>
+                <div id="safariCopyFeedback" class="small text-success fw-semibold mt-2 d-none">
+                  ✅ Script copiato! Ora incollalo nella Console di Safari (⌥⌘C) sul catalogo Pregis e premi Invio.
+                </div>
+              </div>
+            </div>
+
+            <!-- Metodo B: Incolla Pagina Copiata da Safari oppure File / URL -->
+            <div class="col-12 col-lg-6">
+              <div class="p-3 rounded-4 border h-100">
+                <span class="badge bg-warning text-dark mb-1">Metodo 2 · Copia-Incolla Pagina o Upload File / URL</span>
+                <h6 class="fw-bold mb-2">Incolla dalla Pagina Safari o Carica File</h6>
+
+                <div id="safariRichPasteArea"
+                     contenteditable="true"
+                     class="p-3 rounded-3 border border-2 border-dashed text-center mb-2"
+                     style="min-height: 82px; max-height: 115px; overflow-y: auto; border-style: dashed !important; border-color: #2563eb !important; background: rgba(37,99,235,0.04); cursor: text;">
+                  <div class="text-muted small pointer-events-none">
+                    <strong>Clicca qui e premi ⌘V</strong> dopo aver fatto <code>⌘A → ⌘C</code> sulla pagina Safari<br>
+                    (oppure incolla qui il JSON prodotto dallo script scanner)
+                  </div>
+                </div>
+
+                <div class="input-group input-group-sm mb-2">
+                  <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                  <input type="url" id="safariSourceUrlInput" class="form-control" placeholder="Link pagina Safari (opzionale, es. https://www.pregis.it/...)">
+                  <button type="button" id="btnScanSafariUrl" class="btn btn-outline-primary fw-bold">Scannerizza Link</button>
+                </div>
+
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text"><i class="bi bi-file-earmark-arrow-up"></i></span>
+                  <input type="file" id="safariFileInput" accept=".json,.csv,.html,.htm,.pdf" class="form-control">
+                  <button type="button" id="btnAnalyzeFile" class="btn btn-outline-secondary fw-bold">Analizza File</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOADING -->
+        <div id="safariLoadingBox" class="text-center py-5 d-none">
+          <div class="spinner-border text-primary mb-2" role="status"></div>
+          <div class="fw-bold" id="safariLoadingText">Analisi catalogo Pregis, associazione codici/immagini e verifica duplicati in corso...</div>
+        </div>
+
+        <!-- STEP 2: REPORT VERIFICA + EXPORT CSV/JSON + ANTEPRIMA 20 PRODOTTI + CONFERMA -->
+        <div id="safariStepPreview" class="d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-shield-check text-success me-1"></i>Verifica Estrazione &amp; Anteprima (Primi 20 Prodotti)</h6>
+            <button type="button" id="btnSafariResetAnalysis" class="btn btn-outline-secondary btn-sm rounded-pill">
+              <i class="bi bi-arrow-left me-1"></i>Carica / Scansiona un altro input
+            </button>
+          </div>
+
+          <!-- KPI VERIFICA -->
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-md">
+              <div class="p-2 rounded-3 border bg-light text-center">
+                <div class="small text-muted">Prodotti Unici</div>
+                <div class="fs-5 fw-bold text-primary" id="vStatUnique">0</div>
+              </div>
+            </div>
+            <div class="col-6 col-md">
+              <div class="p-2 rounded-3 border bg-success-subtle text-center">
+                <div class="small text-success-emphasis">Con Immagine</div>
+                <div class="fs-5 fw-bold text-success" id="vStatWithImg">0</div>
+              </div>
+            </div>
+            <div class="col-6 col-md">
+              <div class="p-2 rounded-3 border bg-warning-subtle text-center">
+                <div class="small text-warning-emphasis">Duplicati Rimossi</div>
+                <div class="fs-5 fw-bold text-warning-emphasis" id="vStatDup">0</div>
+              </div>
+            </div>
+            <div class="col-6 col-md">
+              <div class="p-2 rounded-3 border bg-danger-subtle text-center">
+                <div class="small text-danger-emphasis">Senza Immagine</div>
+                <div class="fs-5 fw-bold text-danger" id="vStatNoImg">0</div>
+              </div>
+            </div>
+            <div class="col-12 col-md">
+              <div class="p-2 rounded-3 border bg-secondary-subtle text-center">
+                <div class="small text-secondary-emphasis">Errori / Anomalie</div>
+                <div class="fs-5 fw-bold" id="vStatErr">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="safariWarningsBox" class="alert alert-warning small py-2 mb-3 d-none"></div>
+
+          <!-- EXPORT CSV/JSON + OPZIONI CATEGORIA -->
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2.5 rounded-3 border bg-body-tertiary mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <button type="button" id="btnDownloadCatalogCsv" class="btn btn-outline-success btn-sm fw-bold rounded-pill px-3">
+                <i class="bi bi-filetype-csv me-1"></i>Scarica CSV Completo
+              </button>
+              <button type="button" id="btnDownloadCatalogJson" class="btn btn-outline-dark btn-sm fw-bold rounded-pill px-3">
+                <i class="bi bi-filetype-json me-1"></i>Scarica JSON Completo
+              </button>
+              <button type="button" id="btnFillMissingPhotos" class="btn btn-outline-warning btn-sm fw-bold rounded-pill px-3 text-dark">
+                <i class="bi bi-image me-1"></i>Completa Foto Mancanti
+              </button>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <select id="safariTargetCatSelect" class="form-select form-select-sm" style="width: 220px;">
+                <option value="">✨ Usa categorie estratte da Pregis</option>
+                {% for c in categorie %}
+                <option value="{{ c.id }}">Forza in: {{ c.nome }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" id="safariNewCatInput" class="form-control form-control-sm" style="width: 170px;" placeholder="O nuova categoria...">
+            </div>
+          </div>
+
+          <!-- TABELLA ANTEPRIMA 20 PRODOTTI -->
+          <div class="table-responsive border rounded-3" style="max-height: 370px;">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th style="width: 58px;">Img</th>
+                  <th>Codice</th>
+                  <th>Nome &amp; Descrizione</th>
+                  <th>Marca</th>
+                  <th>Categoria</th>
+                  <th>Confezionamento</th>
+                  <th class="text-end">Prezzo</th>
+                </tr>
+              </thead>
+              <tbody id="safariPreviewTbody"></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-1" id="safariPreviewCaption"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-top justify-content-between">
+        <button type="button" class="btn btn-secondary rounded-4 px-4" data-bs-dismiss="modal">Chiudi</button>
+        <button type="button" id="btnConfirmImportCatalog" class="btn btn-success rounded-4 px-4 fw-bold d-none shadow-sm">
+          <i class="bi bi-cloud-check-fill me-1"></i>Conferma e Importa Tutti nel Sito (Una Tantum)
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -519,6 +719,11 @@ document.addEventListener('DOMContentLoaded', () => {
     prodotti.forEach(p => {
       const nome = escapeHtml(p.nome);
       const codice = escapeHtml(p.codice || "—");
+      const marca = escapeHtml(p.marca || "");
+      const conf = escapeHtml(p.confezionamento || "");
+      const thumbHtml = p.immagine
+        ? `<img src="${escapeHtml(p.immagine)}" alt="${nome}" style="width:46px;height:46px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--border-color);padding:2px;">`
+        : `<span class="prodotto-icon-box"><i class="bi bi-box-seam-fill"></i></span>`;
 
       const selectOptions = categorieLista.map(c => `
         <option value="${c.id}" ${p.categoria_id == c.id ? 'selected' : ''}>${escapeHtml(c.nome)}</option>
@@ -529,9 +734,9 @@ document.addEventListener('DOMContentLoaded', () => {
       item.innerHTML = `
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           
-          <!-- Sinistra: Icona + Input Nome + Codice -->
+          <!-- Sinistra: Foto + Input Nome + Codice + Marca/Confezionamento -->
           <div class="d-flex align-items-center gap-3 flex-grow-1" style="min-width: 280px;">
-            <span class="prodotto-icon-box"><i class="bi bi-box-seam-fill"></i></span>
+            ${thumbHtml}
             <div class="flex-grow-1">
               <div class="input-group input-group-sm mb-1" style="max-width: 380px;">
                 <span class="input-group-text bg-light text-muted small"><i class="bi bi-fonts"></i></span>
@@ -541,6 +746,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="badge bg-light text-secondary border prodotto-upc-badge">
                   <i class="bi bi-upc-scan me-1"></i> COD: ${codice}
                 </span>
+                ${marca ? `<span class="badge bg-info-light">${marca}</span>` : ""}
+                ${conf ? `<span class="badge bg-secondary-light">${conf}</span>` : ""}
               </div>
             </div>
           </div>
@@ -839,13 +1046,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const codice = escapeHtml(p.codice || "—");
       const nome = escapeHtml(p.nome);
       const categoria = escapeHtml(p.categoria_nome || "Senza Categoria");
+      const imgCell = p.immagine
+        ? `<img src="${escapeHtml(p.immagine)}" alt="${nome}" style="width:38px;height:38px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--border-color);">`
+        : `<span class="text-muted small">—</span>`;
 
       tr.innerHTML = `
         <td class="text-center">
           <input type="checkbox" class="form-check-input prodotto-checkbox cursor-pointer" data-id="${p.id}" ${isChecked}>
         </td>
+        <td class="text-center">${imgCell}</td>
         <td class="font-monospace fw-bold text-secondary" style="font-size: 0.85rem;">${codice}</td>
-        <td class="fw-semibold">${nome}</td>
+        <td class="fw-semibold">${nome}${p.marca ? ` <span class="text-muted small fw-normal">(${escapeHtml(p.marca)})</span>` : ""}</td>
         <td>
           <span class="badge ${p.categoria_nome ? 'bg-light text-dark border' : 'bg-warning text-dark'}">
             ${categoria}
@@ -954,6 +1165,378 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     return true;
   };
+
+  // =========================================================================
+  // SCANNER & IMPORTATORE CATALOGO PREGIS DA SAFARI (VERIFICA + ANTEPRIMA 20)
+  // =========================================================================
+  const safariModalEl = document.getElementById('scannerSafariModal');
+  const safariStepInput = document.getElementById('safariStepInput');
+  const safariLoadingBox = document.getElementById('safariLoadingBox');
+  const safariStepPreview = document.getElementById('safariStepPreview');
+  const btnCopySafariScript = document.getElementById('btnCopySafariScript');
+  const btnPasteJsonClipboard = document.getElementById('btnPasteJsonClipboard');
+  const safariCopyFeedback = document.getElementById('safariCopyFeedback');
+  const safariRichPasteArea = document.getElementById('safariRichPasteArea');
+  const safariSourceUrlInput = document.getElementById('safariSourceUrlInput');
+  const btnScanSafariUrl = document.getElementById('btnScanSafariUrl');
+  const safariFileInput = document.getElementById('safariFileInput');
+  const btnAnalyzeFile = document.getElementById('btnAnalyzeFile');
+  const btnSafariResetAnalysis = document.getElementById('btnSafariResetAnalysis');
+  const btnDownloadCatalogCsv = document.getElementById('btnDownloadCatalogCsv');
+  const btnDownloadCatalogJson = document.getElementById('btnDownloadCatalogJson');
+  const btnFillMissingPhotos = document.getElementById('btnFillMissingPhotos');
+  const btnConfirmImportCatalog = document.getElementById('btnConfirmImportCatalog');
+  const safariWarningsBox = document.getElementById('safariWarningsBox');
+  const safariPreviewTbody = document.getElementById('safariPreviewTbody');
+  const safariPreviewCaption = document.getElementById('safariPreviewCaption');
+  const safariTargetCatSelect = document.getElementById('safariTargetCatSelect');
+  const safariNewCatInput = document.getElementById('safariNewCatInput');
+
+  let analyzedCatalogProducts = [];
+  let analyzedStats = null;
+
+  const SAFARI_AUTOSCAN_SCRIPT = `(async function(){
+  /* Scanner in SOLA LETTURA per Catalogo Pregis (zero modifiche sul portale) */
+  const clean = s => (s || "").replace(/\\s+/g, " ").trim();
+  const absUrl = u => { try { return u ? new URL(u, location.href).href : ""; } catch(e) { return u || ""; } };
+  const badImg = u => !u || /favicon|sprite|spinner|loading|placeholder|no-image|pixel|1x1|svg\\+xml/i.test(u);
+
+  function extractFromDoc(doc, pageUrl) {
+    const out = [];
+    const pageCat = clean(doc.querySelector("h1, .breadcrumb li:last-child, .category-title, .titolo-categoria")?.textContent || "");
+    const blocks = doc.querySelectorAll("[data-sku], [data-codice], [class*='product'], [class*='articolo'], [class*='card'], [class*='item'], tbody tr");
+    blocks.forEach(el => {
+      const imgs = [...el.querySelectorAll("img")].map(im => im.getAttribute("data-zoom-image") || im.getAttribute("data-large_image") || im.getAttribute("data-src") || im.getAttribute("data-original") || im.currentSrc || im.getAttribute("src") || "").filter(u => !badImg(u));
+      const img = imgs.length ? absUrl(imgs.find(u => !/logo/i.test(u)) || imgs[0]) : "";
+      const txt = el.innerText || el.textContent || "";
+      if (txt.trim().length < 3) return;
+      const codeEl = el.querySelector("[class*='sku'], [class*='codice'], [class*='code'], [class*='cod']");
+      let codice = clean(el.getAttribute("data-sku") || el.getAttribute("data-codice") || codeEl?.textContent || "");
+      const mCod = codice.match(/([A-Z0-9\\.\\-\\/]{3,20})/i) || txt.match(/(?:cod\\.?|codice|art\\.?|sku)\\s*[:#\\-]?\\s*([A-Z0-9\\.\\-\\/]{3,20})/i);
+      if (!codice && mCod) codice = mCod[1];
+      if (codice) codice = codice.replace(/^(codice|cod\\.?|sku|art\\.?)[:\\s]*/i, "").trim();
+      const titleEl = el.querySelector("h1, h2, h3, h4, [class*='title'], [class*='name'], [class*='nome']");
+      const nome = clean(titleEl?.textContent || el.querySelector("img")?.getAttribute("alt") || "");
+      const descEl = el.querySelector("[class*='desc'], p");
+      const descrizione = clean(descEl?.textContent || txt.slice(0, 280));
+      const marca = clean(el.getAttribute("data-brand") || el.querySelector("[class*='brand'], [class*='marca']")?.textContent || "");
+      const categoria = clean(el.getAttribute("data-category") || el.querySelector("[class*='categ']")?.textContent || pageCat || "Catalogo Pregis");
+      const confEl = el.querySelector("[class*='conf'], [class*='pack'], [class*='imball'], [class*='formato']");
+      let confezionamento = clean(confEl?.textContent || "");
+      if (!confezionamento) {
+        const mConf = txt.match(/(?:conf\\.?|confezione|imballo|pezzatura|formato)\\s*[:\\-]?\\s*([^\\n|]{2,40})/i) || txt.match(/\\b(\\d+(?:[\\.,]\\d+)?\\s*(?:x\\s*\\d+)?\\s*(?:kg|gr|g|lt|l|ml|pz|cf|crt))\\b/i);
+        if (mConf) confezionamento = clean(mConf[1]);
+      }
+      let prezzo = null;
+      const mPrz = (el.querySelector("[class*='price'], [class*='prezzo']")?.textContent || txt).match(/(\\d+[\\.,]\\d{2})/);
+      if (mPrz) prezzo = parseFloat(mPrz[1].replace(",", "."));
+      if ((codice || img) && (nome || codice)) {
+        out.push({ codice, nome: nome || codice, descrizione, immagine: img, marca, categoria, confezionamento, prezzo });
+      }
+    });
+    return out;
+  }
+
+  const visited = new Set([location.href]);
+  const all = [...extractFromDoc(document, location.href)];
+  const links = [...document.querySelectorAll("a[href]")].map(a => absUrl(a.getAttribute("href"))).filter(u => {
+    try {
+      const pu = new URL(u);
+      return pu.origin === location.origin && !visited.has(u) && /page|pag|cat|catalog|prod|list|sched|art/i.test(u);
+    } catch(e) { return false; }
+  });
+  const uniqueLinks = [...new Set(links)].slice(0, 50);
+  console.log("🔍 Pregis Scanner: trovate " + uniqueLinks.length + " pagine/categorie accessibili da esplorare in sola lettura...");
+
+  for (const link of uniqueLinks) {
+    if (visited.has(link)) continue;
+    visited.add(link);
+    try {
+      const r = await fetch(link, { method: "GET", credentials: "include" });
+      if (!r.ok || !(r.headers.get("content-type") || "").includes("text/html")) continue;
+      const html = await r.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      all.push(...extractFromDoc(doc, link));
+      await new Promise(res => setTimeout(res, 80));
+    } catch(e) {}
+  }
+
+  const jsonStr = JSON.stringify(all, null, 2);
+  try { await navigator.clipboard.writeText(jsonStr); } catch(e) {}
+  try { if (typeof copy === "function") copy(jsonStr); } catch(e) {}
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "catalogo_pregis_completo.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  alert("✅ Scansione Pregis completata in sola lettura (" + visited.size + " pagine, " + all.length + " rilevamenti). File catalogo_pregis_completo.json scaricato e copiato negli appunti!");
+})();`;
+
+  btnCopySafariScript?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(SAFARI_AUTOSCAN_SCRIPT);
+      safariCopyFeedback?.classList.remove('d-none');
+    } catch (e) {
+      prompt("Copia manualmente questo script:", SAFARI_AUTOSCAN_SCRIPT);
+    }
+  });
+
+  btnPasteJsonClipboard?.addEventListener('click', async () => {
+    try {
+      const txt = await navigator.clipboard.readText();
+      if (!txt || txt.trim().length < 3) {
+        return alert("Gli appunti risultano vuoti. Esegui prima lo script su Safari oppure incolla con ⌘V nel riquadro a destra.");
+      }
+      await submitSafariPayloadFromText(txt);
+    } catch (e) {
+      alert("Clicca nel riquadro a destra e premi ⌘V per incollare direttamente da Safari.");
+      safariRichPasteArea?.focus();
+    }
+  });
+
+  async function submitSafariPayloadFromText(txt, htmlContent = "") {
+    const trimmed = (txt || "").trim();
+    const baseUrl = (safariSourceUrlInput?.value || "").trim();
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const arr = Array.isArray(parsed) ? parsed : (parsed.all_products || parsed.prodotti || parsed.items || []);
+        return await runCatalogAnalysis({ items: arr, url: baseUrl });
+      } catch (e) {}
+    }
+    return await runCatalogAnalysis({ html: htmlContent || trimmed, raw_text: trimmed, url: baseUrl });
+  }
+
+  safariRichPasteArea?.addEventListener('paste', async (e) => {
+    e.preventDefault();
+    const htmlClip = e.clipboardData?.getData('text/html') || "";
+    const textClip = e.clipboardData?.getData('text/plain') || "";
+    safariRichPasteArea.innerHTML = `<div class="text-primary small fw-bold"><i class="bi bi-check-circle me-1"></i>Contenuto incollato da Safari! Analisi in corso...</div>`;
+    await submitSafariPayloadFromText(textClip, htmlClip);
+  });
+
+  btnScanSafariUrl?.addEventListener('click', async () => {
+    const u = (safariSourceUrlInput?.value || "").trim();
+    if (!u) return alert("Inserisci l'URL della pagina Pregis.");
+    await runCatalogAnalysis({ url: u });
+  });
+
+  btnAnalyzeFile?.addEventListener('click', async () => {
+    const f = safariFileInput?.files?.[0];
+    if (!f) return alert("Seleziona un file (.json, .csv, .html o .pdf).");
+    const fd = new FormData();
+    fd.append("file", f);
+    if (safariSourceUrlInput?.value?.trim()) fd.append("url", safariSourceUrlInput.value.trim());
+    await runCatalogAnalysisFormData(fd);
+  });
+
+  async function runCatalogAnalysis(jsonBody) {
+    showSafariLoading(true);
+    try {
+      const res = await fetch("/api/catalogo/analizza-pregis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jsonBody)
+      });
+      const data = await res.json();
+      handleAnalysisResponse(data);
+    } catch (err) {
+      showSafariLoading(false);
+      alert("Errore di rete: " + err.message);
+    }
+  }
+
+  async function runCatalogAnalysisFormData(fd) {
+    showSafariLoading(true);
+    try {
+      const res = await fetch("/api/catalogo/analizza-pregis", { method: "POST", body: fd });
+      const data = await res.json();
+      handleAnalysisResponse(data);
+    } catch (err) {
+      showSafariLoading(false);
+      alert("Errore di rete: " + err.message);
+    }
+  }
+
+  function showSafariLoading(isLoading) {
+    if (isLoading) {
+      safariStepInput.classList.add('d-none');
+      safariStepPreview.classList.add('d-none');
+      safariLoadingBox.classList.remove('d-none');
+      btnConfirmImportCatalog.classList.add('d-none');
+    } else {
+      safariLoadingBox.classList.add('d-none');
+      safariStepInput.classList.remove('d-none');
+    }
+  }
+
+  function handleAnalysisResponse(data) {
+    safariLoadingBox.classList.add('d-none');
+    if (!data || !data.ok) {
+      safariStepInput.classList.remove('d-none');
+      alert((data && data.error) || "Nessun prodotto rilevato.");
+      return;
+    }
+    analyzedCatalogProducts = data.all_products || [];
+    analyzedStats = data.stats || {};
+    renderAnalysisPreview();
+  }
+
+  function renderAnalysisPreview() {
+    const st = analyzedStats || {};
+    safariStepInput.classList.add('d-none');
+    safariStepPreview.classList.remove('d-none');
+    btnConfirmImportCatalog.classList.remove('d-none');
+
+    const withImg = analyzedCatalogProducts.filter(p => p.immagine).length;
+    const noImg = analyzedCatalogProducts.length - withImg;
+
+    document.getElementById('vStatUnique').textContent = analyzedCatalogProducts.length;
+    document.getElementById('vStatWithImg').textContent = withImg;
+    document.getElementById('vStatDup').textContent = st.duplicati_rimossi || 0;
+    document.getElementById('vStatNoImg').textContent = noImg;
+    document.getElementById('vStatErr').textContent = st.errori_estrazione || 0;
+
+    const warnLines = [];
+    if ((st.warnings || []).length > 0) {
+      warnLines.push(`<strong>Anomalie rilevate:</strong> ${st.warnings.slice(0, 5).map(escapeHtml).join(" · ")}`);
+    }
+    if (noImg > 0) {
+      const missingSample = analyzedCatalogProducts.filter(p => !p.immagine).slice(0, 12).map(p => escapeHtml(p.codice || p.nome));
+      warnLines.push(`<strong>Prodotti senza immagine (${noImg}):</strong> ${missingSample.join(", ")}${noImg > 12 ? " ..." : ""}`);
+    }
+    if (warnLines.length > 0) {
+      safariWarningsBox.innerHTML = warnLines.join("<br>");
+      safariWarningsBox.classList.remove('d-none');
+    } else {
+      safariWarningsBox.classList.add('d-none');
+    }
+
+    const previewRows = analyzedCatalogProducts.slice(0, 20);
+    safariPreviewTbody.innerHTML = previewRows.map(p => {
+      const imgHtml = p.immagine
+        ? `<img src="${escapeHtml(p.immagine)}" style="width:42px;height:42px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid #e2e8f0;">`
+        : `<span class="badge bg-danger-subtle text-danger">No Img</span>`;
+      const przTxt = (p.prezzo !== null && p.prezzo !== undefined && p.prezzo !== "")
+        ? `€ ${Number(p.prezzo).toFixed(2)}`
+        : `<span class="text-muted">—</span>`;
+      return `
+        <tr>
+          <td class="text-center">${imgHtml}</td>
+          <td class="font-monospace fw-bold small">${escapeHtml(p.codice || "—")}</td>
+          <td>
+            <div class="fw-bold small">${escapeHtml(p.nome)}</div>
+            ${p.descrizione && p.descrizione !== p.nome ? `<div class="text-muted" style="font-size:0.72rem; max-width:290px;">${escapeHtml(p.descrizione.slice(0, 120))}</div>` : ""}
+          </td>
+          <td class="small">${escapeHtml(p.marca || "—")}</td>
+          <td><span class="badge bg-light text-dark border">${escapeHtml(p.categoria || "Catalogo Pregis")}</span></td>
+          <td class="small text-muted">${escapeHtml(p.confezionamento || "—")}</td>
+          <td class="text-end fw-bold small">${przTxt}</td>
+        </tr>
+      `;
+    }).join('');
+
+    safariPreviewCaption.textContent = `Anteprima dei primi ${previewRows.length} prodotti su ${analyzedCatalogProducts.length} totali verificati. Controlla e poi clicca Conferma e Importa Tutti nel Sito.`;
+  }
+
+  btnSafariResetAnalysis?.addEventListener('click', () => {
+    safariStepPreview.classList.add('d-none');
+    btnConfirmImportCatalog.classList.add('d-none');
+    safariStepInput.classList.remove('d-none');
+  });
+
+  // Export CSV completo (Codice <-> Immagine)
+  btnDownloadCatalogCsv?.addEventListener('click', () => {
+    if (!analyzedCatalogProducts.length) return;
+    const headers = ["codice", "nome", "descrizione", "immagine", "marca", "categoria", "confezionamento", "prezzo"];
+    const escCsv = val => `"${String(val ?? "").replaceAll('"', '""')}"`;
+    const rows = [
+      headers.join(","),
+      ...analyzedCatalogProducts.map(p => headers.map(h => escCsv(p[h])).join(","))
+    ];
+    const blob = new Blob(["\uFEFF" + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "catalogo_pregis_verificato.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  // Export JSON completo
+  btnDownloadCatalogJson?.addEventListener('click', () => {
+    if (!analyzedCatalogProducts.length) return;
+    const blob = new Blob([JSON.stringify(analyzedCatalogProducts, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "catalogo_pregis_verificato.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  // Completa foto mancanti con ricerca automatica (solo se richiesto)
+  btnFillMissingPhotos?.addEventListener('click', async () => {
+    const missing = analyzedCatalogProducts.filter(p => !p.immagine && p.nome);
+    if (!missing.length) return alert("Tutti i prodotti hanno già un'immagine!");
+    btnFillMissingPhotos.disabled = true;
+    const orig = btnFillMissingPhotos.innerHTML;
+    let filled = 0;
+    for (let i = 0; i < missing.length; i++) {
+      btnFillMissingPhotos.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Foto ${i + 1}/${missing.length}...`;
+      try {
+        const q = `${missing[i].marca ? missing[i].marca + " " : ""}${missing[i].nome}`.trim();
+        const r = await fetch(`/api/cerca_immagine?q=${encodeURIComponent(q)}`);
+        const urls = await r.json();
+        if (Array.isArray(urls) && urls.length > 0) {
+          missing[i].immagine = urls[0];
+          filled++;
+        }
+      } catch (e) {}
+    }
+    btnFillMissingPhotos.disabled = false;
+    btnFillMissingPhotos.innerHTML = orig;
+    renderAnalysisPreview();
+    alert(`Trovate ${filled} nuove immagini!`);
+  });
+
+  // Conferma finale e scrittura sul DB (Una tantum)
+  btnConfirmImportCatalog?.addEventListener('click', async () => {
+    if (!analyzedCatalogProducts.length) return;
+    btnConfirmImportCatalog.disabled = true;
+    const orig = btnConfirmImportCatalog.innerHTML;
+    btnConfirmImportCatalog.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Importazione ${analyzedCatalogProducts.length} prodotti...`;
+
+    try {
+      const res = await fetch("/api/catalogo/importa-pregis-confermato", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prodotti: analyzedCatalogProducts,
+          categoria_id: safariTargetCatSelect?.value || "",
+          nuova_categoria: (safariNewCatInput?.value || "").trim()
+        })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        alert(d.message || "Catalogo importato con successo!");
+        window.location.href = "/prodotti";
+      } else {
+        alert("Errore durante l'importazione: " + (d.error || ""));
+      }
+    } catch (err) {
+      alert("Errore di rete: " + err.message);
+    } finally {
+      btnConfirmImportCatalog.disabled = false;
+      btnConfirmImportCatalog.innerHTML = orig;
+    }
+  });
+
+  if (new URLSearchParams(window.location.search).get('open_scanner') === '1' && safariModalEl) {
+    new bootstrap.Modal(safariModalEl).show();
+  }
 });
 </script>
 {% endblock %}
