@@ -8,6 +8,7 @@ import html as html_mod
 import base64
 import tempfile
 import requests
+import urllib3
 import werkzeug.utils
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
@@ -1202,6 +1203,200 @@ def _verify_and_clean_products(raw_items: list) -> dict:
     }
 
 
+def crawl_tua_pregis_onsales(session_id: str = "", username: str = "", password: str = "", max_pages_per_group: int = 40) -> list:
+    """Connettore in SOLA LETTURA per portale Pregis .onSales B2B (tua.pregis.it/QueryPoint/*.door)."""
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    base_qp = "https://tua.pregis.it/QueryPoint"
+    base_app = "https://tua.pregis.it/onSalesSmart/"
+    headers = {
+        "Accept": "application/json; charset=UTF-8",
+        "Content-Type": "application/json; charset=UTF-8",
+        "Require-Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15",
+    }
+
+    def qp_post(endpoint: str, payload: dict):
+        r = requests.post(f"{base_qp}/{endpoint}", json=payload, headers=headers, verify=False, timeout=20)
+        r.raise_for_status()
+        return r.json()
+
+    sid = (session_id or "").strip()
+    if not sid and username and password:
+        login_res = qp_post("Smart.Login.door", {
+            "sessionId": None,
+            "data": {"username": username.strip(), "password": password, "languageId": "it"}
+        })
+        if login_res.get("status") != "OK":
+            raise ValueError(login_res.get("message") or f"Login Pregis fallito ({login_res.get('status')})")
+        sid = (login_res.get("data") or {}).get("sessionId") or ""
+
+    if not sid:
+        raise ValueError("Inserisci Username e Password Pregis oppure il Session ID della sessione Chrome.")
+
+    # 1. Scarica lookup tabelle (G1, G2, G3, BRAND, UV)
+    lookups = {"G1": {}, "G2": {}, "G3": {}, "BRAND": {}, "UV": {}}
+    try:
+        lk_res = qp_post("Smart.GetDescriptionLookup.door", {"sessionId": sid, "data": {"languageId": "it"}})
+        for row in ((lk_res.get("data") or {}).get("descriptionLookupList") or []):
+            tname = row.get("tableName")
+            if tname in lookups:
+                lookups[tname][str(row.get("tableItemId"))] = str(row.get("tableItemDesc") or "").strip()
+    except Exception as e:
+        print(f"⚠️ Pregis GetDescriptionLookup warning: {e}")
+
+    # 2. Scarica albero filtri / categorie accessibili
+    group_tasks = []
+    try:
+        flt_res = qp_post("Smart.GetCatalogFilters.door", {
+            "sessionId": sid,
+            "data": {
+                "itemFilter": {"textFilter": "", "groupIds": None, "attributes": None, "tagIds": [], "filterId": None, "communicationId": None},
+                "scope": "allProducts"
+            }
+        })
+        if flt_res.get("status") not in (None, "OK"):
+            raise ValueError(flt_res.get("message") or flt_res.get("status"))
+
+        def walk_groups(nodes, level=1, parent_ids=None, parent_labels=None):
+            parent_ids = parent_ids or {}
+            parent_labels = parent_labels or []
+            for g in (nodes or []):
+                fid = g.get("filterId")
+                if not fid:
+                    continue
+                g_map = lookups.get(f"G{level}", {})
+                g_label = g.get("description") or g_map.get(str(fid)) or f"Categoria {fid}"
+                curr_ids = dict(parent_ids)
+                curr_ids[f"group{level}id"] = str(fid)
+                curr_labels = parent_labels + [g_label]
+                subs = g.get("subfilters") or []
+                if subs:
+                    walk_groups(subs, level + 1, curr_ids, curr_labels)
+                else:
+                    group_tasks.append((curr_ids, " / ".join(curr_labels)))
+
+        walk_groups(((flt_res.get("data") or {}).get("groups") or []))
+        for b in ((flt_res.get("data") or {}).get("brands") or []):
+            bid = b.get("filterId")
+            blbl = b.get("description") or b.get("filterDesc")
+            if bid and blbl and str(bid) not in lookups["BRAND"]:
+                lookups["BRAND"][str(bid)] = str(blbl).strip()
+    except Exception as e:
+        if "invalid session" in str(e).lower():
+            raise ValueError("Session ID Pregis non valido o scaduto. Accedi o usa Username/Password.")
+        print(f"⚠️ Pregis GetCatalogFilters warning: {e}")
+
+    # Aggiunge anche scansione globale completa come fallback/copertura totale
+    if not group_tasks:
+        group_tasks.append((None, "Catalogo Pregis"))
+    else:
+        group_tasks.append((None, "Catalogo Pregis"))
+
+    def resolve_onsales_img(images_list):
+        if not isinstance(images_list, list):
+            return ""
+        for im in images_list:
+            if not isinstance(im, dict):
+                continue
+            cand = (im.get("imagePath") or im.get("thumbnailPath") or im.get("imageId") or "").strip()
+            if not cand or "missing_image_catalogue" in cand.lower():
+                continue
+            if cand.startswith("//"):
+                return "https:" + cand
+            if cand.startswith(("http://", "https://", "data:")):
+                return cand
+            if cand.startswith("/"):
+                return "https://tua.pregis.it" + cand
+            return urljoin(base_app, cand)
+        return ""
+
+    def map_onsales_item(raw_it: dict, cat_label: str) -> dict:
+        codice = str(raw_it.get("itemCode") or raw_it.get("itemId") or "").strip()
+        desc1 = str(raw_it.get("itemDesc") or "").strip()
+        desc2 = str(raw_it.get("itemInfo") or "").strip()
+        vdesc = str(raw_it.get("variantDesc") or "").strip()
+        nome = desc1 or vdesc or desc2 or codice
+        full_desc = " — ".join([p for p in dict.fromkeys([desc1, desc2, vdesc]) if p])
+
+        brand_id = str(raw_it.get("brandId") or "").strip()
+        marca = str(raw_it.get("brand") or lookups["BRAND"].get(brand_id) or brand_id).strip()
+
+        g1_lbl = lookups["G1"].get(str(raw_it.get("group1Id") or "")) or ""
+        g2_lbl = lookups["G2"].get(str(raw_it.get("group2Id") or "")) or ""
+        it_cat = " / ".join([x for x in (g1_lbl, g2_lbl) if x]) or cat_label or "Catalogo Pregis"
+
+        uv_code = str(raw_it.get("baseUnitDescId") or "").strip()
+        uv_lbl = lookups["UV"].get(uv_code) or uv_code
+        units_desc = []
+        for u in (raw_it.get("sellingItemUnits") or []):
+            uid = str(u.get("unitId") or "")
+            u_name = lookups["UV"].get(uid) or uid
+            cf = u.get("convFactor")
+            if u_name:
+                units_desc.append(f"{u_name} ({cf})" if cf and float(cf) > 0 else u_name)
+        wt = raw_it.get("weight") or raw_it.get("grossWeight")
+        conf = " / ".join(dict.fromkeys([x for x in ([uv_lbl] + units_desc) if x]))
+        if wt:
+            conf = f"{conf} · Peso {wt}" if conf else f"Peso {wt}"
+
+        prz_raw = raw_it.get("basePrice") or raw_it.get("baseNetPrice") or raw_it.get("pricePerUnitKgLt")
+        prezzo = None
+        if prz_raw not in (None, "", 0, "0"):
+            try:
+                prezzo = round(float(prz_raw), 2)
+            except Exception:
+                prezzo = None
+
+        return {
+            "codice": codice,
+            "nome": nome,
+            "descrizione": full_desc or nome,
+            "immagine": resolve_onsales_img(raw_it.get("images")),
+            "marca": marca,
+            "categoria": it_cat,
+            "confezionamento": conf,
+            "prezzo": prezzo,
+        }
+
+    collected = []
+    for grp_filter, cat_label in group_tasks:
+        page_order = ""
+        for page_num in range(max_pages_per_group):
+            res = qp_post("Smart.GetItems.door", {
+                "sessionId": sid,
+                "data": {
+                    "itemFilter": {
+                        "textFilter": None,
+                        "groupIds": grp_filter,
+                        "attributes": None,
+                        "tagIds": None,
+                        "communicationId": None,
+                    },
+                    "pageNumber": page_num,
+                    "pageSize": 100,
+                    "pageOrder": page_order,
+                }
+            })
+            if res.get("status") not in (None, "OK"):
+                if "invalid session" in str(res.get("message", "")).lower():
+                    raise ValueError("Session ID Pregis non valido o scaduto.")
+                break
+            body_data = res.get("data") or {}
+            item_list = body_data.get("itemList") or []
+            if not item_list:
+                break
+            for it in item_list:
+                collected.append(map_onsales_item(it, cat_label))
+                for var in (it.get("variants") or []):
+                    if isinstance(var, dict) and str(var.get("itemId") or "") != str(it.get("itemId") or ""):
+                        collected.append(map_onsales_item(var, cat_label))
+            page_order = body_data.get("pageOrder") or ""
+            if body_data.get("lastPage"):
+                break
+
+    return collected
+
+
 def _fetch_public_catalog_multi_page(start_url: str, max_pages: int = 18) -> list:
     """Esegue solo richieste GET in sola lettura su pagine/categorie pubbliche accessibili dall'URL."""
     headers = {
@@ -1273,6 +1468,9 @@ def api_catalogo_analizza_pregis():
     html_text = ""
     raw_text = ""
     default_cat = ""
+    pregis_user = ""
+    pregis_pass = ""
+    pregis_sid = ""
 
     if request.is_json:
         payload = request.get_json(silent=True) or {}
@@ -1280,6 +1478,9 @@ def api_catalogo_analizza_pregis():
         html_text = (payload.get("html") or "").strip()
         raw_text = (payload.get("raw_text") or "").strip()
         default_cat = (payload.get("default_categoria") or "").strip()
+        pregis_user = (payload.get("pregis_username") or "").strip()
+        pregis_pass = payload.get("pregis_password") or ""
+        pregis_sid = (payload.get("pregis_session_id") or "").strip()
         items_json = payload.get("items") or payload.get("prodotti")
         if isinstance(items_json, list):
             raw_items.extend(parse_pregis_catalog_payload(base_url=source_url, items_list=items_json, default_category=default_cat))
@@ -1288,6 +1489,9 @@ def api_catalogo_analizza_pregis():
         html_text = (request.form.get("html") or "").strip()
         raw_text = (request.form.get("raw_text") or "").strip()
         default_cat = (request.form.get("default_categoria") or "").strip()
+        pregis_user = (request.form.get("pregis_username") or "").strip()
+        pregis_pass = request.form.get("pregis_password") or ""
+        pregis_sid = (request.form.get("pregis_session_id") or "").strip()
         items_str = (request.form.get("items_json") or "").strip()
         if items_str:
             try:
@@ -1332,7 +1536,16 @@ def api_catalogo_analizza_pregis():
                         except Exception:
                             pass
 
-    if not raw_items and (html_text or raw_text):
+    if not raw_items and (pregis_sid or (pregis_user and pregis_pass)):
+        try:
+            raw_items.extend(crawl_tua_pregis_onsales(
+                session_id=pregis_sid,
+                username=pregis_user,
+                password=pregis_pass,
+            ))
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+    elif not raw_items and (html_text or raw_text):
         raw_items.extend(parse_pregis_catalog_payload(
             html_content=html_text,
             base_url=source_url,
@@ -1340,6 +1553,11 @@ def api_catalogo_analizza_pregis():
             default_category=default_cat
         ))
     elif not raw_items and source_url:
+        if "tua.pregis.it" in source_url.lower() and not (pregis_sid or (pregis_user and pregis_pass)):
+            return jsonify({
+                "ok": False,
+                "error": "Il portale tua.pregis.it/onSalesSmart richiede autenticazione. Inserisci Username e Password (o il Session ID) nel riquadro Pregis, oppure esegui lo script auto-scanner direttamente nella Console della tua scheda aperta."
+            }), 400
         raw_items.extend(_fetch_public_catalog_multi_page(source_url))
 
     verification = _verify_and_clean_products(raw_items)

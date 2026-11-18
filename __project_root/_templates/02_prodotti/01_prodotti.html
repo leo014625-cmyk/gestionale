@@ -473,21 +473,51 @@
       <div class="modal-body p-4">
         <!-- STEP 1: ACQUISIZIONE -->
         <div id="safariStepInput">
+          <!-- METODO DIRETTO PORTALE PREGIS ONSALESSMART (CONSIGLIATO) -->
+          <div class="p-3 rounded-4 border border-primary-subtle mb-3" style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(234, 88, 12, 0.05));">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+              <div>
+                <span class="badge bg-danger mb-1">⚡ Consigliato per tua.pregis.it/onSalesSmart</span>
+                <h6 class="fw-bold mb-0">Connessione Diretta Sola Lettura al Catalogo Pregis (.onSales B2B)</h6>
+              </div>
+              <span class="small text-muted">Nessuna modifica sul portale Pregis · Estrae tutte le categorie e pagine</span>
+            </div>
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold mb-1">Username Pregis</label>
+                <input type="text" id="pregisPortalUser" class="form-control form-control-sm" placeholder="Il tuo utente Pregis...">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold mb-1">Password Pregis</label>
+                <input type="password" id="pregisPortalPass" class="form-control form-control-sm" placeholder="Password...">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold mb-1">Oppure Session ID (opz.)</label>
+                <input type="text" id="pregisPortalSid" class="form-control form-control-sm" placeholder="Se già connesso...">
+              </div>
+              <div class="col-12 col-md-3">
+                <button type="button" id="btnDirectScanPregisPortal" class="btn btn-primary btn-sm w-100 fw-bold rounded-3 py-2">
+                  <i class="bi bi-cloud-download-fill me-1"></i>Scansiona Catalogo Ora
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="row g-3">
-            <!-- Metodo A: Auto-Scanner Multi-Pagina / Multi-Categoria in Safari -->
+            <!-- Metodo A: Auto-Scanner Multi-Pagina / Multi-Categoria in Chrome o Safari -->
             <div class="col-12 col-lg-6">
               <div class="p-3 rounded-4 border h-100 bg-body-tertiary">
                 <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                   <div>
-                    <span class="badge bg-primary mb-1">Metodo 1 · Tutte le Pagine &amp; Categorie</span>
-                    <h6 class="fw-bold mb-1">Auto-Scanner Safari Multi-Pagina (Sola Lettura)</h6>
+                    <span class="badge bg-primary mb-1">Metodo Console · Senza Inserire Password</span>
+                    <h6 class="fw-bold mb-1">Auto-Scanner Chrome / Safari dalla Scheda Aperta</h6>
                   </div>
                 </div>
                 <ol class="small text-muted ps-3 mb-2">
-                  <li>Apri il catalogo <strong>Pregis</strong> su <strong>Safari</strong> (anche sotto login)</li>
+                  <li>Tieni aperta la scheda Pregis su <strong>Chrome</strong> o <strong>Safari</strong></li>
                   <li>Clicca <strong>Copia Script Scanner</strong> qui sotto</li>
-                  <li>In Safari premi <code>⌥ Option + ⌘ Cmd + C</code> (Console JavaScript), incolla e premi <strong>Invio</strong></li>
-                  <li>Lo script legge tutte le categorie e pagine in sola lettura e scarica <code>catalogo_pregis_completo.json</code> (e lo copia negli appunti)</li>
+                  <li>Nella scheda Pregis premi <code>⌥⌘J</code> su Chrome (o <code>⌥⌘C</code> su Safari), incolla e premi <strong>Invio</strong></li>
+                  <li>Lo script legge automaticamente tutta l'API `QueryPoint` (tutte le categorie e pagine) e scarica <code>catalogo_pregis_completo.json</code></li>
                 </ol>
                 <div class="d-flex flex-wrap gap-2">
                   <button type="button" id="btnCopySafariScript" class="btn btn-primary btn-sm fw-bold rounded-pill px-3">
@@ -1196,83 +1226,145 @@ document.addEventListener('DOMContentLoaded', () => {
   let analyzedStats = null;
 
   const SAFARI_AUTOSCAN_SCRIPT = `(async function(){
-  /* Scanner in SOLA LETTURA per Catalogo Pregis (zero modifiche sul portale) */
+  /* Scanner in SOLA LETTURA per tua.pregis.it/onSalesSmart (Chrome & Safari) */
   const clean = s => (s || "").replace(/\\s+/g, " ").trim();
   const absUrl = u => { try { return u ? new URL(u, location.href).href : ""; } catch(e) { return u || ""; } };
-  const badImg = u => !u || /favicon|sprite|spinner|loading|placeholder|no-image|pixel|1x1|svg\\+xml/i.test(u);
+  const badImg = u => !u || /missing_image_catalogue|favicon|sprite|spinner|loading|placeholder|no-image|pixel|1x1|svg\\+xml/i.test(u);
 
-  function extractFromDoc(doc, pageUrl) {
+  function finishExport(list, labelInfo) {
+    const jsonStr = JSON.stringify(list, null, 2);
+    try { navigator.clipboard.writeText(jsonStr); } catch(e) {}
+    try { if (typeof copy === "function") copy(jsonStr); } catch(e) {}
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "catalogo_pregis_completo.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    alert("✅ Scansione Pregis completata in sola lettura (" + labelInfo + ", " + list.length + " rilevamenti). File catalogo_pregis_completo.json scaricato e copiato negli appunti!");
+  }
+
+  /* 1. Rilevamento nativo portale .onSalesSmart (tua.pregis.it) */
+  if (location.href.includes("onSalesSmart") || location.href.includes("pregis.it")) {
+    try {
+      let sid = null;
+      if (window.webpackJsonp) {
+        window.webpackJsonp.push([[987654], {
+          987654: function(m, e, r) {
+            try { sid = r("2QU1").h(); } catch(err) {}
+          }
+        }, [[987654]]]);
+      }
+      if (sid) {
+        console.log("🔑 Pregis Session ID rilevato in sola lettura. Avvio estrazione completa da QueryPoint...");
+        const qp = async (ep, dataObj) => {
+          const res = await fetch("/QueryPoint/" + ep, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json; charset=UTF-8", "Accept": "application/json" },
+            body: JSON.stringify({ sessionId: sid, data: dataObj })
+          });
+          return await res.json();
+        };
+        const lk = await qp("Smart.GetDescriptionLookup.door", { languageId: "it" });
+        const maps = { G1: {}, G2: {}, BRAND: {}, UV: {} };
+        ((lk.data || {}).descriptionLookupList || []).forEach(r => {
+          if (maps[r.tableName]) maps[r.tableName][r.tableItemId] = r.tableItemDesc;
+        });
+        const flt = await qp("Smart.GetCatalogFilters.door", {
+          itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null },
+          scope: "allProducts"
+        });
+        const allItems = [];
+        const resolveImg = imgs => {
+          if (!Array.isArray(imgs)) return "";
+          for (const im of imgs) {
+            const c = (im.imagePath || im.thumbnailPath || "").trim();
+            if (!badImg(c)) return absUrl(c);
+          }
+          return "";
+        };
+        const mapIt = (it) => {
+          const cat1 = maps.G1[it.group1Id] || "";
+          const cat2 = maps.G2[it.group2Id] || "";
+          const cat = [cat1, cat2].filter(Boolean).join(" / ") || "Catalogo Pregis";
+          const marca = it.brand || maps.BRAND[it.brandId] || it.brandId || "";
+          const uv = maps.UV[it.baseUnitDescId] || it.baseUnitDescId || "";
+          return {
+            codice: it.itemCode || it.itemId || "",
+            nome: it.itemDesc || it.itemInfo || it.itemCode || "",
+            descrizione: [it.itemDesc, it.itemInfo, it.variantDesc].filter(Boolean).join(" — "),
+            immagine: resolveImg(it.images),
+            marca: clean(marca),
+            categoria: cat,
+            confezionamento: clean(uv + (it.weight ? " · Peso " + it.weight : "")),
+            prezzo: (it.basePrice || it.baseNetPrice || it.pricePerUnitKgLt || null)
+          };
+        };
+        let pageOrder = "";
+        for (let p = 0; p < 120; p++) {
+          const pg = await qp("Smart.GetItems.door", {
+            itemFilter: { textFilter: null, groupIds: null, attributes: null, tagIds: null, communicationId: null },
+            pageNumber: p, pageSize: 100, pageOrder
+          });
+          const bd = pg.data || {};
+          const arr = bd.itemList || [];
+          if (!arr.length) break;
+          arr.forEach(it => {
+            allItems.push(mapIt(it));
+            (it.variants || []).forEach(v => { if (v && v.itemId !== it.itemId) allItems.push(mapIt(v)); });
+          });
+          pageOrder = bd.pageOrder || "";
+          console.log("📦 Pagina " + (p + 1) + ": " + allItems.length + " prodotti estratti...");
+          if (bd.lastPage) break;
+          await new Promise(r => setTimeout(r, 80));
+        }
+        if (allItems.length > 0) return finishExport(allItems, "API Pregis onSalesSmart");
+      }
+    } catch(err) {
+      console.warn("Fallback DOM:", err);
+    }
+  }
+
+  /* 2. Fallback DOM generico */
+  function extractFromDoc(doc) {
     const out = [];
-    const pageCat = clean(doc.querySelector("h1, .breadcrumb li:last-child, .category-title, .titolo-categoria")?.textContent || "");
+    const pageCat = clean(doc.querySelector("h1, .breadcrumb li:last-child, .category-title")?.textContent || "");
     const blocks = doc.querySelectorAll("[data-sku], [data-codice], [class*='product'], [class*='articolo'], [class*='card'], [class*='item'], tbody tr");
     blocks.forEach(el => {
-      const imgs = [...el.querySelectorAll("img")].map(im => im.getAttribute("data-zoom-image") || im.getAttribute("data-large_image") || im.getAttribute("data-src") || im.getAttribute("data-original") || im.currentSrc || im.getAttribute("src") || "").filter(u => !badImg(u));
+      const imgs = [...el.querySelectorAll("img")].map(im => im.getAttribute("data-src") || im.currentSrc || im.getAttribute("src") || "").filter(u => !badImg(u));
       const img = imgs.length ? absUrl(imgs.find(u => !/logo/i.test(u)) || imgs[0]) : "";
       const txt = el.innerText || el.textContent || "";
       if (txt.trim().length < 3) return;
       const codeEl = el.querySelector("[class*='sku'], [class*='codice'], [class*='code'], [class*='cod']");
       let codice = clean(el.getAttribute("data-sku") || el.getAttribute("data-codice") || codeEl?.textContent || "");
-      const mCod = codice.match(/([A-Z0-9\\.\\-\\/]{3,20})/i) || txt.match(/(?:cod\\.?|codice|art\\.?|sku)\\s*[:#\\-]?\\s*([A-Z0-9\\.\\-\\/]{3,20})/i);
-      if (!codice && mCod) codice = mCod[1];
-      if (codice) codice = codice.replace(/^(codice|cod\\.?|sku|art\\.?)[:\\s]*/i, "").trim();
       const titleEl = el.querySelector("h1, h2, h3, h4, [class*='title'], [class*='name'], [class*='nome']");
       const nome = clean(titleEl?.textContent || el.querySelector("img")?.getAttribute("alt") || "");
-      const descEl = el.querySelector("[class*='desc'], p");
-      const descrizione = clean(descEl?.textContent || txt.slice(0, 280));
-      const marca = clean(el.getAttribute("data-brand") || el.querySelector("[class*='brand'], [class*='marca']")?.textContent || "");
-      const categoria = clean(el.getAttribute("data-category") || el.querySelector("[class*='categ']")?.textContent || pageCat || "Catalogo Pregis");
-      const confEl = el.querySelector("[class*='conf'], [class*='pack'], [class*='imball'], [class*='formato']");
-      let confezionamento = clean(confEl?.textContent || "");
-      if (!confezionamento) {
-        const mConf = txt.match(/(?:conf\\.?|confezione|imballo|pezzatura|formato)\\s*[:\\-]?\\s*([^\\n|]{2,40})/i) || txt.match(/\\b(\\d+(?:[\\.,]\\d+)?\\s*(?:x\\s*\\d+)?\\s*(?:kg|gr|g|lt|l|ml|pz|cf|crt))\\b/i);
-        if (mConf) confezionamento = clean(mConf[1]);
-      }
-      let prezzo = null;
-      const mPrz = (el.querySelector("[class*='price'], [class*='prezzo']")?.textContent || txt).match(/(\\d+[\\.,]\\d{2})/);
-      if (mPrz) prezzo = parseFloat(mPrz[1].replace(",", "."));
       if ((codice || img) && (nome || codice)) {
-        out.push({ codice, nome: nome || codice, descrizione, immagine: img, marca, categoria, confezionamento, prezzo });
+        out.push({ codice, nome: nome || codice, descrizione: clean(txt.slice(0, 280)), immagine: img, marca: "", categoria: pageCat || "Catalogo Pregis", confezionamento: "", prezzo: null });
       }
     });
     return out;
   }
-
-  const visited = new Set([location.href]);
-  const all = [...extractFromDoc(document, location.href)];
-  const links = [...document.querySelectorAll("a[href]")].map(a => absUrl(a.getAttribute("href"))).filter(u => {
-    try {
-      const pu = new URL(u);
-      return pu.origin === location.origin && !visited.has(u) && /page|pag|cat|catalog|prod|list|sched|art/i.test(u);
-    } catch(e) { return false; }
-  });
-  const uniqueLinks = [...new Set(links)].slice(0, 50);
-  console.log("🔍 Pregis Scanner: trovate " + uniqueLinks.length + " pagine/categorie accessibili da esplorare in sola lettura...");
-
-  for (const link of uniqueLinks) {
-    if (visited.has(link)) continue;
-    visited.add(link);
-    try {
-      const r = await fetch(link, { method: "GET", credentials: "include" });
-      if (!r.ok || !(r.headers.get("content-type") || "").includes("text/html")) continue;
-      const html = await r.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      all.push(...extractFromDoc(doc, link));
-      await new Promise(res => setTimeout(res, 80));
-    } catch(e) {}
-  }
-
-  const jsonStr = JSON.stringify(all, null, 2);
-  try { await navigator.clipboard.writeText(jsonStr); } catch(e) {}
-  try { if (typeof copy === "function") copy(jsonStr); } catch(e) {}
-  const blob = new Blob([jsonStr], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "catalogo_pregis_completo.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  alert("✅ Scansione Pregis completata in sola lettura (" + visited.size + " pagine, " + all.length + " rilevamenti). File catalogo_pregis_completo.json scaricato e copiato negli appunti!");
+  const domAll = extractFromDoc(document);
+  finishExport(domAll, "DOM pagina");
 })();`;
+
+  document.getElementById('btnDirectScanPregisPortal')?.addEventListener('click', async () => {
+    const u = (document.getElementById('pregisPortalUser')?.value || "").trim();
+    const p = document.getElementById('pregisPortalPass')?.value || "";
+    const sid = (document.getElementById('pregisPortalSid')?.value || "").trim();
+    if (!sid && (!u || !p)) {
+      return alert("Inserisci Username e Password di tua.pregis.it oppure il Session ID.");
+    }
+    await runCatalogAnalysis({
+      url: "https://tua.pregis.it/onSalesSmart/#/catalogue/products",
+      pregis_username: u,
+      pregis_password: p,
+      pregis_session_id: sid
+    });
+  });
 
   btnCopySafariScript?.addEventListener('click', async () => {
     try {
