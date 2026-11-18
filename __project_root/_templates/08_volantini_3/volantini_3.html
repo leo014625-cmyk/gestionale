@@ -931,20 +931,29 @@
     </p>
   </div>
   <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="input-group input-group-sm rounded-pill overflow-hidden border bg-body-tertiary" style="width: 235px;">
+      <span class="input-group-text border-0 bg-transparent text-danger"><i class="bi bi-tag-fill"></i></span>
+      <input type="text" id="v3FlyerNameInput" class="form-control border-0 bg-transparent fw-bold" placeholder="Nome volantino (es. Promo Salumi)" value="{{ loaded_flyer.titolo if loaded_flyer else '' }}">
+    </div>
     <div class="d-flex align-items-center gap-2 bg-body-tertiary border rounded-pill px-3 py-1">
       <i class="bi bi-zoom-in text-muted small"></i>
-      <input type="range" id="v3ZoomSlider" min="55" max="110" step="5" value="85" style="width: 90px;" class="form-range mb-0">
+      <input type="range" id="v3ZoomSlider" min="55" max="110" step="5" value="85" style="width: 80px;" class="form-range mb-0">
       <span id="v3ZoomLabel" class="small fw-bold" style="min-width: 36px;">85%</span>
     </div>
     <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#v3SavedArchiveModal">
-      <i class="bi bi-folder2-open me-1"></i>Archivio ({{ saved_list|length }})
+      <i class="bi bi-folder2-open me-1"></i>Archivio (<span id="v3ArchiveCount">{{ saved_list|length }}</span>)
     </button>
     <button type="button" id="v3AutoFindPhotosBtn" class="btn btn-warning btn-sm fw-bold rounded-pill px-3 text-dark shadow-sm">
       <i class="bi bi-magic me-1"></i>Auto-Trova Foto AI
     </button>
-    <button type="button" id="v3SaveFlyerBtn" class="btn btn-success btn-sm fw-bold rounded-pill px-3 shadow-sm">
-      <i class="bi bi-cloud-check-fill me-1"></i>Salva
-    </button>
+    <div class="btn-group btn-group-sm shadow-sm rounded-pill overflow-hidden">
+      <button type="button" id="v3SaveFlyerBtn" class="btn btn-success fw-bold px-3">
+        <i class="bi bi-cloud-check-fill me-1"></i>Salva
+      </button>
+      <button type="button" id="v3SaveAsNewBtn" class="btn btn-outline-success bg-white fw-bold px-2" title="Salva una nuova copia con un altro nome">
+        <i class="bi bi-plus-circle"></i>
+      </button>
+    </div>
     <button type="button" id="v3ExportPdfBtn" class="btn btn-primary btn-sm fw-bold rounded-pill px-3 shadow-sm">
       <i class="bi bi-file-earmark-pdf-fill me-1"></i>Scarica PDF HD
     </button>
@@ -1298,7 +1307,7 @@
         <h5 class="modal-title fw-bold"><i class="bi bi-collection-play-fill text-danger me-2"></i>Archivio Volantini PREGIS 3.0</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" id="v3ArchiveListContainer">
         {% if saved_list %}
         <div class="list-group list-group-flush">
           {% for v in saved_list %}
@@ -1306,6 +1315,7 @@
             <div>
               <div class="fw-bold">{{ v.titolo }}</div>
               <div class="small text-muted">
+                {% if v.sottotitolo and v.sottotitolo != v.titolo %}Titolo volantino: <strong>{{ v.sottotitolo }}</strong> · {% endif %}
                 Sfondo: <span class="badge bg-warning-subtle text-warning-emphasis">{{ v.stile }}</span>
                 · Aggiornato: {{ v.aggiornato_il }}
               </div>
@@ -1549,6 +1559,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const genFromCatBtn = document.getElementById("v3GenFromCatBtn");
   const autoPhotosBtn = document.getElementById("v3AutoFindPhotosBtn");
   const saveFlyerBtn = document.getElementById("v3SaveFlyerBtn");
+  const saveAsNewBtn = document.getElementById("v3SaveAsNewBtn");
+  const flyerNameInput = document.getElementById("v3FlyerNameInput");
+  const archiveCountEl = document.getElementById("v3ArchiveCount");
+  const archiveListContainer = document.getElementById("v3ArchiveListContainer");
   const exportPdfBtn = document.getElementById("v3ExportPdfBtn");
   const toggleDesc = document.getElementById("v3ToggleDesc");
   const addProductBtn = document.getElementById("v3AddProductBtn");
@@ -2370,6 +2384,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.ok && data.flyer) {
         flyerData = data.flyer;
+        currentFlyerId = null;
+        if (data.flyer.nome_volantino && flyerNameInput) {
+          flyerNameInput.value = data.flyer.nome_volantino;
+        }
+        selectedTarget = { pIdx: 0, iIdx: 0 };
         renderFlyer();
         dropzoneTitle.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Volantino generato con AI!</span>`;
       } else {
@@ -2503,26 +2522,98 @@ document.addEventListener("DOMContentLoaded", () => {
     renderFlyer();
   });
 
-  saveFlyerBtn.addEventListener("click", async () => {
+  function renderArchiveList(savedList) {
+    if (!Array.isArray(savedList)) return;
+    if (archiveCountEl) archiveCountEl.textContent = savedList.length;
+    if (!archiveListContainer) return;
+
+    if (!savedList.length) {
+      archiveListContainer.innerHTML = `<div class="text-center py-4 text-muted">Nessun Volantino 3.0 ancora salvato.</div>`;
+      return;
+    }
+
+    archiveListContainer.innerHTML = `
+      <div class="list-group list-group-flush">
+        ${savedList.map(v => `
+          <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+            <div>
+              <div class="fw-bold">${v.titolo || "Volantino PREGIS"}</div>
+              <div class="small text-muted">
+                ${(v.sottotitolo && v.sottotitolo !== v.titolo) ? `Titolo volantino: <strong>${v.sottotitolo}</strong> · ` : ""}
+                Sfondo: <span class="badge bg-warning-subtle text-warning-emphasis">${v.stile || ""}</span>
+                · Aggiornato: ${v.aggiornato_il || ""}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="/volantini-3?id=${v.id}" class="btn btn-sm btn-primary fw-bold">Apri</a>
+              <button type="button" class="btn btn-sm btn-outline-danger v3-del-saved-btn" data-id="${v.id}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  async function saveFlyer(asNew = false) {
+    let nome = (flyerNameInput?.value || "").trim();
+    if (!nome || asNew) {
+      const suggested = nome ? `${nome} (Copia)` : (flyerData.nome_volantino || flyerData.titolo || "Volantino PREGIS");
+      const asked = prompt(
+        asNew ? "Dai un nome alla nuova copia del volantino:" : "Dai un nome a questo volantino per riconoscerlo nell'archivio:",
+        suggested
+      );
+      if (asked === null) return;
+      nome = asked.trim() || suggested;
+      if (flyerNameInput) flyerNameInput.value = nome;
+    }
+    flyerData.nome_volantino = nome;
+
     saveFlyerBtn.disabled = true;
+    if (saveAsNewBtn) saveAsNewBtn.disabled = true;
     const orig = saveFlyerBtn.innerHTML;
     saveFlyerBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Salvataggio...`;
     try {
       const res = await fetch("/api/volantini-3/salva", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: currentFlyerId, flyer: flyerData })
+        body: JSON.stringify({
+          id: asNew ? null : currentFlyerId,
+          nome: nome,
+          flyer: flyerData
+        })
       });
       const data = await res.json();
-      if (data.ok) {
+      if (res.ok && data.ok) {
         currentFlyerId = data.id;
+        if (data.id) {
+          window.history.replaceState({}, "", `/volantini-3?id=${data.id}`);
+        }
+        if (data.saved_list) {
+          renderArchiveList(data.saved_list);
+        }
         saveFlyerBtn.innerHTML = `<i class="bi bi-check2-all me-1"></i>Salvato!`;
-        setTimeout(() => { saveFlyerBtn.innerHTML = orig; }, 2000);
+        setTimeout(() => { saveFlyerBtn.innerHTML = orig; }, 2200);
+      } else {
+        saveFlyerBtn.innerHTML = orig;
+        alert("Errore salvataggio: " + (data.error || `HTTP ${res.status}`));
       }
+    } catch (err) {
+      saveFlyerBtn.innerHTML = orig;
+      alert("Errore di rete durante il salvataggio: " + err.message);
     } finally {
       saveFlyerBtn.disabled = false;
+      if (saveAsNewBtn) saveAsNewBtn.disabled = false;
     }
-  });
+  }
+
+  saveFlyerBtn.addEventListener("click", () => saveFlyer(false));
+  saveAsNewBtn?.addEventListener("click", () => saveFlyer(true));
+
+  if (flyerNameInput && !flyerNameInput.value && flyerData.nome_volantino) {
+    flyerNameInput.value = flyerData.nome_volantino;
+  }
 
   exportPdfBtn.addEventListener("click", async () => {
     exportPdfBtn.disabled = true;
@@ -2549,7 +2640,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const imgData = canvas.toDataURL("image/jpeg", 0.96);
         pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
       }
-      const cleanTitle = (flyerData.titolo || "Volantino_PREGIS").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      const cleanTitle = ((flyerNameInput?.value || flyerData.nome_volantino || flyerData.titolo || "Volantino_PREGIS")).replace(/[^a-zA-Z0-9_\-]/g, "_");
       pdf.save(`${cleanTitle}.pdf`);
     } finally {
       canvasContainer.classList.remove("v3-exporting");
@@ -2559,14 +2650,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.querySelectorAll(".v3-del-saved-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      if (!confirm("Eliminare questo volantino?")) return;
-      const id = btn.getAttribute("data-id");
+  archiveListContainer?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".v3-del-saved-btn");
+    if (!btn) return;
+    if (!confirm("Eliminare questo volantino dall'archivio?")) return;
+    const id = btn.getAttribute("data-id");
+    try {
       const res = await fetch(`/api/volantini-3/elimina/${id}`, { method: "DELETE" });
       const d = await res.json();
-      if (d.ok) window.location.reload();
-    });
+      if (d.ok) {
+        if (String(currentFlyerId) === String(id)) {
+          currentFlyerId = null;
+          window.history.replaceState({}, "", "/volantini-3");
+        }
+        if (d.saved_list) renderArchiveList(d.saved_list);
+        else window.location.reload();
+      } else {
+        alert("Errore eliminazione: " + (d.error || ""));
+      }
+    } catch (err) {
+      alert("Errore di rete: " + err.message);
+    }
   });
 
   autoFitInitialZoom();

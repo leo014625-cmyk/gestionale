@@ -18,6 +18,38 @@ _GET_OPENAI_CFG_FN = None
 PREGIS_LOGO_URL = "/static/img/logo-pregis-ufficiale.png"
 
 
+def _ensure_volantini3_table(cur):
+    """Assicura l'esistenza della tabella volantini_3_ai anche se il boot era in fallback SQLite."""
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS volantini_3_ai (
+            id SERIAL PRIMARY KEY,
+            titolo TEXT NOT NULL,
+            sottotitolo TEXT,
+            stile TEXT DEFAULT 'sfondo_crema_organico',
+            layout_mode TEXT DEFAULT 'pregis_spontaneo',
+            dati_json TEXT NOT NULL,
+            creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
+def _fetch_saved_list(cur):
+    """Restituisce i volantini salvati più recenti in formato serializzabile."""
+    cur.execute("""
+        SELECT id, titolo, sottotitolo, stile, layout_mode, aggiornato_il
+        FROM volantini_3_ai
+        ORDER BY aggiornato_il DESC, id DESC
+        LIMIT 50
+    """)
+    out = []
+    for r in cur.fetchall():
+        d = dict(r)
+        d["aggiornato_il"] = str(d.get("aggiornato_il") or "")[:16]
+        out.append(d)
+    return out
+
+
 def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
     global _GET_DB, _EXTRACT_PDF_FN, _GET_OPENAI_CFG_FN
     _GET_DB = get_db_fn
@@ -27,18 +59,7 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
     try:
         with _GET_DB() as conn:
             cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS volantini_3_ai (
-                    id SERIAL PRIMARY KEY,
-                    titolo TEXT NOT NULL,
-                    sottotitolo TEXT,
-                    stile TEXT DEFAULT 'pregis_autunno',
-                    layout_mode TEXT DEFAULT 'pregis_10',
-                    dati_json TEXT NOT NULL,
-                    creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    aggiornato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            _ensure_volantini3_table(cur)
             conn.commit()
     except Exception as e:
         print(f"⚠️ init_volantini_3 table warning: {e}")
@@ -379,8 +400,11 @@ def build_rich_flyer_data(raw_products: list, filename: str = "", user_prompt: s
                 "items": chunk
             })
 
+    nome_suggerito = os.path.splitext(filename)[0].replace("_", " ").strip() if filename else ""
+
     return {
         "brand_header": "PREGIS",
+        "nome_volantino": nome_suggerito,
         "logo_url": PREGIS_LOGO_URL,
         "logo_mode": "logo_and_title",
         "titolo": default_title,
@@ -474,16 +498,9 @@ def pagina_volantini_3():
     try:
         with _GET_DB() as conn:
             cur = conn.cursor()
-            cur.execute("""
-                SELECT id, titolo, sottotitolo, stile, layout_mode, aggiornato_il
-                FROM volantini_3_ai
-                ORDER BY aggiornato_il DESC
-                LIMIT 40
-            """)
-            for r in cur.fetchall():
-                d = dict(r)
-                d["aggiornato_il"] = str(d.get("aggiornato_il") or "")[:16]
-                saved_list.append(d)
+            _ensure_volantini3_table(cur)
+            conn.commit()
+            saved_list = _fetch_saved_list(cur)
 
             if vol_id:
                 cur.execute("SELECT * FROM volantini_3_ai WHERE id = %s", (vol_id,))
@@ -641,8 +658,9 @@ def api_volantini_3_salva():
     data = request.get_json(silent=True) or {}
     vol_id = data.get("id")
     flyer = data.get("flyer") or {}
-    titolo = (flyer.get("titolo") or "PROMO PREGIS 3.0").strip()
-    sottotitolo = (flyer.get("sottotitolo") or "").strip()
+    nome_volantino = (data.get("nome") or flyer.get("nome_volantino") or flyer.get("titolo") or "Volantino PREGIS").strip()
+    flyer["nome_volantino"] = nome_volantino
+    sottotitolo = (flyer.get("titolo") or flyer.get("sottotitolo") or "").strip()
     stile = flyer.get("stile") or "sfondo_crema_organico"
     layout_mode = flyer.get("layout_mode") or "pregis_spontaneo"
     dati_json = json.dumps(flyer, ensure_ascii=False)
@@ -650,23 +668,39 @@ def api_volantini_3_salva():
     try:
         with _GET_DB() as conn:
             cur = conn.cursor()
+            _ensure_volantini3_table(cur)
+            saved_id = None
+
             if vol_id:
                 cur.execute("""
                     UPDATE volantini_3_ai
                     SET titolo = %s, sottotitolo = %s, stile = %s, layout_mode = %s,
                         dati_json = %s, aggiornato_il = CURRENT_TIMESTAMP
                     WHERE id = %s
-                """, (titolo, sottotitolo, stile, layout_mode, dati_json, int(vol_id)))
-                saved_id = int(vol_id)
-            else:
+                """, (nome_volantino, sottotitolo, stile, layout_mode, dati_json, int(vol_id)))
+                if getattr(cur, "rowcount", 0) > 0:
+                    saved_id = int(vol_id)
+
+            if not saved_id:
                 cur.execute("""
                     INSERT INTO volantini_3_ai (titolo, sottotitolo, stile, layout_mode, dati_json)
                     VALUES (%s, %s, %s, %s, %s) RETURNING id
-                """, (titolo, sottotitolo, stile, layout_mode, dati_json))
+                """, (nome_volantino, sottotitolo, stile, layout_mode, dati_json))
                 r = cur.fetchone()
-                saved_id = r["id"] if r else None
+                if r:
+                    saved_id = r["id"] if isinstance(r, dict) else r[0]
+                if not saved_id:
+                    saved_id = getattr(cur, "lastrowid", None)
+
             conn.commit()
-        return jsonify({"ok": True, "id": saved_id, "message": f"✅ Volantino PREGIS '{titolo}' salvato!"})
+            saved_list = _fetch_saved_list(cur)
+        return jsonify({
+            "ok": True,
+            "id": saved_id,
+            "nome": nome_volantino,
+            "saved_list": saved_list,
+            "message": f"✅ Volantino '{nome_volantino}' salvato!"
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -679,8 +713,10 @@ def api_volantini_3_elimina(vol_id):
     try:
         with _GET_DB() as conn:
             cur = conn.cursor()
+            _ensure_volantini3_table(cur)
             cur.execute("DELETE FROM volantini_3_ai WHERE id = %s", (vol_id,))
             conn.commit()
-        return jsonify({"ok": True})
+            saved_list = _fetch_saved_list(cur)
+        return jsonify({"ok": True, "saved_list": saved_list})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
