@@ -517,7 +517,7 @@
                   <li>Tieni aperta la scheda Pregis su <strong>Chrome</strong> o <strong>Safari</strong></li>
                   <li>Clicca <strong>Copia Script Auto-Scanner</strong> qui sotto</li>
                   <li>Nella scheda Pregis premi <code>⌥⌘J</code> su Chrome (o <code>⌥⌘C</code> su Safari), incolla e premi <strong>Invio</strong></li>
-                  <li>Apparirà un <strong>pannello visibile su Pregis</strong> per scaricare o copiare tutti i prodotti (tutte le pagine e categorie)</li>
+                  <li>Lo script <strong>scorre giù la pagina automaticamente</strong> caricando man mano tutti i prodotti fino in fondo e apre il riquadro per scaricare/copiare tutto</li>
                 </ol>
                 <div class="d-flex flex-wrap gap-2">
                   <button type="button" id="btnCopySafariScript" class="btn btn-primary btn-sm fw-bold rounded-pill px-3">
@@ -1246,27 +1246,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const SAFARI_AUTOSCAN_SCRIPT = `(async function(){
-  /* Scanner in SOLA LETTURA per tua.pregis.it/onSalesSmart (Chrome & Safari) */
+  /* Scanner Auto-Scroll + Live XHR & DOM in SOLA LETTURA per tua.pregis.it/onSalesSmart (Chrome & Safari) */
   const clean = s => String(s || "").replace(/\\s+/g, " ").trim();
   const absUrl = u => { try { return u ? new URL(u, location.href).href : ""; } catch(e) { return u || ""; } };
   const badImg = u => !u || /missing_image_catalogue|favicon|sprite|spinner|loading|placeholder|no-image|pixel|1x1|svg\\+xml/i.test(u);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   let stopRequested = false;
+  let lastPageReached = false;
 
-  /* 0. Crea pannello grafico visibile direttamente sopra la pagina Pregis */
+  /* 0. Pannello overlay visibile sopra la pagina Pregis */
   const oldOv = document.getElementById("pregisExtractorOverlay");
   if (oldOv) oldOv.remove();
   const ov = document.createElement("div");
   ov.id = "pregisExtractorOverlay";
   ov.style.cssText = "position:fixed;top:16px;right:16px;width:410px;max-width:calc(100vw - 32px);background:#ffffff;color:#0f172a;border:2px solid #2563eb;border-radius:14px;box-shadow:0 20px 50px rgba(15,23,42,.35);z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:13px;overflow:hidden;";
   ov.innerHTML = '<div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:700;">' +
-    '<span>📦 Estrattore Catalogo Pregis (Sola Lettura)</span>' +
+    '<span>📦 Estrattore Auto-Scroll Pregis (Sola Lettura)</span>' +
     '<button id="pExtClose" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;">×</button>' +
     '</div>' +
     '<div style="padding:12px 14px;">' +
-    '<div id="pExtStatus" style="font-weight:600;margin-bottom:6px;color:#1e293b;">⏳ Inizializzazione scanner...</div>' +
+    '<div id="pExtStatus" style="font-weight:600;margin-bottom:6px;color:#1e293b;">⏳ Preparazione scorrimento automatico...</div>' +
     '<div id="pExtCount" style="font-size:12px;color:#475569;margin-bottom:10px;">0 prodotti estratti</div>' +
     '<div id="pExtActions" style="display:flex;flex-direction:column;gap:8px;">' +
-    '<button id="pExtStopBtn" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a;font-weight:600;cursor:pointer;">⏹️ Ferma qui ed Esporta</button>' +
+    '<button id="pExtStopBtn" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a;font-weight:600;cursor:pointer;">⏹️ Ferma Scorrimento qui ed Esporta</button>' +
     '</div>' +
     '</div>';
   document.body.appendChild(ov);
@@ -1274,7 +1276,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const elCount = document.getElementById("pExtCount");
   const elActions = document.getElementById("pExtActions");
   document.getElementById("pExtClose").onclick = () => { stopRequested = true; ov.remove(); };
-  document.getElementById("pExtStopBtn").onclick = () => { stopRequested = true; elStatus.textContent = "⏹️ Chiusura scansione in corso..."; };
+  document.getElementById("pExtStopBtn").onclick = () => { stopRequested = true; elStatus.textContent = "⏹️ Arresto scorrimento e preparazione export..."; };
 
   function finishExport(list, labelInfo) {
     const jsonStr = JSON.stringify(list, null, 2);
@@ -1349,206 +1351,191 @@ document.addEventListener('DOMContentLoaded', () => {
     try { if (typeof copy === "function") copy(jsonStr); } catch(e) {}
   }
 
-  /* 1. Rilevamento nativo portale .onSalesSmart (tua.pregis.it) */
-  if (location.href.includes("onSalesSmart") || location.href.includes("pregis.it")) {
-    try {
-      let sid = window._pregisLastSessionId || null;
-      let wpReq = null;
-      if (!window._pregisXhrHooked && window.XMLHttpRequest) {
-        window._pregisXhrHooked = true;
-        const origSend = XMLHttpRequest.prototype.send;
-        XMLHttpRequest.prototype.send = function(body) {
-          try {
-            if (typeof body === "string" && body.includes("sessionId")) {
-              const p = JSON.parse(body);
-              if (p && p.sessionId) window._pregisLastSessionId = p.sessionId;
-            }
-          } catch(e) {}
-          return origSend.apply(this, arguments);
-        };
+  /* 1. Lookup tabelle e raccolta deduplicata XHR + DOM */
+  const maps = { G1: {}, G2: {}, G3: {}, BRAND: {}, UV: {} };
+  const collectedMap = new Map();
+  const rawMetaMap = new Map();
+
+  function absorbLookups(list) {
+    (list || []).forEach(r => {
+      if (r && maps[r.tableName] && r.tableItemId != null) {
+        maps[r.tableName][String(r.tableItemId)] = clean(r.tableItemDesc);
       }
-      if (window.webpackJsonp) {
-        try {
-          const cid = Math.floor(Math.random() * 8000000) + 1000000;
-          const modMap = {};
-          modMap[cid] = function(m, e, r) { wpReq = r; };
-          window.webpackJsonp.push([[cid], modMap, [[cid]]]);
-        } catch(e) {}
+    });
+  }
+
+  function resolveImgList(imgs) {
+    if (!Array.isArray(imgs)) return "";
+    for (const im of imgs) {
+      const c = clean((im && (im.imagePath || im.thumbnailPath || im.imageId)) || "");
+      if (!badImg(c)) return absUrl(c);
+    }
+    return "";
+  }
+
+  function mergeProduct(rec) {
+    if (!rec) return;
+    const cod = clean(rec.codice);
+    const nom = clean(rec.nome);
+    if (!cod && !nom) return;
+    const key = cod ? ("C:" + cod.toUpperCase()) : ("N:" + nom.toUpperCase());
+    const prev = collectedMap.get(key);
+    if (!prev) {
+      collectedMap.set(key, {
+        codice: cod,
+        nome: nom || ("Articolo " + cod),
+        descrizione: clean(rec.descrizione || nom || cod),
+        immagine: clean(rec.immagine),
+        marca: clean(rec.marca),
+        categoria: clean(rec.categoria) || "Catalogo Pregis",
+        confezionamento: clean(rec.confezionamento),
+        prezzo: (rec.prezzo != null && rec.prezzo !== "" && Number(rec.prezzo) > 0) ? Number(rec.prezzo) : null
+      });
+    } else {
+      if (!prev.codice && cod) prev.codice = cod;
+      if ((!prev.nome || prev.nome.startsWith("Articolo ")) && nom) prev.nome = nom;
+      if (clean(rec.descrizione).length > prev.descrizione.length) prev.descrizione = clean(rec.descrizione);
+      if (!prev.immagine && rec.immagine && !badImg(rec.immagine)) prev.immagine = clean(rec.immagine);
+      if (!prev.marca && rec.marca) prev.marca = clean(rec.marca);
+      if ((!prev.categoria || prev.categoria === "Catalogo Pregis") && rec.categoria && rec.categoria !== "Catalogo Pregis") {
+        prev.categoria = clean(rec.categoria);
       }
-      if (!sid && wpReq) {
-        try { sid = wpReq("2QU1").h(); } catch(err) {}
-        if (!sid && wpReq.c) {
-          for (const k of Object.keys(wpReq.c)) {
-            try {
-              const ex = wpReq.c[k] && wpReq.c[k].exports;
-              if (!ex) continue;
-              const vals = [ex, ex.a, ex.b, ex.c];
-              for (const v of vals) {
-                if (v && v._value && v._value.auth && v._value.auth.sessionId) { sid = v._value.auth.sessionId; break; }
-              }
-              if (sid) break;
-            } catch(e) {}
-          }
-        }
-      }
-
-      if (!sid) {
-        elStatus.textContent = "⚠️ Session ID non rilevato automaticamente. Scansione DOM pagina...";
-      } else {
-        elStatus.textContent = "🔑 Connesso a Pregis QueryPoint in sola lettura...";
-        const qp = async (ep, dataObj) => {
-          const res = await fetch("https://tua.pregis.it/QueryPoint/" + ep, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Accept": "application/json; charset=UTF-8",
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache",
-              "Content-Type": "application/json; charset=UTF-8",
-              "Require-Content-Type": "application/json",
-              "timeout": "60000"
-            },
-            body: JSON.stringify({ sessionId: sid, data: dataObj })
-          });
-          return await res.json();
-        };
-
-        const ensureAssortment = async () => {
-          try {
-            const dpRes = await qp("Smart.DeliveryPlace.door", null);
-            const dpData = dpRes.data || {};
-            const dpList = dpData.deliveryPlaceList || [];
-            const dpId = (dpData.lastDeliveryPlaceId || "").trim() || (dpList[0] && dpList[0].contactId) || null;
-            const posId = (dpData.lastPointOfSaleId || "").trim() || null;
-            const dsId = (dpData.lastDeliveryServiceId || "").trim() || null;
-            if (dpId) {
-              await qp("Smart.CreateAssortment.door", { deliveryPlaceId: dpId, pointOfSaleId: posId, deliveryServiceId: dsId, deliveryDate: null });
-              return true;
-            }
-          } catch(e) {}
-          return false;
-        };
-
-        const lk = await qp("Smart.GetDescriptionLookup.door", { languageId: "it" });
-        const maps = { G1: {}, G2: {}, G3: {}, BRAND: {}, UV: {} };
-        ((lk.data || {}).descriptionLookupList || []).forEach(r => {
-          if (maps[r.tableName]) maps[r.tableName][r.tableItemId] = r.tableItemDesc;
-        });
-
-        let flt = await qp("Smart.GetCatalogFilters.door", {
-          itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null },
-          scope: "allProducts"
-        });
-        if ((flt.status && flt.status !== "OK") || !((flt.data || {}).groups || []).length) {
-          await ensureAssortment();
-          flt = await qp("Smart.GetCatalogFilters.door", {
-            itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null },
-            scope: "allProducts"
-          });
-        }
-        (((flt.data || {}).brands) || []).forEach(b => {
-          if (b.filterId && (b.description || b.filterDesc) && !maps.BRAND[b.filterId]) {
-            maps.BRAND[b.filterId] = clean(b.description || b.filterDesc);
-          }
-        });
-
-        const groupTasks = [];
-        const walkGroups = (nodes, level, parentIds, parentLabels) => {
-          (nodes || []).forEach(g => {
-            if (!g || !g.filterId || g.count === 0) return;
-            const gLbl = g.description || (maps["G" + level] || {})[g.filterId] || ("Categoria " + g.filterId);
-            const currIds = Object.assign({}, parentIds);
-            currIds["group" + level + "id"] = String(g.filterId);
-            const currLabels = parentLabels.concat([gLbl]);
-            const subs = (g.subfilters || []).filter(s => s && s.count !== 0);
-            if (subs.length) walkGroups(subs, level + 1, currIds, currLabels);
-            else groupTasks.push({ groupIds: currIds, label: currLabels.join(" / ") });
-          });
-        };
-        walkGroups(((flt.data || {}).groups || []), 1, {}, []);
-
-        const allItems = [];
-        const resolveImg = imgs => {
-          if (!Array.isArray(imgs)) return "";
-          for (const im of imgs) {
-            const c = (im.imagePath || im.thumbnailPath || im.imageId || "").trim();
-            if (!badImg(c)) return absUrl(c);
-          }
-          return "";
-        };
-        const mapIt = (it, fallbackCat) => {
-          const cat1 = maps.G1[it.group1Id] || "";
-          const cat2 = maps.G2[it.group2Id] || "";
-          const cat3 = maps.G3[it.group3Id] || "";
-          const cat = [cat1, cat2, cat3].filter(Boolean).join(" / ") || fallbackCat || "Catalogo Pregis";
-          const marca = it.brand || maps.BRAND[it.brandId] || it.brandId || "";
-          const uv = maps.UV[it.baseUnitDescId] || it.baseUnitDescId || "";
-          return {
-            codice: it.itemCode || it.itemId || "",
-            nome: it.itemDesc || it.itemInfo || it.itemCode || "",
-            descrizione: [it.itemDesc, it.itemInfo, it.variantDesc].filter(Boolean).join(" — "),
-            immagine: resolveImg(it.images),
-            marca: clean(marca),
-            categoria: cat,
-            confezionamento: clean(uv + (it.weight ? " · Peso " + it.weight : "")),
-            prezzo: (it.basePrice || it.baseNetPrice || it.pricePerUnitKgLt || null)
-          };
-        };
-
-        const fetchPagesForGroup = async (grpIds, grpLabel) => {
-          let pageOrder = "";
-          let pageSize = 50;
-          for (let p = 0; p < 250 && !stopRequested; p++) {
-            elStatus.textContent = "🔄 Scansione " + (grpLabel || "Catalogo") + " · Pag. " + (p + 1) + "...";
-            let pg = await qp("Smart.GetItems.door", {
-              itemFilter: { textFilter: null, groupIds: grpIds, attributes: null, tagIds: [], communicationId: null },
-              pageNumber: p, pageSize: pageSize, pageOrder: pageOrder
-            });
-            if (pg.status && pg.status !== "OK") {
-              if (String(pg.status).includes("ASSORTMENT")) {
-                await ensureAssortment();
-                pg = await qp("Smart.GetItems.door", {
-                  itemFilter: { textFilter: null, groupIds: grpIds, attributes: null, tagIds: [], communicationId: null },
-                  pageNumber: p, pageSize: pageSize, pageOrder: pageOrder
-                });
-              } else if (p === 0 && pageSize !== 20) {
-                pageSize = 20;
-                pg = await qp("Smart.GetItems.door", {
-                  itemFilter: { textFilter: null, groupIds: grpIds, attributes: null, tagIds: [], communicationId: null },
-                  pageNumber: p, pageSize: pageSize, pageOrder: pageOrder
-                });
-              }
-            }
-            const bd = pg.data || {};
-            const arr = bd.itemList || [];
-            if (!arr.length) break;
-            arr.forEach(it => {
-              allItems.push(mapIt(it, grpLabel));
-              (it.variants || []).forEach(v => { if (v && v.itemId !== it.itemId) allItems.push(mapIt(v, grpLabel)); });
-            });
-            elCount.textContent = allItems.length + " prodotti estratti finora...";
-            pageOrder = bd.pageOrder || "";
-            if (bd.lastPage) break;
-            await new Promise(r => setTimeout(r, 60));
-          }
-        };
-
-        await fetchPagesForGroup(null, "Catalogo Completo");
-        if (allItems.length === 0 && groupTasks.length > 0 && !stopRequested) {
-          for (const gt of groupTasks) {
-            if (stopRequested) break;
-            await fetchPagesForGroup(gt.groupIds, gt.label);
-          }
-        }
-        if (allItems.length > 0) return finishExport(allItems, "API Pregis onSalesSmart");
-      }
-    } catch(err) {
-      console.warn("Fallback DOM:", err);
-      elStatus.textContent = "⚠️ API QueryPoint non disponibile (" + (err.message || err) + "), provo DOM...";
+      if (!prev.confezionamento && rec.confezionamento) prev.confezionamento = clean(rec.confezionamento);
+      if (prev.prezzo == null && rec.prezzo != null && rec.prezzo !== "" && Number(rec.prezzo) > 0) prev.prezzo = Number(rec.prezzo);
     }
   }
 
-  /* 2. Fallback DOM specifico .onSalesSmart (.product-card / figure[smartCssImage]) + generico */
+  function mapXhrItem(it) {
+    if (!it) return null;
+    const cod = clean(it.itemCode || it.itemId || "");
+    if (cod) {
+      rawMetaMap.set("C:" + cod.toUpperCase(), {
+        g1: it.group1Id, g2: it.group2Id, g3: it.group3Id, brandId: it.brandId, uvId: it.baseUnitDescId, weight: it.weight
+      });
+    }
+    const cat1 = maps.G1[String(it.group1Id || "")] || "";
+    const cat2 = maps.G2[String(it.group2Id || "")] || "";
+    const cat3 = maps.G3[String(it.group3Id || "")] || "";
+    const cat = [cat1, cat2, cat3].filter(Boolean).join(" / ") || "Catalogo Pregis";
+    const marca = clean(it.brand || maps.BRAND[String(it.brandId || "")] || it.brandId || "");
+    const uv = clean(maps.UV[String(it.baseUnitDescId || "")] || it.baseUnitDescId || "");
+    return {
+      codice: cod,
+      nome: clean(it.itemDesc || it.itemInfo || cod),
+      descrizione: clean([it.itemDesc, it.itemInfo, it.variantDesc].filter(Boolean).join(" — ")),
+      immagine: resolveImgList(it.images),
+      marca: marca,
+      categoria: cat,
+      confezionamento: clean(uv + (it.weight ? " · Peso " + it.weight : "")),
+      prezzo: (it.basePrice || it.baseNetPrice || it.pricePerUnitKgLt || null)
+    };
+  }
+
+  /* 2. Intercettazione passiva XMLHttpRequest in sola lettura durante lo scroll */
+  let lookupsLoaded = false;
+  let detectedSid = window._pregisLastSessionId || null;
+
+  async function ensureLookupsOnce(sid) {
+    if (!sid || lookupsLoaded) return;
+    lookupsLoaded = true;
+    try {
+      const hdrs = {
+        "Accept": "application/json; charset=UTF-8",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Content-Type": "application/json; charset=UTF-8",
+        "Require-Content-Type": "application/json",
+        "timeout": "60000"
+      };
+      const lkRes = await fetch("https://tua.pregis.it/QueryPoint/Smart.GetDescriptionLookup.door", {
+        method: "POST", credentials: "include", headers: hdrs,
+        body: JSON.stringify({ sessionId: sid, data: { languageId: "it" } })
+      });
+      const lkJson = await lkRes.json();
+      absorbLookups((lkJson.data || {}).descriptionLookupList);
+      const fltRes = await fetch("https://tua.pregis.it/QueryPoint/Smart.GetCatalogFilters.door", {
+        method: "POST", credentials: "include", headers: hdrs,
+        body: JSON.stringify({ sessionId: sid, data: { itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null }, scope: "allProducts" } })
+      });
+      const fltJson = await fltRes.json();
+      (((fltJson.data || {}).brands) || []).forEach(b => {
+        if (b && b.filterId && (b.description || b.filterDesc) && !maps.BRAND[String(b.filterId)]) {
+          maps.BRAND[String(b.filterId)] = clean(b.description || b.filterDesc);
+        }
+      });
+    } catch(e) {}
+  }
+
+  window._pregisScrollXhrHandler = function(url, reqBodyStr, resText) {
+    try {
+      if (typeof reqBodyStr === "string" && reqBodyStr.includes("sessionId")) {
+        const rq = JSON.parse(reqBodyStr);
+        if (rq && rq.sessionId) {
+          detectedSid = rq.sessionId;
+          window._pregisLastSessionId = rq.sessionId;
+        }
+      }
+    } catch(e) {}
+    try {
+      if (!url) return;
+      const uStr = String(url);
+      if (uStr.includes("Smart.GetDescriptionLookup.door")) {
+        const js = JSON.parse(resText);
+        absorbLookups((js.data || {}).descriptionLookupList);
+      } else if (uStr.includes("Smart.GetItems") || uStr.includes("Smart.GetItemPreorder") || uStr.includes("Smart.GetItemNewProducts") || uStr.includes("Smart.GetItemOffer")) {
+        const js = JSON.parse(resText);
+        const bd = js && js.data;
+        if (bd && Array.isArray(bd.itemList)) {
+          bd.itemList.forEach(it => {
+            mergeProduct(mapXhrItem(it));
+            (it.variants || []).forEach(v => { if (v && v.itemId !== it.itemId) mergeProduct(mapXhrItem(v)); });
+          });
+          if (bd.lastPage === true) lastPageReached = true;
+        }
+      }
+    } catch(e) {}
+  };
+
+  if (!window._pregisScrollXhrPatched && window.XMLHttpRequest) {
+    window._pregisScrollXhrPatched = true;
+    const origOpen = XMLHttpRequest.prototype.open;
+    const origSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this._pExtUrl = url;
+      return origOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function(body) {
+      const self = this;
+      this.addEventListener("load", function() {
+        try {
+          if (window._pregisScrollXhrHandler && typeof self.responseText === "string") {
+            window._pregisScrollXhrHandler(self._pExtUrl, body, self.responseText);
+          }
+        } catch(e) {}
+      });
+      return origSend.apply(this, arguments);
+    };
+  }
+
+  /* Prova a leggere subito i lookup da Webpack se sessionId presente (zero modifiche) */
+  if (!detectedSid && window.webpackJsonp) {
+    try {
+      let wpReq = null;
+      const cid = Math.floor(Math.random() * 8000000) + 1000000;
+      const modMap = {};
+      modMap[cid] = function(m, e, r) { wpReq = r; };
+      window.webpackJsonp.push([[cid], modMap, [[cid]]]);
+      if (wpReq) {
+        try { detectedSid = wpReq("2QU1").h(); } catch(e) {}
+      }
+    } catch(e) {}
+  }
+  if (detectedSid) {
+    window._pregisLastSessionId = detectedSid;
+    await ensureLookupsOnce(detectedSid);
+  }
+
+  /* 3. Lettore DOM specifico per .onSalesSmart (.product-card / figure[smartCssImage]) + generico */
   function extractFromDoc(doc) {
     const out = [];
     const pageCat = clean((doc.querySelector("h1, .breadcrumb li:last-child, .category-title, .active-filter") || {}).textContent || "");
@@ -1584,21 +1571,126 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if ((codice || img) && (nome || codice)) {
         out.push({
-          codice,
+          codice: codice,
           nome: nome || codice,
-          descrizione: clean([nome, descEl ? descEl.textContent : "", txt.slice(0, 220)].filter(Boolean).join(" — ")),
+          descrizione: clean([nome, descEl ? descEl.textContent : ""].filter(Boolean).join(" — ")) || clean(txt.slice(0, 220)),
           immagine: img,
           marca: clean(brandEl ? brandEl.textContent : ""),
           categoria: pageCat || "Catalogo Pregis",
           confezionamento: clean(confEl ? confEl.textContent : "").replace(/[()]/g, ""),
-          prezzo
+          prezzo: prezzo
         });
       }
     });
     return out;
   }
-  const domAll = extractFromDoc(document);
-  finishExport(domAll, "DOM pagina");
+
+  function harvestDomNow() {
+    const domItems = extractFromDoc(document);
+    domItems.forEach(mergeProduct);
+    return document.querySelectorAll(".at-products-list-i, .product-card").length;
+  }
+
+  function isPregisLoadingVisible() {
+    const loaders = document.querySelectorAll(".at_message.loading, .at_message.loading smart-loader");
+    for (const el of loaders) {
+      if (el.offsetWidth > 0 || el.offsetHeight > 0 || getComputedStyle(el).display !== "none") return true;
+    }
+    return false;
+  }
+
+  /* 4. Ciclo di Auto-Scroll continuo fino al caricamento di tutti i prodotti */
+  async function autoScrollAndHarvest() {
+    let step = 0;
+    let stalledCount = 0;
+    for (let i = 0; i < 400 && !stopRequested; i++) {
+      step = i + 1;
+      const domCardsBefore = harvestDomNow();
+      const countBefore = collectedMap.size;
+      elStatus.textContent = "📜 Scorrimento automatico in corso... (Scroll #" + step + ")";
+      elCount.textContent = countBefore + " prodotti unici estratti (" + domCardsBefore + " card caricate nella pagina)";
+
+      if (lastPageReached && stalledCount >= 1) break;
+
+      /* Attiva la direttiva Angular inViewport sul quartultimo prodotto + scroll fino in fondo */
+      const cardNodes = document.querySelectorAll(".at-products-list-i, .product-card");
+      if (cardNodes.length > 0) {
+        const targetNode = cardNodes[Math.max(0, cardNodes.length - 4)];
+        try { targetNode.scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e) {}
+      }
+      await sleep(150);
+      if (stopRequested) break;
+      const docH = Math.max(document.documentElement.scrollHeight || 0, document.body.scrollHeight || 0);
+      window.scrollTo(0, docH);
+      window.dispatchEvent(new Event("scroll"));
+
+      /* Attende caricamento nuovi prodotti (max 4.5s, esteso fino a 8s se spinner visibile) */
+      let grew = false;
+      const startWait = Date.now();
+      while (!stopRequested) {
+        await sleep(250);
+        const nowDomCount = harvestDomNow();
+        if (nowDomCount > domCardsBefore || collectedMap.size > countBefore) {
+          grew = true;
+          elCount.textContent = collectedMap.size + " prodotti unici estratti (" + nowDomCount + " card caricate nella pagina)";
+          break;
+        }
+        if (lastPageReached) break;
+        const elapsed = Date.now() - startWait;
+        const maxWait = isPregisLoadingVisible() ? 8000 : 4500;
+        if (elapsed >= maxWait) break;
+      }
+
+      if (grew) {
+        stalledCount = 0;
+      } else {
+        if (lastPageReached) break;
+        stalledCount++;
+        if (stalledCount >= 4) break;
+        /* Breve risalita e ridiscesa per riattivare eventuale listener inViewport */
+        window.scrollBy(0, -400);
+        window.dispatchEvent(new Event("scroll"));
+        await sleep(200);
+        const docH2 = Math.max(document.documentElement.scrollHeight || 0, document.body.scrollHeight || 0);
+        window.scrollTo(0, docH2);
+        window.dispatchEvent(new Event("scroll"));
+        await sleep(500);
+        const afterBounceDom = harvestDomNow();
+        if (afterBounceDom > domCardsBefore || collectedMap.size > countBefore) {
+          stalledCount = 0;
+        }
+      }
+    }
+
+    elStatus.textContent = "⏳ Attesa caricamento ultime immagini...";
+    await sleep(800);
+    if (detectedSid && !lookupsLoaded) {
+      await ensureLookupsOnce(detectedSid);
+    }
+    harvestDomNow();
+
+    /* Arricchisce eventuali categorie/marche/unità con i lookup appena caricati */
+    for (const [k, prod] of collectedMap.entries()) {
+      const meta = rawMetaMap.get(k);
+      if (!meta) continue;
+      if (!prod.categoria || prod.categoria === "Catalogo Pregis") {
+        const c = [maps.G1[String(meta.g1 || "")], maps.G2[String(meta.g2 || "")], maps.G3[String(meta.g3 || "")]].filter(Boolean).join(" / ");
+        if (c) prod.categoria = c;
+      }
+      if (!prod.marca && meta.brandId) {
+        prod.marca = maps.BRAND[String(meta.brandId)] || String(meta.brandId);
+      }
+      if (!prod.confezionamento && (meta.uvId || meta.weight)) {
+        const uv = maps.UV[String(meta.uvId || "")] || meta.uvId || "";
+        prod.confezionamento = clean(uv + (meta.weight ? " · Peso " + meta.weight : ""));
+      }
+    }
+
+    const finalList = Array.from(collectedMap.values());
+    finishExport(finalList, "Auto-Scroll + Catalogo Pregis");
+  }
+
+  await autoScrollAndHarvest();
 })();`;
 
   document.getElementById('btnDirectScanPregisPortal')?.addEventListener('click', async () => {
