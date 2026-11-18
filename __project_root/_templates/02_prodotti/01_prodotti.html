@@ -517,7 +517,7 @@
                   <li>Tieni aperta la scheda Pregis su <strong>Chrome</strong> o <strong>Safari</strong></li>
                   <li>Clicca <strong>Copia Script Auto-Scanner</strong> qui sotto</li>
                   <li>Nella scheda Pregis premi <code>⌥⌘J</code> su Chrome (o <code>⌥⌘C</code> su Safari), incolla e premi <strong>Invio</strong></li>
-                  <li>Lo script <strong>scorre giù la pagina automaticamente</strong> caricando man mano tutti i prodotti fino in fondo e apre il riquadro per scaricare/copiare tutto</li>
+                  <li>Lo script estrae <strong>subito tutto il catalogo in blocco via API Pregis</strong> (in pochi secondi) e apre il riquadro per scaricare/copiare tutti i prodotti</li>
                 </ol>
                 <div class="d-flex flex-wrap gap-2">
                   <button type="button" id="btnCopySafariScript" class="btn btn-primary btn-sm fw-bold rounded-pill px-3">
@@ -1246,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const SAFARI_AUTOSCAN_SCRIPT = `(async function(){
-  /* Scanner Auto-Scroll + Live XHR & DOM in SOLA LETTURA per tua.pregis.it/onSalesSmart (Chrome & Safari) */
+  /* Estrattore Totale Diretto via API Parallela (+ Auto-Scroll fallback) per tua.pregis.it/onSalesSmart */
   const clean = s => String(s || "").replace(/\\s+/g, " ").trim();
   const absUrl = u => { try { return u ? new URL(u, location.href).href : ""; } catch(e) { return u || ""; } };
   const badImg = u => !u || /missing_image_catalogue|favicon|sprite|spinner|loading|placeholder|no-image|pixel|1x1|svg\\+xml/i.test(u);
@@ -1254,31 +1254,45 @@ document.addEventListener('DOMContentLoaded', () => {
   let stopRequested = false;
   let lastPageReached = false;
 
-  /* 0. Pannello overlay visibile sopra la pagina Pregis */
+  /* 0. Pannello overlay visibile sopra la pagina Pregis con barra avanzamento */
   const oldOv = document.getElementById("pregisExtractorOverlay");
   if (oldOv) oldOv.remove();
   const ov = document.createElement("div");
   ov.id = "pregisExtractorOverlay";
-  ov.style.cssText = "position:fixed;top:16px;right:16px;width:410px;max-width:calc(100vw - 32px);background:#ffffff;color:#0f172a;border:2px solid #2563eb;border-radius:14px;box-shadow:0 20px 50px rgba(15,23,42,.35);z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:13px;overflow:hidden;";
+  ov.style.cssText = "position:fixed;top:16px;right:16px;width:420px;max-width:calc(100vw - 32px);background:#ffffff;color:#0f172a;border:2px solid #2563eb;border-radius:14px;box-shadow:0 20px 50px rgba(15,23,42,.35);z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:13px;overflow:hidden;";
   ov.innerHTML = '<div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:700;">' +
-    '<span>📦 Estrattore Auto-Scroll Pregis (Sola Lettura)</span>' +
+    '<span>⚡ Estrattore Totale Pregis (Sola Lettura)</span>' +
     '<button id="pExtClose" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;">×</button>' +
     '</div>' +
     '<div style="padding:12px 14px;">' +
-    '<div id="pExtStatus" style="font-weight:600;margin-bottom:6px;color:#1e293b;">⏳ Preparazione scorrimento automatico...</div>' +
-    '<div id="pExtCount" style="font-size:12px;color:#475569;margin-bottom:10px;">0 prodotti estratti</div>' +
+    '<div id="pExtStatus" style="font-weight:600;margin-bottom:6px;color:#1e293b;">🔑 Connessione rapida al catalogo Pregis...</div>' +
+    '<div id="pExtCount" style="font-size:12px;color:#475569;margin-bottom:8px;">0 prodotti estratti</div>' +
+    '<div id="pExtBarWrap" style="width:100%;height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-bottom:10px;">' +
+    '<div id="pExtBar" style="width:6%;height:100%;background:linear-gradient(90deg,#2563eb,#16a34a);transition:width .2s;"></div>' +
+    '</div>' +
     '<div id="pExtActions" style="display:flex;flex-direction:column;gap:8px;">' +
-    '<button id="pExtStopBtn" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a;font-weight:600;cursor:pointer;">⏹️ Ferma Scorrimento qui ed Esporta</button>' +
+    '<button id="pExtStopBtn" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a;font-weight:600;cursor:pointer;">⏹️ Ferma qui ed Esporta</button>' +
     '</div>' +
     '</div>';
   document.body.appendChild(ov);
   const elStatus = document.getElementById("pExtStatus");
   const elCount = document.getElementById("pExtCount");
+  const elBar = document.getElementById("pExtBar");
   const elActions = document.getElementById("pExtActions");
   document.getElementById("pExtClose").onclick = () => { stopRequested = true; ov.remove(); };
-  document.getElementById("pExtStopBtn").onclick = () => { stopRequested = true; elStatus.textContent = "⏹️ Arresto scorrimento e preparazione export..."; };
+  document.getElementById("pExtStopBtn").onclick = () => { stopRequested = true; elStatus.textContent = "⏹️ Arresto e preparazione export..."; };
+
+  function updateProgress(count, total, msg) {
+    if (msg) elStatus.textContent = msg;
+    elCount.textContent = count + (total > 0 ? (" / ~" + total) : "") + " prodotti unici estratti";
+    if (elBar) {
+      const pct = total > 0 ? Math.min(98, Math.max(8, Math.round((count / total) * 100))) : Math.min(90, 10 + Math.round(count / 40));
+      elBar.style.width = pct + "%";
+    }
+  }
 
   function finishExport(list, labelInfo) {
+    if (elBar) elBar.style.width = "100%";
     const jsonStr = JSON.stringify(list, null, 2);
     elStatus.textContent = "✅ Completato (" + labelInfo + ")";
     elStatus.style.color = "#15803d";
@@ -1351,7 +1365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { if (typeof copy === "function") copy(jsonStr); } catch(e) {}
   }
 
-  /* 1. Lookup tabelle e raccolta deduplicata XHR + DOM */
+  /* 1. Lookup tabelle e raccolta deduplicata */
   const maps = { G1: {}, G2: {}, G3: {}, BRAND: {}, UV: {} };
   const collectedMap = new Map();
   const rawMetaMap = new Map();
@@ -1405,7 +1419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function mapXhrItem(it) {
+  function mapXhrItem(it, fallbackCat) {
     if (!it) return null;
     const cod = clean(it.itemCode || it.itemId || "");
     if (cod) {
@@ -1416,7 +1430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cat1 = maps.G1[String(it.group1Id || "")] || "";
     const cat2 = maps.G2[String(it.group2Id || "")] || "";
     const cat3 = maps.G3[String(it.group3Id || "")] || "";
-    const cat = [cat1, cat2, cat3].filter(Boolean).join(" / ") || "Catalogo Pregis";
+    const cat = [cat1, cat2, cat3].filter(Boolean).join(" / ") || fallbackCat || "Catalogo Pregis";
     const marca = clean(it.brand || maps.BRAND[String(it.brandId || "")] || it.brandId || "");
     const uv = clean(maps.UV[String(it.baseUnitDescId || "")] || it.baseUnitDescId || "");
     return {
@@ -1431,40 +1445,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  /* 2. Intercettazione passiva XMLHttpRequest in sola lettura durante lo scroll */
-  let lookupsLoaded = false;
+  /* 2. Hook passivo XHR + recupero rapido sessionId (Webpack / Store / impulso XHR) */
   let detectedSid = window._pregisLastSessionId || null;
-
-  async function ensureLookupsOnce(sid) {
-    if (!sid || lookupsLoaded) return;
-    lookupsLoaded = true;
-    try {
-      const hdrs = {
-        "Accept": "application/json; charset=UTF-8",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Content-Type": "application/json; charset=UTF-8",
-        "Require-Content-Type": "application/json",
-        "timeout": "60000"
-      };
-      const lkRes = await fetch("https://tua.pregis.it/QueryPoint/Smart.GetDescriptionLookup.door", {
-        method: "POST", credentials: "include", headers: hdrs,
-        body: JSON.stringify({ sessionId: sid, data: { languageId: "it" } })
-      });
-      const lkJson = await lkRes.json();
-      absorbLookups((lkJson.data || {}).descriptionLookupList);
-      const fltRes = await fetch("https://tua.pregis.it/QueryPoint/Smart.GetCatalogFilters.door", {
-        method: "POST", credentials: "include", headers: hdrs,
-        body: JSON.stringify({ sessionId: sid, data: { itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null }, scope: "allProducts" } })
-      });
-      const fltJson = await fltRes.json();
-      (((fltJson.data || {}).brands) || []).forEach(b => {
-        if (b && b.filterId && (b.description || b.filterDesc) && !maps.BRAND[String(b.filterId)]) {
-          maps.BRAND[String(b.filterId)] = clean(b.description || b.filterDesc);
-        }
-      });
-    } catch(e) {}
-  }
+  let capturedItemFilter = null;
+  let capturedPageOrder = "";
+  let capturedEndpoint = "Smart.GetItems.door";
 
   window._pregisScrollXhrHandler = function(url, reqBodyStr, resText) {
     try {
@@ -1473,6 +1458,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rq && rq.sessionId) {
           detectedSid = rq.sessionId;
           window._pregisLastSessionId = rq.sessionId;
+        }
+        if (rq && rq.data && rq.data.itemFilter && String(url || "").includes("Smart.Get")) {
+          capturedItemFilter = rq.data.itemFilter;
+          if (rq.data.pageOrder != null) capturedPageOrder = rq.data.pageOrder;
+          const mEp = String(url).match(/(Smart\\.[A-Za-z0-9_]+\\.door)/);
+          if (mEp) capturedEndpoint = mEp[1];
         }
       }
     } catch(e) {}
@@ -1506,6 +1497,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     XMLHttpRequest.prototype.send = function(body) {
       const self = this;
+      try {
+        if (typeof body === "string" && body.includes("sessionId") && window._pregisScrollXhrHandler) {
+          const p = JSON.parse(body);
+          if (p && p.sessionId) {
+            detectedSid = p.sessionId;
+            window._pregisLastSessionId = p.sessionId;
+          }
+        }
+      } catch(e) {}
       this.addEventListener("load", function() {
         try {
           if (window._pregisScrollXhrHandler && typeof self.responseText === "string") {
@@ -1517,25 +1517,209 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  /* Prova a leggere subito i lookup da Webpack se sessionId presente (zero modifiche) */
-  if (!detectedSid && window.webpackJsonp) {
+  async function obtainSessionIdFast() {
+    if (detectedSid) return detectedSid;
+    if (window.webpackJsonp) {
+      try {
+        let wpReq = null;
+        const cid = Math.floor(Math.random() * 8000000) + 1000000;
+        const modMap = {};
+        modMap[cid] = function(m, e, r) { wpReq = r; };
+        window.webpackJsonp.push([[cid], modMap, [[cid]]]);
+        if (wpReq) {
+          try { detectedSid = wpReq("2QU1").h(); } catch(e) {}
+          if (!detectedSid && wpReq.c) {
+            for (const k of Object.keys(wpReq.c)) {
+              try {
+                const ex = wpReq.c[k] && wpReq.c[k].exports;
+                if (!ex) continue;
+                const vals = [ex, ex.a, ex.b, ex.c];
+                for (const v of vals) {
+                  if (v && v._value && v._value.auth && v._value.auth.sessionId) { detectedSid = v._value.auth.sessionId; break; }
+                }
+                if (detectedSid) break;
+              } catch(e) {}
+            }
+          }
+        }
+      } catch(e) {}
+    }
+    if (detectedSid) {
+      window._pregisLastSessionId = detectedSid;
+      return detectedSid;
+    }
+    /* Singolo impulso rapido di scroll per catturare subito sessionId da una richiesta XHR nativa */
     try {
-      let wpReq = null;
-      const cid = Math.floor(Math.random() * 8000000) + 1000000;
-      const modMap = {};
-      modMap[cid] = function(m, e, r) { wpReq = r; };
-      window.webpackJsonp.push([[cid], modMap, [[cid]]]);
-      if (wpReq) {
-        try { detectedSid = wpReq("2QU1").h(); } catch(e) {}
+      const cards = document.querySelectorAll(".at-products-list-i, .product-card");
+      if (cards.length > 0) {
+        const tgt = cards[Math.max(0, cards.length - 4)];
+        try { tgt.scrollIntoView({ behavior: "auto", block: "center" }); } catch(e) {}
+      }
+      const sh = Math.max(document.documentElement.scrollHeight || 0, document.body.scrollHeight || 0);
+      window.scrollTo(0, sh);
+      window.dispatchEvent(new Event("scroll"));
+      for (let t = 0; t < 12 && !detectedSid && !stopRequested; t++) {
+        await sleep(50);
       }
     } catch(e) {}
-  }
-  if (detectedSid) {
-    window._pregisLastSessionId = detectedSid;
-    await ensureLookupsOnce(detectedSid);
+    return detectedSid;
   }
 
-  /* 3. Lettore DOM specifico per .onSalesSmart (.product-card / figure[smartCssImage]) + generico */
+  /* 3. Estrazione diretta parallela (Promise.all 6 pagine alla volta) */
+  async function extractAllViaDirectApi(sid) {
+    const hdrs = {
+      "Accept": "application/json; charset=UTF-8",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Require-Content-Type": "application/json",
+      "timeout": "60000"
+    };
+    const qp = async (ep, dataObj) => {
+      const res = await fetch("https://tua.pregis.it/QueryPoint/" + ep, {
+        method: "POST",
+        credentials: "include",
+        headers: hdrs,
+        body: JSON.stringify({ sessionId: sid, data: dataObj })
+      });
+      return await res.json();
+    };
+    const ensureAssortment = async () => {
+      try {
+        const dpRes = await qp("Smart.DeliveryPlace.door", null);
+        const dpData = dpRes.data || {};
+        const dpList = dpData.deliveryPlaceList || [];
+        const dpId = (dpData.lastDeliveryPlaceId || "").trim() || (dpList[0] && dpList[0].contactId) || null;
+        const posId = (dpData.lastPointOfSaleId || "").trim() || null;
+        const dsId = (dpData.lastDeliveryServiceId || "").trim() || null;
+        if (dpId) {
+          await qp("Smart.CreateAssortment.door", { deliveryPlaceId: dpId, pointOfSaleId: posId, deliveryServiceId: dsId, deliveryDate: null });
+          return true;
+        }
+      } catch(e) {}
+      return false;
+    };
+
+    elStatus.textContent = "📥 Lettura categorie e tabelle Pregis...";
+    const lkRes = await qp("Smart.GetDescriptionLookup.door", { languageId: "it" });
+    absorbLookups((lkRes.data || {}).descriptionLookupList);
+
+    let flt = await qp("Smart.GetCatalogFilters.door", {
+      itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null },
+      scope: "allProducts"
+    });
+    if ((flt.status && flt.status !== "OK") || !((flt.data || {}).groups || []).length) {
+      await ensureAssortment();
+      flt = await qp("Smart.GetCatalogFilters.door", {
+        itemFilter: { textFilter: "", groupIds: null, attributes: null, tagIds: [], filterId: null, communicationId: null },
+        scope: "allProducts"
+      });
+    }
+    (((flt.data || {}).brands) || []).forEach(b => {
+      if (b && b.filterId && (b.description || b.filterDesc) && !maps.BRAND[String(b.filterId)]) {
+        maps.BRAND[String(b.filterId)] = clean(b.description || b.filterDesc);
+      }
+    });
+
+    const topGroups = (flt.data || {}).groups || [];
+    let expectedTotal = 0;
+    topGroups.forEach(g => { if (g && typeof g.count === "number") expectedTotal += g.count; });
+
+    const groupTasks = [];
+    const walkGroups = (nodes, level, parentIds, parentLabels) => {
+      (nodes || []).forEach(g => {
+        if (!g || !g.filterId || g.count === 0) return;
+        const gLbl = g.description || (maps["G" + level] || {})[g.filterId] || ("Categoria " + g.filterId);
+        const currIds = Object.assign({}, parentIds);
+        currIds["group" + level + "id"] = String(g.filterId);
+        const currLabels = parentLabels.concat([gLbl]);
+        const subs = (g.subfilters || []).filter(s => s && s.count !== 0);
+        if (subs.length) walkGroups(subs, level + 1, currIds, currLabels);
+        else groupTasks.push({ groupIds: currIds, label: currLabels.join(" / "), count: g.count || 0 });
+      });
+    };
+    walkGroups(topGroups, 1, {}, []);
+
+    const absorbPageItems = (bd, fallbackCat) => {
+      const arr = (bd && bd.itemList) || [];
+      arr.forEach(it => {
+        mergeProduct(mapXhrItem(it, fallbackCat));
+        (it.variants || []).forEach(v => { if (v && v.itemId !== it.itemId) mergeProduct(mapXhrItem(v, fallbackCat)); });
+      });
+      return arr.length;
+    };
+
+    const fetchGroupParallel = async (grpIds, grpLabel, concurrency) => {
+      const baseFilter = grpIds
+        ? { textFilter: null, groupIds: grpIds, attributes: null, tagIds: [], communicationId: null }
+        : { textFilter: null, groupIds: null, attributes: null, tagIds: [], communicationId: null };
+      const ep = grpIds ? "Smart.GetItems.door" : "Smart.GetItems.door";
+
+      let effSize = 100;
+      let pageOrder = "";
+      let activeFilter = baseFilter;
+      let activeEp = ep;
+      let pg0 = null;
+      for (const trySize of [100, 50, 20]) {
+        pg0 = await qp(activeEp, { itemFilter: activeFilter, pageNumber: 0, pageSize: trySize, pageOrder: pageOrder });
+        if (pg0 && (!pg0.status || pg0.status === "OK")) { effSize = trySize; break; }
+        if (pg0 && String(pg0.status).includes("ASSORTMENT")) {
+          await ensureAssortment();
+          pg0 = await qp(activeEp, { itemFilter: activeFilter, pageNumber: 0, pageSize: trySize, pageOrder: pageOrder });
+          if (pg0 && (!pg0.status || pg0.status === "OK")) { effSize = trySize; break; }
+        }
+      }
+      if ((!pg0 || (pg0.status && pg0.status !== "OK")) && !grpIds && capturedItemFilter) {
+        activeFilter = capturedItemFilter;
+        activeEp = capturedEndpoint || "Smart.GetItems.door";
+        pageOrder = capturedPageOrder || "";
+        effSize = 20;
+        pg0 = await qp(activeEp, { itemFilter: activeFilter, pageNumber: 0, pageSize: effSize, pageOrder: pageOrder });
+      }
+      if (!pg0 || (pg0.status && pg0.status !== "OK")) return false;
+
+      const bd0 = pg0.data || {};
+      const cnt0 = absorbPageItems(bd0, grpLabel);
+      pageOrder = bd0.pageOrder || pageOrder;
+      updateProgress(collectedMap.size, expectedTotal, "⚡ Estrazione diretta: " + (grpLabel || "Catalogo"));
+      if (cnt0 === 0 || bd0.lastPage) return true;
+
+      let nextPage = 1;
+      for (let b = 0; b < 200 && !stopRequested; b++) {
+        const batchNums = [];
+        for (let k = 0; k < concurrency; k++) batchNums.push(nextPage + k);
+        const batchRes = await Promise.all(batchNums.map(pn =>
+          qp(activeEp, { itemFilter: activeFilter, pageNumber: pn, pageSize: effSize, pageOrder: pageOrder }).catch(() => null)
+        ));
+        let done = false;
+        for (const r of batchRes) {
+          if (!r || (r.status && r.status !== "OK")) { done = true; break; }
+          const bd = r.data || {};
+          const n = absorbPageItems(bd, grpLabel);
+          if (n === 0 || bd.lastPage) { done = true; break; }
+        }
+        nextPage += concurrency;
+        updateProgress(collectedMap.size, expectedTotal, "⚡ Estrazione diretta totale in corso...");
+        if (done) break;
+      }
+      return true;
+    };
+
+    /* Scansione globale rapida a 6 pagine parallele per lotto */
+    const globalOk = await fetchGroupParallel(null, "Catalogo Completo", 6);
+
+    /* Se la scansione globale è incompleta rispetto al totale categorie, integra per categorie */
+    if ((!globalOk || collectedMap.size === 0 || (expectedTotal > 0 && collectedMap.size < expectedTotal * 0.9)) && groupTasks.length > 0 && !stopRequested) {
+      for (let i = 0; i < groupTasks.length && !stopRequested; i += 4) {
+        const chunk = groupTasks.slice(i, i + 4);
+        await Promise.all(chunk.map(gt => fetchGroupParallel(gt.groupIds, gt.label, 3)));
+      }
+    }
+
+    return collectedMap.size > 0;
+  }
+
+  /* 4. Lettore DOM (.onSalesSmart .product-card / figure[smartCssImage]) + fallback auto-scroll */
   function extractFromDoc(doc) {
     const out = [];
     const pageCat = clean((doc.querySelector("h1, .breadcrumb li:last-child, .category-title, .active-filter") || {}).textContent || "");
@@ -1586,8 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function harvestDomNow() {
-    const domItems = extractFromDoc(document);
-    domItems.forEach(mergeProduct);
+    extractFromDoc(document).forEach(mergeProduct);
     return document.querySelectorAll(".at-products-list-i, .product-card").length;
   }
 
@@ -1599,24 +1782,17 @@ document.addEventListener('DOMContentLoaded', () => {
     return false;
   }
 
-  /* 4. Ciclo di Auto-Scroll continuo fino al caricamento di tutti i prodotti */
   async function autoScrollAndHarvest() {
-    let step = 0;
     let stalledCount = 0;
     for (let i = 0; i < 400 && !stopRequested; i++) {
-      step = i + 1;
       const domCardsBefore = harvestDomNow();
       const countBefore = collectedMap.size;
-      elStatus.textContent = "📜 Scorrimento automatico in corso... (Scroll #" + step + ")";
-      elCount.textContent = countBefore + " prodotti unici estratti (" + domCardsBefore + " card caricate nella pagina)";
-
+      updateProgress(countBefore, 0, "📜 Scorrimento pagina... (Scroll #" + (i + 1) + ")");
       if (lastPageReached && stalledCount >= 1) break;
 
-      /* Attiva la direttiva Angular inViewport sul quartultimo prodotto + scroll fino in fondo */
       const cardNodes = document.querySelectorAll(".at-products-list-i, .product-card");
       if (cardNodes.length > 0) {
-        const targetNode = cardNodes[Math.max(0, cardNodes.length - 4)];
-        try { targetNode.scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e) {}
+        try { cardNodes[Math.max(0, cardNodes.length - 4)].scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e) {}
       }
       await sleep(150);
       if (stopRequested) break;
@@ -1624,7 +1800,6 @@ document.addEventListener('DOMContentLoaded', () => {
       window.scrollTo(0, docH);
       window.dispatchEvent(new Event("scroll"));
 
-      /* Attende caricamento nuovi prodotti (max 4.5s, esteso fino a 8s se spinner visibile) */
       let grew = false;
       const startWait = Date.now();
       while (!stopRequested) {
@@ -1632,22 +1807,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const nowDomCount = harvestDomNow();
         if (nowDomCount > domCardsBefore || collectedMap.size > countBefore) {
           grew = true;
-          elCount.textContent = collectedMap.size + " prodotti unici estratti (" + nowDomCount + " card caricate nella pagina)";
+          updateProgress(collectedMap.size, 0);
           break;
         }
         if (lastPageReached) break;
-        const elapsed = Date.now() - startWait;
-        const maxWait = isPregisLoadingVisible() ? 8000 : 4500;
-        if (elapsed >= maxWait) break;
+        if (Date.now() - startWait >= (isPregisLoadingVisible() ? 8000 : 4500)) break;
       }
-
-      if (grew) {
-        stalledCount = 0;
-      } else {
+      if (grew) { stalledCount = 0; }
+      else {
         if (lastPageReached) break;
         stalledCount++;
         if (stalledCount >= 4) break;
-        /* Breve risalita e ridiscesa per riattivare eventuale listener inViewport */
         window.scrollBy(0, -400);
         window.dispatchEvent(new Event("scroll"));
         await sleep(200);
@@ -1655,42 +1825,30 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0, docH2);
         window.dispatchEvent(new Event("scroll"));
         await sleep(500);
-        const afterBounceDom = harvestDomNow();
-        if (afterBounceDom > domCardsBefore || collectedMap.size > countBefore) {
-          stalledCount = 0;
-        }
+        if (harvestDomNow() > domCardsBefore || collectedMap.size > countBefore) stalledCount = 0;
       }
     }
-
-    elStatus.textContent = "⏳ Attesa caricamento ultime immagini...";
-    await sleep(800);
-    if (detectedSid && !lookupsLoaded) {
-      await ensureLookupsOnce(detectedSid);
-    }
+    await sleep(600);
     harvestDomNow();
-
-    /* Arricchisce eventuali categorie/marche/unità con i lookup appena caricati */
-    for (const [k, prod] of collectedMap.entries()) {
-      const meta = rawMetaMap.get(k);
-      if (!meta) continue;
-      if (!prod.categoria || prod.categoria === "Catalogo Pregis") {
-        const c = [maps.G1[String(meta.g1 || "")], maps.G2[String(meta.g2 || "")], maps.G3[String(meta.g3 || "")]].filter(Boolean).join(" / ");
-        if (c) prod.categoria = c;
-      }
-      if (!prod.marca && meta.brandId) {
-        prod.marca = maps.BRAND[String(meta.brandId)] || String(meta.brandId);
-      }
-      if (!prod.confezionamento && (meta.uvId || meta.weight)) {
-        const uv = maps.UV[String(meta.uvId || "")] || meta.uvId || "";
-        prod.confezionamento = clean(uv + (meta.weight ? " · Peso " + meta.weight : ""));
-      }
-    }
-
-    const finalList = Array.from(collectedMap.values());
-    finishExport(finalList, "Auto-Scroll + Catalogo Pregis");
   }
 
-  await autoScrollAndHarvest();
+  /* Esecuzione principale: prima estrazione diretta parallela, fallback scroll solo se necessario */
+  let doneViaApi = false;
+  if (location.href.includes("onSalesSmart") || location.href.includes("pregis.it")) {
+    const sid = await obtainSessionIdFast();
+    if (sid) {
+      try {
+        doneViaApi = await extractAllViaDirectApi(sid);
+      } catch(e) {
+        console.warn("API diretta non riuscita, passo ad auto-scroll:", e);
+      }
+    }
+  }
+  if (!doneViaApi && !stopRequested) {
+    await autoScrollAndHarvest();
+  }
+  if (!doneViaApi) harvestDomNow();
+  finishExport(Array.from(collectedMap.values()), doneViaApi ? "API Diretta Totale Pregis" : "Auto-Scroll + DOM Pregis");
 })();`;
 
   document.getElementById('btnDirectScanPregisPortal')?.addEventListener('click', async () => {
@@ -1729,7 +1887,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const scanGroupPaged = async (grpIds, grpLabel, progressBase, progressSpan) => {
         let startPage = 0;
         let pageOrder = "";
-        let pageSize = 50;
+        let pageSize = 100;
         for (let b = 0; b < 250 && !liveScanStopRequested; b++) {
           if (safariLoadingText) safariLoadingText.textContent = `Scansione ${grpLabel} in corso... (${collectedItems.length} prodotti estratti)`;
           if (safariLoadingSubtext) safariLoadingSubtext.textContent = `Lettura blocco da pagina ${startPage + 1}...`;
@@ -1748,7 +1906,7 @@ document.addEventListener('DOMContentLoaded', () => {
               start_page: startPage,
               page_order: pageOrder,
               page_size: pageSize,
-              max_pages: 5,
+              max_pages: 8,
               cookies
             })
           });
@@ -1764,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (Array.isArray(bData.items) && bData.items.length > 0) {
             collectedItems.push(...bData.items);
           }
-          startPage = bData.next_page || (startPage + 5);
+          startPage = bData.next_page || (startPage + 8);
           pageOrder = bData.page_order || "";
           pageSize = bData.page_size_used || pageSize;
           if (bData.last_page) break;

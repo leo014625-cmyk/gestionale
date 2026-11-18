@@ -13,6 +13,7 @@ import werkzeug.utils
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 from datetime import datetime, date
+from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, render_template, request, jsonify, session, url_for
 
 volantini3_bp = Blueprint("volantini3_bp", __name__)
@@ -1520,18 +1521,19 @@ def _pregis_fetch_pages_chunk(
     cat_label: str = "Catalogo Pregis",
     start_page: int = 0,
     page_order: str = "",
-    page_size: int = 50,
-    max_pages: int = 5,
+    page_size: int = 100,
+    max_pages: int = 8,
 ):
-    """Scarica un piccolo lotto di pagine da Smart.GetItems.door (a prova di timeout su Render)."""
+    """Scarica un lotto di pagine in parallelo da Smart.GetItems.door (veloce e anti-timeout)."""
     items = []
     curr_page = max(0, int(start_page or 0))
     curr_order = page_order or ""
     last_page = False
-    eff_size = max(10, min(100, int(page_size or 50)))
+    eff_size = max(10, min(100, int(page_size or 100)))
+    base_cookies = sess.cookies.get_dict()
 
-    for i in range(max_pages):
-        res = _pregis_qp_post(sess, "Smart.GetItems.door", {
+    def _fetch_single(target_sess, p_num: int, p_size: int, p_order: str):
+        return _pregis_qp_post(target_sess, "Smart.GetItems.door", {
             "sessionId": sid,
             "data": {
                 "itemFilter": {
@@ -1541,41 +1543,77 @@ def _pregis_fetch_pages_chunk(
                     "tagIds": [],
                     "communicationId": None,
                 },
-                "pageNumber": curr_page,
-                "pageSize": eff_size,
-                "pageOrder": curr_order,
+                "pageNumber": p_num,
+                "pageSize": p_size,
+                "pageOrder": p_order,
             }
         })
-        st = res.get("status")
-        if st not in (None, "OK"):
-            msg = str(res.get("message") or st or "")
-            if "invalid session" in msg.lower() or "unauth" in msg.lower():
-                raise ValueError(f"Sessione Pregis scaduta: {msg}")
-            if "assortment" in msg.lower() and i == 0:
-                if _pregis_ensure_assortment(sess, sid):
-                    continue
-            if eff_size != 20 and curr_page == 0 and i == 0:
-                eff_size = 20
-                continue
-            raise ValueError(f"Pregis Smart.GetItems.door ha risposto '{st}': {msg}")
 
-        body_data = res.get("data") or {}
+    def _append_body_items(body_data):
         item_list = body_data.get("itemList") or []
-        if not item_list:
-            last_page = True
-            break
-
         for it in item_list:
             items.append(_map_pregis_onsales_item(it, lookups, cat_label))
             for var in (it.get("variants") or []):
                 if isinstance(var, dict) and str(var.get("itemId") or "") != str(it.get("itemId") or ""):
                     items.append(_map_pregis_onsales_item(var, lookups, cat_label))
+        return len(item_list)
 
-        curr_order = body_data.get("pageOrder") or ""
-        curr_page += 1
-        if body_data.get("lastPage"):
-            last_page = True
+    # 1. Prima pagina del lotto (verifica sessione, assortimento e pageSize supportato)
+    res0 = None
+    for attempt in range(3):
+        res0 = _fetch_single(sess, curr_page, eff_size, curr_order)
+        st = res0.get("status")
+        if st in (None, "OK"):
             break
+        msg = str(res0.get("message") or st or "")
+        if "invalid session" in msg.lower() or "unauth" in msg.lower():
+            raise ValueError(f"Sessione Pregis scaduta: {msg}")
+        if "assortment" in msg.lower() and attempt == 0:
+            if _pregis_ensure_assortment(sess, sid):
+                continue
+        if curr_page == 0 and eff_size > 20:
+            eff_size = 50 if eff_size > 50 else 20
+            continue
+        raise ValueError(f"Pregis Smart.GetItems.door ha risposto '{st}': {msg}")
+
+    body0 = (res0 or {}).get("data") or {}
+    cnt0 = _append_body_items(body0)
+    curr_order = body0.get("pageOrder") or curr_order
+    curr_page += 1
+    if cnt0 == 0 or body0.get("lastPage"):
+        last_page = True
+
+    # 2. Pagine successive del lotto in parallelo (ThreadPoolExecutor con sessioni thread-local)
+    rem = max(0, int(max_pages or 1) - 1)
+    if not last_page and rem > 0:
+        pages_to_fetch = list(range(curr_page, curr_page + rem))
+
+        def _worker(p_idx):
+            w_sess = requests.Session()
+            for ck, cv in base_cookies.items():
+                if ck and cv is not None:
+                    w_sess.cookies.set(str(ck), str(cv), domain="tua.pregis.it")
+            return _fetch_single(w_sess, p_idx, eff_size, curr_order)
+
+        with ThreadPoolExecutor(max_workers=min(4, len(pages_to_fetch))) as pool:
+            parallel_results = list(pool.map(_worker, pages_to_fetch))
+
+        for p_idx, p_res in zip(pages_to_fetch, parallel_results):
+            if p_res.get("status") not in (None, "OK"):
+                msg = str(p_res.get("message") or p_res.get("status") or "")
+                if "invalid session" in msg.lower() or "unauth" in msg.lower():
+                    raise ValueError(f"Sessione Pregis scaduta: {msg}")
+                last_page = True
+                break
+            b_data = p_res.get("data") or {}
+            cnt_p = _append_body_items(b_data)
+            if cnt_p == 0:
+                last_page = True
+                break
+            curr_page = p_idx + 1
+            if b_data.get("lastPage"):
+                last_page = True
+                break
 
     return {
         "items": items,
@@ -1692,8 +1730,8 @@ def api_catalogo_pregis_fetch_batch():
     cat_label = (data.get("category_label") or "Catalogo Pregis").strip()
     start_page = int(data.get("start_page") or 0)
     page_order = data.get("page_order") or ""
-    page_size = int(data.get("page_size") or 50)
-    max_pages = max(1, min(6, int(data.get("max_pages") or 5)))
+    page_size = int(data.get("page_size") or 100)
+    max_pages = max(1, min(12, int(data.get("max_pages") or 8)))
     cookies_dict = data.get("cookies") if isinstance(data.get("cookies"), dict) else {}
 
     try:
