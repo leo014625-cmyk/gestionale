@@ -1944,16 +1944,21 @@ def api_catalogo_importa_pregis_confermato():
                 except Exception:
                     forced_cat_id = None
 
-            # Carica indice prodotti esistenti
-            cur.execute("SELECT id, codice, nome, immagine FROM prodotti WHERE COALESCE(eliminato, FALSE) = FALSE")
+            # Carica indice COMPLETO dei prodotti esistenti (inclusi eliminati per rispettare vincolo UNIQUE su codice)
+            cur.execute("SELECT id, codice, nome, immagine FROM prodotti")
             by_code = {}
-            by_name = {}
+            by_name_no_code = {}
+            by_name_any = {}
             for r in cur.fetchall():
                 d = dict(r)
-                if d.get("codice"):
-                    by_code[str(d["codice"]).strip().upper()] = d
-                if d.get("nome"):
-                    by_name[str(d["nome"]).strip().upper()] = d
+                c_val = str(d.get("codice") or "").strip()
+                n_val = str(d.get("nome") or "").strip()
+                if c_val:
+                    by_code[c_val.upper()] = d
+                if n_val:
+                    by_name_any[n_val.upper()] = d
+                    if not c_val:
+                        by_name_no_code[n_val.upper()] = d
 
             for p in products:
                 codice = str(p.get("codice") or "").strip()
@@ -1975,7 +1980,14 @@ def api_catalogo_importa_pregis_confermato():
 
                 cat_id = forced_cat_id if forced_cat_id else get_or_create_cat_id(p.get("categoria") or "Catalogo Pregis")
 
-                existing = (by_code.get(codice.upper()) if codice else None) or by_name.get(nome.upper())
+                c_key = codice.upper() if codice else ""
+                n_key = nome.upper()
+                if c_key:
+                    # Con codice: match prioritario su codice; fallback su nome SOLO se il record in DB è senza codice
+                    existing = by_code.get(c_key) or by_name_no_code.get(n_key)
+                else:
+                    existing = by_name_no_code.get(n_key) or by_name_any.get(n_key)
+
                 if existing:
                     cur.execute("""
                         UPDATE prodotti
@@ -1986,9 +1998,17 @@ def api_catalogo_importa_pregis_confermato():
                             marca = COALESCE(NULLIF(%s, ''), marca),
                             confezionamento = COALESCE(NULLIF(%s, ''), confezionamento),
                             prezzo = COALESCE(%s, prezzo),
-                            categoria_id = COALESCE(%s, categoria_id)
+                            categoria_id = COALESCE(%s, categoria_id),
+                            eliminato = FALSE
                         WHERE id = %s
                     """, (nome, codice, descrizione, immagine, marca, confezionamento, prezzo, cat_id, existing["id"]))
+                    if c_key:
+                        existing["codice"] = codice or existing.get("codice")
+                        by_code[c_key] = existing
+                        if n_key in by_name_no_code and by_name_no_code[n_key]["id"] == existing["id"]:
+                            del by_name_no_code[n_key]
+                    existing["nome"] = nome
+                    by_name_any[n_key] = existing
                     aggiornati += 1
                 else:
                     cur.execute("""
@@ -1999,9 +2019,11 @@ def api_catalogo_importa_pregis_confermato():
                     ins_row = cur.fetchone()
                     new_pid = (ins_row["id"] if isinstance(ins_row, dict) else ins_row[0]) if ins_row else getattr(cur, "lastrowid", None)
                     rec_cache = {"id": new_pid, "codice": codice, "nome": nome, "immagine": immagine}
-                    if codice:
-                        by_code[codice.upper()] = rec_cache
-                    by_name[nome.upper()] = rec_cache
+                    if c_key:
+                        by_code[c_key] = rec_cache
+                    elif n_key:
+                        by_name_no_code[n_key] = rec_cache
+                    by_name_any[n_key] = rec_cache
                     inseriti += 1
 
             conn.commit()
