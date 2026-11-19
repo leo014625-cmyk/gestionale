@@ -175,6 +175,95 @@
     border-color: var(--danger);
     background: var(--danger-light);
   }
+
+  /* Inline Note & Confronto Confezione sotto prodotto */
+  .product-note-box-inline {
+    margin-top: 0.45rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0 8px 8px 0;
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+  }
+  body.dark-mode .product-note-box-inline {
+    background: rgba(245, 158, 11, 0.14);
+    border-left-color: #fbbf24;
+  }
+  .product-note-textarea {
+    font-size: 0.78rem !important;
+    line-height: 1.35;
+    resize: vertical;
+    min-height: 44px;
+    background: rgba(255, 255, 255, 0.78) !important;
+  }
+  body.dark-mode .product-note-textarea {
+    background: rgba(15, 23, 42, 0.7) !important;
+    color: #f8fafc !important;
+  }
+  .product-note-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 0.35rem;
+  }
+  .btn-micro-link {
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 6px;
+    border: 1px dashed var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+  .btn-micro-link:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+  .btn-micro-pack {
+    border-color: rgba(217, 119, 6, 0.35);
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.07);
+  }
+  body.dark-mode .btn-micro-pack {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.1);
+  }
+  .btn-micro-pack:hover {
+    color: #ffffff;
+    background: #d97706;
+    border-color: #d97706;
+  }
+
+  /* Barra ricerca listino attivo */
+  .listino-search-bar {
+    min-width: 260px;
+    max-width: 420px;
+    flex: 1 1 280px;
+  }
+  .listino-search-bar .input-group-text,
+  .listino-search-bar .form-control {
+    border-radius: 999px;
+  }
+  .listino-search-bar .input-group-text {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-left: 0.9rem;
+  }
+  .listino-search-bar .form-control {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  .listino-search-bar.has-clear .form-control {
+    border-radius: 0;
+  }
+  .listino-search-bar .btn-clear-search {
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
+  }
 </style>
 {% endblock %}
 
@@ -234,7 +323,8 @@
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
             <li><a class="dropdown-item py-2" href="#" id="btnCaricaPdfDropdown"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Carica PDF Prodotti</a></li>
-            <li><a class="dropdown-item py-2" href="#" id="btnApriStampaFoglio"><i class="bi bi-eye text-primary me-2"></i>Anteprima & Modifica Foglio</a></li>
+            <li><a class="dropdown-item py-2" href="#" id="btnApriStampaFoglio"><i class="bi bi-eye text-primary me-2"></i>Anteprima &amp; Modifica Foglio</a></li>
+            <li><a class="dropdown-item py-2" href="#" id="btnEsportaCsv"><i class="bi bi-file-earmark-spreadsheet-fill text-success me-2"></i>Esporta Excel / CSV</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnCaricaEsempio"><i class="bi bi-magic text-warning me-2"></i>Carica Prodotti d'Esempio</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnNuovaComparazione"><i class="bi bi-plus-circle text-primary me-2"></i>Nuovo Prospetto Vuoto</a></li>
             <li><a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalStorico"><i class="bi bi-clock-history text-info me-2"></i>Storico Preventivi Salvati</a></li>
@@ -376,14 +466,26 @@
   <div class="glass-panel p-0 overflow-hidden mb-4">
     
     <!-- Table Header Toolbar -->
-    <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: rgba(15, 23, 42, 0.02);">
+    <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3" style="background: rgba(15, 23, 42, 0.02);">
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-table text-primary fs-5"></i>
-        <h5 class="fw-bold mb-0 display-brand text-color">Dettaglio Prodotti & Comparazione Prezzi</h5>
-        <span class="badge rounded-pill bg-primary-light text-primary fw-bold ms-2" id="badgeConteggioProdotti">0 Prodotti</span>
+        <h5 class="fw-bold mb-0 display-brand text-color">Dettaglio Prodotti &amp; Comparazione Prezzi</h5>
+        <span class="badge rounded-pill bg-primary-light text-primary fw-bold ms-1" id="badgeConteggioProdotti">0 Prodotti</span>
+        <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle d-none" id="badgeFiltratiListino"></span>
       </div>
 
-      <div class="d-flex align-items-center gap-2">
+      <!-- Barra di ricerca nel listino su cui stai lavorando -->
+      <div class="listino-search-bar" id="listinoSearchBarWrap">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control bg-light border-start-0" id="filtroListinoAttivo" placeholder="Cerca prodotto nel listino (nome, codice o nota)...">
+          <button type="button" class="btn btn-outline-secondary btn-clear-search d-none" id="btnClearFiltroListino" title="Pulisci filtro">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 flex-wrap">
         <input type="file" id="inputPdfProdotti" accept=".pdf" class="d-none">
         <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-sm" id="btnCaricaPdf" title="Carica listino o preventivo in PDF per importare i prodotti con Nostro Prezzo">
           <i class="bi bi-file-earmark-pdf-fill"></i> Carica PDF Prodotti
@@ -479,9 +581,12 @@
             Inserisci i prodotti e i prezzi per vedere l'impatto economico totale e il risparmio garantito sui prodotti lavorati.
           </p>
         </div>
-        <div class="col-lg-4 text-lg-end">
+        <div class="col-lg-4 text-lg-end d-flex flex-wrap justify-content-lg-end gap-2">
+          <button type="button" class="btn btn-outline-success rounded-pill px-3 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center gap-2" id="btnEsportaCsvSummary">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i> Excel / CSV
+          </button>
           <button type="button" class="btn btn-primary rounded-pill px-4 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center gap-2" id="btnGeneraPreventivoPdf">
-            <i class="bi bi-file-earmark-arrow-down-fill"></i> Genera Preventivo PDF
+            <i class="bi bi-file-earmark-arrow-down-fill"></i> Scarica Preventivo PDF
           </button>
         </div>
       </div>
@@ -935,6 +1040,130 @@
             <i class="bi bi-check2-circle me-1"></i> Salva Modifiche
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL: CONFRONTO CONFEZIONE & RIPROPORZIONAMENTO PREZZO  -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalConfrontoConfezione" tabindex="-1" aria-labelledby="modalConfrontoConfezioneLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3" style="background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%); color: #fff;">
+        <div>
+          <h5 class="modal-title fw-bold mb-0 text-white" id="modalConfrontoConfezioneLabel">
+            <i class="bi bi-box-seam-fill text-warning me-2"></i>Confronto Confezione &amp; Riproprozionamento Prezzo
+          </h5>
+          <div class="small text-white-50 mt-1" id="cfNomeProdotto">Seleziona le grandezze per calcolare il prezzo paragonato al nostro formato</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="row g-3 mb-3 align-items-end">
+          <div class="col-12 col-md-4">
+            <label class="form-label small fw-bold text-muted text-uppercase">Unità del Formato</label>
+            <select class="form-select fw-bold" id="cfUnita">
+              <option value="kg">Chilogrammi (kg)</option>
+              <option value="g">Grammi (g)</option>
+              <option value="L">Litri (L)</option>
+              <option value="ml">Millilitri (ml)</option>
+              <option value="pz">Pezzi per confezione (pz)</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <div class="alert alert-light border small mb-0 py-2">
+              <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+              Esempio: il cliente compra una busta da <strong>1 kg</strong> a <strong>€ 5,00</strong>, ma la nostra è da <strong>2,5 kg</strong> a <strong>€ 11,25</strong> → il sistema riproporziona a <strong>€ 12,50</strong> e scrive la nota chiara per il cliente.
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <!-- Confezione Attuale Cliente -->
+          <div class="col-12 col-md-6">
+            <div class="p-3 rounded-3 border bg-light bg-opacity-50 h-100">
+              <div class="fw-bold small text-uppercase text-muted mb-2">
+                <i class="bi bi-receipt me-1"></i>Confezione Attuale Cliente
+              </div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold mb-1">Grandezza Confezione Attuale (<span class="cf-unit-lbl">kg</span>)</label>
+                <input type="number" step="0.01" min="0.001" class="form-control fw-bold" id="cfFormatoCliente" value="1">
+              </div>
+              <div>
+                <label class="form-label small fw-semibold mb-1">Prezzo Pagato dal Cliente per 1 Confezione (€)</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input type="number" step="0.01" min="0" class="form-control fw-bold" id="cfPrezzoCliente" value="0">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nostra Confezione -->
+          <div class="col-12 col-md-6">
+            <div class="p-3 rounded-3 border border-primary-subtle h-100" style="background: rgba(79, 70, 229, 0.05);">
+              <div class="fw-bold small text-uppercase text-primary mb-2">
+                <i class="bi bi-box2-heart-fill me-1"></i>Nostra Confezione Offerta
+              </div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold mb-1">Grandezza Nostra Confezione (<span class="cf-unit-lbl">kg</span>)</label>
+                <input type="number" step="0.01" min="0.001" class="form-control fw-bold text-primary" id="cfFormatoNostro" value="2.5">
+              </div>
+              <div>
+                <label class="form-label small fw-semibold mb-1">Nostro Prezzo per 1 Confezione (€)</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input type="number" step="0.01" min="0" class="form-control fw-bold text-primary" id="cfPrezzoNostro" value="0">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Anteprima Calcolo Live -->
+        <div class="p-3 rounded-3 border border-success-subtle mb-3" style="background: rgba(16, 185, 129, 0.08);" id="cfLivePreview">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <span class="fw-bold text-success small text-uppercase">
+              <i class="bi bi-calculator-fill me-1"></i>Confronto Reale a Parità di Formato
+            </span>
+            <span class="badge bg-primary rounded-pill" id="cfRatioBadge">—</span>
+          </div>
+          <div class="row g-2 text-center">
+            <div class="col-4">
+              <div class="small text-muted">Suo Prezzo Riproporzionato</div>
+              <div class="fs-5 fw-bold font-monospace text-dark" id="cfPrezzoParagonatoDisplay">€ 0,00</div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted">Nostro Prezzo Offerta</div>
+              <div class="fs-5 fw-bold font-monospace text-primary" id="cfNostroPrezzoDisplay">€ 0,00</div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted">Risparmio Reale</div>
+              <div class="fs-5 fw-bold font-monospace text-success" id="cfRisparmioDisplay">€ 0,00 (0%)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testo Nota sotto al prodotto -->
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-0">Nota Spiegazione Visibile al Cliente (nel Preventivo &amp; PDF)</label>
+            <button type="button" class="btn btn-xs btn-link p-0 small text-decoration-none" id="btnCfRigeneraNota">
+              <i class="bi bi-arrow-clockwise me-1"></i>Rigenera testo automatico
+            </button>
+          </div>
+          <textarea class="form-control small" id="cfNotaPreview" rows="3" placeholder="La spiegazione chiara sul formato verrà generata qui..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer border-top py-2.5">
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" id="btnApplicaConfrontoConfezione">
+          <i class="bi bi-check2-circle me-1"></i> Applica Prezzo Paragonato &amp; Nota
+        </button>
       </div>
     </div>
   </div>
@@ -1450,12 +1679,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const tr = document.createElement("tr");
         tr.dataset.idx = idx;
+        const notaVal = (item.nota || "").trim();
+        const hasNota = notaVal.length > 0;
+        const hasConfrontoFormato = !!item.confronto_formato;
         tr.innerHTML = `
           <td class="text-center text-muted fw-bold small">${idx + 1}</td>
           
           <td>
             <input type="text" class="form-control form-control-sm input-row-change fw-bold text-dark" data-field="nome" value="${escapeHtml(item.nome || '')}" placeholder="Nome prodotto / taglio">
-            <input type="text" class="form-control form-control-sm input-row-change text-muted mt-1 font-monospace" style="font-size: 0.75rem;" data-field="codice" value="${escapeHtml(item.codice || '')}" placeholder="Cod. art. opzionale">
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+              <input type="text" class="form-control form-control-sm input-row-change text-muted font-monospace" style="font-size: 0.75rem; max-width: 150px;" data-field="codice" value="${escapeHtml(item.codice || '')}" placeholder="Cod. art. opz.">
+              <button type="button" class="btn-micro-link btn-toggle-nota ${hasNota ? 'd-none' : ''}" data-idx="${idx}" title="Aggiungi una nota visibile al cliente sotto a questo prodotto">
+                <i class="bi bi-chat-square-text me-1"></i>+ Nota
+              </button>
+              <button type="button" class="btn-micro-link btn-micro-pack btn-apri-confronto-formato" data-idx="${idx}" title="Paragona la grandezza della nostra confezione a quella attuale del cliente">
+                <i class="bi bi-box-seam me-1"></i>${hasConfrontoFormato ? 'Modifica Confezione' : 'Confronta Confezione'}
+              </button>
+            </div>
+            <div class="product-note-box-inline note-editor-wrap ${hasNota ? '' : 'd-none'}">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold" style="font-size: 0.7rem; color: #b45309;">
+                  ${hasConfrontoFormato ? '<i class="bi bi-box-seam-fill me-1"></i>Nota Confronto Confezione (visibile al cliente)' : '<i class="bi bi-chat-left-text-fill me-1"></i>Nota Prodotto (visibile al cliente)'}
+                </span>
+                <button type="button" class="btn btn-link btn-xs p-0 text-danger text-decoration-none btn-clear-nota" data-idx="${idx}" title="Rimuovi nota" style="font-size: 0.75rem;">
+                  <i class="bi bi-x-circle-fill"></i>
+                </button>
+              </div>
+              <textarea rows="2" class="form-control form-control-sm input-row-change product-note-textarea" data-field="nota" placeholder="Es. Confezione più grande da 2,5 kg vs 1 kg attuale: prezzo paragonato alla nostra grandezza...">${escapeHtml(item.nota || '')}</textarea>
+            </div>
           </td>
 
           <td class="col-num">
@@ -1527,6 +1778,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Aggiorna KPI cards e Footer tramite updateGrandTotals()
     updateGrandTotals();
+
+    // Riapplica eventuale ricerca attiva sul listino
+    if (typeof applyListinoSearchFilter === "function") {
+      applyListinoSearchFilter();
+    }
   }
 
   function escapeHtml(text) {
@@ -1707,7 +1963,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ELIMINAZIONE / DUPLICAZIONE RIGA
+  // ELIMINAZIONE / DUPLICAZIONE / NOTE / CONFRONTO CONFEZIONE
   tbodyProdotti.addEventListener("click", (e) => {
     const btnDel = e.target.closest(".btn-elimina-riga");
     if (btnDel) {
@@ -1727,13 +1983,47 @@ document.addEventListener("DOMContentLoaded", () => {
       saveDraftToStorage();
       return;
     }
+    const btnToggleNota = e.target.closest(".btn-toggle-nota");
+    if (btnToggleNota) {
+      const tr = btnToggleNota.closest("tr");
+      const wrap = tr?.querySelector(".note-editor-wrap");
+      if (wrap) {
+        wrap.classList.remove("d-none");
+        btnToggleNota.classList.add("d-none");
+        wrap.querySelector("textarea")?.focus();
+      }
+      return;
+    }
+    const btnClearNota = e.target.closest(".btn-clear-nota");
+    if (btnClearNota) {
+      const idx = parseInt(btnClearNota.dataset.idx, 10);
+      if (prodottiState[idx]) {
+        prodottiState[idx].nota = "";
+        prodottiState[idx].confronto_formato = false;
+        renderTable();
+        segnaModificato();
+      }
+      return;
+    }
+    const btnConfronto = e.target.closest(".btn-apri-confronto-formato");
+    if (btnConfronto) {
+      const idx = parseInt(btnConfronto.dataset.idx, 10);
+      if (typeof apriModalConfrontoConfezione === "function") {
+        apriModalConfrontoConfezione(idx);
+      }
+      return;
+    }
   });
 
   // AGGIUNTA NUOVA RIGA VUOTA
   function aggiungiRigaVuota() {
+    if (filtroListinoAttivo && filtroListinoAttivo.value.trim()) {
+      filtroListinoAttivo.value = "";
+    }
     prodottiState.push({
       nome: "",
       codice: "",
+      nota: "",
       volume_kg: 20,
       prezzo_attuale: 15.00,
       prezzo_nostro: 13.50
@@ -2170,7 +2460,201 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ========================================================
-  // GENERAZIONE & DOWNLOAD DIRETTO PREVENTIVO PDF
+  // BARRA DI RICERCA LIVE NEL LISTINO ATTIVO
+  // ========================================================
+  const filtroListinoAttivo = document.getElementById("filtroListinoAttivo");
+  const btnClearFiltroListino = document.getElementById("btnClearFiltroListino");
+  const badgeFiltratiListino = document.getElementById("badgeFiltratiListino");
+  const listinoSearchBarWrap = document.getElementById("listinoSearchBarWrap");
+
+  function applyListinoSearchFilter() {
+    if (!filtroListinoAttivo) return;
+    const q = (filtroListinoAttivo.value || "").trim().toLowerCase();
+    const oldEmptyRow = document.getElementById("rowFiltroVuoto");
+    if (oldEmptyRow) oldEmptyRow.remove();
+
+    const rows = Array.from(tbodyProdotti.querySelectorAll("tr[data-idx]"));
+    let shown = 0;
+
+    rows.forEach((tr) => {
+      const idx = parseInt(tr.dataset.idx, 10);
+      const item = prodottiState[idx] || {};
+      const haystack = `${item.nome || ""} ${item.codice || ""} ${item.nota || ""}`.toLowerCase();
+      const match = !q || haystack.includes(q);
+      tr.classList.toggle("d-none", !match);
+      if (match) shown++;
+    });
+
+    if (btnClearFiltroListino) btnClearFiltroListino.classList.toggle("d-none", !q);
+    if (listinoSearchBarWrap) listinoSearchBarWrap.classList.toggle("has-clear", !!q);
+    if (badgeFiltratiListino) {
+      if (q && prodottiState.length > 0) {
+        badgeFiltratiListino.textContent = `Mostrati ${shown} / ${prodottiState.length}`;
+        badgeFiltratiListino.classList.remove("d-none");
+      } else {
+        badgeFiltratiListino.classList.add("d-none");
+      }
+    }
+
+    if (q && shown === 0 && prodottiState.length > 0) {
+      const emptyTr = document.createElement("tr");
+      emptyTr.id = "rowFiltroVuoto";
+      emptyTr.innerHTML = `
+        <td colspan="12" class="text-center py-4 text-muted">
+          <i class="bi bi-search fs-4 d-block mb-1 opacity-50"></i>
+          Nessun prodotto nel listino corrisponde a <strong>"${escapeHtml(q)}"</strong>.
+          <button type="button" class="btn btn-sm btn-link fw-bold text-decoration-none p-0 ms-1" id="btnResetFiltroInline">Mostra tutti (${prodottiState.length})</button>
+        </td>
+      `;
+      tbodyProdotti.appendChild(emptyTr);
+      document.getElementById("btnResetFiltroInline")?.addEventListener("click", () => {
+        filtroListinoAttivo.value = "";
+        applyListinoSearchFilter();
+      });
+    }
+  }
+
+  filtroListinoAttivo?.addEventListener("input", applyListinoSearchFilter);
+  btnClearFiltroListino?.addEventListener("click", () => {
+    if (filtroListinoAttivo) filtroListinoAttivo.value = "";
+    applyListinoSearchFilter();
+    filtroListinoAttivo?.focus();
+  });
+
+  // ========================================================
+  // CALCOLATORE CONFRONTO CONFEZIONE & NOTA AL CLIENTE
+  // ========================================================
+  const modalConfrontoEl = document.getElementById("modalConfrontoConfezione");
+  const modalConfrontoInst = modalConfrontoEl ? new bootstrap.Modal(modalConfrontoEl) : null;
+  const cfUnita = document.getElementById("cfUnita");
+  const cfFormatoCliente = document.getElementById("cfFormatoCliente");
+  const cfPrezzoCliente = document.getElementById("cfPrezzoCliente");
+  const cfFormatoNostro = document.getElementById("cfFormatoNostro");
+  const cfPrezzoNostro = document.getElementById("cfPrezzoNostro");
+  const cfNotaPreview = document.getElementById("cfNotaPreview");
+  let activeCfIdx = null;
+  let cfNotaEditedManually = false;
+
+  function fmtItNum(v, dec) {
+    return (Number(v) || 0).toLocaleString("it-IT", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+
+  function buildConfrontoNotaText(fmtCli, pCli, fmtNos, pNos, unit, pParag, diff, perc) {
+    const unitClean = unit || "kg";
+    const fCliStr = Number.isInteger(fmtCli) ? String(fmtCli) : fmtCli.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+    const fNosStr = Number.isInteger(fmtNos) ? String(fmtNos) : fmtNos.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+    if (fmtNos > fmtCli) {
+      return `Confezione più grande: ns. prodotto da ${fNosStr} ${unitClean} rispetto al formato attuale da ${fCliStr} ${unitClean} (€ ${fmtItNum(pCli, 2)}). Il prezzo attuale (€ ${fmtItNum(pParag, 2)}) è riproporzionato alla grandezza della nostra confezione` +
+        (diff > 0 ? `: risparmio reale del ${perc.toFixed(1)}% (€ ${fmtItNum(diff, 2)} a confezione).` : ".");
+    }
+    return `Confronto formato: ns. confezione da ${fNosStr} ${unitClean} vs ${fCliStr} ${unitClean} attuale (€ ${fmtItNum(pCli, 2)}). Prezzo attuale riproporzionato al nostro formato: € ${fmtItNum(pParag, 2)}` +
+      (diff > 0 ? ` (risparmio reale ${perc.toFixed(1)}% = € ${fmtItNum(diff, 2)}).` : ".");
+  }
+
+  function updateConfrontoConfezionePreview(forceNota) {
+    const fmtCli = Math.max(0.0001, parseFloat(cfFormatoCliente?.value) || 1);
+    const pCli = parseFloat(cfPrezzoCliente?.value) || 0;
+    const fmtNos = Math.max(0.0001, parseFloat(cfFormatoNostro?.value) || 1);
+    const pNos = parseFloat(cfPrezzoNostro?.value) || 0;
+    const unit = cfUnita?.value || "kg";
+
+    document.querySelectorAll(".cf-unit-lbl").forEach((el) => { el.textContent = unit; });
+
+    const ratio = fmtNos / fmtCli;
+    const pParag = pCli * ratio;
+    const diff = pParag - pNos;
+    const perc = pParag > 0 ? (diff / pParag) * 100 : 0;
+
+    const ratioBadge = document.getElementById("cfRatioBadge");
+    if (ratioBadge) {
+      if (ratio > 1.001) {
+        ratioBadge.textContent = `Ns. confezione ${ratio.toFixed(2).replace(/\.00$/, "")}x più grande`;
+      } else if (ratio < 0.999) {
+        ratioBadge.textContent = `Rapporto formato ${ratio.toFixed(2)}x`;
+      } else {
+        ratioBadge.textContent = "Stesso formato (1:1)";
+      }
+    }
+
+    const elParag = document.getElementById("cfPrezzoParagonatoDisplay");
+    const elNos = document.getElementById("cfNostroPrezzoDisplay");
+    const elRisp = document.getElementById("cfRisparmioDisplay");
+    if (elParag) elParag.textContent = `€ ${fmtItNum(pParag, 2)}`;
+    if (elNos) elNos.textContent = `€ ${fmtItNum(pNos, 2)}`;
+    if (elRisp) {
+      elRisp.textContent = `€ ${fmtItNum(diff, 2)} (${diff >= 0 ? "-" : "+"}${Math.abs(perc).toFixed(1)}%)`;
+      elRisp.className = `fs-5 fw-bold font-monospace ${diff >= 0 ? "text-success" : "text-danger"}`;
+    }
+
+    if ((forceNota || !cfNotaEditedManually) && cfNotaPreview) {
+      cfNotaPreview.value = buildConfrontoNotaText(fmtCli, pCli, fmtNos, pNos, unit, pParag, diff, perc);
+    }
+  }
+
+  function apriModalConfrontoConfezione(idx) {
+    const item = prodottiState[idx];
+    if (!item || !modalConfrontoInst) return;
+    activeCfIdx = idx;
+    cfNotaEditedManually = false;
+
+    const titleEl = document.getElementById("cfNomeProdotto");
+    if (titleEl) titleEl.textContent = item.nome ? `Prodotto: ${item.nome}` : `Riga #${idx + 1}`;
+
+    if (cfUnita) cfUnita.value = item.formato_unita || "kg";
+    if (cfFormatoCliente) cfFormatoCliente.value = item.formato_cliente || 1;
+    if (cfPrezzoCliente) {
+      const fallbackCliPrice = item.prezzo_conf_cliente !== undefined ? item.prezzo_conf_cliente : (parseFloat(item.prezzo_attuale) || 0);
+      cfPrezzoCliente.value = fallbackCliPrice;
+    }
+    if (cfFormatoNostro) cfFormatoNostro.value = item.formato_nostro || 2.5;
+    if (cfPrezzoNostro) cfPrezzoNostro.value = parseFloat(item.prezzo_nostro) || 0;
+
+    if (item.nota && item.confronto_formato && cfNotaPreview) {
+      cfNotaPreview.value = item.nota;
+      cfNotaEditedManually = true;
+      updateConfrontoConfezionePreview(false);
+    } else {
+      updateConfrontoConfezionePreview(true);
+    }
+    modalConfrontoInst.show();
+  }
+
+  [cfUnita, cfFormatoCliente, cfPrezzoCliente, cfFormatoNostro, cfPrezzoNostro].forEach((el) => {
+    el?.addEventListener("input", () => updateConfrontoConfezionePreview(false));
+    el?.addEventListener("change", () => updateConfrontoConfezionePreview(false));
+  });
+  cfNotaPreview?.addEventListener("input", () => { cfNotaEditedManually = true; });
+  document.getElementById("btnCfRigeneraNota")?.addEventListener("click", () => {
+    cfNotaEditedManually = false;
+    updateConfrontoConfezionePreview(true);
+  });
+
+  document.getElementById("btnApplicaConfrontoConfezione")?.addEventListener("click", () => {
+    if (activeCfIdx === null || !prodottiState[activeCfIdx]) return;
+    const fmtCli = Math.max(0.0001, parseFloat(cfFormatoCliente?.value) || 1);
+    const pCli = parseFloat(cfPrezzoCliente?.value) || 0;
+    const fmtNos = Math.max(0.0001, parseFloat(cfFormatoNostro?.value) || 1);
+    const pNos = parseFloat(cfPrezzoNostro?.value) || 0;
+    const pParag = pCli * (fmtNos / fmtCli);
+
+    const item = prodottiState[activeCfIdx];
+    item.prezzo_attuale = Number(pParag.toFixed(2));
+    item.prezzo_nostro = Number(pNos.toFixed(2));
+    item.nota = (cfNotaPreview?.value || "").trim();
+    item.confronto_formato = true;
+    item.formato_cliente = fmtCli;
+    item.formato_nostro = fmtNos;
+    item.formato_unita = cfUnita?.value || "kg";
+    item.prezzo_conf_cliente = pCli;
+
+    renderTable();
+    segnaModificato(true);
+    modalConfrontoInst?.hide();
+    showToastNotification("Prezzo paragonato alla confezione e nota salvati sotto al prodotto!");
+  });
+
+  // ========================================================
+  // GENERAZIONE & DOWNLOAD DIRETTO PREVENTIVO PDF (VETTORIALE) + EXCEL/CSV
   // ========================================================
   function scaricaPreventivoPdf(btnElement) {
     if (!prodottiState || prodottiState.length === 0) {
@@ -2181,24 +2665,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const originalHtml = btnElement ? btnElement.innerHTML : null;
     if (btnElement) {
       btnElement.disabled = true;
-      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Preparazione PDF Grafico...`;
+      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Generazione PDF...`;
     }
-    showToastNotification("Salvataggio offerta e preparazione del Preventivo PDF grafico in corso...");
-
-    // Pre-apriamo la finestra direttamente sull'interazione dell'utente per evitare blocchi popup
-    let targetWin = null;
-    try {
-      targetWin = window.open('about:blank', '_blank');
-      if (targetWin) {
-        targetWin.document.write(`
-          <!DOCTYPE html><html><head><title>Generazione Preventivo PDF Grafico...</title>
-          <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;text-align:center;}
-          .loader{border:4px solid rgba(255,255,255,0.15);border-top:4px solid #6366f1;border-radius:50%;width:48px;height:48px;animation:spin 0.8s linear infinite;margin:0 auto 18px;}
-          @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
-          </head><body><div><div class="loader"></div><h2 style="margin:0 0 8px 0;font-weight:700;">Generazione Preventivo Grafico...</h2><p style="color:#94a3b8;margin:0;">Salvataggio prezzi al cliente e preparazione del foglio ad alta risoluzione...</p></div></body></html>
-        `);
-      }
-    } catch (e) {}
+    showToastNotification("Salvataggio offerta e download del Preventivo PDF in corso...");
 
     const ripristinaBottone = (okHtml) => {
       if (!btnElement) return;
@@ -2207,18 +2676,16 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
           btnElement.disabled = false;
           btnElement.innerHTML = originalHtml;
-        }, 3500);
+        }, 3000);
       } else {
         btnElement.disabled = false;
         btnElement.innerHTML = originalHtml;
       }
     };
 
-    // Salva la comparazione e assegna tutti i prodotti/prezzi al cliente selezionato nel database
-    salvaComparazione((res) => {
+    salvaComparazione(async (res) => {
       const compIdToUse = (res && res.id) || currentComparisonId;
       if (!compIdToUse) {
-        if (targetWin && !targetWin.closed) targetWin.close();
         ripristinaBottone(null);
         alert("Impossibile salvare la comparazione prima del download. Controlla i dati inseriti.");
         return;
@@ -2227,17 +2694,103 @@ document.addEventListener("DOMContentLoaded", () => {
       syncUrlWithState();
       saveDraftToStorage();
 
-      ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Preventivo Grafico Generato!`);
-      showToastNotification(`Prezzi assegnati al cliente! Generazione PDF ad alta risoluzione avviata.`);
-
-      const destUrl = `/comparatore/stampa/${compIdToUse}?download=1`;
-      if (targetWin && !targetWin.closed) {
-        targetWin.location.href = destUrl;
-      } else {
-        window.open(destUrl, '_blank');
+      try {
+        const pdfResp = await fetch(`/comparatore/scarica_pdf/${compIdToUse}`, { credentials: "same-origin" });
+        const contentType = pdfResp.headers.get("content-type") || "";
+        if (!pdfResp.ok || !contentType.includes("pdf")) {
+          throw new Error("Risposta PDF non valida");
+        }
+        const blob = await pdfResp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const clienteClean = (getClientName() || "Cliente").replace(/[^a-zA-Z0-9_\-]/g, "_");
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `Preventivo_${clienteClean}_${dateStr}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          a.remove();
+          URL.revokeObjectURL(blobUrl);
+        }, 1200);
+        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
+        showToastNotification("Preventivo PDF scaricato sul dispositivo!");
+      } catch (err) {
+        console.warn("Download fetch fallback:", err);
+        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Avviato!`);
+        window.location.href = `/comparatore/scarica_pdf/${compIdToUse}`;
       }
     });
   }
+
+  function esportaComparatoreCsv() {
+    if (!prodottiState || prodottiState.length === 0) {
+      alert("Aggiungi almeno un prodotto alla comparazione prima di esportare.");
+      return;
+    }
+    const escCsv = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const numCsv = (val, dec = 2) => (Number(val) || 0).toFixed(dec).replace(".", ",");
+
+    const rows = [
+      ["Codice", "Prodotto", "Nota / Confronto Confezione", "Volume Mese", "UM", "Prezzo Attuale", "Nostro Prezzo", "Diff. Unitaria", "Spesa Attuale Mese", "Nostra Spesa Mese", "Risparmio Mese", "Risparmio Anno", "% Risparmio"]
+    ];
+
+    let totAttM = 0, totNosM = 0, totRispM = 0;
+    prodottiState.forEach((p) => {
+      const vol = parseFloat(p.volume_kg) || 0;
+      const pa = parseFloat(p.prezzo_attuale) || 0;
+      const pn = parseFloat(p.prezzo_nostro) || 0;
+      const um = (p.um || "kg").toLowerCase() === "pz" ? "pz" : "kg";
+      const diff = pa - pn;
+      const spA = vol * pa;
+      const spN = vol * pn;
+      const rM = spA - spN;
+      const rA = rM * 12;
+      const perc = pa > 0 ? (diff / pa) * 100 : 0;
+      totAttM += spA; totNosM += spN; totRispM += rM;
+
+      rows.push([
+        p.codice || "",
+        p.nome || "",
+        p.nota || "",
+        numCsv(vol, um === "pz" ? 0 : 1),
+        um,
+        numCsv(pa, 2),
+        numCsv(pn, 2),
+        numCsv(diff, 2),
+        numCsv(spA, 2),
+        numCsv(spN, 2),
+        numCsv(rM, 2),
+        numCsv(rA, 2),
+        `${perc.toFixed(1).replace(".", ",")}%`
+      ]);
+    });
+
+    const totPerc = totAttM > 0 ? (totRispM / totAttM) * 100 : 0;
+    rows.push([
+      "", "TOTALE GENERALE", "", "", "", "", "", "",
+      numCsv(totAttM, 2), numCsv(totNosM, 2), numCsv(totRispM, 2), numCsv(totRispM * 12, 2),
+      `${totPerc.toFixed(1).replace(".", ",")}%`
+    ]);
+
+    const csvContent = "\uFEFF" + rows.map((r) => r.map(escCsv).join(";")).join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const clienteClean = (getClientName() || "Cliente").replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Comparatore_${clienteClean}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+    showToastNotification("File Excel / CSV esportato!");
+  }
+
+  document.getElementById("btnEsportaCsv")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    esportaComparatoreCsv();
+  });
+  document.getElementById("btnEsportaCsvSummary")?.addEventListener("click", esportaComparatoreCsv);
 
   // Click su Genera Preventivo PDF (pulsante grande nella card di risparmio)
   const btnGeneraPdf = document.getElementById("btnGeneraPreventivoPdf");
@@ -2280,7 +2833,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // WHATSAPP SHARE MODAL
   document.getElementById("btnWhatsApp").addEventListener("click", () => {
     const clientName = getClientName();
-    let totVolMese = 0;
+    let totVolKg = 0;
+    let totVolPz = 0;
     let totSpesaAttMese = 0;
     let totRispMese = 0;
 
@@ -2288,21 +2842,31 @@ document.addEventListener("DOMContentLoaded", () => {
       const v = parseFloat(p.volume_kg) || 0;
       const pa = parseFloat(p.prezzo_attuale) || 0;
       const pn = parseFloat(p.prezzo_nostro) || 0;
-      totVolMese += v;
+      const um = (p.um || "kg").toLowerCase() === "pz" ? "pz" : "kg";
+      if (um === "pz") totVolPz += v;
+      else totVolKg += v;
       totSpesaAttMese += (v * pa);
       totRispMese += (v * (pa - pn));
     });
 
     const totRispAnno = totRispMese * 12;
     const totPerc = (totSpesaAttMese > 0) ? ((totRispMese / totSpesaAttMese) * 100) : 0;
+    const volSummaryParts = [];
+    if (totVolKg > 0) volSummaryParts.push(`${totVolKg.toFixed(0)} kg`);
+    if (totVolPz > 0) volSummaryParts.push(`${totVolPz.toFixed(0)} pz`);
+    const volSummaryStr = volSummaryParts.length > 0 ? volSummaryParts.join(" + ") : "0 kg";
 
     let topProductsText = "";
-    prodottiState.slice(0, 4).forEach(p => {
+    prodottiState.slice(0, 8).forEach(p => {
+      const um = (p.um || "kg").toLowerCase() === "pz" ? "pz" : "kg";
       const diff = (parseFloat(p.prezzo_attuale) || 0) - (parseFloat(p.prezzo_nostro) || 0);
-      topProductsText += `• *${p.nome}*: nostro € ${Number(p.prezzo_nostro).toFixed(2)}/kg (vs attuale € ${Number(p.prezzo_attuale).toFixed(2)}/kg) ➔ Risparmi € ${diff.toFixed(2)}/kg\n`;
+      topProductsText += `• *${p.nome}*: nostro € ${Number(p.prezzo_nostro || 0).toFixed(2)}/${um} (vs attuale € ${Number(p.prezzo_attuale || 0).toFixed(2)}/${um}) ➔ Risparmi € ${diff.toFixed(2)}/${um}\n`;
+      if (p.nota && String(p.nota).trim()) {
+        topProductsText += `  ℹ️ _${String(p.nota).trim()}_\n`;
+      }
     });
 
-    const waText = `Gentile *${clientName}*,\nabbiamo elaborato la comparazione personalizzata sul listino prodotti in base ai vostri consumi mensili stimati (${totVolMese.toFixed(0)} kg/mese):\n\n` +
+    const waText = `Gentile *${clientName}*,\nabbiamo elaborato la comparazione personalizzata sul listino prodotti in base ai vostri consumi mensili stimati (${volSummaryStr}/mese):\n\n` +
       topProductsText +
       `\n💰 *RISPARMIO MENSILE:* € ${totRispMese.toFixed(2)}\n` +
       `🏆 *RISPARMIO ANNUALE GARANTITO:* € ${totRispAnno.toFixed(2)} (-${totPerc.toFixed(1)}%)\n\n` +

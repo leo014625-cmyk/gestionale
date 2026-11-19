@@ -11959,9 +11959,8 @@ def comparatore_stampa(id):
         except Exception:
             prodotti = []
 
-        # SYNC CLIENTI_PRODOTTI: se mancano prodotti o il cliente ha prodotti assegnati in anagrafica,
-        # integrali automaticamente così il foglio e il PDF contengono sempre tutti i prodotti del cliente!
-        if comp.get('cliente_id'):
+        # SYNC CLIENTI_PRODOTTI: solo se la comparazione salvata è vuota, popola dai prodotti assegnati al cliente
+        if not prodotti and comp.get('cliente_id'):
             try:
                 cur.execute("""
                     SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
@@ -11971,29 +11970,16 @@ def comparatore_stampa(id):
                     ORDER BY p.nome ASC
                 """, (int(comp['cliente_id']),))
                 rows_cp = cur.fetchall() or []
-                if not prodotti and rows_cp:
-                    for r in rows_cp:
-                        prodotti.append({
-                            "id": r['id'],
-                            "nome": r['nome'],
-                            "codice": r['codice'] or '',
-                            "volume_kg": 0.0,
-                            "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
-                            "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
-                        })
-                elif rows_cp:
-                    ids_in = {p.get('id') for p in prodotti if isinstance(p, dict) and p.get('id')}
-                    nomi_in = {str(p.get('nome', '')).lower().strip() for p in prodotti if isinstance(p, dict) and p.get('nome')}
-                    for r in rows_cp:
-                        if r['id'] not in ids_in and str(r['nome']).lower().strip() not in nomi_in:
-                            prodotti.append({
-                                "id": r['id'],
-                                "nome": r['nome'],
-                                "codice": r['codice'] or '',
-                                "volume_kg": 0.0,
-                                "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
-                                "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
-                            })
+                for r in rows_cp:
+                    prodotti.append({
+                        "id": r['id'],
+                        "nome": r['nome'],
+                        "codice": r['codice'] or '',
+                        "nota": '',
+                        "volume_kg": 0.0,
+                        "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                        "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                    })
             except Exception as _sync_err:
                 print(f"Sync clienti_prodotti warning in stampa: {_sync_err}")
 
@@ -12029,8 +12015,8 @@ def comparatore_scarica_pdf_diretto(id):
             prodotti = dati.get('prodotti', []) if isinstance(dati, dict) else (dati if isinstance(dati, list) else [])
             impostazioni_pdf = dati.get('impostazioni_pdf', {}) if isinstance(dati, dict) else {}
 
-            # SYNC CLIENTI_PRODOTTI: verifica che tutti i prodotti assegnati al cliente siano nel PDF!
-            if comp.get('cliente_id'):
+            # SYNC CLIENTI_PRODOTTI: solo se la comparazione non ha ancora prodotti
+            if not prodotti and comp.get('cliente_id'):
                 try:
                     cur.execute("""
                         SELECT p.id, p.nome, p.codice, p.prezzo, cp.prezzo_attuale, cp.prezzo_offerta
@@ -12040,29 +12026,16 @@ def comparatore_scarica_pdf_diretto(id):
                         ORDER BY p.nome ASC
                     """, (int(comp['cliente_id']),))
                     rows_cp = cur.fetchall() or []
-                    if not prodotti and rows_cp:
-                        for r in rows_cp:
-                            prodotti.append({
-                                "id": r['id'],
-                                "nome": r['nome'],
-                                "codice": r['codice'] or '',
-                                "volume_kg": 0.0,
-                                "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
-                                "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
-                            })
-                    elif rows_cp:
-                        ids_in = {p.get('id') for p in prodotti if isinstance(p, dict) and p.get('id')}
-                        nomi_in = {str(p.get('nome', '')).lower().strip() for p in prodotti if isinstance(p, dict) and p.get('nome')}
-                        for r in rows_cp:
-                            if r['id'] not in ids_in and str(r['nome']).lower().strip() not in nomi_in:
-                                prodotti.append({
-                                    "id": r['id'],
-                                    "nome": r['nome'],
-                                    "codice": r['codice'] or '',
-                                    "volume_kg": 0.0,
-                                    "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
-                                    "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
-                                })
+                    for r in rows_cp:
+                        prodotti.append({
+                            "id": r['id'],
+                            "nome": r['nome'],
+                            "codice": r['codice'] or '',
+                            "nota": '',
+                            "volume_kg": 0.0,
+                            "prezzo_attuale": float(r['prezzo_attuale'] or 0.0),
+                            "prezzo_nostro": float(r['prezzo_offerta'] or r['prezzo'] or 0.0)
+                        })
                 except Exception as _sync_err:
                     print(f"Sync clienti_prodotti warning in scarica_pdf: {_sync_err}")
 
@@ -12070,201 +12043,538 @@ def comparatore_scarica_pdf_diretto(id):
         import io
         from flask import send_file
 
-        def _clean_str(s):
-            if not s: return ""
-            res = str(s).replace('•', '-').replace('€', 'EUR ').replace('“', '"').replace('”', '"').replace('’', "'").replace('—', '-')
-            return res.encode('latin-1', 'replace').decode('latin-1')
+        def _clean_pdf_text(s):
+            if not s:
+                return ""
+            txt = (
+                str(s)
+                .replace('•', '-')
+                .replace('—', '-')
+                .replace('–', '-')
+                .replace('“', '"')
+                .replace('”', '"')
+                .replace('’', "'")
+                .replace('‘', "'")
+                .replace('×', 'x')
+                .replace('➔', '->')
+                .replace('→', '->')
+            )
+            out = []
+            for ch in txt:
+                if ch == '\x80':
+                    out.append('\x80')
+                    continue
+                try:
+                    out.append(ch.encode('cp1252').decode('latin-1'))
+                except UnicodeEncodeError:
+                    pass
+            return "".join(out)
+
+        def _fmt_eur(val, with_sign=False):
+            v = float(val or 0.0)
+            sign = ""
+            if with_sign and v > 0:
+                sign = "+"
+            elif v < 0:
+                sign = "-"
+            abs_v = abs(v)
+            formatted = f"{abs_v:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+            return _clean_pdf_text(f"{sign}€ {formatted}")
+
+        def _fmt_vol(vol, um):
+            v = float(vol or 0.0)
+            if v <= 0:
+                return "-"
+            u = (um or "kg").lower()
+            if u == "pz":
+                return f"{v:.0f} pz"
+            return f"{v:.1f}".replace(".", ",") + " kg"
+
+        # Pre-calcola totali dai prodotti effettivi
+        calc_vol_kg = 0.0
+        calc_vol_pz = 0.0
+        calc_att = 0.0
+        calc_nos = 0.0
+        for p in prodotti:
+            if not isinstance(p, dict):
+                continue
+            v = float(p.get('volume_kg') or 0)
+            u = str(p.get('um') or 'kg').lower()
+            pa = float(p.get('prezzo_attuale') or 0)
+            pn = float(p.get('prezzo_nostro') or 0)
+            if u == 'pz':
+                calc_vol_pz += v
+            else:
+                calc_vol_kg += v
+            calc_att += (v * pa)
+            calc_nos += (v * pn)
+
+        calc_risp_m = calc_att - calc_nos
+        calc_risp_a = calc_risp_m * 12
+        tot_att_mese = calc_att if (calc_att > 0 or not comp.get('totale_attuale_mese')) else float(comp.get('totale_attuale_mese') or 0)
+        tot_nos_mese = calc_nos if (calc_nos > 0 or not comp.get('totale_nuovo_mese')) else float(comp.get('totale_nuovo_mese') or 0)
+        tot_risp_mese = tot_att_mese - tot_nos_mese if (tot_att_mese > 0 or tot_nos_mese > 0) else float(comp.get('risparmio_mese') or 0)
+        tot_risp_anno = tot_risp_mese * 12
+        perc_risp = ((tot_risp_mese / tot_att_mese) * 100) if tot_att_mese > 0 else float(comp.get('percentuale_risparmio') or 0)
+
+        vol_parts = []
+        if calc_vol_kg > 0:
+            vol_parts.append(f"{calc_vol_kg:.1f}".replace(".", ",") + " kg")
+        if calc_vol_pz > 0:
+            vol_parts.append(f"{calc_vol_pz:.0f} pz")
+        tot_vol_label = " + ".join(vol_parts) if vol_parts else (f"{float(comp.get('totale_volume_kg') or 0):.1f}".replace(".", ",") + " kg")
+
+        date_str = datetime.now().strftime('%d/%m/%Y')
+        creato = comp.get('creato_il')
+        if hasattr(creato, 'strftime'):
+            date_str = creato.strftime('%d/%m/%Y')
+        elif isinstance(creato, str) and len(creato) >= 10:
+            parts = creato[:10].split('-')
+            if len(parts) == 3:
+                date_str = f"{parts[2]}/{parts[1]}/{parts[0]}"
+
+        # Risolvi eventuale logo locale
+        local_logo_path = None
+        if impostazioni_pdf.get('mostra_logo', True):
+            logo_raw = str(impostazioni_pdf.get('logo_url') or '').strip()
+            if logo_raw and not logo_raw.lower().startswith(('http://', 'https://', 'data:')):
+                rel = logo_raw.lstrip('/')
+                if rel.startswith('static/'):
+                    rel = rel[len('static/'):]
+                cand = os.path.join(app.static_folder, rel)
+                if os.path.isfile(cand):
+                    local_logo_path = cand
+
+        mostra_header = impostazioni_pdf.get('mostra_header', True) is not False
 
         class ComparatorePDF(FPDF):
             def header(self):
-                self.set_font('helvetica', 'B', 15)
-                self.set_text_color(15, 23, 42)
-                nome_az = impostazioni_pdf.get('azienda_nome', 'HORECA SUITE')
-                self.cell(120, 7, _clean_str(nome_az), align='L')
-                
-                self.set_font('helvetica', 'B', 9)
-                self.set_text_color(79, 70, 229)
-                self.cell(0, 7, _clean_str(impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo')), align='R')
-                self.ln(6)
+                if not mostra_header:
+                    self.set_y(10)
+                    return
 
+                start_y = 10
+                text_x = 10
+                if local_logo_path:
+                    try:
+                        self.image(local_logo_path, x=10, y=start_y, h=12)
+                        text_x = 28
+                    except Exception:
+                        text_x = 10
+
+                self.set_xy(text_x, start_y)
+                self.set_font('helvetica', 'B', 15)
+                self.set_text_color(30, 27, 75)
+                nome_az = impostazioni_pdf.get('azienda_nome', 'HORECA SUITE')
+                self.cell(118 - (text_x - 10), 6.5, _clean_pdf_text(nome_az), align='L')
+
+                # Badge documento a destra
+                badge_txt = _clean_pdf_text(impostazioni_pdf.get('doc_badge', 'Prospetto Economico Comparativo'))
+                self.set_xy(128, start_y)
+                self.set_fill_color(224, 231, 255)
+                self.set_text_color(67, 56, 202)
+                self.set_font('helvetica', 'B', 8)
+                self.cell(72, 6, badge_txt[:42], align='C', fill=True)
+
+                self.set_xy(text_x, start_y + 7)
                 self.set_font('helvetica', '', 8)
                 self.set_text_color(100, 116, 139)
                 sub_az = impostazioni_pdf.get('azienda_sub', 'Forniture Professionali & Listini Dedicati per la Ristorazione')
-                self.cell(120, 4, _clean_str(sub_az), align='L')
-                
-                date_str = datetime.now().strftime('%d/%m/%Y')
-                creato = comp.get('creato_il')
-                if hasattr(creato, 'strftime'):
-                    date_str = creato.strftime('%d/%m/%Y')
-                elif isinstance(creato, str) and len(creato) >= 10:
-                    p = creato[:10].split('-')
-                    if len(p) == 3: date_str = f"{p[2]}/{p[1]}/{p[0]}"
-                self.cell(0, 4, _clean_str(f"Data: {date_str}  -  #CMP-{int(id):04d}"), align='R')
-                self.ln(5)
+                self.cell(118 - (text_x - 10), 4.2, _clean_pdf_text(sub_az)[:68], align='L')
+
+                self.set_xy(128, start_y + 7)
+                self.cell(72, 4.2, _clean_pdf_text(f"Data: {date_str}  |  Rif. #CMP-{int(id):04d}"), align='R')
 
                 contatti = impostazioni_pdf.get('contatti', 'Tel. +39 071 123456 - info@horecasuite.it')
-                self.cell(0, 4, _clean_str(contatti), align='L')
-                self.ln(6)
-                self.set_draw_color(226, 232, 240)
-                self.line(10, self.get_y(), 200, self.get_y())
-                self.ln(5)
+                self.set_xy(text_x, start_y + 11.5)
+                self.set_font('helvetica', '', 7.8)
+                self.cell(180 - (text_x - 10), 4, _clean_pdf_text(contatti)[:105], align='L')
+
+                sep_y = start_y + 17.5
+                self.set_draw_color(79, 70, 229)
+                self.set_line_width(0.6)
+                self.line(10, sep_y, 200, sep_y)
+                self.set_line_width(0.2)
+                self.set_y(sep_y + 4)
 
             def footer(self):
-                self.set_y(-14)
-                self.set_font('helvetica', 'I', 8)
+                self.set_y(-13)
+                self.set_draw_color(226, 232, 240)
+                self.line(10, self.get_y() - 1, 200, self.get_y() - 1)
+                self.set_font('helvetica', 'I', 7.5)
                 self.set_text_color(148, 163, 184)
-                self.cell(120, 5, _clean_str('Documento ad uso commerciale confidenziale redatto su misura.'), align='L')
+                foot_txt = impostazioni_pdf.get('footer_note', 'Documento ad uso commerciale confidenziale redatto su misura per il cliente.')
+                self.cell(145, 5, _clean_pdf_text(foot_txt)[:100], align='L')
                 self.cell(0, 5, f'Pagina {self.page_no()}/{{nb}}', align='R')
 
         pdf = ComparatorePDF(orientation='P', unit='mm', format='A4')
         pdf.alias_nb_pages()
-        pdf.set_auto_page_break(auto=True, margin=18)
+        pdf.set_auto_page_break(auto=False, margin=18)
         pdf.add_page()
 
-        # Box Cliente e Titolo
-        pdf.set_fill_color(248, 250, 252)
-        pdf.set_draw_color(226, 232, 240)
-        pdf.rect(10, pdf.get_y(), 190, 20, style='DF')
+        # 1. BOX CLIENTE E TITOLO PROPOSTA
         cur_y = pdf.get_y()
-        pdf.set_xy(14, cur_y + 3)
-        pdf.set_font('helvetica', '', 8)
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_draw_color(203, 213, 225)
+        pdf.rect(10, cur_y, 190, 20, style='DF')
+
+        pdf.set_xy(14, cur_y + 2.8)
+        pdf.set_font('helvetica', 'B', 7.2)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(100, 4, 'Spettabile Cliente:')
-        pdf.set_xy(14, cur_y + 7)
-        pdf.set_font('helvetica', 'B', 13)
+        pdf.cell(110, 3.8, 'SPETTABILE CLIENTE')
+
+        pdf.set_xy(14, cur_y + 6.8)
+        pdf.set_font('helvetica', 'B', 12.5)
         pdf.set_text_color(15, 23, 42)
-        pdf.cell(110, 6, _clean_str(comp.get('cliente_nome') or 'Cliente'))
+        pdf.cell(118, 6, _clean_pdf_text(comp.get('cliente_nome') or 'Cliente')[:48])
+
         pdf.set_xy(14, cur_y + 13)
-        pdf.set_font('helvetica', '', 9)
+        pdf.set_font('helvetica', 'B', 8.8)
         pdf.set_text_color(79, 70, 229)
-        pdf.cell(110, 5, _clean_str(comp.get('titolo') or 'Proposta Listino'))
+        pdf.cell(122, 5, _clean_pdf_text(comp.get('titolo') or 'Proposta Listino')[:62])
 
-        # Box Destro: Volume e Risparmio (ricalcola dinamicamente dai prodotti se comp ha zeri)
-        tot_vol = float(comp.get('totale_volume_kg') or 0)
-        tot_risp_anno = float(comp.get('risparmio_anno') or 0)
-        tot_risp_mese = float(comp.get('risparmio_mese') or 0)
-        tot_att_mese = float(comp.get('totale_attuale_mese') or 0)
-        tot_nos_mese = float(comp.get('totale_nuovo_mese') or 0)
-        perc_risp = float(comp.get('percentuale_risparmio') or 0)
-
-        calc_vol = sum(float(p.get('volume_kg') or 0) for p in prodotti if isinstance(p, dict))
-        calc_att = sum((float(p.get('volume_kg') or 0) * float(p.get('prezzo_attuale') or 0)) for p in prodotti if isinstance(p, dict))
-        calc_nos = sum((float(p.get('volume_kg') or 0) * float(p.get('prezzo_nostro') or 0)) for p in prodotti if isinstance(p, dict))
-        calc_risp_m = calc_att - calc_nos
-        calc_risp_a = calc_risp_m * 12
-        if tot_vol == 0 and calc_vol > 0: tot_vol = calc_vol
-        if tot_att_mese == 0 and calc_att > 0: tot_att_mese = calc_att
-        if tot_nos_mese == 0 and calc_nos > 0: tot_nos_mese = calc_nos
-        if tot_risp_anno == 0 and calc_risp_a != 0: tot_risp_anno = calc_risp_a
-        if tot_risp_mese == 0 and calc_risp_m != 0: tot_risp_mese = calc_risp_m
-        if perc_risp == 0 and tot_att_mese > 0: perc_risp = (tot_risp_mese / tot_att_mese) * 100
-        if tot_risp_anno == 0 and tot_risp_mese > 0: tot_risp_anno = tot_risp_mese * 12
-
-        pdf.set_xy(125, cur_y + 3)
-        pdf.set_font('helvetica', '', 8)
+        pdf.set_xy(135, cur_y + 3.2)
+        pdf.set_font('helvetica', '', 7.5)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(70, 4, _clean_str('Volume Stimato: ' + f"{tot_vol:.1f} kg/mese"), align='R')
-        pdf.set_xy(125, cur_y + 8)
-        pdf.set_font('helvetica', 'B', 12)
-        pdf.set_text_color(5, 150, 105)
-        pdf.cell(70, 5, _clean_str(f"Risparmio Annuo: -{perc_risp:.1f}%"), align='R')
-        pdf.set_xy(125, cur_y + 13)
-        pdf.set_font('helvetica', 'B', 10)
-        pdf.cell(70, 5, _clean_str(f"EUR {tot_risp_anno:,.2f} (EUR {tot_risp_mese:,.2f}/m)"), align='R')
-        pdf.set_y(cur_y + 24)
+        pdf.cell(61, 4, 'Volume Mensile Stimato', align='R')
 
-        # Tabella Prodotti Header
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font('helvetica', 'B', 8)
-        
-        pdf.cell(60, 7, '  Articolo / Descrizione', fill=True)
-        pdf.cell(20, 7, 'Vol. Mese', align='R', fill=True)
-        pdf.cell(22, 7, 'Prz Attuale', align='R', fill=True)
-        pdf.cell(22, 7, 'Nostro Prz', align='R', fill=True)
-        pdf.cell(22, 7, 'Diff. Unit.', align='R', fill=True)
-        pdf.cell(22, 7, 'Spesa Mese', align='R', fill=True)
-        pdf.cell(22, 7, 'Risp. Anno', align='R', fill=True)
-        pdf.ln(7)
+        pdf.set_xy(135, cur_y + 7.5)
+        pdf.set_font('helvetica', 'B', 11.5)
+        pdf.set_text_color(79, 70, 229)
+        pdf.cell(61, 5.5, _clean_pdf_text(f"{tot_vol_label} / mese"), align='R')
 
-        # Righe Tabella
-        pdf.set_font('helvetica', '', 8)
+        pdf.set_xy(135, cur_y + 13.5)
+        pdf.set_font('helvetica', '', 7.5)
+        pdf.set_text_color(71, 85, 105)
+        pdf.cell(61, 4.2, _clean_pdf_text(f"Ns. Spesa: {_fmt_eur(tot_nos_mese)}/mese"), align='R')
+
+        pdf.set_y(cur_y + 23.5)
+
+        # 2. HERO RISPARMIO CALLOUT (se abilitato)
+        if impostazioni_pdf.get('mostra_hero_risparmio', True) is not False:
+            hero_y = pdf.get_y()
+            pdf.set_fill_color(236, 253, 245)
+            pdf.set_draw_color(16, 185, 129)
+            pdf.set_line_width(0.45)
+            pdf.rect(10, hero_y, 190, 17.5, style='DF')
+            pdf.set_line_width(0.2)
+
+            tit_hero = impostazioni_pdf.get('titolo_hero_risparmio', 'Risparmio Economico Totale Garantito')
+            sub_hero = impostazioni_pdf.get('sub_hero_risparmio', 'A parità di consumi stimati sui prodotti selezionati')
+            pdf.set_xy(14, hero_y + 3)
+            pdf.set_font('helvetica', 'B', 9.5)
+            pdf.set_text_color(6, 95, 70)
+            pdf.cell(112, 5, _clean_pdf_text(tit_hero.upper())[:58])
+
+            pdf.set_xy(14, hero_y + 8.5)
+            pdf.set_font('helvetica', '', 8)
+            pdf.set_text_color(4, 120, 87)
+            pdf.cell(112, 4.5, _clean_pdf_text(sub_hero)[:72])
+
+            pdf.set_xy(126, hero_y + 2.5)
+            pdf.set_font('helvetica', 'B', 14.5)
+            pdf.set_text_color(4, 120, 87)
+            pdf.cell(70, 6.5, _fmt_eur(tot_risp_anno), align='R')
+
+            pdf.set_xy(126, hero_y + 9.8)
+            pdf.set_font('helvetica', 'B', 8.2)
+            pdf.set_text_color(5, 150, 105)
+            sign_p = "-" if perc_risp >= 0 else "+"
+            pdf.cell(70, 4.5, _clean_pdf_text(f"Risparmio Annuo: {sign_p}{abs(perc_risp):.1f}% ({_fmt_eur(tot_risp_mese)}/mese)"), align='R')
+
+            pdf.set_y(hero_y + 21)
+
+        # 3. TABELLA DETTAGLIATA PRODOTTI (MULTI-PAGINA SENZA TAGLI)
+        # Somma larghezze = 190mm (7 + 63 + 17 + 19 + 19 + 16 + 19 + 19 + 11)
+        COL_W = [7, 63, 17, 19, 19, 16, 19, 19, 11]
+
+        def draw_table_header():
+            pdf.set_fill_color(30, 41, 59)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font('helvetica', 'B', 7.3)
+            headers = [
+                ('#', 'C'),
+                ('  Prodotto / Descrizione & Note', 'L'),
+                ('Vol. Mese', 'R'),
+                ('Attuale', 'R'),
+                ('Ns. Offerta', 'R'),
+                ('Diff. Unit.', 'R'),
+                ('Spesa Mese', 'R'),
+                ('Risp. Anno', 'R'),
+                ('%', 'C'),
+            ]
+            for (h_txt, h_align), w in zip(headers, COL_W):
+                pdf.cell(w, 7.5, h_txt, align=h_align, fill=True)
+            pdf.ln(7.5)
+
+        draw_table_header()
+
         fill_toggle = False
+        row_num = 0
+        MAX_Y = 272
+
         for p in prodotti:
-            if not isinstance(p, dict): continue
-            nome_p = (p.get('nome') or 'Articolo')[:32]
+            if not isinstance(p, dict):
+                continue
+            row_num += 1
+            nome_raw = _clean_pdf_text((p.get('nome') or 'Articolo').strip())
+            codice_raw = _clean_pdf_text((p.get('codice') or '').strip())
+            nota_raw = _clean_pdf_text((p.get('nota') or '').strip())
+
             vol_p = float(p.get('volume_kg') or 0)
             um_p = str(p.get('um') or 'kg').lower()
             pa_p = float(p.get('prezzo_attuale') or 0)
             pn_p = float(p.get('prezzo_nostro') or 0)
             diff_p = pa_p - pn_p
-            spesa_m = vol_p * pn_p if vol_p > 0 else pn_p
-            risp_a = (diff_p * vol_p * 12) if vol_p > 0 else (diff_p * 12)
+            spesa_m = vol_p * pn_p
+            risp_a = diff_p * vol_p * 12
+            perc_p = ((diff_p / pa_p) * 100) if pa_p > 0 else 0.0
 
-            pdf.set_fill_color(248, 250, 252) if fill_toggle else pdf.set_fill_color(255, 255, 255)
+            # Calcola righe wrappate (nessun troncamento del nome o delle note!)
+            pdf.set_font('helvetica', 'B', 8.0)
+            nome_lines = pdf.multi_cell(COL_W[1] - 3, 3.8, nome_raw or 'Articolo', dry_run=True, output="LINES") or [nome_raw or 'Articolo']
+            nome_h = len(nome_lines) * 3.8
+
+            codice_h = 3.3 if codice_raw else 0.0
+
+            nota_lines = []
+            nota_box_h = 0.0
+            if nota_raw:
+                pdf.set_font('helvetica', 'I', 7.1)
+                nota_lines = pdf.multi_cell(COL_W[1] - 6, 3.4, nota_raw, dry_run=True, output="LINES") or [nota_raw]
+                nota_box_h = (len(nota_lines) * 3.4) + 2.6
+
+            content_h = nome_h + codice_h + (nota_box_h + 1.2 if nota_raw else 0.0)
+            row_h = max(8.0, content_h + 3.2)
+
+            if pdf.get_y() + row_h > MAX_Y:
+                pdf.add_page()
+                draw_table_header()
+
+            ry = pdf.get_y()
+            if fill_toggle:
+                pdf.set_fill_color(248, 250, 252)
+            else:
+                pdf.set_fill_color(255, 255, 255)
+            pdf.rect(10, ry, 190, row_h, style='F')
+            pdf.set_draw_color(226, 232, 240)
+            pdf.line(10, ry + row_h, 200, ry + row_h)
+
+            # Colonna 0: #
+            pdf.set_xy(10, ry + 1.6)
+            pdf.set_font('helvetica', 'B', 7.5)
+            pdf.set_text_color(148, 163, 184)
+            pdf.cell(COL_W[0], 4.2, str(row_num), align='C')
+
+            # Colonna 1: Nome completo + Codice + Nota Confezione evidenziata
+            cur_txt_y = ry + 1.6
+            pdf.set_xy(10 + COL_W[0] + 1.5, cur_txt_y)
+            pdf.set_font('helvetica', 'B', 8.0)
             pdf.set_text_color(15, 23, 42)
-            
-            pdf.cell(60, 6.5, _clean_str(f"  {nome_p}"), fill=True)
-            vol_fmt = (f"{vol_p:.0f} pz" if um_p == 'pz' else f"{vol_p:.1f} kg") if vol_p > 0 else "-"
-            pdf.cell(20, 6.5, _clean_str(vol_fmt), align='R', fill=True)
-            
+            pdf.multi_cell(COL_W[1] - 3, 3.8, nome_raw or 'Articolo', align='L')
+            cur_txt_y += nome_h
+
+            if codice_raw:
+                pdf.set_xy(10 + COL_W[0] + 1.5, cur_txt_y)
+                pdf.set_font('helvetica', '', 6.8)
+                pdf.set_text_color(100, 116, 139)
+                pdf.cell(COL_W[1] - 3, 3.2, f"Cod. {codice_raw}", align='L')
+                cur_txt_y += codice_h
+
+            if nota_raw:
+                note_box_y = cur_txt_y + 0.6
+                note_box_x = 10 + COL_W[0] + 1.5
+                note_box_w = COL_W[1] - 3.0
+                pdf.set_fill_color(255, 251, 235)
+                pdf.rect(note_box_x, note_box_y, note_box_w, nota_box_h, style='F')
+                pdf.set_fill_color(245, 158, 11)
+                pdf.rect(note_box_x, note_box_y, 0.9, nota_box_h, style='F')
+                pdf.set_xy(note_box_x + 2.2, note_box_y + 1.2)
+                pdf.set_font('helvetica', 'I', 7.1)
+                pdf.set_text_color(120, 53, 15)
+                pdf.multi_cell(note_box_w - 3.0, 3.4, nota_raw, align='L')
+
+            # Colonne Numeriche (2..8) allineate in alto alla riga
+            num_y = ry + 1.6
+            col_x = 10 + COL_W[0] + COL_W[1]
+
+            # Col 2: Vol Mese
+            pdf.set_xy(col_x, num_y)
+            pdf.set_font('helvetica', '', 7.6)
+            pdf.set_text_color(51, 65, 85)
+            pdf.cell(COL_W[2], 4.2, _fmt_vol(vol_p, um_p), align='R')
+            col_x += COL_W[2]
+
+            # Col 3: Attuale
+            pdf.set_xy(col_x, num_y)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(22, 6.5, _clean_str(f"EUR {pa_p:.2f}"), align='R', fill=True)
-            
+            pdf.cell(COL_W[3], 4.2, _fmt_eur(pa_p), align='R')
+            col_x += COL_W[3]
+
+            # Col 4: Ns. Offerta
+            pdf.set_xy(col_x, num_y)
+            pdf.set_font('helvetica', 'B', 7.8)
             pdf.set_text_color(67, 56, 202)
-            pdf.set_font('helvetica', 'B', 8)
-            pdf.cell(22, 6.5, _clean_str(f"EUR {pn_p:.2f}"), align='R', fill=True)
-            
-            pdf.set_font('helvetica', '', 8)
-            pdf.set_text_color(5, 150, 105) if diff_p >= 0 else pdf.set_text_color(225, 29, 72)
-            pdf.cell(22, 6.5, _clean_str(f"{'-' if diff_p>=0 else '+'}EUR {abs(diff_p):.2f}"), align='R', fill=True)
-            
+            pdf.cell(COL_W[4], 4.2, _fmt_eur(pn_p), align='R')
+            col_x += COL_W[4]
+
+            # Col 5: Diff. Unit.
+            pdf.set_xy(col_x, num_y)
+            pdf.set_font('helvetica', '', 7.6)
+            if diff_p >= 0:
+                pdf.set_text_color(5, 150, 105)
+                diff_str = _fmt_eur(-diff_p) if diff_p > 0 else _fmt_eur(0)
+            else:
+                pdf.set_text_color(220, 38, 38)
+                diff_str = _fmt_eur(abs(diff_p), with_sign=True)
+            pdf.cell(COL_W[5], 4.2, diff_str, align='R')
+            col_x += COL_W[5]
+
+            # Col 6: Spesa Mese
+            pdf.set_xy(col_x, num_y)
             pdf.set_text_color(15, 23, 42)
-            pdf.cell(22, 6.5, _clean_str(f"EUR {spesa_m:.2f}"), align='R', fill=True)
-            
-            pdf.set_text_color(5, 150, 105) if risp_a >= 0 else pdf.set_text_color(225, 29, 72)
-            pdf.set_font('helvetica', 'B', 8)
-            pdf.cell(22, 6.5, _clean_str(f"EUR {risp_a:.2f}"), align='R', fill=True)
-            pdf.set_font('helvetica', '', 8)
-            
-            pdf.ln(6.5)
+            pdf.cell(COL_W[6], 4.2, _fmt_eur(spesa_m) if vol_p > 0 else "-", align='R')
+            col_x += COL_W[6]
+
+            # Col 7: Risp. Anno
+            pdf.set_xy(col_x, num_y)
+            pdf.set_font('helvetica', 'B', 7.8)
+            pdf.set_text_color(5, 150, 105) if risp_a >= 0 else pdf.set_text_color(220, 38, 38)
+            pdf.cell(COL_W[7], 4.2, _fmt_eur(risp_a) if vol_p > 0 else "-", align='R')
+            col_x += COL_W[7]
+
+            # Col 8: %
+            pdf.set_xy(col_x + 0.5, num_y)
+            pdf.set_font('helvetica', 'B', 7.2)
+            if perc_p > 0:
+                pdf.set_fill_color(209, 250, 229)
+                pdf.set_text_color(5, 150, 105)
+                perc_str = f"-{perc_p:.1f}%"
+            elif perc_p < 0:
+                pdf.set_fill_color(254, 226, 226)
+                pdf.set_text_color(220, 38, 38)
+                perc_str = f"+{abs(perc_p):.1f}%"
+            else:
+                pdf.set_fill_color(241, 245, 249)
+                pdf.set_text_color(100, 116, 139)
+                perc_str = "0.0%"
+            pdf.cell(COL_W[8] - 1, 4.4, perc_str, align='C', fill=True)
+
+            pdf.set_y(ry + row_h)
             fill_toggle = not fill_toggle
 
-        # Riga Totali
-        pdf.set_fill_color(241, 245, 249)
-        pdf.set_text_color(15, 23, 42)
-        pdf.set_font('helvetica', 'B', 8.5)
-        pdf.cell(60, 7.5, '  TOTALI COMPLESSIVI', fill=True)
-        pdf.set_text_color(79, 70, 229)
-        pdf.cell(20, 7.5, _clean_str(f"{tot_vol:.1f} kg"), align='R', fill=True)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(22, 7.5, _clean_str(f"EUR {tot_att_mese:.2f}"), align='R', fill=True)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(22, 7.5, "", fill=True)
-        pdf.cell(22, 7.5, "", fill=True)
-        pdf.cell(22, 7.5, _clean_str(f"EUR {tot_nos_mese:.2f}"), align='R', fill=True)
-        pdf.set_text_color(5, 150, 105)
-        pdf.cell(22, 7.5, _clean_str(f"EUR {tot_risp_anno:.2f}"), align='R', fill=True)
-        pdf.ln(9)
+        # 4. RIGA TOTALI COMPLESSIVI
+        if pdf.get_y() + 14 > MAX_Y:
+            pdf.add_page()
+            draw_table_header()
 
-        # Condizioni commerciali / Note
-        note_text = impostazioni_pdf.get('note_condizioni') or comp.get('note') or '- Consegne programmate con automezzi a temperatura controllata.\n- Grammatura costante e massima resa per azzerare lo scarto in cucina.\n- Tracciabilita certificata di ogni lotto con scheda tecnica allegata.'
-        if note_text:
-            box_note_y = pdf.get_y()
-            if box_note_y > 235:
+        tot_y = pdf.get_y()
+        pdf.set_fill_color(238, 242, 255)
+        pdf.rect(10, tot_y, 190, 9.5, style='F')
+        pdf.set_draw_color(30, 27, 75)
+        pdf.set_line_width(0.45)
+        pdf.line(10, tot_y, 200, tot_y)
+        pdf.line(10, tot_y + 9.5, 200, tot_y + 9.5)
+        pdf.set_line_width(0.2)
+
+        pdf.set_xy(11.5, tot_y + 2.2)
+        pdf.set_font('helvetica', 'B', 8.0)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(COL_W[0] + COL_W[1] - 2, 5, 'TOTALE GENERALE RIEPILOGATIVO:', align='L')
+
+        cx = 10 + COL_W[0] + COL_W[1]
+        pdf.set_xy(cx, tot_y + 2.2)
+        pdf.set_text_color(67, 56, 202)
+        pdf.set_font('helvetica', 'B', 7.6)
+        pdf.cell(COL_W[2], 5, _clean_pdf_text(tot_vol_label), align='R')
+        cx += COL_W[2]
+
+        pdf.set_xy(cx, tot_y + 2.2)
+        pdf.set_text_color(100, 116, 139)
+        pdf.set_font('helvetica', '', 7.2)
+        pdf.cell(COL_W[3] + COL_W[4] + COL_W[5], 5, _clean_pdf_text(f"(Attuale: {_fmt_eur(tot_att_mese)}/m)"), align='R')
+        cx += COL_W[3] + COL_W[4] + COL_W[5]
+
+        pdf.set_xy(cx, tot_y + 2.2)
+        pdf.set_font('helvetica', 'B', 8.0)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(COL_W[6], 5, _fmt_eur(tot_nos_mese), align='R')
+        cx += COL_W[6]
+
+        pdf.set_xy(cx, tot_y + 2.2)
+        pdf.set_font('helvetica', 'B', 8.5)
+        pdf.set_text_color(5, 150, 105) if tot_risp_anno >= 0 else pdf.set_text_color(220, 38, 38)
+        pdf.cell(COL_W[7], 5, _fmt_eur(tot_risp_anno), align='R')
+        cx += COL_W[7]
+
+        pdf.set_xy(cx, tot_y + 2.2)
+        pdf.set_font('helvetica', 'B', 8.0)
+        sign_tot = "-" if perc_risp >= 0 else "+"
+        pdf.cell(COL_W[8], 5, f"{sign_tot}{abs(perc_risp):.1f}%", align='C')
+
+        pdf.set_y(tot_y + 13)
+
+        # 5. CONDIZIONI COMMERCIALI / NOTE & VALIDITA
+        if impostazioni_pdf.get('mostra_condizioni', True) is not False:
+            tit_cond = impostazioni_pdf.get('titolo_condizioni', 'Condizioni di Fornitura & Servizi Inclusi:')
+            note_text = impostazioni_pdf.get('note_condizioni') or comp.get('note') or (
+                '- Consegne programmate con automezzi a temperatura controllata.\n'
+                '- Grammatura costante e massima resa per azzerare lo scarto in cucina.\n'
+                '- Tracciabilità certificata di ogni lotto con scheda tecnica allegata.'
+            )
+            validita_txt = impostazioni_pdf.get('validita_offerta', 'Offerta commerciale riservata e valida per 30 giorni dalla data di emissione.')
+
+            pdf.set_font('helvetica', '', 8.0)
+            note_lines_cnt = len(pdf.multi_cell(182, 4.2, _clean_pdf_text(note_text), dry_run=True, output="LINES") or [])
+            box_h = max(18.0, 12.0 + note_lines_cnt * 4.2)
+
+            if pdf.get_y() + box_h > MAX_Y:
                 pdf.add_page()
-            pdf.set_font('helvetica', 'B', 8.5)
-            pdf.set_text_color(30, 41, 59)
-            pdf.cell(0, 5, 'Condizioni di Fornitura & Servizi Inclusi:', align='L')
-            pdf.ln(5)
-            pdf.set_font('helvetica', '', 8)
+
+            by = pdf.get_y()
+            pdf.set_fill_color(255, 255, 255)
+            pdf.set_draw_color(226, 232, 240)
+            pdf.rect(10, by, 190, box_h, style='DF')
+
+            pdf.set_xy(14, by + 2.5)
+            pdf.set_font('helvetica', 'B', 8.2)
+            pdf.set_text_color(15, 23, 42)
+            pdf.cell(182, 4.5, _clean_pdf_text(tit_cond.upper()))
+
+            pdf.set_xy(14, by + 7.5)
+            pdf.set_font('helvetica', '', 7.8)
             pdf.set_text_color(71, 85, 105)
-            pdf.multi_cell(190, 4.5, _clean_str(note_text))
-            pdf.ln(3)
+            pdf.multi_cell(182, 4.2, _clean_pdf_text(note_text))
+
+            pdf.set_xy(14, by + box_h - 5.5)
+            pdf.set_font('helvetica', 'I', 7.5)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(182, 4, _clean_pdf_text(validita_txt))
+
+            pdf.set_y(by + box_h + 6)
+
+        # 6. SEZIONE FIRME IN CALCE (se abilitata)
+        if impostazioni_pdf.get('mostra_firme', True) is not False:
+            if pdf.get_y() + 24 > MAX_Y:
+                pdf.add_page()
+            sy = pdf.get_y() + 4
+            firma_cli = impostazioni_pdf.get('firma_cliente_label', 'Per Accettazione il Cliente (Timbro e Firma)')
+            firma_nos = impostazioni_pdf.get('firma_nostra_label', 'Horeca Suite - Consulente Commerciale')
+
+            pdf.set_draw_color(148, 163, 184)
+            pdf.line(14, sy + 14, 94, sy + 14)
+            pdf.line(116, sy + 14, 196, sy + 14)
+
+            pdf.set_font('helvetica', '', 7.5)
+            pdf.set_text_color(100, 116, 139)
+            pdf.set_xy(14, sy)
+            pdf.cell(80, 4, _clean_pdf_text(firma_cli), align='C')
+            pdf.set_xy(116, sy)
+            pdf.cell(80, 4, _clean_pdf_text(firma_nos), align='C')
 
         pdf_bytes = bytes(pdf.output())
         cliente_clean = re.sub(r'[^a-zA-Z0-9_\-]', '_', comp.get('cliente_nome') or 'Cliente')
-        filename = f"Preventivo_{cliente_clean}_{id}.pdf"
+        filename = f"Preventivo_{cliente_clean}_{datetime.now().strftime('%Y-%m-%d')}.pdf"
         return send_file(
             io.BytesIO(pdf_bytes),
             mimetype='application/pdf',

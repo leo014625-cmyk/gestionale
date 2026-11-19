@@ -257,6 +257,18 @@
       font-size: 11px;
     }
 
+    .product-note-print {
+      background: #fffbeb;
+      border-left: 3px solid #f59e0b;
+      padding: 4px 8px;
+      margin-top: 4px;
+      border-radius: 0 6px 6px 0;
+      font-size: 10.5px;
+      color: #78350f;
+      font-style: italic;
+      line-height: 1.35;
+    }
+
     /* Notes & terms (Parte in Basso) */
     .terms-box {
       background: #ffffff;
@@ -751,7 +763,7 @@
       <thead>
         <tr>
           <th style="width: 28px;">#</th>
-          <th>Prodotto / Descrizione</th>
+          <th>Prodotto / Descrizione &amp; Note</th>
           <th class="col-right" style="width: 85px;">Vol. Mese</th>
           <th class="col-right" style="width: 90px;">Attuale</th>
           <th class="col-right" style="width: 90px;">Nostra Offerta</th>
@@ -762,7 +774,7 @@
         </tr>
       </thead>
       <tbody>
-        {% set ns = namespace(tot_vol=0, tot_att=0, tot_nos=0, tot_risp_m=0) %}
+        {% set ns = namespace(tot_vol=0, tot_vol_kg=0, tot_vol_pz=0, tot_att=0, tot_nos=0, tot_risp_m=0) %}
         {% for p in prodotti %}
           {% set vol = p.volume_kg|float(0) %}
           {% set um_p = (p.um or 'kg')|lower %}
@@ -776,6 +788,11 @@
           {% set perc = ((diff / pa) * 100) if pa > 0 else 0 %}
 
           {% set ns.tot_vol = ns.tot_vol + vol %}
+          {% if um_p == 'pz' %}
+            {% set ns.tot_vol_pz = ns.tot_vol_pz + vol %}
+          {% else %}
+            {% set ns.tot_vol_kg = ns.tot_vol_kg + vol %}
+          {% endif %}
           {% set ns.tot_att = ns.tot_att + spesa_att %}
           {% set ns.tot_nos = ns.tot_nos + spesa_nos %}
           {% set ns.tot_risp_m = ns.tot_risp_m + risp_m %}
@@ -783,15 +800,18 @@
           <tr>
             <td style="color: #94a3b8; font-weight: 600;">{{ loop.index }}</td>
             <td>
-              <strong contenteditable="true">{{ p.nome }}</strong>
+              <strong contenteditable="true" data-prod-nome-idx="{{ loop.index0 }}">{{ p.nome }}</strong>
               {% if p.codice %}<br><small style="color: #64748b; font-family: monospace;">{{ p.codice }}</small>{% endif %}
+              {% if p.nota %}
+                <div class="product-note-print" contenteditable="true" data-prod-nota-idx="{{ loop.index0 }}" title="Clicca per modificare la nota prodotto">{{ p.nota }}</div>
+              {% endif %}
             </td>
-            <td class="col-right font-monospace">{{ "%.0f"|format(vol) if um_p == 'pz' else "%.1f"|format(vol) }} {{ um_p }}</td>
+            <td class="col-right font-monospace">{{ ("%.0f"|format(vol) if um_p == 'pz' else "%.1f"|format(vol)) ~ " " ~ um_p if vol > 0 else "-" }}</td>
             <td class="col-right font-monospace" style="color: #64748b;">€ {{ "%.2f"|format(pa) }}</td>
             <td class="col-right font-monospace" style="color: #4338ca; font-weight: 600;">€ {{ "%.2f"|format(pn) }}</td>
             <td class="col-right font-monospace" style="color: #059669; font-weight: 600;">{{ '-' if diff >= 0 else '+' }}€ {{ "%.2f"|format(diff|abs) }}</td>
-            <td class="col-right font-monospace">€ {{ "%.2f"|format(spesa_nos) }}</td>
-            <td class="col-right font-monospace" style="color: #059669; font-weight: 700;">€ {{ "%.2f"|format(risp_a) }}</td>
+            <td class="col-right font-monospace">{{ ("€ %.2f"|format(spesa_nos)) if vol > 0 else "-" }}</td>
+            <td class="col-right font-monospace" style="color: #059669; font-weight: 700;">{{ ("€ %.2f"|format(risp_a)) if vol > 0 else "-" }}</td>
             <td class="col-center">
               <span class="badge-diff">{{ '-' if perc >= 0 else '+' }}{{ "%.1f"|format(perc|abs) }}%</span>
             </td>
@@ -801,7 +821,15 @@
       <tfoot>
         <tr>
           <td colspan="2">TOTALE GENERALE RIEPILOGATIVO:</td>
-          <td class="col-right" style="color: #4f46e5;">{{ "%.1f"|format(ns.tot_vol) }} kg</td>
+          <td class="col-right" style="color: #4f46e5;">
+            {% if ns.tot_vol_kg > 0 and ns.tot_vol_pz > 0 %}
+              {{ "%.1f"|format(ns.tot_vol_kg) }} kg + {{ "%.0f"|format(ns.tot_vol_pz) }} pz
+            {% elif ns.tot_vol_pz > 0 %}
+              {{ "%.0f"|format(ns.tot_vol_pz) }} pz
+            {% else %}
+              {{ "%.1f"|format(ns.tot_vol_kg) }} kg
+            {% endif %}
+          </td>
           <td class="col-right" colspan="3" style="font-size: 11px; color: #64748b;">(Attuale Cliente: € {{ "%.2f"|format(ns.tot_att) }}/m)</td>
           <td class="col-right">€ {{ "%.2f"|format(ns.tot_nos) }}</td>
           <td class="col-right" style="color: #059669; font-size: 13.5px;">€ {{ "%.2f"|format(ns.tot_risp_m * 12) }}</td>
@@ -1037,6 +1065,21 @@
 
       const settings = gatherAllUpdatedSettings();
 
+      // Sincronizza eventuali modifiche inline ai nomi e alle note dei prodotti
+      document.querySelectorAll("[data-prod-nome-idx]").forEach((el) => {
+        const idx = parseInt(el.getAttribute("data-prod-nome-idx"), 10);
+        if (existingProducts[idx]) {
+          const val = el.textContent.trim();
+          if (val) existingProducts[idx].nome = val;
+        }
+      });
+      document.querySelectorAll("[data-prod-nota-idx]").forEach((el) => {
+        const idx = parseInt(el.getAttribute("data-prod-nota-idx"), 10);
+        if (existingProducts[idx]) {
+          existingProducts[idx].nota = el.textContent.trim();
+        }
+      });
+
       const payload = {
         id: compId,
         cliente_id: {{ (comp.cliente_id if comp.cliente_id else None) | tojson }},
@@ -1092,19 +1135,39 @@
     // ========================================================
     // FUNZIONE GENERAZIONE & DOWNLOAD DIRETTO PDF (VETTORIALE AD ALTA RISOLUZIONE)
     // ========================================================
-    function avviaDownloadPdfServer(callback) {
+    async function avviaDownloadPdfServer(callback) {
       if (!compId) {
         if (callback) callback();
         return;
       }
       const clienteRaw = document.getElementById("printClienteNome") ? document.getElementById("printClienteNome").textContent : "Cliente";
       const clienteClean = clienteRaw.trim().replace(/[^a-zA-Z0-9_\-]/g, "_") || "Cliente";
-      const dlLink = document.createElement("a");
-      dlLink.href = `/comparatore/scarica_pdf/${compId}`;
-      dlLink.download = `Preventivo_${clienteClean}_${compId}.pdf`;
-      document.body.appendChild(dlLink);
-      dlLink.click();
-      setTimeout(() => dlLink.remove(), 600);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      try {
+        const resp = await fetch(`/comparatore/scarica_pdf/${compId}`, { credentials: "same-origin" });
+        const ctype = resp.headers.get("content-type") || "";
+        if (!resp.ok || !ctype.includes("pdf")) {
+          throw new Error("PDF server non valido");
+        }
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const dlLink = document.createElement("a");
+        dlLink.href = blobUrl;
+        dlLink.download = `Preventivo_${clienteClean}_${dateStr}.pdf`;
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        setTimeout(() => {
+          dlLink.remove();
+          URL.revokeObjectURL(blobUrl);
+        }, 1000);
+      } catch (e) {
+        const dlLink = document.createElement("a");
+        dlLink.href = `/comparatore/scarica_pdf/${compId}`;
+        dlLink.download = `Preventivo_${clienteClean}_${dateStr}.pdf`;
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        setTimeout(() => dlLink.remove(), 600);
+      }
       if (callback) callback();
     }
 
@@ -1214,7 +1277,13 @@
     }
 
     function generaEScaricaPdf(callback) {
-      generaCanvasPdfGrafico(callback);
+      if (compId) {
+        saveEditsToServer(null, () => {
+          avviaDownloadPdfServer(callback);
+        });
+      } else {
+        generaCanvasPdfGrafico(callback);
+      }
     }
 
     const btnScarica = document.getElementById("btnScaricaPdfDiretto");
