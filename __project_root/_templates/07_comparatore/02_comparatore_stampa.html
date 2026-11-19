@@ -34,13 +34,21 @@
     }
 
     .page-container {
-      max-width: 820px;
+      max-width: 840px;
       margin: 20px auto;
       background: #ffffff;
-      padding: 32px 36px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      padding: 28px 34px 32px;
+      border-radius: 14px;
+      box-shadow: 0 12px 32px -6px rgba(15, 23, 42, 0.1), 0 6px 12px -4px rgba(15, 23, 42, 0.05);
       position: relative;
+    }
+
+    .sheet-accent-top {
+      height: 6px;
+      width: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #1e1b4b 0%, #4f46e5 52%, #10b981 100%);
+      margin-bottom: 18px;
     }
 
     /* Editable inline elements */
@@ -131,11 +139,12 @@
 
     /* Client info grid */
     .client-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid #4f46e5;
+      border-radius: 12px;
       padding: 14px 18px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -143,8 +152,8 @@
 
     .client-name {
       font-family: 'Outfit', sans-serif;
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 19px;
+      font-weight: 800;
       color: #0f172a;
       margin: 0 0 2px 0;
     }
@@ -157,30 +166,32 @@
 
     /* Hero savings callout (Parte in Alto personalizzabile) */
     .savings-hero-box {
-      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-      border: 2px solid #10b981;
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin-bottom: 22px;
+      background: linear-gradient(135deg, #064e3b 0%, #047857 52%, #10b981 100%);
+      border: 1px solid #059669;
+      border-radius: 14px;
+      padding: 18px 22px;
+      margin-bottom: 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      color: #ffffff;
+      box-shadow: 0 8px 22px -6px rgba(5, 150, 105, 0.35);
     }
 
     .savings-hero-left h3 {
       font-family: 'Outfit', sans-serif;
       font-size: 15px;
-      font-weight: 700;
-      color: #065f46;
-      margin: 0 0 3px 0;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 4px 0;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
     }
 
     .savings-hero-left p {
       margin: 0;
       font-size: 11.5px;
-      color: #047857;
+      color: #d1fae5;
     }
 
     .savings-hero-right {
@@ -189,56 +200,180 @@
 
     .savings-hero-amount {
       font-family: 'Outfit', sans-serif;
-      font-size: 28px;
+      font-size: 31px;
       font-weight: 800;
-      color: #047857;
+      color: #ffffff;
       line-height: 1;
+      letter-spacing: -0.02em;
     }
 
     .savings-hero-badge {
-      background: #059669;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
       color: #ffffff;
-      padding: 3px 10px;
-      border-radius: 12px;
+      padding: 4px 12px;
+      border-radius: 999px;
       font-size: 10.5px;
       font-weight: 700;
       display: inline-block;
-      margin-top: 3px;
+      margin-top: 6px;
+    }
+
+    /* 3-Card Comparison Strip */
+    .savings-kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .sk-card {
+      border-radius: 11px;
+      padding: 11px 14px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+    .sk-card.sk-ours {
+      border-color: #c7d2fe;
+      background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+    }
+    .sk-card.sk-gain {
+      border-color: #6ee7b7;
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    }
+    .sk-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    .sk-val {
+      font-family: 'Outfit', sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.15;
+    }
+    .sk-sub {
+      font-size: 10.5px;
+      color: #475569;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    /* Visual Cost Comparison Bar */
+    .savings-visual-bar-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 11px;
+      padding: 11px 15px;
+      margin-bottom: 18px;
+    }
+    .svb-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #475569;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .svb-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .svb-row:last-child { margin-bottom: 0; }
+    .svb-lbl {
+      width: 115px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #334155;
+      flex-shrink: 0;
+    }
+    .svb-track {
+      flex: 1;
+      height: 18px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      position: relative;
+    }
+    .svb-fill-old {
+      width: 100%;
+      background: linear-gradient(90deg, #94a3b8 0%, #64748b 100%);
+      color: #ffffff;
+      font-size: 9.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 10px;
+    }
+    .svb-fill-new {
+      background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
+      color: #ffffff;
+      font-size: 9.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+    .svb-fill-saved {
+      flex: 1;
+      background: repeating-linear-gradient(45deg, #d1fae5, #d1fae5 6px, #a7f3d0 6px, #a7f3d0 12px);
+      color: #065f46;
+      font-size: 9.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      padding: 0 6px;
     }
 
     /* Table styling (Senza Lavorazioni) */
     table.print-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
 
     table.print-table th {
-      background: #f1f5f9;
-      color: #334155;
-      font-size: 10.5px;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      color: #ffffff;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 8px 8px;
-      border-top: 1px solid #cbd5e1;
-      border-bottom: 2px solid #cbd5e1;
+      padding: 9px 8px;
       text-align: left;
     }
+    table.print-table thead th:first-child { border-radius: 8px 0 0 0; }
+    table.print-table thead th:last-child { border-radius: 0 8px 0 0; }
 
     table.print-table td {
       padding: 8px 8px;
       border-bottom: 1px solid #e2e8f0;
-      font-size: 12px;
+      font-size: 11.5px;
       vertical-align: middle;
+    }
+    table.print-table tbody tr:nth-child(even) td {
+      background: #f8fafc;
     }
 
     table.print-table tfoot td {
-      background: #f8fafc;
-      border-top: 2px solid #0f172a;
-      border-bottom: 2px solid #0f172a;
-      font-weight: 700;
-      font-size: 12.5px;
+      background: #eef2ff;
+      border-top: 2px solid #312e81;
+      border-bottom: 2px solid #312e81;
+      font-weight: 800;
+      font-size: 12px;
     }
 
     .col-right {
@@ -553,12 +688,12 @@
       </button>
 
       <button type="button" class="btn-top-bar btn-top-bar-download" id="btnScaricaPdfDiretto">
-        <i class="bi bi-file-earmark-arrow-down-fill"></i> Scarica PDF
+        <i class="bi bi-file-earmark-arrow-down-fill"></i> Scarica PDF Grafico
       </button>
 
       {% if comp.id %}
-      <a href="/comparatore/scarica_pdf/{{ comp.id }}" class="btn-top-bar btn-top-bar-download" style="text-decoration: none;" title="Download diretto file PDF">
-        <i class="bi bi-download"></i> PDF Diretto
+      <a href="/comparatore/scarica_pdf/{{ comp.id }}" class="btn-top-bar" style="text-decoration: none; background: rgba(255,255,255,0.14); color: #e2e8f0;" title="Scarica PDF vettoriale leggero">
+        <i class="bi bi-download"></i> PDF Leggero
       </a>
       {% endif %}
 
@@ -700,6 +835,32 @@
   <!-- MAIN PRINTABLE PAGE CONTAINER                            -->
   <!-- ======================================================== -->
   <div class="page-container" id="printableSheet">
+    <div class="sheet-accent-top"></div>
+
+    {% set ns = namespace(tot_vol=0, tot_vol_kg=0, tot_vol_pz=0, tot_att=0, tot_nos=0, tot_risp_m=0) %}
+    {% for p in prodotti %}
+      {% set vol = p.volume_kg|float(0) %}
+      {% set um_p = (p.um or 'kg')|lower %}
+      {% set pa = p.prezzo_attuale|float(0) %}
+      {% set pn = p.prezzo_nostro|float(0) %}
+      {% set spesa_att = vol * pa %}
+      {% set spesa_nos = vol * pn %}
+      {% set ns.tot_vol = ns.tot_vol + vol %}
+      {% if um_p == 'pz' %}
+        {% set ns.tot_vol_pz = ns.tot_vol_pz + vol %}
+      {% else %}
+        {% set ns.tot_vol_kg = ns.tot_vol_kg + vol %}
+      {% endif %}
+      {% set ns.tot_att = ns.tot_att + spesa_att %}
+      {% set ns.tot_nos = ns.tot_nos + spesa_nos %}
+      {% set ns.tot_risp_m = ns.tot_risp_m + (spesa_att - spesa_nos) %}
+    {% endfor %}
+
+    {% set disp_att_m = ns.tot_att if (ns.tot_att > 0 or ns.tot_nos > 0) else (comp.totale_attuale_mese|float(0)) %}
+    {% set disp_nos_m = ns.tot_nos if (ns.tot_att > 0 or ns.tot_nos > 0) else (comp.totale_nuovo_mese|float(0)) %}
+    {% set disp_risp_m = (disp_att_m - disp_nos_m) if (disp_att_m > 0 or disp_nos_m > 0) else (comp.risparmio_mese|float(0)) %}
+    {% set disp_risp_a = disp_risp_m * 12 %}
+    {% set disp_perc = ((disp_risp_m / disp_att_m) * 100) if disp_att_m > 0 else (comp.percentuale_risparmio|float(0)) %}
 
     <!-- 1. HEADER AZIENDA (PARTE IN ALTO) -->
     <div class="header-box" id="printHeaderBox" style="display: {{ 'flex' if impostazioni_pdf.get('mostra_header', True) else 'none' }};">
@@ -737,9 +898,17 @@
         <div class="proposal-title" id="printTitoloDoc" contenteditable="true">{{ comp.titolo }}</div>
       </div>
       <div style="text-align: right;">
-        <div style="font-size: 11px; color: #64748b;">Volume Mensile Stimato:</div>
-        <div style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 700; color: #4f46e5;">
-          {{ "%.1f"|format(comp.totale_volume_kg or 0) }} KG / Mese
+        <div style="font-size: 10.5px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;">Consumo Mensile Stimato</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 800; color: #4f46e5;">
+          {% if ns.tot_vol_kg > 0 and ns.tot_vol_pz > 0 %}
+            {{ "%.1f"|format(ns.tot_vol_kg) }} kg + {{ "%.0f"|format(ns.tot_vol_pz) }} pz / mese
+          {% elif ns.tot_vol_pz > 0 %}
+            {{ "%.0f"|format(ns.tot_vol_pz) }} pz / mese
+          {% elif ns.tot_vol_kg > 0 %}
+            {{ "%.1f"|format(ns.tot_vol_kg) }} kg / mese
+          {% else %}
+            {{ "%.1f"|format(comp.totale_volume_kg or 0) }} kg / mese
+          {% endif %}
         </div>
       </div>
     </div>
@@ -747,16 +916,62 @@
     <!-- 3. SAVINGS HERO HIGHLIGHT (PARTE IN ALTO - OPZIONALE) -->
     <div class="savings-hero-box" id="printHeroBox" style="display: {{ 'flex' if impostazioni_pdf.get('mostra_hero_risparmio', True) else 'none' }};">
       <div class="savings-hero-left">
-        <h3 id="printTitoloHero" contenteditable="true" title="Clicca per modificare">{{ impostazioni_pdf.get('titolo_hero_risparmio', 'Risparmio Economico Totale Garantito') }}</h3>
+        <h3 id="printTitoloHero" contenteditable="true" title="Clicca per modificare">🏆 {{ impostazioni_pdf.get('titolo_hero_risparmio', 'Risparmio Economico Totale Garantito') }}</h3>
         <p id="printSubHero" contenteditable="true" title="Clicca per modificare">{{ impostazioni_pdf.get('sub_hero_risparmio', 'A parità di consumi stimati sui prodotti selezionati') }}</p>
       </div>
       <div class="savings-hero-right">
-        <div class="savings-hero-amount">€ {{ "%.2f"|format(comp.risparmio_anno or 0) }}</div>
+        <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #a7f3d0; margin-bottom: 3px;">Risparmio Annuo Stimato</div>
+        <div class="savings-hero-amount">€ {{ "%.2f"|format(disp_risp_a) }}</div>
         <div class="savings-hero-badge">
-          Risparmio Annuo: -{{ "%.1f"|format(comp.percentuale_risparmio or 0) }}% (€ {{ "%.2f"|format(comp.risparmio_mese or 0) }}/mese)
+          {{ '-' if disp_risp_m >= 0 else '+' }}{{ "%.1f"|format(disp_perc|abs) }}% di risparmio • € {{ "%.2f"|format(disp_risp_m) }} ogni mese in cassa
         </div>
       </div>
     </div>
+
+    <!-- 3B. CONFRONTO VISIVO IMMEDIATO (3 CARD + BARRA CONFRONTO COSTI) -->
+    {% if disp_att_m > 0 or disp_nos_m > 0 %}
+    <div class="savings-kpi-strip">
+      <div class="sk-card">
+        <div class="sk-lbl">Spesa Attuale Stimata</div>
+        <div class="sk-val">€ {{ "%.2f"|format(disp_att_m) }} <span style="font-size: 11px; color: #64748b; font-weight: 600;">/mese</span></div>
+        <div class="sk-sub">€ {{ "%.2f"|format(disp_att_m * 12) }} / anno</div>
+      </div>
+      <div class="sk-card sk-ours">
+        <div class="sk-lbl" style="color: #4338ca;">Con la Nostra Offerta</div>
+        <div class="sk-val" style="color: #3730a3;">€ {{ "%.2f"|format(disp_nos_m) }} <span style="font-size: 11px; color: #6366f1; font-weight: 600;">/mese</span></div>
+        <div class="sk-sub" style="color: #4f46e5;">€ {{ "%.2f"|format(disp_nos_m * 12) }} / anno</div>
+      </div>
+      <div class="sk-card sk-gain">
+        <div class="sk-lbl" style="color: #065f46;">Il Tuo Risparmio Netto</div>
+        <div class="sk-val" style="color: #047857;">€ {{ "%.2f"|format(disp_risp_m) }} <span style="font-size: 11px; color: #059669; font-weight: 700;">/mese</span></div>
+        <div class="sk-sub" style="color: #065f46; font-weight: 800;">€ {{ "%.2f"|format(disp_risp_a) }} / anno ({{ '-' if disp_risp_m >= 0 else '+' }}{{ "%.1f"|format(disp_perc|abs) }}%)</div>
+      </div>
+    </div>
+
+    {% if disp_att_m > 0 and disp_risp_m > 0 %}
+    {% set new_pct = ((disp_nos_m / disp_att_m) * 100) %}
+    {% set new_pct_clamped = 15 if new_pct < 15 else (92 if new_pct > 92 else new_pct) %}
+    <div class="savings-visual-bar-box">
+      <div class="svb-title">
+        <span><i class="bi bi-bar-chart-fill text-primary"></i> Impatto Visivo sulla Tua Spesa Mensile</span>
+        <span style="color: #059669;">Taglio Costi Immediato: -{{ "%.1f"|format(disp_perc|abs) }}%</span>
+      </div>
+      <div class="svb-row">
+        <div class="svb-lbl">Fornitore Attuale</div>
+        <div class="svb-track">
+          <div class="svb-fill-old">€ {{ "%.2f"|format(disp_att_m) }}/mese (100%)</div>
+        </div>
+      </div>
+      <div class="svb-row">
+        <div class="svb-lbl" style="color: #4338ca;">Nostra Proposta</div>
+        <div class="svb-track">
+          <div class="svb-fill-new" style="width: {{ '%.1f'|format(new_pct_clamped) }}%;">€ {{ "%.2f"|format(disp_nos_m) }}/m</div>
+          <div class="svb-fill-saved">RISPARMI € {{ "%.2f"|format(disp_risp_m) }}/m (-{{ "%.1f"|format(disp_perc|abs) }}%)</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
 
     <!-- 4. TABELLA DETTAGLIATA PRODOTTI (SENZA COLONNA LAVORAZIONI) -->
     <table class="print-table">
@@ -769,12 +984,11 @@
           <th class="col-right" style="width: 90px;">Nostra Offerta</th>
           <th class="col-right" style="width: 85px;">Diff. Unit.</th>
           <th class="col-right" style="width: 95px;">Spesa Mese</th>
-          <th class="col-right" style="width: 105px; color: #059669;">Risp. Anno</th>
+          <th class="col-right" style="width: 105px; color: #a7f3d0;">Risp. Anno</th>
           <th class="col-center" style="width: 65px;">%</th>
         </tr>
       </thead>
       <tbody>
-        {% set ns = namespace(tot_vol=0, tot_vol_kg=0, tot_vol_pz=0, tot_att=0, tot_nos=0, tot_risp_m=0) %}
         {% for p in prodotti %}
           {% set vol = p.volume_kg|float(0) %}
           {% set um_p = (p.um or 'kg')|lower %}
@@ -787,23 +1001,13 @@
           {% set risp_a = risp_m * 12 %}
           {% set perc = ((diff / pa) * 100) if pa > 0 else 0 %}
 
-          {% set ns.tot_vol = ns.tot_vol + vol %}
-          {% if um_p == 'pz' %}
-            {% set ns.tot_vol_pz = ns.tot_vol_pz + vol %}
-          {% else %}
-            {% set ns.tot_vol_kg = ns.tot_vol_kg + vol %}
-          {% endif %}
-          {% set ns.tot_att = ns.tot_att + spesa_att %}
-          {% set ns.tot_nos = ns.tot_nos + spesa_nos %}
-          {% set ns.tot_risp_m = ns.tot_risp_m + risp_m %}
-
           <tr>
             <td style="color: #94a3b8; font-weight: 600;">{{ loop.index }}</td>
             <td>
               <strong contenteditable="true" data-prod-nome-idx="{{ loop.index0 }}">{{ p.nome }}</strong>
               {% if p.codice %}<br><small style="color: #64748b; font-family: monospace;">{{ p.codice }}</small>{% endif %}
               {% if p.nota %}
-                <div class="product-note-print" contenteditable="true" data-prod-nota-idx="{{ loop.index0 }}" title="Clicca per modificare la nota prodotto">{{ p.nota }}</div>
+                <div class="product-note-print" contenteditable="true" data-prod-nota-idx="{{ loop.index0 }}" title="Clicca per modificare la nota prodotto">📦 {{ p.nota }}</div>
               {% endif %}
             </td>
             <td class="col-right font-monospace">{{ ("%.0f"|format(vol) if um_p == 'pz' else "%.1f"|format(vol)) ~ " " ~ um_p if vol > 0 else "-" }}</td>
@@ -1076,7 +1280,7 @@
       document.querySelectorAll("[data-prod-nota-idx]").forEach((el) => {
         const idx = parseInt(el.getAttribute("data-prod-nota-idx"), 10);
         if (existingProducts[idx]) {
-          existingProducts[idx].nota = el.textContent.trim();
+          existingProducts[idx].nota = el.textContent.replace(/^📦\s*/, "").trim();
         }
       });
 
@@ -1198,16 +1402,34 @@
           try { await document.fonts.ready; } catch(e) {}
         }
 
-        // Failsafe: se html2canvas si blocca per più di 5 secondi (es. problemi CORS su immagini esterne), avvia subito il download dal server
+        // Failsafe: se html2canvas si blocca per più di 10 secondi (es. problemi CORS su immagini esterne), avvia il download dal server
         failsafeTimer = setTimeout(() => {
           console.warn("Failsafe: html2canvas ha impiegato troppo tempo, avvio download diretto dal server...");
           element.style.boxShadow = prevShadow;
           element.style.borderRadius = prevRadius;
           if (compId) avviaDownloadPdfServer(callback);
-        }, 5000);
+        }, 10000);
+
+        // Misura i blocchi atomici PRIMA di catturare il canvas per non tagliare mai righe/box a metà
+        const sheetRect = element.getBoundingClientRect();
+        const sheetScrollH = Math.max(element.scrollHeight, sheetRect.height, 1);
+        const atomicEls = element.querySelectorAll(
+          ".sheet-accent-top, .header-box, .client-card, .savings-hero-box, .savings-kpi-strip, .savings-visual-bar-box, table.print-table thead tr, table.print-table tbody tr, table.print-table tfoot tr, .terms-box, .signatures-row, .footer-note-box"
+        );
+        const atomicBoxesDom = [];
+        atomicEls.forEach((el) => {
+          const style = window.getComputedStyle(el);
+          if (style.display === "none") return;
+          const r = el.getBoundingClientRect();
+          if (r.height <= 0) return;
+          atomicBoxesDom.push({
+            top: r.top - sheetRect.top,
+            bottom: r.bottom - sheetRect.top
+          });
+        });
 
         const canvas = await html2canvas(element, {
-          scale: 2,
+          scale: 2.2,
           useCORS: true,
           allowTaint: false,
           backgroundColor: "#ffffff",
@@ -1223,7 +1445,6 @@
           throw new Error("Canvas nullo");
         }
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.98);
         const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDFClass) {
           throw new Error("jsPDF non disponibile");
@@ -1237,20 +1458,50 @@
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const margin = 8;
-        const printWidth = pdfWidth - (margin * 2);
-        const printHeight = (canvas.height * printWidth) / canvas.width;
+        const printWidthMm = pdfWidth - (margin * 2);
+        const usableHeightMm = pdfHeight - (margin * 2);
+        const maxSlicePx = Math.max(200, Math.floor((usableHeightMm / printWidthMm) * canvas.width));
+        const scaleY = canvas.height / sheetScrollH;
+        const atomicBoxesPx = atomicBoxesDom.map(b => ({
+          top: Math.max(0, Math.floor(b.top * scaleY)),
+          bottom: Math.min(canvas.height, Math.ceil(b.bottom * scaleY))
+        }));
 
-        let heightLeft = printHeight;
-        let position = margin;
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        const pageCtx = pageCanvas.getContext("2d");
 
-        pdf.addImage(imgData, "JPEG", margin, position, printWidth, printHeight, undefined, "FAST");
-        heightLeft -= (pdfHeight - (margin * 2));
+        let curY = 0;
+        let pageIdx = 0;
+        while (curY < canvas.height) {
+          let targetEnd = Math.min(canvas.height, curY + maxSlicePx);
+          if (targetEnd < canvas.height) {
+            // Se un blocco atomico attraversa targetEnd, anticipa il taglio prima dell'inizio di quel blocco
+            for (let i = 0; i < atomicBoxesPx.length; i++) {
+              const b = atomicBoxesPx[i];
+              if (b.top > curY + 24 && b.top < targetEnd && b.bottom > targetEnd) {
+                const candidate = Math.floor(b.top - 2);
+                if (candidate > curY + 40 && candidate < targetEnd) {
+                  targetEnd = candidate;
+                }
+              }
+            }
+          }
 
-        while (heightLeft > 0) {
-          position = heightLeft - printHeight + margin;
-          pdf.addPage();
-          pdf.addImage(imgData, "JPEG", margin, position, printWidth, printHeight, undefined, "FAST");
-          heightLeft -= (pdfHeight - (margin * 2));
+          const sliceH = Math.max(1, targetEnd - curY);
+          pageCanvas.height = sliceH;
+          pageCtx.fillStyle = "#ffffff";
+          pageCtx.fillRect(0, 0, pageCanvas.width, sliceH);
+          pageCtx.drawImage(canvas, 0, curY, canvas.width, sliceH, 0, 0, pageCanvas.width, sliceH);
+
+          const sliceImgData = pageCanvas.toDataURL("image/jpeg", 0.96);
+          const sliceHeightMm = (sliceH * printWidthMm) / canvas.width;
+          if (pageIdx > 0) pdf.addPage();
+          pdf.addImage(sliceImgData, "JPEG", margin, margin, printWidthMm, sliceHeightMm, undefined, "FAST");
+
+          curY = targetEnd;
+          pageIdx++;
+          if (pageIdx > 40) break;
         }
 
         pdf.save(filename);
@@ -1276,10 +1527,10 @@
       }
     }
 
-    function generaEScaricaPdf(callback) {
-      if (compId) {
+    function generaEScaricaPdf(callback, skipSave) {
+      if (compId && !skipSave) {
         saveEditsToServer(null, () => {
-          avviaDownloadPdfServer(callback);
+          generaCanvasPdfGrafico(callback);
         });
       } else {
         generaCanvasPdfGrafico(callback);
@@ -1321,15 +1572,15 @@
           generaEScaricaPdf(() => {
             if (banner) {
               banner.style.background = "#059669";
-              banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF scaricato sul tuo computer!`;
+              banner.innerHTML = `<i class="bi bi-check-circle-fill"></i> Preventivo PDF Grafico scaricato!`;
               setTimeout(() => {
                 banner.style.transition = "opacity 0.4s ease";
                 banner.style.opacity = "0";
                 setTimeout(() => banner.remove(), 400);
               }, 3000);
             }
-          });
-        }, 300);
+          }, true);
+        }, 350);
       };
 
       if (document.readyState === "complete") {

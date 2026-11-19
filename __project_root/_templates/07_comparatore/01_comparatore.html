@@ -324,6 +324,7 @@
           <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
             <li><a class="dropdown-item py-2" href="#" id="btnCaricaPdfDropdown"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Carica PDF Prodotti</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnApriStampaFoglio"><i class="bi bi-eye text-primary me-2"></i>Anteprima &amp; Modifica Foglio</a></li>
+            <li><a class="dropdown-item py-2" href="#" id="btnScaricaPdfLeggero"><i class="bi bi-file-earmark-pdf text-secondary me-2"></i>Scarica PDF Vettoriale Leggero</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnEsportaCsv"><i class="bi bi-file-earmark-spreadsheet-fill text-success me-2"></i>Esporta Excel / CSV</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnCaricaEsempio"><i class="bi bi-magic text-warning me-2"></i>Carica Prodotti d'Esempio</a></li>
             <li><a class="dropdown-item py-2" href="#" id="btnNuovaComparazione"><i class="bi bi-plus-circle text-primary me-2"></i>Nuovo Prospetto Vuoto</a></li>
@@ -2663,22 +2664,43 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ========================================================
-  // GENERAZIONE & DOWNLOAD DIRETTO PREVENTIVO PDF (VETTORIALE) + EXCEL/CSV
+  // GENERAZIONE & DOWNLOAD DIRETTO PREVENTIVO PDF (GRAFICO + LEGGERO) + EXCEL/CSV
   // ========================================================
-  function scaricaPreventivoPdf(btnElement) {
-    if (!prodottiState || prodottiState.length === 0) {
-      alert("Aggiungi almeno un prodotto alla comparazione prima di scaricare il preventivo PDF.");
-      return;
+  async function avviaDownloadPdfLeggeroDaUrl(compIdToUse, ripristinaBottone) {
+    try {
+      const pdfResp = await fetch(`/comparatore/scarica_pdf/${compIdToUse}`, { credentials: "same-origin" });
+      const contentType = pdfResp.headers.get("content-type") || "";
+      if (!pdfResp.ok || !contentType.includes("pdf")) {
+        throw new Error("Risposta PDF non valida");
+      }
+      const blob = await pdfResp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const clienteClean = (getClientName() || "Cliente").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `Preventivo_Leggero_${clienteClean}_${dateStr}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      }, 1200);
+      if (ripristinaBottone) {
+        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
+      }
+      showToastNotification("PDF Vettoriale Leggero scaricato sul dispositivo!");
+    } catch (err) {
+      console.warn("Download fetch fallback:", err);
+      if (ripristinaBottone) {
+        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Avviato!`);
+      }
+      window.location.href = `/comparatore/scarica_pdf/${compIdToUse}`;
     }
+  }
 
-    const originalHtml = btnElement ? btnElement.innerHTML : null;
-    if (btnElement) {
-      btnElement.disabled = true;
-      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Generazione PDF...`;
-    }
-    showToastNotification("Salvataggio offerta e download del Preventivo PDF in corso...");
-
-    const ripristinaBottone = (okHtml) => {
+  function creaRipristinaBottone(btnElement, originalHtml) {
+    return (okHtml) => {
       if (!btnElement) return;
       if (okHtml) {
         btnElement.innerHTML = okHtml;
@@ -2691,6 +2713,27 @@ document.addEventListener("DOMContentLoaded", () => {
         btnElement.innerHTML = originalHtml;
       }
     };
+  }
+
+  function scaricaPreventivoPdf(btnElement, modalita = "grafico") {
+    if (!prodottiState || prodottiState.length === 0) {
+      alert("Aggiungi almeno un prodotto alla comparazione prima di scaricare il preventivo PDF.");
+      return;
+    }
+
+    const originalHtml = btnElement ? btnElement.innerHTML : null;
+    if (btnElement) {
+      btnElement.disabled = true;
+      const labelSpinner = modalita === "leggero" ? "Generazione PDF Leggero..." : "Generazione PDF Grafico...";
+      btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> ${labelSpinner}`;
+    }
+    showToastNotification(
+      modalita === "leggero"
+        ? "Salvataggio offerta e download PDF Leggero in corso..."
+        : "Salvataggio offerta e preparazione Preventivo PDF Grafico..."
+    );
+
+    const ripristinaBottone = creaRipristinaBottone(btnElement, originalHtml);
 
     salvaComparazione(async (res) => {
       const compIdToUse = (res && res.id) || currentComparisonId;
@@ -2703,32 +2746,66 @@ document.addEventListener("DOMContentLoaded", () => {
       syncUrlWithState();
       saveDraftToStorage();
 
-      try {
-        const pdfResp = await fetch(`/comparatore/scarica_pdf/${compIdToUse}`, { credentials: "same-origin" });
-        const contentType = pdfResp.headers.get("content-type") || "";
-        if (!pdfResp.ok || !contentType.includes("pdf")) {
-          throw new Error("Risposta PDF non valida");
-        }
-        const blob = await pdfResp.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const clienteClean = (getClientName() || "Cliente").replace(/[^a-zA-Z0-9_\-]/g, "_");
-        const dateStr = new Date().toISOString().slice(0, 10);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = `Preventivo_${clienteClean}_${dateStr}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          a.remove();
-          URL.revokeObjectURL(blobUrl);
-        }, 1200);
-        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
-        showToastNotification("Preventivo PDF scaricato sul dispositivo!");
-      } catch (err) {
-        console.warn("Download fetch fallback:", err);
-        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Avviato!`);
-        window.location.href = `/comparatore/scarica_pdf/${compIdToUse}`;
+      if (modalita === "leggero") {
+        await avviaDownloadPdfLeggeroDaUrl(compIdToUse, ripristinaBottone);
+        return;
       }
+
+      const stampaUrl = `/comparatore/stampa/${compIdToUse}?download=1`;
+      const isDesktop = (window.innerWidth || 1024) >= 768;
+
+      if (!isDesktop) {
+        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Apertura PDF...`);
+        window.location.href = stampaUrl;
+        return;
+      }
+
+      // Desktop: generazione grafica off-screen via iframe senza popup bloccati
+      let completed = false;
+      let failsafeTimer = null;
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-9999px";
+      iframe.style.top = "0";
+      iframe.style.width = "1024px";
+      iframe.style.height = "1400px";
+      iframe.style.border = "0";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.setAttribute("aria-hidden", "true");
+
+      const cleanup = () => {
+        if (failsafeTimer) {
+          clearTimeout(failsafeTimer);
+          failsafeTimer = null;
+        }
+        window.removeEventListener("message", onMessage);
+        setTimeout(() => {
+          try { iframe.remove(); } catch (e) {}
+        }, 600);
+      };
+
+      const onMessage = (event) => {
+        if (completed) return;
+        if (event.origin && window.location.origin && event.origin !== window.location.origin) return;
+        if (event.data && event.data.type === "PDF_DOWNLOAD_COMPLETE") {
+          completed = true;
+          cleanup();
+          ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> PDF Scaricato!`);
+          showToastNotification("Preventivo PDF Grafico scaricato sul dispositivo!");
+        }
+      };
+
+      window.addEventListener("message", onMessage);
+      failsafeTimer = setTimeout(() => {
+        if (completed) return;
+        completed = true;
+        cleanup();
+        ripristinaBottone(`<i class="bi bi-check-circle-fill text-success me-2"></i> Completato!`);
+      }, 15000);
+
+      iframe.src = stampaUrl;
+      document.body.appendChild(iframe);
     });
   }
 
@@ -2805,7 +2882,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnGeneraPdf = document.getElementById("btnGeneraPreventivoPdf");
   if (btnGeneraPdf) {
     btnGeneraPdf.addEventListener("click", function() {
-      scaricaPreventivoPdf(this);
+      scaricaPreventivoPdf(this, "grafico");
     });
   }
 
@@ -2813,9 +2890,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStampaPdf = document.getElementById("btnStampaPdf");
   if (btnStampaPdf) {
     btnStampaPdf.addEventListener("click", function() {
-      scaricaPreventivoPdf(this);
+      scaricaPreventivoPdf(this, "grafico");
     });
   }
+
+  // Click su Scarica PDF Vettoriale Leggero (nel menu a tendina "Altro")
+  document.getElementById("btnScaricaPdfLeggero")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    scaricaPreventivoPdf(btnStampaPdf || null, "leggero");
+  });
 
   // Click su Anteprima & Modifica Foglio (nel menu a tendina "Altro")
   const btnApriStampa = document.getElementById("btnApriStampaFoglio");
