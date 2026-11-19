@@ -637,13 +637,12 @@
               </button>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
-              <select id="safariTargetCatSelect" class="form-select form-select-sm" style="width: 220px;">
-                <option value="">✨ Usa categorie estratte da Pregis</option>
+              <select id="safariTargetCatSelect" class="form-select form-select-sm" style="width: 265px;">
+                <option value="">✨ Classificazione automatica (6 categorie)</option>
                 {% for c in categorie %}
-                <option value="{{ c.id }}">Forza in: {{ c.nome }}</option>
+                <option value="{{ c.id }}">Forza tutti in: {{ c.nome }}</option>
                 {% endfor %}
               </select>
-              <input type="text" id="safariNewCatInput" class="form-control form-control-sm" style="width: 170px;" placeholder="O nuova categoria...">
             </div>
           </div>
 
@@ -1227,7 +1226,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const safariPreviewTbody = document.getElementById('safariPreviewTbody');
   const safariPreviewCaption = document.getElementById('safariPreviewCaption');
   const safariTargetCatSelect = document.getElementById('safariTargetCatSelect');
-  const safariNewCatInput = document.getElementById('safariNewCatInput');
 
   let analyzedCatalogProducts = [];
   let analyzedStats = null;
@@ -1387,32 +1385,70 @@ document.addEventListener('DOMContentLoaded', () => {
     return "";
   }
 
+  const CANONICAL_CATS = ["ALIMENTARI", "CARNE FRESCA", "CARNE GELO", "ITTICO FRESCO", "ITTICO GELO", "NO FOOD"];
+  const NO_FOOD_RE = /\\b(PIZZABOX|PULITUTTO|DETERSIV[OI]|DETERGENT[EI]|SGRASSATOR[EI]|IGIENIZZANT[EI]|DISINFETTANT[EI]|SAPONE|SHAMPOO|BAGNOSCHIUMA|PELLICOLA|CARTA FORNO|ALLUMINIO ROTOLO|ROTOLO ALLUMINIO|TOVAGLIOL[OI]|TOVAGLI[AE]|GUANTI|SACCHI IMMONDIZIA|SACCO NERO|STUZZICADENT[EI]|CANNUCC[E]|POSATE PL|BICCHIER[EI] PL|PIATTI PL|BOBINA CARTA|ASCIUGAMANI CARTA|CARTA IGIENICA|SPUGN[AE]|PAGLIETT[AE])\\b/;
+  const EXCL_NON_PROT_RE = /^(RAVIOL|LUNE |TORTELL|CAPPELLETT|AGNOLOTT|GNOCCH|CANNELLON|LASAGN|TAGLIATELL|GARGANELL|SPAGHETT|PENNE |STRIGOL|CALAMARATA|FUSILL|RIGATON|PACCHER|ORECCHIETT|TROFIE|CAVATELL|PASSATELL|CREMA |SUGO |RAGU|PESTO |PIZZA|PINSA|BASE PINSA|BASE PIZZA|FOCACC|PAN CARRE|PANE |PANIN|CROISSANT|BRIOCH|CORNETT|VOL AU VENT|PATAT|MELANZAN|ZUCCHIN|SPINAC|BROCCOL|CICORI|SCAROL|PEPERON|OLIVE|FUNGH|TARTUF|GUACAMOLE|HUMMUS|GEMME POLENTA|GHIACCIO|EGG BITES|FRITTATIN|UOVOLUNGO|CREPES|SEITAN|TOFU|ALGA |MISTO 4 ALGHE|NERO SEPPIA|COLATURA)/;
+  const FISH_CAT_RE = /\\b(SALMON[EI]|SOCKEYE|TONNO|SPADA|MARLIN|MERLUZZ[OI]|MELU|BACCAL[A']|BACALAO|STOCCAFISS[OI]|MOLVA|ORAT[AE]|BRANZIN[OI]|SPIGOL[AE]|ROMBO|SOGLIOL[AE]|PLATESS[AE]|HALIBUT|PANGASIO|PERSICO|TROT[AE]|ARING[AE]|SARDIN[AE]|SARDE|ALICI|ACCIUG[HE]+|SGOMBR[OI]|GALLINELL[AE]|RICCIOL[AE]|DENTIC[EI]|CERNI[AE]|OMBRIN[AE]|TRIGLI[AE]|PESCATRIC[EI]|ROSPO|GAMBER[OIET]+|MAZZANCOLL[AE]|SCAMP[OI]|ASTIC[EI]|ARAGOST[AE]|GRANCHI[OI]|CALAMAR[OIET]+|TOTAN[OI]|SEPPI[AE]|POLP[OI]|MOSCARDIN[OI]|COZZ[AE]|VONGOL[AE]|OSTRICH[AE]|CAPPASANT[AE]|CAPESANT[AE]|CANNOLICCH[IO]|FRUTTI DI MARE|FRUTTI MARE|INSALATA MARE|INSALATA DI MARE|SURIMI|CAVIALE|STORIONE|BOTTARGA|UOVA LOMPO|UOVA MALLOTTO|UOVA SALMONE|UOVA TROTA|SUSHI|PESCE|ITTIC[OI])\\b/;
+  const MEAT_CAT_RE = /\\b(BOVIN[OI]|BOV\\b|VITELL[OI]|MANZO|SCOTTON[AE]|ANGUS|CHIANIN[AE]|WAGYU|SUIN[OI]|MAIAL[EI]+|MAIALINO|PORCHETTA|PULLED PORK|POLLO|TACCHIN[OI]|GALLIN[AE]|CAPON[EI]|ANATR[AE]|OCA|FARAON[AE]|QUAGLI[AE]|CONIGLI[OI]|AGNELL[OI]|PECOR[AE]|CAPRETT[OI]|CERVO|CINGHIAL[EI]|CAPRIOL[OI]|DAINO|LEPRE|SELVAGGINA|ENTRECOTE|COSTAT[AE]|FIORENTIN[AE]|BRISKET|ROASTBEEF|ROAST BEEF|SCAMONE|PUNTA SOTT|GUANCE|LOMBAT[AE]|ARISTA|LONZA|STINCO|OSSOBUCO|OSSO BUCO|6COSTE|RACK|STRACOTTO ARROSTO|TAGLIATA|HAMBURGER|CHEESEBURGER|BURGER|SVIZZER[AE]|SALSICC[IAE]+|WURSTEL|COTOLETT[AE]|NUGGET[S]?|ARROSTICIN[OI]|SPIEDIN[OI]|POLPETT[AE]|MACINAT[OI]|NOCE PROSCIUTTO CONFIT|TRIPPA|FEGATO|CARNE\\b|CARNI\\b)/;
+
+  function classifyCanonicalCat(rawCat, nome, desc) {
+    const cu = clean(rawCat).toUpperCase();
+    const nu = clean(nome).toUpperCase();
+    const du = clean(desc).toUpperCase();
+    const tu = clean(nu + " " + du);
+    if (CANONICAL_CATS.includes(cu)) return cu;
+    if (["NO FOOD", "DETERGEN", "MATERIALE PER LA TAVOLA", "CONTENITORI", "PULIZIA", "PIZZABOX", "SACCHI IMMONDIZIA", "COSMETICA", "STUZZICADENTI"].some(k => cu.includes(k))) return "NO FOOD";
+    if (cu.includes("CARNE FRESCA") || (cu.includes("FRESCH") && cu.includes("CARN"))) return "CARNE FRESCA";
+    if ((cu.includes("SURGELAT") || cu.includes("GELO") || cu.includes("CONGELAT")) && cu.includes("CARN")) return "CARNE GELO";
+    if (cu.includes("PESCE FRESCO") || cu.includes("ITTICO FRESCO") || (cu.includes("FRESCH") && (cu.includes("PESCE") || cu.includes("ITTIC")))) return "ITTICO FRESCO";
+    if ((cu.includes("SURGELAT") || cu.includes("GELO") || cu.includes("CONGELAT")) && (cu.includes("PESCE") || cu.includes("ITTIC"))) return "ITTICO GELO";
+    if (["ALIMENTARE SECCO", "ORTOFRUTTA", "LATTICINI", "SALUMI", "PASTA FRESCA", "UOVA E DERIVATI", "SALSE FRESCHE", "VERDURA - FRUTTA", "PASTA - PANE - PIZZA", "SURGELATI / DOLCI", "SURGELATI / PATATE"].some(k => cu.includes(k)) || cu === "SECCO") return "ALIMENTARI";
+    if (NO_FOOD_RE.test(nu)) return "NO FOOD";
+    if (EXCL_NON_PROT_RE.test(nu)) return "ALIMENTARI";
+    if (["O.GIR", "O.OLIV", "O.EVO", "IN OLIO", "SOTTO SALE", "C/SALE"].some(k => tu.includes(k))) return "ALIMENTARI";
+    const cleanedN = nu.replace(/\\bS\\/[A-Z]+/g, " ");
+    let isFrozen = false;
+    if (cu.includes("FRESCH")) isFrozen = false;
+    else if (cu.includes("SURGELAT") || cu.includes("GELO") || cu.includes("CONGELAT")) isFrozen = true;
+    else {
+      const hasF = /\\bF\\b|KG[0-9,\\.]+F\\b/.test(cleanedN);
+      const hasCS = /\\b(?:IQF|SURGELAT[OI]|CONGELAT[OI]|GELO|FROZEN|SVC|SVS)\\b/.test(cleanedN) || /\\b(?:KG|GR|PZ|LT|ML)[0-9,\\.\\/\\+\\-\\sX\\(\\)]*\\s+(?:C|S)(?:\\s|$)/.test(cleanedN);
+      isFrozen = hasCS && !hasF;
+    }
+    if (FISH_CAT_RE.test(tu)) return isFrozen ? "ITTICO GELO" : "ITTICO FRESCO";
+    if (MEAT_CAT_RE.test(tu) || cu === "CARNE") return isFrozen ? "CARNE GELO" : "CARNE FRESCA";
+    if (cu.includes("PESCE") || cu.includes("ITTIC")) return isFrozen ? "ITTICO GELO" : "ITTICO FRESCO";
+    return "ALIMENTARI";
+  }
+
   function mergeProduct(rec) {
     if (!rec) return;
     const cod = clean(rec.codice);
     const nom = clean(rec.nome);
     if (!cod && !nom) return;
     const key = cod ? ("C:" + cod.toUpperCase()) : ("N:" + nom.toUpperCase());
+    const descVal = clean(rec.descrizione || nom || cod);
+    const canonCat = classifyCanonicalCat(rec.categoria, nom, descVal);
     const prev = collectedMap.get(key);
     if (!prev) {
       collectedMap.set(key, {
         codice: cod,
         nome: nom || ("Articolo " + cod),
-        descrizione: clean(rec.descrizione || nom || cod),
+        descrizione: descVal,
         immagine: clean(rec.immagine),
         marca: clean(rec.marca),
-        categoria: clean(rec.categoria) || "Catalogo Pregis",
+        categoria: canonCat,
         confezionamento: clean(rec.confezionamento),
         prezzo: (rec.prezzo != null && rec.prezzo !== "" && Number(rec.prezzo) > 0) ? Number(rec.prezzo) : null
       });
     } else {
       if (!prev.codice && cod) prev.codice = cod;
       if ((!prev.nome || prev.nome.startsWith("Articolo ")) && nom) prev.nome = nom;
-      if (clean(rec.descrizione).length > prev.descrizione.length) prev.descrizione = clean(rec.descrizione);
+      if (descVal.length > prev.descrizione.length) prev.descrizione = descVal;
       if (!prev.immagine && rec.immagine && !badImg(rec.immagine)) prev.immagine = clean(rec.immagine);
       if (!prev.marca && rec.marca) prev.marca = clean(rec.marca);
-      if ((!prev.categoria || prev.categoria === "Catalogo Pregis") && rec.categoria && rec.categoria !== "Catalogo Pregis") {
-        prev.categoria = clean(rec.categoria);
+      if (prev.categoria === "ALIMENTARI" && canonCat !== "ALIMENTARI") {
+        prev.categoria = canonCat;
       }
       if (!prev.confezionamento && rec.confezionamento) prev.confezionamento = clean(rec.confezionamento);
       if (prev.prezzo == null && rec.prezzo != null && rec.prezzo !== "" && Number(rec.prezzo) > 0) prev.prezzo = Number(rec.prezzo);
@@ -1430,13 +1466,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const cat1 = maps.G1[String(it.group1Id || "")] || "";
     const cat2 = maps.G2[String(it.group2Id || "")] || "";
     const cat3 = maps.G3[String(it.group3Id || "")] || "";
-    const cat = [cat1, cat2, cat3].filter(Boolean).join(" / ") || fallbackCat || "Catalogo Pregis";
+    const rawCat = [cat1, cat2, cat3].filter(Boolean).join(" / ") || fallbackCat || "";
+    const nome = clean(it.itemDesc || it.itemInfo || cod);
+    const fullDesc = clean([it.itemDesc, it.itemInfo, it.variantDesc].filter(Boolean).join(" — "));
+    const cat = classifyCanonicalCat(rawCat, nome, fullDesc);
     const marca = clean(it.brand || maps.BRAND[String(it.brandId || "")] || it.brandId || "");
     const uv = clean(maps.UV[String(it.baseUnitDescId || "")] || it.baseUnitDescId || "");
     return {
       codice: cod,
-      nome: clean(it.itemDesc || it.itemInfo || cod),
-      descrizione: clean([it.itemDesc, it.itemInfo, it.variantDesc].filter(Boolean).join(" — ")),
+      nome: nome,
+      descrizione: fullDesc,
       immagine: resolveImgList(it.images),
       marca: marca,
       categoria: cat,
@@ -2116,7 +2155,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${p.descrizione && p.descrizione !== p.nome ? `<div class="text-muted" style="font-size:0.72rem; max-width:290px;">${escapeHtml(p.descrizione.slice(0, 120))}</div>` : ""}
           </td>
           <td class="small">${escapeHtml(p.marca || "—")}</td>
-          <td><span class="badge bg-light text-dark border">${escapeHtml(p.categoria || "Catalogo Pregis")}</span></td>
+          <td><span class="badge bg-light text-dark border">${escapeHtml(p.categoria || "ALIMENTARI")}</span></td>
           <td class="small text-muted">${escapeHtml(p.confezionamento || "—")}</td>
           <td class="text-end fw-bold small">${przTxt}</td>
         </tr>
@@ -2201,7 +2240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           prodotti: analyzedCatalogProducts,
           categoria_id: safariTargetCatSelect?.value || "",
-          nuova_categoria: (safariNewCatInput?.value || "").trim()
+          nuova_categoria: ""
         })
       });
       const d = await res.json();

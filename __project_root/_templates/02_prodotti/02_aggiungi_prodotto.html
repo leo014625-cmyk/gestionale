@@ -58,26 +58,18 @@
 
       <!-- Selezione categoria -->
       <div class="mb-3">
-        <label for="categoria" class="form-label fw-bold">Categoria esistente</label>
-        <select id="categoria" name="categoria_id" class="form-select" {% if not categorie %}disabled{% endif %}>
+        <label for="categoria" class="form-label fw-bold">Categoria merceologica <span class="text-danger">*</span></label>
+        <select id="categoria" name="categoria_id" class="form-select" {% if not categorie %}disabled{% endif %} required>
           <option value="" disabled selected>Seleziona categoria</option>
           {% for categoria in categorie %}
             <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
           {% endfor %}
         </select>
-        {% if not categorie %}
-          <div class="form-text text-danger">
-            Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.
-          </div>
-        {% endif %}
-      </div>
-
-      <!-- Nuova categoria -->
-      <div class="mb-3">
-        <label for="nuova_categoria" class="form-label fw-bold">Oppure aggiungi nuova categoria</label>
-        <input type="text" id="nuova_categoria" name="nuova_categoria" class="form-control" placeholder="Nuova categoria">
         <div class="form-text text-muted">
-          Se inserisci una nuova categoria, sarà usata al posto della selezionata.
+          Categorie disponibili: ALIMENTARI, CARNE FRESCA, CARNE GELO, ITTICO FRESCO, ITTICO GELO, NO FOOD.
+        </div>
+        <div class="invalid-feedback">
+          Seleziona una delle 6 categorie ufficiali.
         </div>
       </div>
 

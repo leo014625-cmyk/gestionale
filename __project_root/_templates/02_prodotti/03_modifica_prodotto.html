@@ -85,28 +85,17 @@
 
         {% if not categorie %}
           <div class="form-text text-danger">
-            Nessuna categoria disponibile, inserisci una nuova categoria qui sotto.
+            Nessuna categoria disponibile.
+          </div>
+        {% else %}
+          <div class="form-text text-muted">
+            Categorie ufficiali: ALIMENTARI, CARNE FRESCA, CARNE GELO, ITTICO FRESCO, ITTICO GELO, NO FOOD.
           </div>
         {% endif %}
 
         <div class="invalid-feedback">
           Seleziona una categoria valida.
         </div>
-      </div>
-
-      <!-- Nuova categoria -->
-      <div class="mb-3">
-        <label for="nuova_categoria" class="form-label fw-bold">Oppure aggiungi nuova categoria</label>
-        <input
-          type="text"
-          id="nuova_categoria"
-          name="nuova_categoria"
-          class="form-control"
-          placeholder="Nuova categoria"
-        >
-        <small class="form-text text-muted">
-          Se inserisci una nuova categoria, sarà usata al posto di quella selezionata.
-        </small>
       </div>
 
       <!-- Pulsanti -->

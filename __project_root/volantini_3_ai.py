@@ -24,6 +24,264 @@ _GET_OPENAI_CFG_FN = None
 
 PREGIS_LOGO_URL = "/static/img/logo-pregis-ufficiale.png"
 
+CANONICAL_CATEGORIES = [
+    "ALIMENTARI",
+    "CARNE FRESCA",
+    "CARNE GELO",
+    "ITTICO FRESCO",
+    "ITTICO GELO",
+    "NO FOOD",
+]
+
+CANONICAL_CATEGORY_IMAGES = {
+    "ALIMENTARI": "https://i.imgur.com/UN0wnhM.jpeg",
+    "CARNE FRESCA": "https://i.imgur.com/T2fIyqL.jpeg",
+    "CARNE GELO": "https://i.imgur.com/r7Viwa2.jpeg",
+    "ITTICO FRESCO": "https://i.imgur.com/HCr7BjI.jpeg",
+    "ITTICO GELO": "https://i.imgur.com/qJWi4Yk.jpeg",
+    "NO FOOD": "https://i.imgur.com/ERL6Eqo.jpeg",
+}
+
+_NO_FOOD_RE = re.compile(
+    r"\b(PIZZABOX|PULITUTTO|DETERSIV[OI]|DETERGENT[EI]|SGRASSATOR[EI]|IGIENIZZANT[EI]|"
+    r"DISINFETTANT[EI]|SAPONE|SHAMPOO|BAGNOSCHIUMA|PELLICOLA|CARTA FORNO|"
+    r"ALLUMINIO ROTOLO|ROTOLO ALLUMINIO|TOVAGLIOL[OI]|TOVAGLI[AE]|GUANTI|"
+    r"SACCHI IMMONDIZIA|SACCO NERO|STUZZICADENT[EI]|CANNUCC[E]|POSATE PL|"
+    r"BICCHIER[EI] PL|PIATTI PL|BOBINA CARTA|ASCIUGAMANI CARTA|CARTA IGIENICA|"
+    r"SPUGN[AE]|PAGLIETT[AE])\b"
+)
+
+_EXCLUDED_NON_PROTEIN_RE = re.compile(
+    r"^(RAVIOL|LUNE |TORTELL|CAPPELLETT|AGNOLOTT|GNOCCH|CANNELLON|LASAGN|TAGLIATELL|"
+    r"GARGANELL|SPAGHETT|PENNE |STRIGOL|CALAMARATA|FUSILL|RIGATON|PACCHER|ORECCHIETT|"
+    r"TROFIE|CAVATELL|PASSATELL|CREMA |SUGO |RAGU|PESTO |PIZZA|PINSA|BASE PINSA|"
+    r"BASE PIZZA|FOCACC|PAN CARRE|PANE |PANIN|CROISSANT|BRIOCH|CORNETT|VOL AU VENT|"
+    r"PATAT|MELANZAN|ZUCCHIN|SPINAC|BROCCOL|CICORI|SCAROL|PEPERON|OLIVE|FUNGH|TARTUF|"
+    r"GUACAMOLE|HUMMUS|GEMME POLENTA|GHIACCIO|EGG BITES|FRITTATIN|UOVOLUNGO|CREPES|"
+    r"SEITAN|TOFU|ALGA |MISTO 4 ALGHE|NERO SEPPIA|COLATURA)"
+)
+
+_FISH_RE = re.compile(
+    r"\b(SALMON[EI]|SOCKEYE|TONNO|SPADA|MARLIN|MERLUZZ[OI]|MELU|BACCAL[A']|BACALAO|"
+    r"STOCCAFISS[OI]|MOLVA|ORAT[AE]|BRANZIN[OI]|SPIGOL[AE]|ROMBO|SOGLIOL[AE]|PLATESS[AE]|"
+    r"HALIBUT|PANGASIO|PERSICO|TROT[AE]|ARING[AE]|SARDIN[AE]|SARDE|ALICI|ACCIUG[HE]+|"
+    r"SGOMBR[OI]|GALLINELL[AE]|RICCIOL[AE]|DENTIC[EI]|CERNI[AE]|OMBRIN[AE]|TRIGLI[AE]|"
+    r"PESCATRIC[EI]|ROSPO|GAMBER[OIET]+|MAZZANCOLL[AE]|SCAMP[OI]|ASTIC[EI]|ARAGOST[AE]|"
+    r"GRANCHI[OI]|CALAMAR[OIET]+|TOTAN[OI]|SEPPI[AE]|POLP[OI]|MOSCARDIN[OI]|COZZ[AE]|"
+    r"VONGOL[AE]|OSTRICH[AE]|CAPPASANT[AE]|CAPESANT[AE]|CANNOLICCH[IO]|FRUTTI DI MARE|"
+    r"FRUTTI MARE|INSALATA MARE|INSALATA DI MARE|SURIMI|CAVIALE|STORIONE|BOTTARGA|"
+    r"UOVA LOMPO|UOVA MALLOTTO|UOVA SALMONE|UOVA TROTA|SUSHI|PESCE|ITTIC[OI])\b"
+)
+
+_MEAT_RE = re.compile(
+    r"\b(BOVIN[OI]|BOV\b|VITELL[OI]|MANZO|SCOTTON[AE]|ANGUS|CHIANIN[AE]|WAGYU|"
+    r"SUIN[OI]|MAIAL[EI]+|MAIALINO|PORCHETTA|PULLED PORK|POLLO|TACCHIN[OI]|GALLIN[AE]|"
+    r"CAPON[EI]|ANATR[AE]|OCA|FARAON[AE]|QUAGLI[AE]|CONIGLI[OI]|AGNELL[OI]|PECOR[AE]|"
+    r"CAPRETT[OI]|CERVO|CINGHIAL[EI]|CAPRIOL[OI]|DAINO|LEPRE|SELVAGGINA|ENTRECOTE|"
+    r"COSTAT[AE]|FIORENTIN[AE]|BRISKET|ROASTBEEF|ROAST BEEF|SCAMONE|PUNTA SOTT|GUANCE|"
+    r"LOMBAT[AE]|ARISTA|LONZA|STINCO|OSSOBUCO|OSSO BUCO|6COSTE|RACK|STRACOTTO ARROSTO|"
+    r"TAGLIATA|HAMBURGER|CHEESEBURGER|BURGER|SVIZZER[AE]|SALSICC[IAE]+|WURSTEL|"
+    r"COTOLETT[AE]|NUGGET[S]?|ARROSTICIN[OI]|SPIEDIN[OI]|POLPETT[AE]|MACINAT[OI]|"
+    r"NOCE PROSCIUTTO CONFIT|TRIPPA|FEGATO|CARNE\b|CARNI\b)"
+)
+
+
+def classify_canonical_category(raw_cat: str = "", nome: str = "", descrizione: str = "") -> str:
+    """Mappa in modo deterministico qualsiasi prodotto/categoria Pregis in una delle 6 categorie ufficiali."""
+    cat_u = re.sub(r"\s+", " ", (raw_cat or "")).strip().upper()
+    nome_u = re.sub(r"\s+", " ", (nome or "")).strip().upper()
+    desc_u = re.sub(r"\s+", " ", (descrizione or "")).strip().upper()
+    text_u = f"{nome_u} {desc_u}".strip()
+
+    if cat_u in CANONICAL_CATEGORIES:
+        return cat_u
+
+    # 1. Mappatura diretta dalle macro/sotto-categorie Pregis e alias storici
+    if any(k in cat_u for k in (
+        "NO FOOD", "DETERGEN", "MATERIALE PER LA TAVOLA", "CONTENITORI",
+        "PULIZIA", "PIZZABOX", "SACCHI IMMONDIZIA", "COSMETICA", "STUZZICADENTI"
+    )):
+        return "NO FOOD"
+
+    if "CARNE FRESCA" in cat_u or ("FRESCH" in cat_u and "CARN" in cat_u):
+        return "CARNE FRESCA"
+    if ("SURGELAT" in cat_u or "GELO" in cat_u or "CONGELAT" in cat_u) and "CARN" in cat_u:
+        return "CARNE GELO"
+    if "PESCE FRESCO" in cat_u or "ITTICO FRESCO" in cat_u or ("FRESCH" in cat_u and ("PESCE" in cat_u or "ITTIC" in cat_u)):
+        return "ITTICO FRESCO"
+    if ("SURGELAT" in cat_u or "GELO" in cat_u or "CONGELAT" in cat_u) and ("PESCE" in cat_u or "ITTIC" in cat_u):
+        return "ITTICO GELO"
+
+    if any(k in cat_u for k in (
+        "ALIMENTARE SECCO", "ORTOFRUTTA", "LATTICINI", "SALUMI",
+        "PASTA FRESCA", "UOVA E DERIVATI", "SALSE FRESCHE",
+        "VERDURA - FRUTTA", "PASTA - PANE - PIZZA", "SURGELATI / DOLCI",
+        "SURGELATI / PATATE", "SALUMI E LATTICINI", "DISPENSA", "BEVANDE",
+        "DOLCI E DESSERT", "ORTOFRUTTA E VERDURE"
+    )) or cat_u == "SECCO":
+        return "ALIMENTARI"
+
+    # 2. Prodotti non-food senza categoria esplicita
+    if _NO_FOOD_RE.search(nome_u):
+        return "NO FOOD"
+
+    # 3. Esclusioni esplicite per piatti pronti, pasta, salse, panificati, vegetali e conserve sottolio
+    if _EXCLUDED_NON_PROTEIN_RE.search(nome_u):
+        return "ALIMENTARI"
+    if any(k in text_u for k in ("O.GIR", "O.OLIV", "O.EVO", "IN OLIO", "SOTTO SALE", "C/SALE")):
+        return "ALIMENTARI"
+
+    # 3. Rilevamento fresco vs gelo (rimuove S/V = sottovuoto prima di cercare flag C/S)
+    cleaned_n = re.sub(r"\bS/[A-Z]+", " ", nome_u)
+    if "FRESCH" in cat_u:
+        is_frozen = False
+    elif any(k in cat_u for k in ("SURGELAT", "GELO", "CONGELAT")):
+        is_frozen = True
+    else:
+        has_fresh_flag = bool(re.search(r"\bF\b|KG[0-9,\.]+F\b", cleaned_n))
+        has_frozen_flag = bool(
+            re.search(r"\b(?:IQF|SURGELAT[OI]|CONGELAT[OI]|GELO|FROZEN|SVC|SVS)\b", cleaned_n)
+            or re.search(r"\b(?:KG|GR|PZ|LT|ML)[0-9,\./\+\-\sX\(\)]*\s+(?:C|S)(?:\s|$)", cleaned_n)
+        )
+        is_frozen = has_frozen_flag and not has_fresh_flag
+
+    if _FISH_RE.search(text_u):
+        return "ITTICO GELO" if is_frozen else "ITTICO FRESCO"
+    if _MEAT_RE.search(text_u) or cat_u == "CARNE":
+        return "CARNE GELO" if is_frozen else "CARNE FRESCA"
+    if "PESCE" in cat_u or "ITTIC" in cat_u:
+        return "ITTICO GELO" if is_frozen else "ITTICO FRESCO"
+
+    return "ALIMENTARI"
+
+
+def sync_canonical_categories(conn) -> dict:
+    """
+    Garantisce che nella tabella categorie esistano SOLO le 6 categorie ufficiali,
+    riclassificando i prodotti orfani/non canonici e rimuovendo le categorie extra.
+    """
+    cur = conn.cursor()
+    is_sqlite = hasattr(cur, "_cursor")
+
+    # Assicura presenza colonna immagine su categorie (SQLite o DB minimali)
+    try:
+        if is_sqlite:
+            cur.execute("PRAGMA table_info(categorie)")
+            cat_cols = {str(r.get("name") or "").lower() for r in cur.fetchall()}
+            if "immagine" not in cat_cols:
+                cur.execute("ALTER TABLE categorie ADD COLUMN immagine TEXT")
+                conn.commit()
+        else:
+            cur.execute("ALTER TABLE categorie ADD COLUMN IF NOT EXISTS immagine TEXT")
+            conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    cur.execute("SELECT id, nome, immagine FROM categorie ORDER BY id ASC")
+    all_cat_rows = [dict(r) for r in (cur.fetchall() or [])]
+    cat_name_by_id = {int(r["id"]): str(r.get("nome") or "") for r in all_cat_rows}
+
+    canonical_map = {}
+    canonical_rows_by_upper = {}
+    for r in all_cat_rows:
+        up = str(r.get("nome") or "").strip().upper()
+        if up in CANONICAL_CATEGORIES and up not in canonical_rows_by_upper:
+            canonical_rows_by_upper[up] = r
+
+    for canon_name in CANONICAL_CATEGORIES:
+        default_img = CANONICAL_CATEGORY_IMAGES.get(canon_name)
+        existing = canonical_rows_by_upper.get(canon_name)
+        if existing:
+            cid = int(existing["id"])
+            canonical_map[canon_name] = cid
+            curr_nome = str(existing.get("nome") or "")
+            curr_img = (existing.get("immagine") or "").strip()
+            if curr_nome != canon_name or (not curr_img and default_img):
+                new_img = curr_img or default_img
+                cur.execute("UPDATE categorie SET nome = %s, immagine = %s WHERE id = %s", (canon_name, new_img, cid))
+        else:
+            cur.execute(
+                "INSERT INTO categorie (nome, immagine) VALUES (%s, %s) RETURNING id",
+                (canon_name, default_img),
+            )
+            row_ins = cur.fetchone()
+            new_cid = (row_ins["id"] if isinstance(row_ins, dict) else row_ins[0]) if row_ins else getattr(cur, "lastrowid", None)
+            canonical_map[canon_name] = int(new_cid)
+
+    canonical_ids = set(canonical_map.values())
+
+    # Rileva se esiste la colonna legacy id_categoria su prodotti
+    has_id_categoria = False
+    try:
+        if is_sqlite:
+            cur.execute("PRAGMA table_info(prodotti)")
+            p_cols = {str(r.get("name") or "").lower() for r in cur.fetchall()}
+            has_id_categoria = "id_categoria" in p_cols
+        else:
+            cur.execute(
+                "SELECT 1 FROM information_schema.columns WHERE table_name = 'prodotti' AND column_name = 'id_categoria' LIMIT 1"
+            )
+            has_id_categoria = bool(cur.fetchone())
+    except Exception:
+        has_id_categoria = False
+
+    # Riclassifica in blocco i prodotti con categoria_id NULL o non canonico
+    select_cols = "id, nome, descrizione, categoria_id" + (", id_categoria" if has_id_categoria else "")
+    cur.execute(f"SELECT {select_cols} FROM prodotti")
+    updates_by_cid = {cid: [] for cid in canonical_ids}
+    fix_legacy_only = []
+
+    for p in (cur.fetchall() or []):
+        pid = int(p["id"])
+        cid = p.get("categoria_id")
+        legacy_cid = p.get("id_categoria") if has_id_categoria else None
+
+        needs_reclassify = (cid is None) or (int(cid) not in canonical_ids)
+        if needs_reclassify:
+            raw_cat = ""
+            if cid is not None and int(cid) in cat_name_by_id:
+                raw_cat = cat_name_by_id[int(cid)]
+            elif legacy_cid is not None and int(legacy_cid) in cat_name_by_id:
+                raw_cat = cat_name_by_id[int(legacy_cid)]
+            canon_name = classify_canonical_category(raw_cat, p.get("nome") or "", p.get("descrizione") or "")
+            updates_by_cid[canonical_map[canon_name]].append(pid)
+        elif has_id_categoria and legacy_cid is not None and int(legacy_cid) not in canonical_ids:
+            fix_legacy_only.append(pid)
+
+    for target_cid, pids in updates_by_cid.items():
+        if not pids:
+            continue
+        for i in range(0, len(pids), 500):
+            chunk = pids[i:i + 500]
+            ph = ", ".join(["%s"] * len(chunk))
+            if has_id_categoria:
+                cur.execute(
+                    f"UPDATE prodotti SET categoria_id = %s, id_categoria = %s WHERE id IN ({ph})",
+                    [target_cid, target_cid] + chunk,
+                )
+            else:
+                cur.execute(
+                    f"UPDATE prodotti SET categoria_id = %s WHERE id IN ({ph})",
+                    [target_cid] + chunk,
+                )
+
+    if fix_legacy_only:
+        for i in range(0, len(fix_legacy_only), 500):
+            chunk = fix_legacy_only[i:i + 500]
+            ph = ", ".join(["%s"] * len(chunk))
+            cur.execute(f"UPDATE prodotti SET id_categoria = categoria_id WHERE id IN ({ph})", chunk)
+
+    # Rimuove tutte le categorie non canoniche
+    canon_id_list = sorted(canonical_ids)
+    ph_keep = ", ".join(["%s"] * len(canon_id_list))
+    cur.execute(f"DELETE FROM categorie WHERE id NOT IN ({ph_keep})", canon_id_list)
+
+    conn.commit()
+    return canonical_map
+
 
 def _ensure_volantini3_table(cur):
     """Assicura l'esistenza della tabella volantini_3_ai anche se il boot era in fallback SQLite."""
@@ -94,6 +352,7 @@ def init_volantini_3(app, get_db_fn, extract_pdf_fn, get_openai_cfg_fn=None):
             cur = conn.cursor()
             _ensure_volantini3_table(cur)
             _ensure_prodotti_catalog_columns(conn)
+            sync_canonical_categories(conn)
             conn.commit()
     except Exception as e:
         print(f"⚠️ init_volantini_3 table warning: {e}")
@@ -1197,13 +1456,14 @@ def _verify_and_clean_products(raw_items: list) -> dict:
                 warnings.append(f"Codice {codice}: nome prodotto non rilevato nella pagina.")
 
         key = f"C:{codice.upper()}" if codice else f"N:{nome.upper()}"
+        norm_cat = classify_canonical_category(categoria, nome, descrizione)
         clean_rec = {
             "codice": codice,
             "nome": nome,
             "descrizione": descrizione or nome,
             "immagine": immagine,
             "marca": marca,
-            "categoria": categoria or "Catalogo Pregis",
+            "categoria": norm_cat,
             "confezionamento": confezionamento,
             "prezzo": prezzo
         }
@@ -1222,7 +1482,7 @@ def _verify_and_clean_products(raw_items: list) -> dict:
                 prev["confezionamento"] = clean_rec["confezionamento"]
             if prev["prezzo"] is None and clean_rec["prezzo"] is not None:
                 prev["prezzo"] = clean_rec["prezzo"]
-            if (not prev["categoria"] or prev["categoria"] == "Catalogo Pregis") and clean_rec["categoria"]:
+            if prev["categoria"] == "ALIMENTARI" and clean_rec["categoria"] != "ALIMENTARI":
                 prev["categoria"] = clean_rec["categoria"]
         else:
             dedup[key] = clean_rec
@@ -1314,7 +1574,8 @@ def _map_pregis_onsales_item(raw_it: dict, lookups: dict, cat_label: str = "") -
     g1_lbl = (lookups.get("G1") or {}).get(str(raw_it.get("group1Id") or "")) or ""
     g2_lbl = (lookups.get("G2") or {}).get(str(raw_it.get("group2Id") or "")) or ""
     g3_lbl = (lookups.get("G3") or {}).get(str(raw_it.get("group3Id") or "")) or ""
-    it_cat = " / ".join([x for x in (g1_lbl, g2_lbl, g3_lbl) if x]) or cat_label or "Catalogo Pregis"
+    raw_cat = " / ".join([x for x in (g1_lbl, g2_lbl, g3_lbl) if x]) or cat_label
+    it_cat = classify_canonical_category(raw_cat, nome, full_desc)
 
     uv_map = lookups.get("UV") or {}
     uv_code = str(raw_it.get("baseUnitDescId") or "").strip()
@@ -1948,39 +2209,24 @@ def api_catalogo_importa_pregis_confermato():
 
     inseriti = 0
     aggiornati = 0
-    categorie_create = 0
 
     try:
         with _GET_DB() as conn:
             _ensure_prodotti_catalog_columns(conn)
+            canonical_map = sync_canonical_categories(conn)
+            canonical_ids = set(canonical_map.values())
             cur = conn.cursor()
 
-            # Cache categorie esistenti
-            cur.execute("SELECT id, nome FROM categorie")
-            cat_cache = {str(r["nome"]).strip().lower(): r["id"] for r in cur.fetchall()}
-
-            def get_or_create_cat_id(cat_name: str):
-                nonlocal categorie_create
-                cn = (cat_name or "").strip()
-                if not cn:
-                    return None
-                k = cn.lower()
-                if k in cat_cache:
-                    return cat_cache[k]
-                cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cn,))
-                row_c = cur.fetchone()
-                new_cid = (row_c["id"] if isinstance(row_c, dict) else row_c[0]) if row_c else getattr(cur, "lastrowid", None)
-                cat_cache[k] = new_cid
-                categorie_create += 1
-                return new_cid
-
             if nuova_categoria:
-                forced_cat_id = get_or_create_cat_id(nuova_categoria)
+                forced_cat_id = canonical_map[classify_canonical_category(nuova_categoria)]
             elif forced_cat_id:
                 try:
-                    forced_cat_id = int(forced_cat_id)
+                    cand_cid = int(forced_cat_id)
+                    forced_cat_id = cand_cid if cand_cid in canonical_ids else None
                 except Exception:
                     forced_cat_id = None
+            else:
+                forced_cat_id = None
 
             # Carica indice COMPLETO dei prodotti esistenti (inclusi eliminati per rispettare vincolo UNIQUE su codice)
             cur.execute("SELECT id, codice, nome, immagine FROM prodotti")
@@ -2016,7 +2262,8 @@ def api_catalogo_importa_pregis_confermato():
                 except Exception:
                     prezzo = None
 
-                cat_id = forced_cat_id if forced_cat_id else get_or_create_cat_id(p.get("categoria") or "Catalogo Pregis")
+                canon_cat_name = classify_canonical_category(p.get("categoria") or "", nome, descrizione)
+                cat_id = forced_cat_id if forced_cat_id else canonical_map[canon_cat_name]
 
                 c_key = codice.upper() if codice else ""
                 n_key = nome.upper()
@@ -2036,7 +2283,7 @@ def api_catalogo_importa_pregis_confermato():
                             marca = COALESCE(NULLIF(%s, ''), marca),
                             confezionamento = COALESCE(NULLIF(%s, ''), confezionamento),
                             prezzo = COALESCE(%s, prezzo),
-                            categoria_id = COALESCE(%s, categoria_id),
+                            categoria_id = %s,
                             eliminato = FALSE
                         WHERE id = %s
                     """, (nome, codice, descrizione, immagine, marca, confezionamento, prezzo, cat_id, existing["id"]))
@@ -2070,9 +2317,9 @@ def api_catalogo_importa_pregis_confermato():
             "ok": True,
             "inseriti": inseriti,
             "aggiornati": aggiornati,
-            "categorie_create": categorie_create,
+            "categorie_create": 0,
             "totale": inseriti + aggiornati,
-            "message": f"✅ Importazione completata: {inseriti} nuovi prodotti aggiunti, {aggiornati} aggiornati ({categorie_create} nuove categorie)."
+            "message": f"✅ Importazione completata: {inseriti} nuovi prodotti aggiunti, {aggiornati} aggiornati nelle 6 categorie ufficiali."
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import csv
 import io
 import json
@@ -9,6 +10,11 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, date
 from flask import Blueprint, request, jsonify, session, url_for
 import requests
+
+_CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+if _CUR_DIR not in sys.path:
+    sys.path.insert(0, _CUR_DIR)
+from volantini_3_ai import CANONICAL_CATEGORIES, classify_canonical_category, sync_canonical_categories
 
 ai_agent_bp = Blueprint('ai_agent', __name__)
 
@@ -175,50 +181,14 @@ HORECA_CATEGORY_KEYWORDS = {
 }
 
 
-def guess_category_for_product(product_name: str, existing_categories: list) -> str:
-    name_low = (product_name or "").lower()
-    if not name_low:
-        return existing_categories[0] if existing_categories else "OFFERTE"
+def guess_category_for_product(product_name: str, existing_categories: list = None) -> str:
+    """Assegna sempre una delle 6 categorie ufficiali (ALIMENTARI, CARNE FRESCA, CARNE GELO, ITTICO FRESCO, ITTICO GELO, NO FOOD)."""
+    return classify_canonical_category("", product_name or "")
 
-    is_frozen = any(k in name_low for k in ["gelo", "surg", "iqf", "congelat"])
 
-    for cat in existing_categories:
-        cat_clean = cat.strip().lower()
-        if len(cat_clean) >= 3 and cat_clean in name_low:
-            return cat
-
-    best_std_cat = None
-    best_score = 0
-    for std_cat, keywords in HORECA_CATEGORY_KEYWORDS.items():
-        score = sum(1 for kw in keywords if re.search(r'\b' + re.escape(kw), name_low))
-        if score > best_score:
-            best_score = score
-            best_std_cat = std_cat
-
-    if best_std_cat:
-        std_words = [w.lower() for w in best_std_cat.split() if len(w) > 3]
-        matching_existing = []
-        for cat in existing_categories:
-            cat_low = cat.lower()
-            if any(w[:4] in cat_low for w in std_words):
-                matching_existing.append(cat)
-        if matching_existing:
-            if is_frozen:
-                for mc in matching_existing:
-                    if "gelo" in mc.lower() or "surg" in mc.lower():
-                        return mc
-            else:
-                for mc in matching_existing:
-                    if "fresc" in mc.lower():
-                        return mc
-            return matching_existing[0]
-
-        for cat in existing_categories:
-            if "alimentar" in cat.lower() and best_std_cat in ("DISPENSA E ALIMENTARI", "SALUMI E LATTICINI", "ORTOFRUTTA E VERDURE"):
-                return cat
-        return best_std_cat
-
-    return existing_categories[0] if existing_categories else "GENERALE"
+def _resolve_canonical_cat_id(cat_map: dict, raw_cat: str = "", product_name: str = ""):
+    canon = classify_canonical_category(raw_cat, product_name)
+    return cat_map.get(canon) or cat_map.get("ALIMENTARI")
 
 
 # ==============================================================================
@@ -1205,17 +1175,11 @@ def execute_universal_site_operation(op_type: str, params: dict, snapshot: dict)
             nuova_cat = (params.get("nuova_categoria") or "").strip()
             nuovo_nome = (params.get("nuovo_nome") or "").strip()
 
-            cur.execute("SELECT id, nome FROM categorie")
-            cat_map = {r["nome"].strip().upper(): r["id"] for r in cur.fetchall()}
+            cat_map = sync_canonical_categories(conn)
 
             target_cat_id = None
             if nuova_cat:
-                if nuova_cat.upper() in cat_map:
-                    target_cat_id = cat_map[nuova_cat.upper()]
-                else:
-                    cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (nuova_cat,))
-                    rc = cur.fetchone()
-                    target_cat_id = rc["id"] if rc else None
+                target_cat_id = _resolve_canonical_cat_id(cat_map, nuova_cat, filtro_nome)
 
             matched_ids = []
             for p in snapshot["prodotti"]:
@@ -1747,8 +1711,7 @@ def execute_batch_action_internal(action_dict: dict) -> dict:
         updated_count = 0
         with _GET_DB() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT id, nome FROM categorie")
-            cat_map = {r["nome"].strip().upper(): r["id"] for r in cur.fetchall()}
+            cat_map = sync_canonical_categories(conn)
 
             for item in items:
                 if item.get("excluded"):
@@ -1760,17 +1723,7 @@ def execute_batch_action_internal(action_dict: dict) -> dict:
                 if not nom or not cod:
                     continue
 
-                cat_id = None
-                if cat_name:
-                    cat_key = cat_name.upper()
-                    if cat_key in cat_map:
-                        cat_id = cat_map[cat_key]
-                    else:
-                        cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
-                        row_c = cur.fetchone()
-                        cat_id = row_c["id"] if row_c else None
-                        if cat_id:
-                            cat_map[cat_key] = cat_id
+                cat_id = _resolve_canonical_cat_id(cat_map, cat_name, nom)
 
                 cur.execute("SELECT id FROM prodotti WHERE codice = %s", (cod,))
                 existing = cur.fetchone()
@@ -1804,26 +1757,18 @@ def execute_batch_action_internal(action_dict: dict) -> dict:
         updated_count = 0
         with _GET_DB() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT id, nome FROM categorie")
-            cat_map = {r["nome"].strip().upper(): r["id"] for r in cur.fetchall()}
+            cat_map = sync_canonical_categories(conn)
 
             for item in items:
                 if item.get("excluded"):
                     continue
                 pid = item.get("id")
                 cat_name = str(item.get("categoria") or "").strip()
-                if not pid or not cat_name:
+                nom = str(item.get("nome") or "").strip()
+                if not pid:
                     continue
 
-                cat_key = cat_name.upper()
-                if cat_key in cat_map:
-                    cat_id = cat_map[cat_key]
-                else:
-                    cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
-                    row_c = cur.fetchone()
-                    cat_id = row_c["id"] if row_c else None
-                    if cat_id:
-                        cat_map[cat_key] = cat_id
+                cat_id = _resolve_canonical_cat_id(cat_map, cat_name, nom)
 
                 if cat_id:
                     cur.execute("UPDATE prodotti SET categoria_id = %s WHERE id = %s", (cat_id, int(pid)))
@@ -1853,8 +1798,7 @@ def execute_batch_action_internal(action_dict: dict) -> dict:
                 return {"ok": False, "error": "Cliente non trovato."}
             cliente_nome = cli_row["nome"]
 
-            cur.execute("SELECT id, nome FROM categorie")
-            cat_map = {r["nome"].strip().upper(): r["id"] for r in cur.fetchall()}
+            cat_map = sync_canonical_categories(conn)
 
             for item in items:
                 if item.get("excluded"):
@@ -1869,17 +1813,7 @@ def execute_batch_action_internal(action_dict: dict) -> dict:
                 if not nom:
                     continue
 
-                cat_id = None
-                if cat_name:
-                    cat_key = cat_name.upper()
-                    if cat_key in cat_map:
-                        cat_id = cat_map[cat_key]
-                    else:
-                        cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
-                        row_c = cur.fetchone()
-                        cat_id = row_c["id"] if row_c else None
-                        if cat_id:
-                            cat_map[cat_key] = cat_id
+                cat_id = _resolve_canonical_cat_id(cat_map, cat_name, nom)
 
                 pid = item.get("id")
                 if not pid and cod:

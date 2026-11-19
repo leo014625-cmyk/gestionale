@@ -497,6 +497,47 @@ def init_db():
                 try: db.rollback()
                 except Exception: pass
 
+        try:
+            _sync_canonical_cats_app(db)
+        except Exception as _ce_sync:
+            print(f"Canonical categories sync warning: {_ce_sync}")
+            try: db.rollback()
+            except Exception: pass
+
+
+def _sync_canonical_cats_app(conn):
+    """Sincronizza la tabella categorie alle sole 6 categorie merceologiche ufficiali."""
+    from volantini_3_ai import sync_canonical_categories
+    return sync_canonical_categories(conn)
+
+
+def _resolve_canonical_cat_id_app(conn, raw_cat="", nome="", descrizione="", cat_cache=None, cur=None):
+    """Risolve sempre una delle 6 categorie ufficiali senza creare categorie non canoniche."""
+    from volantini_3_ai import classify_canonical_category, sync_canonical_categories
+    canon_name = classify_canonical_category(raw_cat, nome, descrizione)
+    if cat_cache:
+        for k in (canon_name, canon_name.lower(), canon_name.upper()):
+            if k in cat_cache and cat_cache[k]:
+                return cat_cache[k], canon_name
+    active_cur = cur if cur is not None else (conn.cursor() if conn is not None else None)
+    if active_cur is not None:
+        active_cur.execute("SELECT id FROM categorie WHERE UPPER(TRIM(nome)) = %s LIMIT 1", (canon_name,))
+        row = active_cur.fetchone()
+        if row:
+            cid = row["id"] if isinstance(row, dict) else row[0]
+            if isinstance(cat_cache, dict):
+                cat_cache[canon_name] = cid
+                cat_cache[canon_name.lower()] = cid
+            return cid, canon_name
+    if conn is not None:
+        cmap = sync_canonical_categories(conn)
+        if isinstance(cat_cache, dict):
+            for k_c, v_c in cmap.items():
+                cat_cache[k_c] = v_c
+                cat_cache[k_c.lower()] = v_c
+        return cmap[canon_name], canon_name
+    return None, canon_name
+
 def aggiorna_fatturato_totale(id, cur=None):
     query = '''
         UPDATE clienti SET fatturato_totale = (
@@ -2983,6 +3024,7 @@ def carica_promo_scadenze():
 
             # Pulisce le promo precedenti (azzerare quella precedente)
             cur.execute('DELETE FROM promo_scadenze_prodotti')
+            canonical_cats_map = _sync_canonical_cats_app(db)
 
             # Prepara il batch di dati da inserire
             insert_data = []
@@ -3007,22 +3049,9 @@ def carica_promo_scadenze():
                         except ValueError:
                             pass
 
-                # Se non esiste nel database, lo creiamo direttamente!
+                # Se non esiste nel database, lo creiamo direttamente in una delle 5 categorie ufficiali!
                 if not prodotto_id:
-                    # Trova o crea la categoria in tempo reale
-                    cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
-                    cat_row = cur.fetchone()
-                    if cat_row:
-                        cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
-                    else:
-                        cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
-                        try:
-                            cat_row = cur.fetchone()
-                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
-                        except Exception:
-                            cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
-                            cat_row = cur.fetchone()
-                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+                    cat_id, _ = _resolve_canonical_cat_id_app(db, cat_name, name, cat_cache=canonical_cats_map)
 
                     price_str = f"{price:.2f}"
                     cur.execute("""
@@ -3194,6 +3223,7 @@ def api_importa_pdf_scadenze():
 
             # Pulisce le promo scadenze precedenti
             cur.execute('DELETE FROM promo_scadenze_prodotti')
+            canonical_cats_map = _sync_canonical_cats_app(db)
 
             insert_data = []
             for off in offers:
@@ -3216,22 +3246,9 @@ def api_importa_pdf_scadenze():
                         except ValueError:
                             pass
 
-                # Se non esiste nel database, lo creiamo direttamente!
+                # Se non esiste nel database, lo creiamo direttamente in una delle 5 categorie ufficiali!
                 if not prodotto_id:
-                    # Trova o crea la categoria in tempo reale
-                    cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
-                    cat_row = cur.fetchone()
-                    if cat_row:
-                        cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
-                    else:
-                        cur.execute("INSERT INTO categorie (nome) VALUES (%s) RETURNING id", (cat_name,))
-                        try:
-                            cat_row = cur.fetchone()
-                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
-                        except Exception:
-                            cur.execute("SELECT id FROM categorie WHERE nome = %s LIMIT 1", (cat_name,))
-                            cat_row = cur.fetchone()
-                            cat_id = cat_row['id'] if isinstance(cat_row, dict) else cat_row[0]
+                    cat_id, _ = _resolve_canonical_cat_id_app(db, cat_name, name, cat_cache=canonical_cats_map)
 
                     price_str = f"{price:.2f}"
                     cur.execute("""
@@ -3398,12 +3415,15 @@ def prodotti():
 
     with get_db() as db:
         cur = db.cursor()
-        # Assicura la presenza delle colonne estese del catalogo (immagine, marca, confezionamento, descrizione)
+        # Assicura la presenza delle colonne estese e sincronizza le 5 categorie ufficiali
         try:
-            from volantini_3_ai import _ensure_prodotti_catalog_columns
+            from volantini_3_ai import _ensure_prodotti_catalog_columns, sync_canonical_categories
             _ensure_prodotti_catalog_columns(db)
-        except Exception:
-            pass
+            sync_canonical_categories(db)
+        except Exception as _sync_e:
+            print(f"prodotti() canonical sync warning: {_sync_e}")
+            try: db.rollback()
+            except Exception: pass
 
         def _norm_prod_row(row_dict):
             d = dict(row_dict)
@@ -3500,8 +3520,10 @@ def api_prodotto_quick_edit(id):
 def aggiungi_prodotto():
     with get_db() as db:
         cur = db.cursor()
+        _sync_canonical_cats_app(db)
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
+        canonical_ids = {int(c['id']) for c in categorie}
 
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
@@ -3524,17 +3546,13 @@ def aggiungi_prodotto():
                 return render_template('02_prodotti/02_aggiungi_prodotto.html', categorie=categorie, errore_codice='Questo codice prodotto è già utilizzato da un altro prodotto attivo.')
 
             if nuova_categoria:
-                cur.execute('SELECT id FROM categorie WHERE nome=%s', (nuova_categoria,))
-                categoria_row = cur.fetchone()
-                if categoria_row:
-                    categoria_id = categoria_row['id']
-                else:
-                    cur.execute('INSERT INTO categorie (nome) VALUES (%s) RETURNING id', (nuova_categoria,))
-                    categoria_id = cur.fetchone()['id']
+                sel_cid, _ = _resolve_canonical_cat_id_app(db, nuova_categoria, nome)
+            elif categoria_id and str(categoria_id).isdigit() and int(categoria_id) in canonical_ids:
+                sel_cid = int(categoria_id)
             else:
-                categoria_id = int(categoria_id) if categoria_id else None
+                sel_cid, _ = _resolve_canonical_cat_id_app(db, "", nome)
 
-            cur.execute('INSERT INTO prodotti (codice, nome, categoria_id) VALUES (%s, %s, %s)', (codice, nome, categoria_id))
+            cur.execute('INSERT INTO prodotti (codice, nome, categoria_id) VALUES (%s, %s, %s)', (codice, nome, sel_cid))
             db.commit()
 
         flash(f'Prodotto "{nome}" aggiunto con successo.', 'success')
@@ -3548,12 +3566,14 @@ def aggiungi_prodotto():
 def modifica_prodotto(id):
     with get_db() as db:
         cur = db.cursor()
+        _sync_canonical_cats_app(db)
         cur.execute('SELECT * FROM prodotti WHERE id=%s', (id,))
         prodotto = cur.fetchone()
         if not prodotto:
             abort(404)
         cur.execute('SELECT id, nome FROM categorie ORDER BY nome')
         categorie = cur.fetchall()
+        canonical_ids = {int(c['id']) for c in categorie}
 
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
@@ -3577,17 +3597,13 @@ def modifica_prodotto(id):
                 return render_template('02_prodotti/03_modifica_prodotto.html', prodotto=prodotto, categorie=categorie, errore_codice='Questo codice prodotto è già utilizzato da un altro prodotto attivo.')
 
             if nuova_categoria:
-                cur.execute('SELECT id FROM categorie WHERE nome=%s', (nuova_categoria,))
-                categoria_row = cur.fetchone()
-                if categoria_row:
-                    categoria_id = categoria_row['id']
-                else:
-                    cur.execute('INSERT INTO categorie (nome) VALUES (%s) RETURNING id', (nuova_categoria,))
-                    categoria_id = cur.fetchone()['id']
+                sel_cid, _ = _resolve_canonical_cat_id_app(db, nuova_categoria, nome)
+            elif categoria_id and str(categoria_id).isdigit() and int(categoria_id) in canonical_ids:
+                sel_cid = int(categoria_id)
             else:
-                categoria_id = int(categoria_id) if categoria_id else None
+                sel_cid, _ = _resolve_canonical_cat_id_app(db, "", nome)
 
-            cur.execute('UPDATE prodotti SET codice=%s, nome=%s, categoria_id=%s WHERE id=%s', (codice, nome, categoria_id, id))
+            cur.execute('UPDATE prodotti SET codice=%s, nome=%s, categoria_id=%s WHERE id=%s', (codice, nome, sel_cid, id))
             db.commit()
 
         flash(f'Prodotto "{nome}" modificato con successo.', 'success')
@@ -3689,6 +3705,7 @@ def clienti_prodotto(id):
 def gestisci_categorie():
     with get_db() as db:
         cur = db.cursor()
+        _sync_canonical_cats_app(db)
         cur.execute('''
             SELECT c.id, c.nome, c.immagine,
                    COUNT(p.id) AS num_prodotti
@@ -3704,23 +3721,9 @@ def gestisci_categorie():
 @app.route('/categorie/aggiungi', methods=['POST'])
 @login_required
 def aggiungi_categoria():
-    nome = request.form.get('nome_categoria', '').strip()
-    immagine = request.form.get('link_immagine', '').strip() or None
-
-    if not nome:
-        flash("⚠️ Devi inserire un nome per la categoria.", "warning")
-        return redirect(url_for('gestisci_categorie'))
-
     with get_db() as db:
-        cur = db.cursor()
-        try:
-            cur.execute('INSERT INTO categorie (nome, immagine) VALUES (%s, %s) ON CONFLICT DO NOTHING', (nome, immagine))
-            db.commit()
-            flash(f"✅ Categoria '{nome}' aggiunta con successo.", "success")
-        except Exception as e:
-            db.rollback()
-            flash(f"⚠️ Errore durante l'aggiunta della categoria: {e}", "danger")
-
+        _sync_canonical_cats_app(db)
+    flash("ℹ️ Le categorie merceologiche ufficiali sono bloccate alle sole 6 previste: ALIMENTARI, CARNE FRESCA, CARNE GELO, ITTICO FRESCO, ITTICO GELO, NO FOOD.", "info")
     return redirect(url_for('gestisci_categorie'))
 
 
@@ -3728,23 +3731,33 @@ def aggiungi_categoria():
 @login_required
 def modifica_categoria():
     categoria_id = request.form.get('categoria_id')
-    vecchio_nome = request.form.get('vecchio_nome')
-    nuovo_nome = request.form.get('nome_categoria', '').strip()
+    vecchio_nome = (request.form.get('vecchio_nome') or '').strip()
+    nuovo_nome = (request.form.get('nome_categoria') or '').strip().upper()
     immagine = request.form.get('link_immagine', '').strip() or None
-
-    if not nuovo_nome:
-        flash("⚠️ Il nome non può essere vuoto.", "warning")
-        return redirect(url_for('gestisci_categorie'))
 
     with get_db() as db:
         cur = db.cursor()
         try:
-            if categoria_id:
-                cur.execute('UPDATE categorie SET nome=%s, immagine=%s WHERE id=%s', (nuovo_nome, immagine, categoria_id))
-            else:
-                cur.execute('UPDATE categorie SET nome=%s, immagine=%s WHERE nome=%s', (nuovo_nome, immagine, vecchio_nome))
+            _sync_canonical_cats_app(db)
+            row = None
+            if categoria_id and str(categoria_id).isdigit():
+                cur.execute('SELECT id, nome FROM categorie WHERE id=%s', (int(categoria_id),))
+                row = cur.fetchone()
+            elif vecchio_nome:
+                cur.execute('SELECT id, nome FROM categorie WHERE UPPER(TRIM(nome))=%s', (vecchio_nome.upper(),))
+                row = cur.fetchone()
+
+            if not row:
+                flash("⚠️ Categoria ufficiale non trovata.", "warning")
+                return redirect(url_for('gestisci_categorie'))
+
+            from volantini_3_ai import CANONICAL_CATEGORIES
+            cur.execute('UPDATE categorie SET immagine=%s WHERE id=%s', (immagine, row['id']))
             db.commit()
-            flash(f"✏️ Categoria modificata in '{nuovo_nome}'.", "info")
+            if nuovo_nome and nuovo_nome != row['nome'] and nuovo_nome not in CANONICAL_CATEGORIES:
+                flash(f"🖼️ Immagine di '{row['nome']}' aggiornata. Il nome è rimasto bloccato tra le 6 categorie ufficiali.", "info")
+            else:
+                flash(f"🖼️ Copertina della categoria '{row['nome']}' aggiornata.", "success")
         except Exception as e:
             db.rollback()
             flash(f"⚠️ Errore durante la modifica della categoria: {e}", "danger")
@@ -3757,48 +3770,9 @@ def modifica_categoria():
 @app.route('/categorie/elimina_id/<int:categoria_id>', methods=['POST'])
 @login_required
 def elimina_categoria(nome_categoria=None, categoria_id=None):
-    form_id = request.form.get('categoria_id')
-    if form_id:
-        try:
-            categoria_id = int(form_id)
-        except ValueError:
-            pass
-
     with get_db() as db:
-        cur = db.cursor()
-        try:
-            cat_row = None
-            if categoria_id:
-                cur.execute('SELECT id, nome FROM categorie WHERE id=%s', (categoria_id,))
-                cat_row = cur.fetchone()
-            elif nome_categoria:
-                cur.execute('SELECT id, nome FROM categorie WHERE nome=%s', (nome_categoria,))
-                cat_row = cur.fetchone()
-
-            if not cat_row:
-                flash("⚠️ Categoria non trovata o già eliminata.", "warning")
-                return redirect(url_for('gestisci_categorie'))
-
-            c_id = cat_row['id']
-            c_nome = cat_row['nome']
-
-            # 1. Scollega i prodotti associati impostando categoria_id e id_categoria a NULL
-            # per rispettare i vincoli di Foreign Key (prodotti_categoria_id_fkey, prodotti_id_categoria_fkey)
-            cur.execute('''
-                UPDATE prodotti 
-                SET categoria_id = NULL, id_categoria = NULL 
-                WHERE categoria_id = %s OR id_categoria = %s
-            ''', (c_id, c_id))
-
-            # 2. Elimina definitivamente la categoria
-            cur.execute('DELETE FROM categorie WHERE id = %s', (c_id,))
-            db.commit()
-
-            flash(f"🗑️ Categoria '{c_nome}' eliminata con successo. I prodotti correlati sono stati conservati senza categoria.", "success")
-        except Exception as e:
-            db.rollback()
-            flash(f"❌ Impossibile eliminare la categoria: {e}", "danger")
-
+        _sync_canonical_cats_app(db)
+    flash("🔒 Le 6 categorie ufficiali (ALIMENTARI, CARNE FRESCA, CARNE GELO, ITTICO FRESCO, ITTICO GELO, NO FOOD) sono obbligatorie e non possono essere eliminate.", "warning")
     return redirect(url_for('gestisci_categorie'))
 
 # ============================
@@ -8783,17 +8757,9 @@ def api_importa_pdf_volantino():
         with get_db() as db_conn:
             cur = db_conn.cursor()
             
-            # 1. Pre-fetch all categories
-            cur.execute("SELECT id, nome FROM categorie")
-            categories_map = {r['nome'].upper(): r['id'] for r in cur.fetchall()}
-            
-            # Pre-insert any missing categories in one shot
-            unique_cats = set((p.get("categoria") or "OFFERTE").strip().upper() for p in products)
-            missing_cats = [c for c in unique_cats if c and c not in categories_map]
-            if missing_cats:
-                execute_values(cur, "INSERT INTO categorie (nome) VALUES %s RETURNING id, nome", [(c,) for c in missing_cats])
-                for r in cur.fetchall():
-                    categories_map[r['nome'].upper()] = r['id']
+            # 1. Pre-fetch & sync the 5 canonical categories
+            categories_map = _sync_canonical_cats_app(db_conn)
+            from volantini_3_ai import classify_canonical_category
 
             # Estrazione data scadenza dal nome del file
             scadenza = None
@@ -8840,8 +8806,9 @@ def api_importa_pdf_volantino():
                 price = prod.get("prezzo", 0.0)
                 price_str = prod.get("prezzo_str", "0,00")
                 um = prod.get("um", "PZ")
-                cat_name = (prod.get("categoria") or "OFFERTE").strip()
-                cat_id = categories_map.get(cat_name.upper())
+                raw_cat = (prod.get("categoria") or "OFFERTE").strip()
+                cat_name = classify_canonical_category(raw_cat, name)
+                cat_id = categories_map.get(cat_name)
 
                 p_info = None
                 if code and code in products_by_code:
@@ -10497,48 +10464,12 @@ def assicura_prodotto_e_assegna_cliente(cur, nome: str, codice: str = None, prez
         except (ValueError, TypeError):
             pass
 
-    # 3. Se NON esiste sul sito, crealo subito nel catalogo ('prodotti')!
+    # 3. Se NON esiste sul sito, crealo subito nel catalogo ('prodotti') dentro una delle 5 categorie ufficiali!
     if not pid:
         is_nuovo = True
         cat_id = None
         try:
-            if cache_cat is not None:
-                cat_map = cache_cat
-            else:
-                cur.execute("SELECT id, LOWER(TRIM(nome)) as nome_l FROM categorie ORDER BY id ASC")
-                all_cats = cur.fetchall() or []
-                cat_map = {c['nome_l']: c['id'] for c in all_cats}
-
-            nl = nome_clean.lower()
-
-            if any(k in nl for k in ['carne', 'suino', 'vitell', 'manzo', 'bovin', 'pollo', 'scottona', 'hamburger', 'arista', 'lombata', 'tagliata', 'costata', 'filetto', 'bistecca', 'agnello', 'coniglio', 'salsiccia', 'fesa']):
-                for cname, cid in cat_map.items():
-                    if 'carne' in cname:
-                        cat_id = cid
-                        break
-            elif any(k in nl for k in ['pesce', 'ittic', 'gamber', 'calamar', 'seppi', 'polp', 'salmone', 'orata', 'spigola', 'branzino', 'tonno', 'cozze', 'vongole', 'crostacei', 'baccala', 'merluzzo', 'orate', 'spigole']):
-                for cname, cid in cat_map.items():
-                    if 'ittic' in cname or 'pesce' in cname:
-                        cat_id = cid
-                        break
-            elif any(k in nl for k in ['verdur', 'patat', 'spinac', 'fungh', 'pisell', 'carot', 'zucchine', 'melanzan', 'insalat']):
-                for cname, cid in cat_map.items():
-                    if 'verdur' in cname:
-                        cat_id = cid
-                        break
-            elif any(k in nl for k in ['pane', 'pasta', 'farina', 'riso', 'pelati', 'olio', 'pomodor', 'formagg', 'mozzar', 'latte', 'burro', 'uova', 'grana', 'parmig', 'salumi', 'prosciutt']):
-                for cname, cid in cat_map.items():
-                    if 'alimentar' in cname or 'fresco' in cname or 'secco' in cname:
-                        cat_id = cid
-                        break
-
-            if not cat_id:
-                for cname, cid in cat_map.items():
-                    if 'alimentar' in cname:
-                        cat_id = cid
-                        break
-            if not cat_id and cat_map:
-                cat_id = next(iter(cat_map.values()))
+            cat_id, _ = _resolve_canonical_cat_id_app(db, "", nome_clean, cat_cache=cache_cat, cur=cur)
         except Exception as _ce:
             print(f"Warning rilevamento categoria per {nome_clean}: {_ce}")
 
