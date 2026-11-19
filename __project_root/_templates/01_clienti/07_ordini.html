@@ -224,6 +224,197 @@
     </div>
   </div>
 
+  <!-- ======================================================================
+       CENTRO OPERATIVO GIORNALIERO: ORDINI PDF/MOBILE • PESCE LOCALE • SCADENZE
+       ====================================================================== -->
+  <div id="centro-operativo" class="card rounded-4 border shadow-sm mb-4 overflow-hidden" style="background-color: var(--card-bg);">
+    <div class="p-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2"
+         style="background: linear-gradient(135deg, rgba(67, 56, 202, 0.08) 0%, rgba(2, 132, 199, 0.08) 100%);">
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-primary rounded-pill">⚡ CENTRO OPERATIVO GIORNALIERO</span>
+          <span class="small text-muted d-none d-sm-inline">Mobile • PDF • WhatsApp • Telegram • AI</span>
+        </div>
+        <h5 class="fw-bold mb-0 mt-1">Carica Ordini Giornalieri, Matching Pesce Locale &amp; Lista Scadenze</h5>
+      </div>
+      <ul class="nav nav-pills gap-2" id="dailyCockpitTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active rounded-pill fw-bold px-3 py-1.5 small" id="tab-btn-ordine"
+                  data-bs-toggle="pill" data-bs-target="#pane-ordine-giornaliero" type="button" role="tab">
+            <i class="bi bi-file-earmark-arrow-up-fill me-1"></i>1. Carica Ordine (PDF/Mobile)
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link rounded-pill fw-bold px-3 py-1.5 small" id="tab-btn-pesce"
+                  data-bs-toggle="pill" data-bs-target="#pane-pesce-locale" type="button" role="tab">
+            <i class="bi bi-water me-1"></i>2. Offerta Pesce Locale
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link rounded-pill fw-bold px-3 py-1.5 small" id="tab-btn-scadenze"
+                  data-bs-toggle="pill" data-bs-target="#pane-lista-scadenze" type="button" role="tab">
+            <i class="bi bi-hourglass-split me-1"></i>3. Lista Scadenze &amp; Volantino Veloce
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="tab-content p-3 p-md-4">
+      <!-- TAB 1: CARICA ORDINE GIORNALIERO (PDF / TESTO / CELLULARE) -->
+      <div class="tab-pane fade show active" id="pane-ordine-giornaliero" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <form id="formDailyOrderUpload" class="p-3 rounded-4 border bg-body-tertiary">
+              <h6 class="fw-bold mb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-cloud-arrow-up-fill text-primary fs-5"></i>
+                <span>Inserisci Ordine Giornaliero (da PDF, Smartphone o Testo)</span>
+              </h6>
+              <p class="small text-muted mb-3">
+                Carica il PDF dell'ordine (anche più PDF insieme) o incolla i prodotti: il sistema aggiorna in automatico i <strong>prodotti lavorati dal cliente</strong>, il fatturato e ti mostra subito i <strong>prodotti abituali che il cliente ha dimenticato di ordinare</strong>.
+              </p>
+
+              <div class="row g-2 mb-2">
+                <div class="col-12 col-md-7">
+                  <label class="form-label small fw-bold mb-1">Cliente (opzionale se scritto nel PDF)</label>
+                  <select id="dailyOrdClienteSelect" name="cliente_id" class="form-select form-select-sm">
+                    <option value="">✨ Rileva automaticamente il cliente dal PDF / Testo</option>
+                    {% for cli in (tutti_clienti or []) %}
+                      <option value="{{ cli.id }}">{{ cli.nome }} ({{ cli.zona or 'N/D' }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6 col-md-5">
+                  <label class="form-label small fw-bold mb-1">Data Ordine</label>
+                  <input type="date" id="dailyOrdDateInput" name="data_ordine" class="form-control form-control-sm" value="{{ oggi_iso or '' }}">
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label small fw-bold mb-1">File PDF Ordine (da Cellulare o PC, anche multipli)</label>
+                <input type="file" id="dailyOrdPdfInput" name="pdf_file" accept=".pdf" multiple class="form-control form-control-sm">
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label small fw-bold mb-1">Oppure incolla testo ordine (da WhatsApp / Telegram / Note)</label>
+                <textarea id="dailyOrdRawText" name="raw_text" rows="3" class="form-control form-control-sm"
+                          placeholder="Es:&#10;5 kg Spigola fresca 14,50&#10;13150574 Salmone Norvegia 10 kg 18,90"></textarea>
+              </div>
+
+              <div class="row g-2 align-items-end">
+                <div class="col-6 col-sm-4">
+                  <label class="form-label small fw-bold mb-1">Totale € (opz.)</label>
+                  <input type="number" step="0.01" id="dailyOrdTotaleManuale" name="totale_manuale" class="form-control form-control-sm" placeholder="Auto da righe">
+                </div>
+                <div class="col-6 col-sm-4">
+                  <label class="form-label small fw-bold mb-1">Modalità Settimana</label>
+                  <select id="dailyOrdModalita" name="modalita" class="form-select form-select-sm">
+                    <option value="aggiungi" selected>➕ Somma alla settimana</option>
+                    <option value="sostituisci">🔄 Sostituisci settimana</option>
+                  </select>
+                </div>
+                <div class="col-12 col-sm-4">
+                  <button type="submit" id="btnSubmitDailyOrd" class="btn btn-primary btn-sm w-100 fw-bold py-2 rounded-3 shadow-sm">
+                    <i class="bi bi-check2-circle me-1"></i>Registra Ordine
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div id="dailyOrderResultBox" class="p-3 rounded-4 border h-100 d-flex flex-column justify-content-center">
+              <div class="text-muted small">
+                <div class="fw-bold text-color mb-2"><i class="bi bi-phone-fill text-primary me-1"></i>Come caricare gli ordini in 5 secondi da Cellulare:</div>
+                <ul class="ps-3 mb-2">
+                  <li><strong>Da Sito Mobile</strong>: tocca <em>"Ordini PDF"</em> nella barra in basso sul telefono e allega il PDF appena scaricato.</li>
+                  <li><strong>Da Assistente AI</strong>: apri il bottone viola <em>Assistente AI</em>, allega il PDF o incolla la lista prodotti.</li>
+                  <li><strong>Da WhatsApp / Telegram Bot</strong>: inoltra il PDF o scrivi <code>ORDINE NomeCliente ...</code> al webhook del bot.</li>
+                </ul>
+                <div class="p-2.5 rounded-3 bg-primary-subtle text-primary small fw-semibold">
+                  💡 Ogni ordine caricato segna automaticamente i prodotti come <strong>Lavorati</strong> sulla scheda del cliente e ti prepara il messaggio WhatsApp con i <strong>prodotti abituali dimenticati</strong> per aumentare subito il fatturato!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: OFFERTA GIORNALIERA PESCE LOCALE & ITTICO -->
+      <div class="tab-pane fade" id="pane-pesce-locale" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-12 col-lg-5">
+            <div class="p-3 rounded-4 border bg-body-tertiary">
+              <h6 class="fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-water text-info fs-5"></i>
+                <span>Incolla Lista Pesce Locale &amp; Offerta Giornaliera Ittico</span>
+              </h6>
+              <p class="small text-muted mb-2">
+                Scrivi o incolla i prodotti ittici disponibili oggi (o carica il PDF): il sistema cerca in automatico <strong>quali clienti lavorano quei prodotti o specie ittiche</strong> e prepara il messaggio WhatsApp personalizzato per ciascuno.
+              </p>
+              <textarea id="fishOfferTextInput" rows="6" class="form-control form-control-sm mb-2"
+                        placeholder="Esempio:&#10;Spigola locale fresca 14,50 €/kg&#10;Orata locale 13,90 €/kg&#10;Calamaro fresco 18,50 €/kg&#10;Gambero rosso 28,00 €/kg&#10;Polpo verace 16,90 €/kg"></textarea>
+              <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <input type="file" id="fishOfferPdfInput" accept=".pdf" class="form-control form-control-sm" style="max-width: 210px;">
+                <button type="button" id="btnRunFishMatcher" class="btn btn-info text-dark fw-bold btn-sm px-3 py-2 rounded-3 shadow-sm">
+                  <i class="bi bi-magic me-1"></i>Trova Clienti &amp; Prepara Messaggi
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div id="fishMatcherResultsBox" class="p-3 rounded-4 border h-100" style="max-height: 520px; overflow-y: auto;">
+              <div class="text-center text-muted py-5 small">
+                <i class="bi bi-water fs-1 text-info opacity-50 d-block mb-2"></i>
+                Incolla a sinistra la lista del pesce locale di oggi e clicca <strong>Trova Clienti &amp; Prepara Messaggi</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: LISTA SCADENZE -> CLIENTI CHE LAVORANO QUEI PRODOTTI + VOLANTINO VELOCE -->
+      <div class="tab-pane fade" id="pane-lista-scadenze" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-12 col-lg-5">
+            <div class="p-3 rounded-4 border bg-body-tertiary">
+              <h6 class="fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-hourglass-split text-warning fs-5"></i>
+                <span>Lista Scadenze (PDF o Testo con Quantità e Data Scadenza)</span>
+              </h6>
+              <p class="small text-muted mb-2">
+                Carica il PDF Scadenze o incolla la lista con <strong>quantità disponibile</strong> e <strong>data scadenza</strong>: trovi subito chi lavora ogni articolo e generi per ogni cliente il <strong>messaggio WhatsApp</strong> o il <strong>Volantino Veloce Scadenze</strong> su misura!
+              </p>
+              <div class="mb-2">
+                <label class="form-label small fw-bold mb-1">Carica PDF Lista Scadenze</label>
+                <input type="file" id="scadenzePdfInput" accept=".pdf" class="form-control form-control-sm">
+              </div>
+              <textarea id="scadenzeTextInput" rows="4" class="form-control form-control-sm mb-2"
+                        placeholder="Oppure incolla qui le righe in scadenza:&#10;13150574 Mozzarella Julienne 2,5kg - Scad 28/11/2026 - Disp 24 pz - € 4,50&#10;Salmone Affumicato 1kg - Scad 29/11/2026 - Disp 12 pz - € 14,90"></textarea>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" id="btnRunScadenzeMatcher" class="btn btn-warning text-dark fw-bold btn-sm px-3 py-2 rounded-3 shadow-sm flex-grow-1">
+                  <i class="bi bi-lightning-charge-fill me-1"></i>Analizza Scadenze &amp; Abbina Clienti
+                </button>
+                <button type="button" id="btnLoadSavedScadenze" class="btn btn-outline-secondary btn-sm px-3 py-2 rounded-3 fw-semibold" title="Usa l'ultima lista scadenze caricata nel database">
+                  <i class="bi bi-database-check me-1"></i>Usa Scadenze Salvate
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div id="scadenzeMatcherResultsBox" class="p-3 rounded-4 border h-100" style="max-height: 540px; overflow-y: auto;">
+              <div class="text-center text-muted py-5 small">
+                <i class="bi bi-hourglass-split fs-1 text-warning opacity-50 d-block mb-2"></i>
+                Carica il PDF scadenze, incolla la lista oppure clicca <strong>Usa Scadenze Salvate</strong> per vedere i clienti abbinati, i messaggi e creare il volantino veloce.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- SMART REMINDER: Missing Orders Checklist (Se Manca Qualcosa) -->
   {% if clienti_mancanti %}
   <div class="missing-checklist-banner shadow-sm">
@@ -436,6 +627,51 @@
   </div>
 </div>
 
+<!-- ================================================================= -->
+<!-- MODAL LOCANDINA / VOLANTINO VELOCE SCADENZE PERSONALIZZATO CLIENTE -->
+<!-- ================================================================= -->
+<div class="modal fade" id="modalFastScadenzeFlyer" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+      <div class="modal-header border-0 text-white" style="background: linear-gradient(135deg, #0f172a 0%, #b45309 60%, #dc2626 100%);">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="fastFlyerModalTitle">⚡ Volantino Veloce Scadenze</h5>
+          <div class="small text-white-50">Pronto da scaricare come immagine per WhatsApp o aprire in Volantini 3.0 AI</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-3 p-md-4 bg-dark-subtle">
+        <div id="fastFlyerCaptureCard" class="p-4 rounded-4 mx-auto shadow"
+             style="max-width: 680px; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%); color: #0f172a; border: 3px solid #f59e0b;">
+          <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3" style="border-color: #fde68a !important;">
+            <div>
+              <span class="badge bg-danger text-white px-3 py-1 rounded-pill fw-bold mb-1">⏳ OFFERTA LAMPO SCADENZE</span>
+              <h3 class="fw-bold mb-0" style="color: #0f172a; font-family: 'Outfit', sans-serif;" id="fastFlyerClientHeader">Offerta Riservata</h3>
+              <div class="small fw-semibold" style="color: #92400e;" id="fastFlyerSubHeader">Disponibilità limitata sui prodotti che lavori</div>
+            </div>
+            <img src="/static/img/logo-pregis-ufficiale.png" alt="PREGIS" style="height: 46px; object-fit: contain;" onerror="this.style.display='none'">
+          </div>
+          <div class="row g-3" id="fastFlyerItemsGrid"></div>
+          <div class="mt-3 pt-2 border-top text-center small fw-bold" style="color: #b45309; border-color: #fde68a !important;">
+            📦 Rispondi su WhatsApp indicando i pezzi o kg da bloccare per il tuo prossimo scarico!
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Chiudi</button>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" id="btnDownloadFastFlyerPng" class="btn btn-success rounded-pill px-3 fw-bold">
+            <i class="bi bi-download me-1"></i>Scarica Immagine PNG per WhatsApp
+          </button>
+          <button type="button" id="btnOpenInVolantini3" class="btn btn-primary rounded-pill px-3 fw-bold">
+            <i class="bi bi-magic me-1"></i>Apri &amp; Modifica in Volantini 3.0 AI
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -543,5 +779,414 @@
       `;
     }
   }
+
+  // =========================================================================
+  // LOGICA CENTRO OPERATIVO GIORNALIERO: ORDINI PDF, PESCE LOCALE & SCADENZE
+  // =========================================================================
+  function escH(s) {
+    return String(s || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  window.copyTextBtn = function(btn, encodedTxt) {
+    const txt = decodeURIComponent(encodedTxt);
+    navigator.clipboard.writeText(txt).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = `<i class="bi bi-check2-all"></i> Copiato!`;
+      setTimeout(() => { btn.innerHTML = orig; }, 1600);
+    });
+  };
+
+  window.openWaWithTextarea = function(phoneClean, textareaId) {
+    const ta = document.getElementById(textareaId);
+    const txt = ta ? ta.value : "";
+    const url = phoneClean
+      ? `https://wa.me/${phoneClean}?text=${encodeURIComponent(txt)}`
+      : `https://wa.me/?text=${encodeURIComponent(txt)}`;
+    window.open(url, "_blank");
+  };
+
+  window.copyFromTextarea = function(btn, textareaId) {
+    const ta = document.getElementById(textareaId);
+    if (!ta) return;
+    navigator.clipboard.writeText(ta.value).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = `<i class="bi bi-check2-all"></i> Copiato!`;
+      setTimeout(() => { btn.innerHTML = orig; }, 1600);
+    });
+  };
+
+  // Attiva tab da URL ?tab=pesce o ?tab=scadenze
+  document.addEventListener("DOMContentLoaded", () => {
+    const urlTab = new URLSearchParams(window.location.search).get("tab");
+    if (urlTab === "pesce") {
+      document.getElementById("tab-btn-pesce")?.click();
+    } else if (urlTab === "scadenze") {
+      document.getElementById("tab-btn-scadenze")?.click();
+    } else if (urlTab === "ordine") {
+      document.getElementById("tab-btn-ordine")?.click();
+    }
+  });
+
+  // 1. SUBMIT ORDINE GIORNALIERO (PDF o TESTO)
+  document.getElementById("formDailyOrderUpload")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btnSubmitDailyOrd");
+    const box = document.getElementById("dailyOrderResultBox");
+    const fd = new FormData(e.target);
+
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Lettura ordine...`;
+    box.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary mb-2"></div><div class="small fw-bold">Analisi PDF/testo ordine, aggiornamento prodotti lavorati e calcolo upsell...</div></div>`;
+
+    try {
+      const res = await fetch("/api/ordini/carica_pdf_giornaliero", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok) {
+        box.innerHTML = `
+          <div class="alert alert-warning mb-0 small">
+            <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escH(data.error || "Errore durante il caricamento")}</div>
+            ${data.parsed_preview && (data.parsed_preview.items || []).length ? `<div class="mt-1">Ho rilevato <strong>${data.parsed_preview.items.length} righe prodotto</strong> (€ ${Number(data.parsed_preview.totale_ordine || 0).toFixed(2)}). Seleziona il cliente dal menu a tendina a sinistra e premi di nuovo <strong>Registra Ordine</strong>.</div>` : ""}
+          </div>
+        `;
+        return;
+      }
+
+      const r = data.result;
+      const missing = r.prodotti_abituali_mancanti || [];
+      const newWorked = r.nuovi_prodotti_lavorati || [];
+      const regItems = r.prodotti_registrati || [];
+
+      box.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+          <div>
+            <span class="badge bg-success mb-1"><i class="bi bi-check-circle-fill me-1"></i>Ordine Registrato</span>
+            <h6 class="fw-bold mb-0">${escH(r.cliente_nome)} <span class="text-muted small">(${escH(r.cliente_zona || "N/D")})</span></h6>
+          </div>
+          <div class="text-end">
+            <div class="fs-5 fw-bold text-success font-monospace">€ ${Number(r.totale_ordine || 0).toFixed(2)}</div>
+            <div class="extra-small text-muted" style="font-size:0.72rem;">Settimana: € ${Number(r.totale_settimana || 0).toFixed(2)}</div>
+          </div>
+        </div>
+
+        <div class="small mb-2">
+          <strong>${regItems.length} prodotti</strong> segnati come lavorati (${newWorked.length} nuovi lavorati).
+          ${regItems.length ? `<div class="d-flex flex-wrap gap-1 mt-1" style="max-height:78px;overflow-y:auto;">
+            ${regItems.map(it => `<span class="badge bg-light text-dark border">${escH(it.nome)} (${it.quantita} ${it.um}${it.prezzo > 0 ? " · €" + Number(it.prezzo).toFixed(2) : ""})</span>`).join("")}
+          </div>` : ""}
+        </div>
+
+        ${missing.length > 0 ? `
+          <div class="p-2.5 rounded-3 bg-warning-subtle border border-warning-subtle mb-2">
+            <div class="fw-bold small text-warning-emphasis mb-1">
+              <i class="bi bi-graph-up-arrow me-1"></i>Opportunità Aumento Fatturato: ${missing.length} Prodotti Abituali NON Ordinati!
+            </div>
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              ${missing.slice(0, 8).map(m => `<span class="badge bg-white text-dark border">${escH(m.nome)}${m.prezzo_abituale > 0 ? " (€" + Number(m.prezzo_abituale).toFixed(2) + ")" : ""}</span>`).join("")}
+            </div>
+            <textarea id="upsellWaTa" rows="3" class="form-control form-control-sm mb-2" style="font-size:0.76rem;">${escH(r.upsell_wa_text)}</textarea>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-success btn-sm fw-bold" onclick="openWaWithTextarea('${escH(r.whatsapp_clean)}', 'upsellWaTa')">
+                <i class="bi bi-whatsapp me-1"></i>Invia Promemoria Mancanti su WhatsApp
+              </button>
+              <button type="button" class="btn btn-outline-dark btn-sm" onclick="copyFromTextarea(this, 'upsellWaTa')">
+                <i class="bi bi-clipboard me-1"></i>Copia Messaggio
+              </button>
+            </div>
+          </div>
+        ` : `<div class="alert alert-success py-1.5 px-2 small mb-2">🎉 Il cliente ha ordinato tutti i suoi prodotti abituali!</div>`}
+
+        <div class="d-flex gap-2 mt-auto">
+          <a href="${escH(r.scheda_url)}" class="btn btn-outline-primary btn-sm fw-semibold">👤 Scheda Cliente</a>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.location.reload()">🔄 Aggiorna Tabellone Settimana</button>
+        </div>
+      `;
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-danger small mb-0">Errore di rete: ${escH(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+
+  // 2. MATCHING PESCE LOCALE & OFFERTA ITTICO GIORNALIERA
+  document.getElementById("btnRunFishMatcher")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btnRunFishMatcher");
+    const box = document.getElementById("fishMatcherResultsBox");
+    const txt = document.getElementById("fishOfferTextInput")?.value || "";
+    const pdfFile = document.getElementById("fishOfferPdfInput")?.files?.[0];
+
+    if (!txt.trim() && !pdfFile) {
+      return alert("Incolla la lista del pesce locale di oggi oppure seleziona un file PDF.");
+    }
+
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Ricerca clienti...`;
+    box.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-info mb-2"></div><div class="small fw-bold">Incrocio lista pesce locale con i prodotti lavorati dai clienti...</div></div>`;
+
+    try {
+      const fd = new FormData();
+      fd.append("raw_text", txt);
+      if (pdfFile) fd.append("pdf_file", pdfFile);
+
+      const res = await fetch("/api/offerte/match_pesce_giornaliero", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok) {
+        box.innerHTML = `<div class="alert alert-warning small mb-0">${escH(data.error || "Nessun prodotto rilevato.")}</div>`;
+        return;
+      }
+
+      const clients = data.clienti_target || [];
+      box.innerHTML = `
+        <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-3 gap-2">
+          <div>
+            <span class="badge bg-info text-dark me-1">${data.totale_prodotti_offerta} prodotti ittici</span>
+            <span class="badge bg-success me-1">${data.totale_clienti_diretti} Clienti Diretti</span>
+            <span class="badge bg-secondary">${data.totale_clienti_affini} Affini Ittico</span>
+          </div>
+          <span class="small text-muted">Modifica il messaggio se vuoi e clicca Invia su WhatsApp</span>
+        </div>
+        <div class="d-flex flex-column gap-3">
+          ${clients.map((c, idx) => {
+            const taId = `fishWaTa_${c.cliente_id}_${idx}`;
+            const badge = c.match_type === "diretto"
+              ? `<span class="badge bg-success">${c.num_match_diretti} Prodotti Lavorati</span>`
+              : `<span class="badge bg-info-subtle text-info-emphasis border">Lavora Ittico</span>`;
+            const matchesHtml = (c.prodotti_abbinati || []).map(m =>
+              `<span class="badge bg-light text-dark border me-1 mb-1">🐟 <strong>${escH(m.offerta_nome)}</strong> → ${escH(m.motivo)}${m.prezzo_abituale > 0 ? " (storico €" + Number(m.prezzo_abituale).toFixed(2) + ")" : ""}</span>`
+            ).join("");
+            return `
+              <div class="p-3 rounded-3 border bg-body-tertiary">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                  <div>
+                    <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none fs-6">${escH(c.cliente_nome)}</a>
+                    <span class="small text-muted ms-1">(${escH(c.zona || "Zona N/D")})</span>
+                  </div>
+                  ${badge}
+                </div>
+                ${matchesHtml ? `<div class="mb-2">${matchesHtml}</div>` : ""}
+                <textarea id="${taId}" rows="4" class="form-control form-control-sm mb-2" style="font-size:0.78rem;">${escH(c.messaggio_whatsapp)}</textarea>
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-success btn-sm fw-bold" onclick="openWaWithTextarea('${escH(c.whatsapp_clean)}', '${taId}')">
+                    <i class="bi bi-whatsapp me-1"></i>Invia su WhatsApp
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyFromTextarea(this, '${taId}')">
+                    <i class="bi bi-clipboard me-1"></i>Copia Messaggio
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("") || '<div class="text-muted small text-center py-4">Nessun cliente trovato.</div>'}
+        </div>
+      `;
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-danger small mb-0">Errore: ${escH(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+
+  // 3. MATCHING LISTA SCADENZE & VOLANTINO VELOCE PERSONALIZZATO
+  let currentScadenzeFlyerPayload = { cliente_nome: "", prodotti: [] };
+
+  async function runScadenzeMatching(useSavedDb = false) {
+    const btn = document.getElementById("btnRunScadenzeMatcher");
+    const box = document.getElementById("scadenzeMatcherResultsBox");
+    const txt = document.getElementById("scadenzeTextInput")?.value || "";
+    const pdfFile = document.getElementById("scadenzePdfInput")?.files?.[0];
+
+    if (!useSavedDb && !txt.trim() && !pdfFile) {
+      return alert("Carica il PDF Scadenze, incolla la lista oppure clicca 'Usa Scadenze Salvate'.");
+    }
+
+    if (btn) btn.disabled = true;
+    box.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-warning mb-2"></div><div class="small fw-bold">Lettura quantità e date scadenza e incrocio con i prodotti lavorati dai clienti...</div></div>`;
+
+    try {
+      const fd = new FormData();
+      fd.append("raw_text", txt);
+      if (useSavedDb) fd.append("use_saved_db", "1");
+      if (pdfFile && !useSavedDb) fd.append("pdf_file", pdfFile);
+
+      const res = await fetch("/api/offerte/match_scadenze", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok) {
+        box.innerHTML = `<div class="alert alert-warning small mb-0">${escH(data.error || "Nessun prodotto in scadenza trovato.")}</div>`;
+        return;
+      }
+
+      const clients = data.clienti_target || [];
+      const allScadItems = data.scadenze_items || [];
+      const allEnc = encodeURIComponent(JSON.stringify(allScadItems));
+
+      box.innerHTML = `
+        <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-3 gap-2">
+          <div>
+            <span class="badge bg-warning text-dark me-1">${data.totale_prodotti_scadenza} prodotti in scadenza</span>
+            <span class="badge bg-success">${data.totale_clienti_abbinati} Clienti che li lavorano</span>
+          </div>
+          <button type="button" class="btn btn-dark btn-sm rounded-pill fw-bold"
+                  onclick="openFastScadenzeFlyerModal('Tutti i Clienti', '${allEnc}')">
+            <i class="bi bi-magic text-warning me-1"></i>Volantino Veloce Tutte le Scadenze
+          </button>
+        </div>
+        <div class="d-flex flex-column gap-3">
+          ${clients.map((c, idx) => {
+            const taId = `scadWaTa_${c.cliente_id}_${idx}`;
+            const encProds = encodeURIComponent(JSON.stringify(c.prodotti_abbinati || []));
+            const safeCliName = (c.cliente_nome || "").replace(/'/g, "\\'");
+            const itemsBadges = (c.prodotti_abbinati || []).map(p => `
+              <div class="p-1.5 px-2 rounded-2 bg-white border d-flex flex-wrap justify-content-between align-items-center gap-2 small mb-1" style="color:#0f172a;">
+                <div>
+                  <strong>${escH(p.nome)}</strong>
+                  <span class="text-muted ms-1" style="font-size:0.72rem;">(${escH(p.motivo)})</span>
+                </div>
+                <div class="d-flex align-items-center gap-1.5">
+                  <span class="badge bg-danger-subtle text-danger border">📅 Scad: ${escH(p.scadenza)}</span>
+                  <span class="badge bg-warning-subtle text-dark border">📦 Disp: ${escH(p.quantita)}</span>
+                  <span class="badge bg-success">€ ${Number(p.prezzo || 0).toFixed(2)}/${escH(p.um)}</span>
+                </div>
+              </div>
+            `).join("");
+
+            return `
+              <div class="p-3 rounded-3 border bg-body-tertiary">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none fs-6">${escH(c.cliente_nome)}</a>
+                    <span class="small text-muted ms-1">(${escH(c.zona || "Zona N/D")})</span>
+                  </div>
+                  <span class="badge bg-warning text-dark">${c.num_prodotti} prodotti che lavora in scadenza</span>
+                </div>
+                <div class="mb-2">${itemsBadges}</div>
+                <textarea id="${taId}" rows="4" class="form-control form-control-sm mb-2" style="font-size:0.78rem;">${escH(c.messaggio_whatsapp)}</textarea>
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-success btn-sm fw-bold" onclick="openWaWithTextarea('${escH(c.whatsapp_clean)}', '${taId}')">
+                    <i class="bi bi-whatsapp me-1"></i>Invia Messaggio WhatsApp
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyFromTextarea(this, '${taId}')">
+                    <i class="bi bi-clipboard me-1"></i>Copia Testo
+                  </button>
+                  <button type="button" class="btn btn-warning text-dark btn-sm fw-bold"
+                          onclick="openFastScadenzeFlyerModal('${safeCliName}', '${encProds}')">
+                    <i class="bi bi-file-earmark-image me-1"></i>Volantino Veloce per ${escH(c.cliente_nome)}
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("") || '<div class="text-muted small text-center py-4">Nessun cliente abbinato a questi prodotti.</div>'}
+        </div>
+      `;
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-danger small mb-0">Errore: ${escH(err.message)}</div>`;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  document.getElementById("btnRunScadenzeMatcher")?.addEventListener("click", () => runScadenzeMatching(false));
+  document.getElementById("btnLoadSavedScadenze")?.addEventListener("click", () => runScadenzeMatching(true));
+
+  window.openFastScadenzeFlyerModal = function(clienteNome, encodedItems) {
+    const items = JSON.parse(decodeURIComponent(encodedItems));
+    currentScadenzeFlyerPayload = { cliente_nome: clienteNome, prodotti: items };
+
+    document.getElementById("fastFlyerModalTitle").textContent = `⚡ Volantino Veloce Scadenze · ${clienteNome}`;
+    document.getElementById("fastFlyerClientHeader").textContent = clienteNome && clienteNome !== "Tutti i Clienti"
+      ? `Offerta Scadenze per ${clienteNome}`
+      : "Offerta Lampo Prodotti in Scadenza";
+    document.getElementById("fastFlyerSubHeader").textContent = `${items.length} referenze selezionate con quantità e data di scadenza`;
+
+    const grid = document.getElementById("fastFlyerItemsGrid");
+    grid.innerHTML = items.slice(0, 12).map(p => {
+      const imgHtml = p.immagine
+        ? `<img src="${escH(p.immagine)}" style="width:68px;height:68px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid #e2e8f0;padding:3px;">`
+        : `<div class="d-flex align-items-center justify-content-center rounded-3 bg-warning-subtle text-warning-emphasis fw-bold" style="width:68px;height:68px;font-size:1.4rem;">⏳</div>`;
+      return `
+        <div class="col-12 col-md-6">
+          <div class="p-2.5 rounded-3 bg-white border shadow-xs d-flex align-items-center gap-2.5 h-100" style="border-color:#fcd34d !important;">
+            ${imgHtml}
+            <div class="flex-grow-1">
+              <div class="fw-bold small" style="color:#0f172a;line-height:1.25;">${escH(p.nome)}</div>
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                <span class="badge bg-danger text-white" style="font-size:0.68rem;">📅 Scad: ${escH(p.scadenza || "Breve")}</span>
+                <span class="badge bg-warning text-dark" style="font-size:0.68rem;">📦 Disp: ${escH(p.quantita || "Lim.")}</span>
+              </div>
+              <div class="mt-1 fw-bold text-danger" style="font-size:1.05rem;">
+                ${p.prezzo > 0 ? `€ ${Number(p.prezzo).toFixed(2)} <span class="small text-muted fw-normal">/${escH(p.um || "PZ")}</span>` : "Prezzo Speciale"}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    new bootstrap.Modal(document.getElementById("modalFastScadenzeFlyer")).show();
+  };
+
+  document.getElementById("btnOpenInVolantini3")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btnOpenInVolantini3");
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Apertura Volantini 3.0...`;
+    try {
+      const res = await fetch("/api/offerte/crea_volantino_scadenze_veloce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentScadenzeFlyerPayload)
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.location.href = data.editor_url || `/volantini-3?id=${data.volantino_id}`;
+      } else {
+        alert(data.error || "Errore durante la creazione del volantino.");
+      }
+    } catch (e) {
+      alert("Errore: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+
+  document.getElementById("btnDownloadFastFlyerPng")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btnDownloadFastFlyerPng");
+    const cardEl = document.getElementById("fastFlyerCaptureCard");
+    if (!cardEl) return;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Generazione PNG...`;
+    try {
+      if (!window.html2canvas) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      const canvas = await window.html2canvas(cardEl, { scale: 2, useCORS: true, backgroundColor: "#fffbeb" });
+      const a = document.createElement("a");
+      const cleanName = (currentScadenzeFlyerPayload.cliente_nome || "Cliente").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `Offerta_Scadenze_${cleanName}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      alert("Errore download PNG: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
 </script>
 {% endblock %}

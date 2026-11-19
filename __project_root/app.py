@@ -5675,6 +5675,67 @@ def meta_webhook():
                             except Exception as e:
                                 safe_send(from_number, f"Errore broadcast: {str(e)}")
                         return "OK", 200
+
+                    if low.startswith(("pesce:", "ittico:", "pesce locale")):
+                        try:
+                            from ai_agent import match_daily_fish_list
+                            f_res = match_daily_fish_list(raw_text=body)
+                            if f_res.get("ok"):
+                                top_c = f_res.get("clienti_target", [])[:12]
+                                lines_w = [
+                                    f"• *{c['cliente_nome']}* ({c['num_match_diretti']} match)\n  👉 {c['messaggio_whatsapp'].splitlines()[0]}"
+                                    for c in top_c
+                                ]
+                                safe_send(
+                                    from_number,
+                                    f"🐟 *MATCHING PESCE LOCALE*\nProdotti: {f_res['totale_prodotti_offerta']} · Clienti Diretti: {f_res['totale_clienti_diretti']}\n\n"
+                                    + "\n".join(lines_w)
+                                )
+                            else:
+                                safe_send(from_number, f"⚠️ {f_res.get('error')}")
+                        except Exception as e:
+                            safe_send(from_number, f"Errore matching pesce: {e}")
+                        return "OK", 200
+
+                    if low.startswith(("scadenze:", "lista scadenze")):
+                        try:
+                            from ai_agent import match_scadenze_list
+                            s_res = match_scadenze_list(raw_text=body)
+                            if s_res.get("ok"):
+                                top_c = s_res.get("clienti_target", [])[:12]
+                                lines_s = [
+                                    f"• *{c['cliente_nome']}* ({c['num_prodotti']} prod. in scadenza)"
+                                    for c in top_c
+                                ]
+                                safe_send(
+                                    from_number,
+                                    f"⏳ *MATCHING SCADENZE*\nClienti abbinati: {s_res['totale_clienti_abbinati']}\n\n"
+                                    + "\n".join(lines_s)
+                                )
+                            else:
+                                safe_send(from_number, f"⚠️ {s_res.get('error')}")
+                        except Exception as e:
+                            safe_send(from_number, f"Errore matching scadenze: {e}")
+                        return "OK", 200
+
+                    if low.startswith("ordine"):
+                        try:
+                            from ai_agent import parse_daily_order_pdf_or_text, register_daily_order_in_db
+                            p_ord = parse_daily_order_pdf_or_text(raw_text=body)
+                            if p_ord.get("detected_cliente_id"):
+                                r_ord = register_daily_order_in_db(
+                                    cliente_id=p_ord["detected_cliente_id"],
+                                    data_ordine_str=p_ord.get("detected_date"),
+                                    items=p_ord.get("items"),
+                                    note="Da WhatsApp Admin",
+                                    explicit_totale=p_ord.get("totale_ordine"),
+                                )
+                                safe_send(from_number, r_ord.get("message", "Ordine registrato!"))
+                            else:
+                                safe_send(from_number, "⚠️ Specifica il nome del cliente dopo ORDINE.")
+                        except Exception as e:
+                            safe_send(from_number, f"Errore ordine: {e}")
+                        return "OK", 200
                         
                 # MENU (Per Clienti Normali o controlli standard)
                 if low in ("menu", "start", "offerte", "preferenze"):
@@ -5993,7 +6054,9 @@ def ordini_settimanali():
         domenica_target=domenica_target,
         settimana_num=settimana_num,
         anno_target=anno_target,
-        offset_settimane=offset
+        offset_settimane=offset,
+        tutti_clienti=[dict(c) for c in tutti_clienti],
+        oggi_iso=str(oggi)
     )
 
 @app.route('/api/ordini/registra_rapido', methods=['POST'])
@@ -6041,6 +6104,401 @@ def api_ordini_registra_rapido():
         except Exception as e:
             db.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ==============================================================================
+# API CENTRO OPERATIVO GIORNALIERO: ORDINI PDF/MOBILE, PESCE LOCALE, SCADENZE & VOLANTINO VELOCE
+# ==============================================================================
+@app.route('/api/ordini/carica_pdf_giornaliero', methods=['POST'])
+@login_required
+def api_ordini_carica_pdf_giornaliero():
+    """
+    Riceve uno o più PDF d'ordine giornaliero (o testo incollato da cellulare/WhatsApp/Telegram),
+    estrae righe prodotto, cliente e data, aggiorna i prodotti lavorati dal cliente (`lavorato = TRUE`),
+    aggiorna il fatturato settimanale/mensile e restituisce i prodotti abituali non ordinati (Upsell).
+    """
+    from ai_agent import parse_daily_order_pdf_or_text, register_daily_order_in_db, get_db_snapshot
+
+    cliente_id_raw = None
+    data_ordine_str = ""
+    raw_text = ""
+    modalita = "aggiungi"
+    totale_manuale = None
+    note_extra = ""
+    pdf_files = []
+
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        cliente_id_raw = request.form.get('cliente_id')
+        data_ordine_str = (request.form.get('data_ordine') or '').strip()
+        raw_text = (request.form.get('raw_text') or '').strip()
+        modalita = (request.form.get('modalita') or 'aggiungi').strip().lower()
+        note_extra = (request.form.get('note') or '').strip()
+        tot_str = (request.form.get('totale_manuale') or '').replace(',', '.').strip()
+        if tot_str:
+            try:
+                totale_manuale = float(tot_str)
+            except ValueError:
+                totale_manuale = None
+        pdf_files = [f for f in request.files.getlist('pdf_file') if f and f.filename]
+    else:
+        data = request.get_json(silent=True) or {}
+        cliente_id_raw = data.get('cliente_id')
+        data_ordine_str = (data.get('data_ordine') or '').strip()
+        raw_text = (data.get('raw_text') or '').strip()
+        modalita = (data.get('modalita') or 'aggiungi').strip().lower()
+        note_extra = (data.get('note') or '').strip()
+        if data.get('totale_manuale') not in (None, ''):
+            try:
+                totale_manuale = float(str(data.get('totale_manuale')).replace(',', '.'))
+            except ValueError:
+                totale_manuale = None
+
+    snapshot = get_db_snapshot()
+    uploads_dir = os.path.join(app.static_folder, 'uploads', 'pdf_settimanali')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    results = []
+    if pdf_files:
+        for f in pdf_files:
+            safe_name = f"giorn_{int(time.time())}_{werkzeug.utils.secure_filename(f.filename)}"
+            saved_path = os.path.join(uploads_dir, safe_name)
+            f.save(saved_path)
+            parsed = parse_daily_order_pdf_or_text(pdf_path=saved_path, raw_text=raw_text, snapshot=snapshot)
+            target_cid = int(cliente_id_raw) if (cliente_id_raw and str(cliente_id_raw).isdigit()) else parsed.get("detected_cliente_id")
+            if not target_cid:
+                return jsonify({
+                    "ok": False,
+                    "needs_client_selection": True,
+                    "parsed_preview": parsed,
+                    "error": f"Non sono riuscito a rilevare automaticamente il nome cliente dal file '{f.filename}'. Seleziona il cliente dal menu a tendina e riprova."
+                }), 400
+            dt_use = data_ordine_str or parsed.get("detected_date") or str(datetime.today().date())
+            tot_use = totale_manuale if (totale_manuale is not None and totale_manuale > 0) else parsed.get("totale_ordine")
+            reg_res = register_daily_order_in_db(
+                cliente_id=target_cid,
+                data_ordine_str=dt_use,
+                items=parsed.get("items") or [],
+                note=note_extra or f"PDF: {f.filename}",
+                pdf_filename=safe_name,
+                modalita=modalita,
+                explicit_totale=tot_use,
+            )
+            results.append(reg_res)
+    else:
+        if not raw_text and not (totale_manuale and cliente_id_raw):
+            return jsonify({"ok": False, "error": "Carica un file PDF d'ordine oppure incolla il testo dell'ordine."}), 400
+        parsed = parse_daily_order_pdf_or_text(pdf_path=None, raw_text=raw_text, snapshot=snapshot)
+        target_cid = int(cliente_id_raw) if (cliente_id_raw and str(cliente_id_raw).isdigit()) else parsed.get("detected_cliente_id")
+        if not target_cid:
+            return jsonify({
+                "ok": False,
+                "needs_client_selection": True,
+                "parsed_preview": parsed,
+                "error": "Seleziona il cliente dal menu a tendina oppure scrivi il nome del cliente nel testo dell'ordine."
+            }), 400
+        dt_use = data_ordine_str or parsed.get("detected_date") or str(datetime.today().date())
+        tot_use = totale_manuale if (totale_manuale is not None and totale_manuale > 0) else parsed.get("totale_ordine")
+        reg_res = register_daily_order_in_db(
+            cliente_id=target_cid,
+            data_ordine_str=dt_use,
+            items=parsed.get("items") or [],
+            note=note_extra or "Ordine giornaliero",
+            modalita=modalita,
+            explicit_totale=tot_use,
+        )
+        results.append(reg_res)
+
+    primary = results[-1]
+    return jsonify({
+        "ok": True,
+        "result": primary,
+        "all_results": results,
+    })
+
+
+@app.route('/api/offerte/match_pesce_giornaliero', methods=['POST'])
+@login_required
+def api_offerte_match_pesce_giornaliero():
+    """
+    Riceve la lista del pesce locale / offerta giornaliera ittico (testo o PDF),
+    individua automaticamente i clienti che lavorano quei prodotti e prepara i messaggi WhatsApp.
+    """
+    from ai_agent import match_daily_fish_list
+
+    raw_text = ""
+    items = None
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        raw_text = (request.form.get('raw_text') or '').strip()
+        pdf_f = request.files.get('pdf_file')
+        if pdf_f and pdf_f.filename:
+            import tempfile
+            fd, tmp_p = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd)
+            try:
+                pdf_f.save(tmp_p)
+                with pdfplumber.open(tmp_p) as pdf:
+                    pdf_txt = "\n".join((pg.extract_text() or "") for pg in pdf.pages)
+                raw_text = (pdf_txt + "\n" + raw_text).strip()
+            finally:
+                if os.path.exists(tmp_p):
+                    try:
+                        os.remove(tmp_p)
+                    except Exception:
+                        pass
+    else:
+        data = request.get_json(silent=True) or {}
+        raw_text = (data.get('raw_text') or '').strip()
+        items = data.get('items')
+
+    res = match_daily_fish_list(raw_text=raw_text, items=items)
+    return jsonify(res), (200 if res.get("ok") else 400)
+
+
+@app.route('/api/offerte/match_scadenze', methods=['POST'])
+@login_required
+def api_offerte_match_scadenze():
+    """
+    Riceve un PDF Scadenze, una lista testuale con quantità e data scadenza, oppure usa le scadenze già caricate in DB.
+    Restituisce per ogni cliente i prodotti in scadenza che lavora, il messaggio WhatsApp preimpostato e i dati per il Volantino Veloce.
+    """
+    from ai_agent import match_scadenze_list
+
+    raw_text = ""
+    parsed_items = None
+    use_saved = False
+
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        raw_text = (request.form.get('raw_text') or '').strip()
+        use_saved = str(request.form.get('use_saved_db', '')).lower() in ('1', 'true', 'yes')
+        pdf_f = request.files.get('pdf_file')
+        if pdf_f and pdf_f.filename:
+            import tempfile
+            fd, tmp_p = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd)
+            try:
+                pdf_f.save(tmp_p)
+                offers = parse_promo_scadenze_from_pdf(tmp_p)
+                if not offers:
+                    offers = parse_scadenze_from_pdf(tmp_p)
+                if not offers:
+                    offers = parse_offers_from_pdf(tmp_p)
+                if offers:
+                    parsed_items = [
+                        {
+                            "codice": o.get("code") or "",
+                            "nome": o.get("name") or "",
+                            "prezzo": o.get("price") or 0,
+                            "um": o.get("um") or "PZ",
+                            "scadenza": o.get("scadenza") or "",
+                            "quantita": o.get("quantita") or "Disp.",
+                        }
+                        for o in offers
+                    ]
+                else:
+                    with pdfplumber.open(tmp_p) as pdf:
+                        raw_text = ("\n".join((pg.extract_text() or "") for pg in pdf.pages) + "\n" + raw_text).strip()
+            finally:
+                if os.path.exists(tmp_p):
+                    try:
+                        os.remove(tmp_p)
+                    except Exception:
+                        pass
+    else:
+        data = request.get_json(silent=True) or {}
+        raw_text = (data.get('raw_text') or '').strip()
+        parsed_items = data.get('items')
+        use_saved = bool(data.get('use_saved_db'))
+
+    res = match_scadenze_list(raw_text=raw_text, items=parsed_items, use_saved_db=use_saved)
+    return jsonify(res), (200 if res.get("ok") else 400)
+
+
+@app.route('/api/offerte/crea_volantino_scadenze_veloce', methods=['POST'])
+@login_required
+def api_crea_volantino_scadenze_veloce():
+    """
+    Crea in 1 clic un Volantino 3.0 AI personalizzato per un cliente (o globale)
+    con i prodotti in scadenza che quel cliente lavora, includendo quantità in scadenza e data di scadenza.
+    """
+    from volantini_3_ai import build_flyer_3_payload, _ensure_volantini3_table
+
+    data = request.get_json(silent=True) or {}
+    cliente_nome = (data.get("cliente_nome") or "").strip()
+    prodotti_in = data.get("prodotti") or []
+    if not prodotti_in:
+        return jsonify({"ok": False, "error": "Nessun prodotto selezionato per il volantino scadenze."}), 400
+
+    oggi_str = datetime.now().strftime("%d/%m/%Y")
+    nome_vol = f"Promo Scadenze {cliente_nome} - {oggi_str}" if cliente_nome else f"Promo Lampo Scadenze - {oggi_str}"
+    titolo = f"OFFERTA LAMPO SCADENZE" + (f" · {cliente_nome.upper()}" if cliente_nome else "")
+    sottotitolo = f"Lotti a scadenza ravvicinata e disponibilità limitata · {oggi_str}"
+
+    raw_flyer_items = []
+    for p in prodotti_in:
+        scad_lbl = str(p.get("scadenza") or "").strip()
+        qty_lbl = str(p.get("quantita") or "").strip()
+        extra_badges = []
+        if scad_lbl:
+            extra_badges.append(f"SCAD: {scad_lbl}")
+        if qty_lbl:
+            extra_badges.append(f"DISP: {qty_lbl}")
+        badge_str = " · ".join(extra_badges)
+        nome_base = str(p.get("nome") or "Prodotto").strip()
+        raw_flyer_items.append({
+            "id": p.get("prodotto_id") or p.get("id"),
+            "codice": str(p.get("codice") or "").strip(),
+            "nome": nome_base,
+            "sottotitolo": badge_str,
+            "marca": badge_str,
+            "prezzo": float(p.get("prezzo") or 0.0),
+            "um": str(p.get("um") or "PZ").upper(),
+            "immagine": str(p.get("immagine") or "").strip(),
+            "scadenza": scad_lbl,
+            "quantita": qty_lbl,
+        })
+
+    flyer = build_flyer_3_payload(
+        raw_products=raw_flyer_items,
+        titolo=titolo,
+        sottotitolo=sottotitolo,
+        validita="FINO A ESAURIMENTO SCORTE",
+        stile="sfondo_crema_organico",
+        layout_mode="pregis_spontaneo",
+        use_openai=False,
+    )
+    flyer["nome_volantino"] = nome_vol
+
+    # Forza nel sottotitolo di ogni card la data scadenza e la quantità disponibile
+    for idx_c, card in enumerate(flyer.get("prodotti") or []):
+        if idx_c < len(raw_flyer_items):
+            src = raw_flyer_items[idx_c]
+            if src.get("sottotitolo"):
+                card["sottotitolo"] = src["sottotitolo"]
+                card["marca"] = src["sottotitolo"]
+
+    saved_id = None
+    with get_db() as conn:
+        cur = conn.cursor()
+        _ensure_volantini3_table(cur)
+        cur.execute("""
+            INSERT INTO volantini_3_ai (titolo, sottotitolo, stile, layout_mode, dati_json)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id
+        """, (nome_vol, sottotitolo, flyer["stile"], flyer["layout_mode"], json.dumps(flyer, ensure_ascii=False)))
+        r = cur.fetchone()
+        saved_id = (r["id"] if isinstance(r, dict) else r[0]) if r else getattr(cur, "lastrowid", None)
+        conn.commit()
+
+    return jsonify({
+        "ok": True,
+        "volantino_id": saved_id,
+        "nome_volantino": nome_vol,
+        "flyer": flyer,
+        "editor_url": f"/volantini-3?id={saved_id}",
+    })
+
+
+@app.route('/telegram/webhook', methods=['POST'])
+def telegram_webhook():
+    """
+    Webhook per Bot Telegram: permette di inviare dal cellulare un PDF ordine, un PDF scadenze,
+    o un messaggio di testo ('ORDINE ...', 'PESCE: ...', 'SCADENZE: ...') e ricevere subito
+    la registrazione dell'ordine o la lista clienti con i messaggi preimpostati.
+    """
+    from ai_agent import parse_daily_order_pdf_or_text, register_daily_order_in_db, match_daily_fish_list, match_scadenze_list
+
+    update = request.get_json(silent=True) or {}
+    msg = update.get("message") or update.get("edited_message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    text = (msg.get("text") or msg.get("caption") or "").strip()
+    doc = msg.get("document") or {}
+    tg_token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+
+    def reply_tg(reply_text: str):
+        if tg_token and chat_id:
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                    json={"chat_id": chat_id, "text": reply_text},
+                    timeout=10,
+                )
+            except Exception as e:
+                print(f"Telegram send error: {e}")
+
+    low = text.lower()
+    pdf_path = None
+    if doc and str(doc.get("file_name") or "").lower().endswith(".pdf") and tg_token:
+        try:
+            f_id = doc.get("file_id")
+            r_meta = requests.get(f"https://api.telegram.org/bot{tg_token}/getFile?file_id={f_id}", timeout=10).json()
+            f_path = (r_meta.get("result") or {}).get("file_path")
+            if f_path:
+                pdf_bytes = requests.get(f"https://api.telegram.org/file/bot{tg_token}/{f_path}", timeout=15).content
+                pdf_path = f"/tmp/tg_{int(time.time())}.pdf"
+                with open(pdf_path, "wb") as wf:
+                    wf.write(pdf_bytes)
+        except Exception as e:
+            print(f"Telegram PDF download error: {e}")
+
+    try:
+        if low.startswith(("pesce", "ittico")):
+            res = match_daily_fish_list(raw_text=text)
+            if res.get("ok"):
+                lines = [
+                    f"🐟 {c['cliente_nome']} ({c['num_match_diretti']} prodotti)\n{c['messaggio_whatsapp']}"
+                    for c in res.get("clienti_target", [])[:8]
+                ]
+                reply_tg(f"✅ Matching Pesce Locale ({res['totale_clienti_diretti']} clienti diretti):\n\n" + "\n\n---\n\n".join(lines))
+                return jsonify(res)
+        elif low.startswith("scadenz") or (pdf_path and "scad" in (str(doc.get("file_name") or "").lower() + " " + low)):
+            items_sc = None
+            if pdf_path:
+                offs = parse_promo_scadenze_from_pdf(pdf_path) or parse_scadenze_from_pdf(pdf_path)
+                if offs:
+                    items_sc = [
+                        {
+                            "codice": o.get("code") or "",
+                            "nome": o.get("name") or "",
+                            "prezzo": o.get("price") or 0,
+                            "um": o.get("um") or "PZ",
+                            "scadenza": o.get("scadenza") or "",
+                            "quantita": o.get("quantita") or "Disp.",
+                        }
+                        for o in offs
+                    ]
+            res = match_scadenze_list(raw_text=text, items=items_sc)
+            if res.get("ok"):
+                lines = [
+                    f"⏳ {c['cliente_nome']} ({c['num_prodotti']} prod.)\n{c['messaggio_whatsapp']}"
+                    for c in res.get("clienti_target", [])[:8]
+                ]
+                reply_tg(f"✅ Matching Lista Scadenze ({res['totale_clienti_abbinati']} clienti):\n\n" + "\n\n---\n\n".join(lines))
+                return jsonify(res)
+        elif pdf_path or low.startswith("ordine"):
+            p_ord = parse_daily_order_pdf_or_text(pdf_path=pdf_path, raw_text=text)
+            if p_ord.get("detected_cliente_id"):
+                r_ord = register_daily_order_in_db(
+                    cliente_id=p_ord["detected_cliente_id"],
+                    data_ordine_str=p_ord.get("detected_date"),
+                    items=p_ord.get("items"),
+                    note="Da Telegram Bot",
+                    explicit_totale=p_ord.get("totale_ordine"),
+                )
+                msg_out = r_ord.get("message", "Ordine registrato!")
+                if r_ord.get("upsell_wa_text"):
+                    msg_out += f"\n\n💡 Messaggio Upsell Prodotti Mancanti:\n{r_ord['upsell_wa_text']}"
+                reply_tg(msg_out)
+                return jsonify(r_ord)
+            else:
+                reply_tg("⚠️ Ordine letto ma non ho trovato il nome del cliente. Scrivi il nome del cliente nella didascalia del PDF.")
+                return jsonify({"ok": False, "parsed": p_ord})
+    finally:
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except Exception:
+                pass
+
+    return jsonify({"ok": True})
 
 # ============================
 # API: Listino Prezzi & Referenze Cliente

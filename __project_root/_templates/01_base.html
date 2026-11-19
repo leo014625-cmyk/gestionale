@@ -796,6 +796,62 @@
         margin-left: 0 !important;
         padding: 1.25rem !important;
       }
+      body {
+        padding-bottom: 68px !important;
+      }
+      #aiAgentFab {
+        bottom: 78px !important;
+        right: 16px !important;
+        padding: 10px 15px !important;
+        font-size: 0.84rem !important;
+      }
+    }
+
+    /* Mobile Bottom Navigation Bar (App-like Smartphone Experience) */
+    .mobile-bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: var(--card-bg-glass);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid var(--border-color);
+      box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.12);
+      z-index: 1052;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 4px;
+    }
+    .mobile-bottom-nav .mob-nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.67rem;
+      font-weight: 700;
+      gap: 2px;
+      padding: 6px 2px;
+      border-radius: 10px;
+      transition: all 0.15s ease;
+      border: none;
+      background: transparent;
+    }
+    .mobile-bottom-nav .mob-nav-item i {
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .mobile-bottom-nav .mob-nav-item.active,
+    .mobile-bottom-nav .mob-nav-item:hover {
+      color: var(--primary);
+    }
+    .mobile-bottom-nav .mob-nav-item.mob-nav-ai {
+      color: #7c3aed;
     }
 
     {% block styles %}{% endblock %}
@@ -982,9 +1038,33 @@
   <footer>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span>© {{ current_year or "2026" }} <strong>Horeca Suite</strong>. Tutti i diritti riservati.</span>
-      <span class="badge bg-light text-secondary border">v2.1 Premium</span>
+      <span class="badge bg-light text-secondary border">v3.0 Sales Pro</span>
     </div>
   </footer>
+
+  <!-- Mobile Bottom App Bar (visibile su smartphone < 768px) -->
+  <nav class="mobile-bottom-nav d-md-none" aria-label="Menu rapido mobile">
+    <a href="/" class="mob-nav-item {% if request.path == '/' %}active{% endif %}">
+      <i class="bi bi-house-door-fill"></i>
+      <span>Home</span>
+    </a>
+    <a href="/ordini?tab=ordine#centro-operativo" class="mob-nav-item {% if request.path.startswith('/ordini') %}active{% endif %}">
+      <i class="bi bi-file-earmark-plus-fill text-primary"></i>
+      <span>Ordini PDF</span>
+    </a>
+    <a href="/ordini?tab=pesce#centro-operativo" class="mob-nav-item">
+      <i class="bi bi-water text-info"></i>
+      <span>Pesce/Scad.</span>
+    </a>
+    <a href="{{ url_for('clienti') }}" class="mob-nav-item {% if request.path.startswith('/clienti') %}active{% endif %}">
+      <i class="bi bi-people-fill"></i>
+      <span>Clienti</span>
+    </a>
+    <button type="button" class="mob-nav-item mob-nav-ai" id="mobileBottomAiBtn">
+      <i class="bi bi-stars"></i>
+      <span>Agente AI</span>
+    </button>
+  </nav>
 
   <!-- Core JS scripts with defer -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
@@ -1267,13 +1347,13 @@
 
     <!-- Azioni Rapide Contestuali -->
     <div class="ai-quick-bar">
-      <button type="button" class="ai-quick-chip" data-prompt="Quanto abbiamo fatturato e quali sono i migliori clienti?">📊 Fatturato & Top</button>
-      <button type="button" class="ai-quick-chip" data-prompt="Qual è la situazione delle visite e dei giri?">📅 Visite & Giri</button>
-      <button type="button" class="ai-quick-chip" data-prompt="Qual è la situazione degli ordini di questa settimana e chi manca?">🚚 Ordini Settimana</button>
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_pesce_locale">🐟 Pesce Locale Oggi</button>
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_scadenze">⏳ Lista Scadenze</button>
+      <button type="button" class="ai-quick-chip" data-prompt="prompt_daily_order">📥 Ordine Giornaliero</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Mostrami le opportunità per aumentare il fatturato sui clienti questa settimana">🚀 Aumenta Fatturato</button>
       <button type="button" class="ai-quick-chip" data-prompt="prompt_search_product">🔍 Chi lavora prodotto?</button>
-      <button type="button" class="ai-quick-chip" data-prompt="prompt_import">📦 Carica Prodotti</button>
-      <button type="button" class="ai-quick-chip" data-prompt="Categorizza tutti i prodotti senza categoria">🏷️ Auto-Categorizza</button>
-      <button type="button" class="ai-quick-chip" data-prompt="prompt_client">👤 Prodotti Cliente</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Qual è la situazione degli ordini di questa settimana e chi manca?">🚚 Ordini Settimana</button>
+      <button type="button" class="ai-quick-chip" data-prompt="Quanto abbiamo fatturato e quali sono i migliori clienti?">📊 Fatturato & Top</button>
       <button type="button" class="ai-quick-chip" data-prompt="Crea un volantino 3x3 con i prodotti a catalogo">🎨 Crea Volantino</button>
     </div>
 
@@ -1314,6 +1394,7 @@
       const fab = document.getElementById("aiAgentFab");
       const topBtn = document.getElementById("topNavbarAiBtn");
       const sidebarAiBtn = document.getElementById("sidebarAiBtn");
+      const mobileBottomAiBtn = document.getElementById("mobileBottomAiBtn");
       const drawer = document.getElementById("aiAgentDrawer");
       const closeBtn = document.getElementById("aiCloseDrawerBtn");
       const settingsBtn = document.getElementById("aiToggleSettingsBtn");
@@ -1364,6 +1445,7 @@
       if (fab) fab.addEventListener("click", openDrawer);
       if (topBtn) topBtn.addEventListener("click", openDrawer);
       if (sidebarAiBtn) sidebarAiBtn.addEventListener("click", openDrawer);
+      if (mobileBottomAiBtn) mobileBottomAiBtn.addEventListener("click", openDrawer);
       if (closeBtn) closeBtn.addEventListener("click", () => drawer.classList.remove("open"));
       if (settingsBtn) settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("d-none"));
 
@@ -1431,6 +1513,15 @@
           const p = btn.getAttribute("data-prompt");
           if (p === "prompt_search_product") {
             promptInput.value = "Quale dei miei clienti lavora il prodotto ";
+            promptInput.focus();
+          } else if (p === "prompt_pesce_locale") {
+            promptInput.value = "Pesce locale e offerta ittico di oggi:\n- Spigola fresca locale € 14,50/kg\n- Calamaro fresco € 18,90/kg\n- Gambero rosso € 26,00/kg";
+            promptInput.focus();
+          } else if (p === "prompt_scadenze") {
+            promptInput.value = "Lista scadenze: dimmi quali clienti lavorano i prodotti in scadenza e preparami messaggio e volantino veloce";
+            promptInput.focus();
+          } else if (p === "prompt_daily_order") {
+            promptInput.value = "Ordine di oggi per ";
             promptInput.focus();
           } else if (p === "prompt_import") {
             promptInput.value = "Aggiungi questi prodotti al catalogo:\n1001 Hamburger Black Angus 200g € 12,50\n1002 Filetto di Salmone Norvegese € 18,90";
@@ -1713,6 +1804,18 @@
           if (data.search_results) {
             renderProductClientSearchResults(data.search_results);
           }
+          if (data.daily_order_result) {
+            renderDailyOrderResultCard(data.daily_order_result);
+          }
+          if (data.fish_matches) {
+            renderFishMatchesCard(data.fish_matches);
+          }
+          if (data.scadenze_matches) {
+            renderScadenzeMatchesCard(data.scadenze_matches);
+          }
+          if (data.revenue_opportunities) {
+            renderRevenueOpportunitiesCard(data.revenue_opportunities);
+          }
           if (data.pending_action) {
             renderPendingActionCard(data.pending_action);
           }
@@ -1721,6 +1824,200 @@
           appendMessage("bot", `⚠️ Errore di comunicazione col server: ${err.message}`);
         }
       });
+
+      window.copyAiMsgText = function(btn, encodedTxt) {
+        const txt = decodeURIComponent(encodedTxt);
+        navigator.clipboard.writeText(txt).then(() => {
+          const orig = btn.innerHTML;
+          btn.innerHTML = `<i class="bi bi-check2"></i> Copiato!`;
+          setTimeout(() => { btn.innerHTML = orig; }, 1600);
+        });
+      };
+
+      window.createAiFastScadenzeFlyer = async function(btn, clienteNome, encodedItems) {
+        const items = JSON.parse(decodeURIComponent(encodedItems));
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Creazione...`;
+        try {
+          const res = await fetch("/api/offerte/crea_volantino_scadenze_veloce", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cliente_nome: clienteNome, prodotti: items })
+          });
+          const d = await res.json();
+          if (d.ok) {
+            window.location.href = `/volantini-3?id=${d.volantino_id}`;
+          } else {
+            alert(d.error || "Errore creazione volantino");
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        } catch (e) {
+          alert("Errore: " + e.message);
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      };
+
+      function renderDailyOrderResultCard(ord) {
+        const card = document.createElement("div");
+        card.className = "ai-preview-card border-success";
+        const missing = ord.prodotti_abituali_mancanti || [];
+        const missingHtml = missing.length > 0 ? `
+          <div class="mt-2 p-2 rounded-2 bg-warning-subtle border border-warning-subtle">
+            <div class="fw-bold small text-warning-emphasis mb-1">
+              <i class="bi bi-graph-up-arrow me-1"></i>Aumenta Fatturato: ${missing.length} Prodotti Abituali NON Ordinati
+            </div>
+            <div class="small text-muted mb-2">
+              ${missing.slice(0, 6).map(m => `<span class="badge bg-white text-dark border me-1 mb-1">${m.nome}${m.prezzo_abituale > 0 ? " (€" + m.prezzo_abituale.toFixed(2) + ")" : ""}</span>`).join("")}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <a href="${ord.upsell_wa_url}" target="_blank" class="btn btn-success btn-sm fw-bold">
+                <i class="bi bi-whatsapp me-1"></i>Proponi Mancanti su WhatsApp
+              </a>
+              <button type="button" class="btn btn-outline-dark btn-sm" onclick="copyAiMsgText(this, '${encodeURIComponent(ord.upsell_wa_text)}')">
+                <i class="bi bi-clipboard me-1"></i>Copia Messaggio
+              </button>
+            </div>
+          </div>
+        ` : "";
+
+        card.innerHTML = `
+          <div class="ai-preview-header bg-success-subtle text-success-emphasis">
+            <span><i class="bi bi-check-circle-fill text-success me-1"></i>Ordine Registrato: ${ord.cliente_nome}</span>
+            <span class="badge bg-success">€ ${Number(ord.totale_ordine || 0).toFixed(2)}</span>
+          </div>
+          <div class="p-2.5 small">
+            <div class="d-flex justify-content-between mb-2">
+              <span>📅 Data: <strong>${ord.data_ordine}</strong></span>
+              <span>📦 Prodotti lavorati: <strong>${ord.num_prodotti_ordinati}</strong></span>
+              <span>📈 Sett.: <strong>€ ${Number(ord.totale_settimana || 0).toFixed(2)}</strong></span>
+            </div>
+            ${missingHtml}
+            <div class="mt-2 d-flex gap-2">
+              <a href="${ord.scheda_url}" class="btn btn-primary btn-sm">👤 Apri Scheda Cliente</a>
+              <a href="/ordini" class="btn btn-outline-secondary btn-sm">🚚 Tabellone Ordini</a>
+            </div>
+          </div>
+        `;
+        messagesArea.appendChild(card);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
+
+      function renderFishMatchesCard(fm) {
+        const card = document.createElement("div");
+        card.className = "ai-preview-card";
+        const clients = fm.clienti_target || [];
+        const rowsHtml = clients.slice(0, 25).map(c => {
+          const badgeHtml = c.match_type === "diretto"
+            ? `<span class="badge bg-info text-dark">${c.num_match_diretti} Specie Lavorate</span>`
+            : `<span class="badge bg-secondary">Cliente Ittico</span>`;
+          const prodsHtml = (c.prodotti_abbinati || []).map(p =>
+            `<div class="text-muted" style="font-size:0.72rem;">• <strong>${p.offerta_nome}</strong> → ${p.motivo}</div>`
+          ).join("");
+          return `
+            <div class="p-2 border-bottom">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none">${c.cliente_nome} <span class="text-muted small">(${c.zona || "N/D"})</span></a>
+                ${badgeHtml}
+              </div>
+              ${prodsHtml}
+              <div class="d-flex gap-1.5 mt-2 flex-wrap">
+                <a href="${c.wa_url}" target="_blank" class="btn btn-success btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;">
+                  <i class="bi bi-whatsapp me-1"></i>Invia Offerta Pesce
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size:0.74rem;" onclick="copyAiMsgText(this, '${encodeURIComponent(c.messaggio_whatsapp)}')">
+                  <i class="bi bi-clipboard me-1"></i>Copia Testo
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        card.innerHTML = `
+          <div class="ai-preview-header">
+            <span><i class="bi bi-water text-info me-1"></i>Clienti Target Pesce Locale (${clients.length})</span>
+            <a href="/ordini?tab=pesce#centro-operativo" class="badge bg-primary text-white text-decoration-none">Apri Pannello Completo</a>
+          </div>
+          <div style="max-height: 360px; overflow-y: auto;">${rowsHtml || '<div class="p-3 text-muted small">Nessun cliente abbinato.</div>'}</div>
+        `;
+        messagesArea.appendChild(card);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
+
+      function renderScadenzeMatchesCard(sm) {
+        const card = document.createElement("div");
+        card.className = "ai-preview-card";
+        const clients = sm.clienti_target || [];
+        const rowsHtml = clients.slice(0, 25).map(c => {
+          const prodsHtml = (c.prodotti_abbinati || []).map(p =>
+            `<div class="text-muted" style="font-size:0.72rem;">• <strong>${p.nome}</strong> (€ ${Number(p.prezzo || 0).toFixed(2)}) · 📅 Scad: <strong>${p.scadenza}</strong> · 📦 Disp: <strong>${p.quantita}</strong></div>`
+          ).join("");
+          const encItems = encodeURIComponent(JSON.stringify(c.prodotti_abbinati || []));
+          return `
+            <div class="p-2 border-bottom">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none">${c.cliente_nome} <span class="text-muted small">(${c.zona || "N/D"})</span></a>
+                <span class="badge bg-warning text-dark">${c.num_prodotti} in scadenza</span>
+              </div>
+              ${prodsHtml}
+              <div class="d-flex gap-1.5 mt-2 flex-wrap">
+                <a href="${c.wa_url}" target="_blank" class="btn btn-success btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;">
+                  <i class="bi bi-whatsapp me-1"></i>Invia WhatsApp
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size:0.74rem;" onclick="copyAiMsgText(this, '${encodeURIComponent(c.messaggio_whatsapp)}')">
+                  <i class="bi bi-clipboard me-1"></i>Copia
+                </button>
+                <button type="button" class="btn btn-warning btn-sm py-0.5 px-2 fw-bold text-dark" style="font-size:0.74rem;" onclick="createAiFastScadenzeFlyer(this, '${c.cliente_nome.replace(/'/g, "\\'")}', '${encItems}')">
+                  <i class="bi bi-magic me-1"></i>Volantino Veloce Cliente
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        card.innerHTML = `
+          <div class="ai-preview-header">
+            <span><i class="bi bi-hourglass-split text-warning me-1"></i>Clienti per Lista Scadenze (${clients.length})</span>
+            <a href="/ordini?tab=scadenze#centro-operativo" class="badge bg-primary text-white text-decoration-none">Apri Pannello</a>
+          </div>
+          <div style="max-height: 360px; overflow-y: auto;">${rowsHtml || '<div class="p-3 text-muted small">Nessun cliente abbinato.</div>'}</div>
+        `;
+        messagesArea.appendChild(card);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
+
+      function renderRevenueOpportunitiesCard(ro) {
+        const card = document.createElement("div");
+        card.className = "ai-preview-card";
+        const list = ro.opportunita || [];
+        const rowsHtml = list.slice(0, 20).map(c => `
+          <div class="p-2 border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+              <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none">${c.cliente_nome} <span class="text-muted small">(${c.zona || "N/D"})</span></a>
+              <span class="badge bg-primary-subtle text-primary">${c.num_prodotti_lavorati} prod. lavorati</span>
+            </div>
+            ${(c.top_prodotti || []).length ? `<div class="text-muted" style="font-size:0.72rem;">Top: ${c.top_prodotti.join(", ")}</div>` : ""}
+            <div class="d-flex gap-1.5 mt-1.5">
+              <a href="${c.wa_url}" target="_blank" class="btn btn-success btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;">
+                <i class="bi bi-whatsapp me-1"></i>Contatta Ora
+              </a>
+              <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size:0.74rem;" onclick="copyAiMsgText(this, '${encodeURIComponent(c.messaggio_whatsapp)}')">
+                <i class="bi bi-clipboard me-1"></i>Copia
+              </button>
+            </div>
+          </div>
+        `).join("");
+        card.innerHTML = `
+          <div class="ai-preview-header">
+            <span><i class="bi bi-rocket-takeoff-fill text-primary me-1"></i>Opportunità Aumento Fatturato (${ro.totale_opportunita})</span>
+          </div>
+          <div style="max-height: 360px; overflow-y: auto;">${rowsHtml}</div>
+        `;
+        messagesArea.appendChild(card);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
 
       function renderProductClientSearchResults(sr) {
         const card = document.createElement("div");

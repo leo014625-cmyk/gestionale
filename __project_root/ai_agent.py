@@ -825,6 +825,1187 @@ def search_clients_by_product_or_similar(query_str: str, snapshot: dict) -> dict
 
 
 # ==============================================================================
+# MOTORE VENDITE GIORNALIERO: ORDINI PDF/MOBILE, PESCE LOCALE & LISTA SCADENZE
+# ==============================================================================
+_FISH_SPECIES_STEMS = [
+    ("spigol", "Spigola / Branzino", ["spigol", "branzin"]),
+    ("branzin", "Spigola / Branzino", ["spigol", "branzin"]),
+    ("orat", "Orata", ["orat"]),
+    ("calamar", "Calamaro", ["calamar", "totan"]),
+    ("totan", "Totano / Calamaro", ["totan", "calamar"]),
+    ("gamber", "Gambero", ["gamber", "mazzancoll", "scamp"]),
+    ("mazzancoll", "Mazzancolla", ["mazzancoll", "gamber"]),
+    ("scamp", "Scampo", ["scamp", "gamber"]),
+    ("polp", "Polpo", ["polp", "moscardin"]),
+    ("moscardin", "Moscardino", ["moscardin", "polp"]),
+    ("seppi", "Seppia", ["seppi"]),
+    ("tonn", "Tonno", ["tonn"]),
+    ("spada", "Pesce Spada", ["spada"]),
+    ("salmon", "Salmone", ["salmon"]),
+    ("rombo", "Rombo", ["rombo"]),
+    ("sogliol", "Sogliola", ["sogliol", "platess"]),
+    ("platess", "Platessa", ["platess", "sogliol"]),
+    ("merluzz", "Merluzzo / Nasello", ["merluzz", "nasell", "baccal", "melu"]),
+    ("baccal", "Baccalà", ["baccal", "stoccafiss", "merluzz"]),
+    ("stoccafiss", "Stoccafisso", ["stoccafiss", "baccal"]),
+    ("cozz", "Cozze", ["cozz", "vongol", "mitil"]),
+    ("vongol", "Vongole", ["vongol", "cozz", "lupin"]),
+    ("ostrich", "Ostriche", ["ostrich"]),
+    ("cappasant", "Capesante", ["cappasant", "capesant"]),
+    ("capesant", "Capesante", ["cappasant", "capesant"]),
+    ("cannolicch", "Cannolicchi", ["cannolicch"]),
+    ("pescatric", "Rana Pescatrice / Coda di Rospo", ["pescatric", "rospo"]),
+    ("rospo", "Coda di Rospo", ["rospo", "pescatric"]),
+    ("trigli", "Triglia", ["trigli"]),
+    ("alic", "Alici / Acciughe", ["alic", "acciug", "sard"]),
+    ("acciug", "Acciughe / Alici", ["acciug", "alic"]),
+    ("sard", "Sarde", ["sard", "alic"]),
+    ("sgombr", "Sgombro", ["sgombr"]),
+    ("ricciol", "Ricciola", ["ricciol"]),
+    ("dentic", "Dentice", ["dentic", "sarag", "pezzogn", "mormor", "occhiat"]),
+    ("cerni", "Cernia", ["cerni"]),
+    ("ombrin", "Ombrina", ["ombrin"]),
+    ("gallinell", "Gallinella / Coccio", ["gallinell", "coccio", "scorfano"]),
+    ("scorfano", "Scorfano", ["scorfano", "gallinell"]),
+    ("astice", "Astice", ["astice", "aragost", "granchi"]),
+    ("aragost", "Aragosta", ["aragost", "astice"]),
+    ("granchi", "Granchio", ["granchi", "astice"]),
+    ("sarag", "Sarago", ["sarag", "dentic", "orat"]),
+    ("mormor", "Mormora", ["mormor", "sarag", "orat"]),
+    ("pezzogn", "Pezzogna", ["pezzogn", "dentic", "pagell", "fragolin"]),
+    ("fragolin", "Fragolino / Pagello", ["fragolin", "pagell", "trigli"]),
+    ("cefal", "Cefalo / Muggine", ["cefal", "muggin"]),
+]
+
+
+def _clean_wa_phone(tel_raw: str) -> str:
+    digits = "".join(ch for ch in str(tel_raw or "") if ch.isdigit())
+    if not digits:
+        return ""
+    if digits.startswith("00"):
+        digits = digits[2:]
+    if len(digits) == 10 and digits.startswith("3"):
+        digits = "39" + digits
+    return digits
+
+
+def _build_wa_link(phone_clean: str, text_msg: str) -> str:
+    from urllib.parse import quote
+    if phone_clean:
+        return f"https://wa.me/{phone_clean}?text={quote(text_msg)}"
+    return f"https://wa.me/?text={quote(text_msg)}"
+
+
+def parse_daily_order_pdf_or_text(pdf_path: str = None, raw_text: str = "", snapshot: dict = None) -> dict:
+    """
+    Analizza un PDF d'ordine (es. conferma d'ordine Pregis o bolla/lista cliente) o testo libero.
+    Rileva automaticamente:
+      - Cliente (confrontando con l'anagrafica clienti)
+      - Data ordine (DD/MM/YYYY o data odierna)
+      - Righe prodotto (codice, nome, um, quantita, prezzo, totale_riga)
+      - Totale ordine
+    """
+    full_text = (raw_text or "").strip()
+    if pdf_path and os.path.exists(pdf_path):
+        try:
+            import pdfplumber
+            pages_txt = []
+            with pdfplumber.open(pdf_path) as pdf:
+                for page in pdf.pages:
+                    t = page.extract_text() or ""
+                    if t:
+                        pages_txt.append(t)
+            if pages_txt:
+                full_text = ("\n".join(pages_txt) + ("\n" + full_text if full_text else "")).strip()
+        except Exception as e:
+            print(f"[Order Parser] pdfplumber warning: {e}")
+
+    if not snapshot:
+        snapshot = get_db_snapshot()
+
+    # 1. Rileva data ordine dal documento
+    detected_date = str(date.today())
+    m_date = re.search(
+        r'(?:ordine\s+del|data\s+ordine|consegna\s+del|del|data)\s*[:\-]?\s*(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})',
+        full_text,
+        re.IGNORECASE,
+    )
+    if not m_date:
+        m_date = re.search(r'\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](20\d{2})\b', full_text)
+    if m_date:
+        d_i, m_i, y_i = int(m_date.group(1)), int(m_date.group(2)), int(m_date.group(3))
+        if y_i < 100:
+            y_i += 2000
+        try:
+            detected_date = str(date(y_i, m_i, d_i))
+        except Exception:
+            pass
+
+    # 2. Rileva cliente dal testo/header del PDF
+    detected_client = None
+    text_low = full_text.lower()
+    best_len = 0
+    for c in snapshot.get("clienti", []):
+        c_name = (c.get("nome") or "").strip()
+        if len(c_name) < 3:
+            continue
+        if c_name.lower() in text_low and len(c_name) > best_len:
+            detected_client = c
+            best_len = len(c_name)
+
+    if not detected_client:
+        # Match su parole significative del nome cliente (>=4 caratteri)
+        stop_c = {"srl", "srls", "snc", "sas", "spa", "ristorante", "pizzeria", "bar", "hotel", "trattoria", "osteria", "ditta"}
+        best_score = 0
+        for c in snapshot.get("clienti", []):
+            c_name = (c.get("nome") or "").strip()
+            tokens = [w.lower() for w in re.findall(r'[A-Za-zÀ-ÿ0-9]{4,}', c_name) if w.lower() not in stop_c]
+            if not tokens:
+                continue
+            hits = sum(1 for tk in tokens if re.search(r'\b' + re.escape(tk), text_low))
+            if hits > 0 and hits == len(tokens) and hits > best_score:
+                best_score = hits
+                detected_client = c
+
+    # 3. Estrai righe prodotto dal PDF o testo
+    items = []
+    seen_keys = set()
+    by_code = {str(p["codice"]).strip().upper(): p for p in snapshot.get("prodotti", []) if p.get("codice")}
+    by_name = {str(p["nome"]).strip().upper(): p for p in snapshot.get("prodotti", []) if p.get("nome")}
+
+    ignore_line_tokens = (
+        "art. descrizione", "descrizione um", "prezzo pz/car", "totale documento",
+        "totale imponibile", "totale iva", "totale ordine", "pagina ", "sconto incondiz",
+        "condizioni di pagamento", "iban", "partita iva", "codice fiscale", "destinazione"
+    )
+
+    for raw_ln in full_text.splitlines():
+        ln = " ".join(raw_ln.strip().split())
+        if len(ln) < 4:
+            continue
+        ln_low = ln.lower()
+        if any(tok in ln_low for tok in ignore_line_tokens):
+            continue
+
+        # Pattern A: Riga tabellare Pregis / ERP con codice iniziale:
+        # es. "13150574 SALMONE NORVEGIA KG 5,00 16,50" oppure "004512 HAMBURGER BOVINO PZ 2 14,90 29,80"
+        m_pregis = re.match(
+            r'^([A-Z0-9\.\-\_]{4,14})\s+(.+?)\s+\b(KG|PZ|CT|CF|LT|GR|SC|BS)\b\s+(\d+(?:[\.,]\d+)?)\s+(?:€\s*)?(\d+[\.,]\d{2,3})(?:\s+(?:€\s*)?(\d+[\.,]\d{2}))?',
+            ln,
+            re.IGNORECASE,
+        )
+        if m_pregis:
+            cod = m_pregis.group(1).strip()
+            nom = m_pregis.group(2).strip(" -–•")
+            um = m_pregis.group(3).upper()
+            if um not in ("KG", "PZ"):
+                um = "KG" if "KG" in nom.upper() else "PZ"
+            qty = parse_price_value(m_pregis.group(4)) or 1.0
+            prz = parse_price_value(m_pregis.group(5))
+            tot_r = parse_price_value(m_pregis.group(6)) if m_pregis.group(6) else round(qty * prz, 2)
+            key = f"{cod}:{nom}".upper()
+            if key not in seen_keys:
+                seen_keys.add(key)
+                items.append({
+                    "codice": cod,
+                    "nome": nom,
+                    "um": um,
+                    "quantita": round(qty, 2),
+                    "prezzo": round(prz, 2),
+                    "totale_riga": round(tot_r if tot_r > 0 else qty * prz, 2),
+                })
+            continue
+
+        # Pattern B: Codice iniziale + Nome + Prezzo finale (senza colonna Qtà separata)
+        m_code_price = re.match(
+            r'^([0-9]{4,12})\s+(.+?)\s+(?:(\d+(?:[\.,]\d+)?)\s*(?:x|\*)?\s*)?(?:€\s*)?(\d+[\.,]\d{2})\s*(?:€|euro)?$',
+            ln,
+            re.IGNORECASE,
+        )
+        if m_code_price:
+            cod = m_code_price.group(1).strip()
+            nom = m_code_price.group(2).strip(" -–•")
+            qty = parse_price_value(m_code_price.group(3)) if m_code_price.group(3) else 1.0
+            if qty <= 0:
+                qty = 1.0
+            prz = parse_price_value(m_code_price.group(4))
+            um = "KG" if re.search(r'\bKG\b', nom, re.IGNORECASE) else "PZ"
+            nom_clean = re.sub(r'\s+\b(KG|PZ)\b$', '', nom, flags=re.IGNORECASE).strip()
+            key = f"{cod}:{nom_clean}".upper()
+            if key not in seen_keys and len(nom_clean) >= 2:
+                seen_keys.add(key)
+                items.append({
+                    "codice": cod,
+                    "nome": nom_clean,
+                    "um": um,
+                    "quantita": round(qty, 2),
+                    "prezzo": round(prz, 2),
+                    "totale_riga": round(qty * prz, 2),
+                })
+            continue
+
+        # Pattern C: Testo libero / WhatsApp / Telegram (es. "5 kg Spigola fresca 14,50" o "Spigola 5kg €14.50" o "2x Mozzarella julienne 12,00")
+        m_free = re.match(
+            r'^(?:[-•\*]\s*)?(?:(\d+(?:[\.,]\d+)?)\s*(kg|pz|ct|cf|x)\b\s+)?([A-Za-zÀ-ÿ0-9\s\'\.\-\/\%\,]{3,65}?)(?:\s+(\d+(?:[\.,]\d+)?)\s*(kg|pz|ct|cf)\b)?(?:\s*[:\-a@€]\s*|\s+)(\d+[\.,]\d{2})\s*(?:€|euro|\/kg|\/pz)?$',
+            ln,
+            re.IGNORECASE,
+        )
+        if m_free:
+            q1, u1, nom_raw, q2, u2, prz_s = m_free.groups()
+            nom_c = nom_raw.strip(" -–:•")
+            if len(nom_c) < 3 or any(w in nom_c.lower() for w in ("totale", "imponibile", "scadenza", "fattura", "iva")):
+                continue
+            qty = parse_price_value(q1 or q2) or 1.0
+            um_raw = (u1 or u2 or "PZ").upper()
+            um = "KG" if um_raw == "KG" else "PZ"
+            prz = parse_price_value(prz_s)
+            matched_p = by_name.get(nom_c.upper())
+            cod = matched_p["codice"] if matched_p and matched_p.get("codice") else ""
+            key = f"{cod}:{nom_c}".upper()
+            if key not in seen_keys:
+                seen_keys.add(key)
+                items.append({
+                    "codice": cod,
+                    "nome": nom_c,
+                    "um": um,
+                    "quantita": round(qty, 2),
+                    "prezzo": round(prz, 2),
+                    "totale_riga": round(qty * prz, 2),
+                })
+
+    # Arricchisci con codice/nome da catalogo se esiste match univoco
+    for it in items:
+        c_up = (it.get("codice") or "").strip().upper()
+        n_up = (it.get("nome") or "").strip().upper()
+        db_p = by_code.get(c_up) or by_code.get(c_up.lstrip("0")) or by_name.get(n_up)
+        if db_p:
+            it["prodotto_id"] = db_p["id"]
+            if not it.get("codice") and db_p.get("codice"):
+                it["codice"] = db_p["codice"]
+            if (not it.get("prezzo") or it["prezzo"] <= 0) and db_p.get("prezzo"):
+                it["prezzo"] = round(parse_price_value(db_p["prezzo"]), 2)
+                it["totale_riga"] = round(it["quantita"] * it["prezzo"], 2)
+
+    totale_calcolato = round(sum(float(x.get("totale_riga") or 0.0) for x in items), 2)
+
+    # Se il PDF ha una riga "Totale ordine / Totale documento" esplicita e non ci sono prezzi riga
+    if totale_calcolato == 0.0:
+        m_tot_doc = re.search(r'(?:totale\s+(?:ordine|documento|fornitura|merce|fattura)|importo\s+totale)\s*[:€]?\s*(\d+[\.,]\d{2})', full_text, re.IGNORECASE)
+        if m_tot_doc:
+            totale_calcolato = round(parse_price_value(m_tot_doc.group(1)), 2)
+
+    return {
+        "detected_cliente_id": detected_client["id"] if detected_client else None,
+        "detected_cliente_nome": detected_client["nome"] if detected_client else None,
+        "detected_date": detected_date,
+        "items": items,
+        "totale_ordine": totale_calcolato,
+        "raw_text_excerpt": full_text[:1200],
+    }
+
+
+def register_daily_order_in_db(
+    cliente_id: int,
+    data_ordine_str: str = None,
+    items: list = None,
+    note: str = "",
+    pdf_filename: str = None,
+    modalita: str = "aggiungi",
+    explicit_totale: float = None,
+) -> dict:
+    """
+    Registra un ordine giornaliero nel database:
+      1. Assicura l'esistenza dei prodotti in `prodotti` (nelle 6 categorie ufficiali)
+      2. Imposta `lavorato = TRUE` e aggiorna `prezzo_attuale` in `clienti_prodotti`
+      3. Aggiorna o accumula l'ordine nella settimana corrispondente (`fatturato_settimanale` + `acquisti_settimanali_dettaglio`)
+      4. Aggiorna il fatturato mensile (`fatturato`) e `clienti.fatturato_totale`
+      5. Restituisce i prodotti abituali (`lavorato = TRUE`) che il cliente NON ha ordinato (Opportunità Upsell con messaggio WhatsApp precompilato)
+    """
+    items = items or []
+    try:
+        dt_ord = datetime.strptime(resolve_natural_date(data_ordine_str), "%Y-%m-%d").date()
+    except Exception:
+        dt_ord = date.today()
+
+    lunedi = dt_ord - timedelta(days=dt_ord.weekday())
+    domenica = lunedi + timedelta(days=6)
+    settimana = lunedi.isocalendar()[1]
+    mese = dt_ord.month
+    anno = dt_ord.year
+
+    totale_items = round(sum(float(it.get("totale_riga") or (float(it.get("quantita") or 1.0) * float(it.get("prezzo") or 0.0))) for it in items), 2)
+    totale_ordine = round(float(explicit_totale), 2) if (explicit_totale is not None and float(explicit_totale) > 0) else totale_items
+
+    nuovi_prodotti_lavorati = []
+    prodotti_registrati = []
+
+    with _GET_DB() as conn:
+        cat_map = sync_canonical_categories(conn)
+        cur = conn.cursor()
+
+        cur.execute("SELECT id, nome, zona, telefono FROM clienti WHERE id = %s", (int(cliente_id),))
+        cli_row = cur.fetchone()
+        if not cli_row:
+            return {"ok": False, "error": "Cliente non trovato in anagrafica."}
+        cliente_info = dict(cli_row)
+
+        # Carica mappa prodotti
+        cur.execute("SELECT id, codice, nome, prezzo, categoria_id FROM prodotti")
+        by_code = {}
+        by_name = {}
+        for r in cur.fetchall():
+            d = dict(r)
+            if d.get("codice"):
+                c_s = str(d["codice"]).strip().upper()
+                by_code[c_s] = d
+                by_code[c_s.lstrip("0")] = d
+            if d.get("nome"):
+                by_name[str(d["nome"]).strip().upper()] = d
+
+        # Carica attuali prodotti del cliente
+        cur.execute("""
+            SELECT cp.prodotto_id, cp.lavorato, cp.potenziale, cp.prezzo_attuale, cp.prezzo_offerta, p.nome, p.codice
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON p.id = cp.prodotto_id
+            WHERE cp.cliente_id = %s AND COALESCE(p.eliminato, FALSE) = FALSE
+        """, (int(cliente_id),))
+        cp_existing = {int(r["prodotto_id"]): dict(r) for r in cur.fetchall()}
+
+        # 1. Trova o crea record fatturato_settimanale
+        cur.execute("""
+            SELECT id, totale, note FROM fatturato_settimanale
+            WHERE cliente_id = %s AND ((data_inizio = %s AND data_fine = %s) OR (settimana = %s AND anno = %s))
+            ORDER BY id DESC LIMIT 1
+        """, (int(cliente_id), lunedi, domenica, settimana, anno))
+        fs_row = cur.fetchone()
+
+        ord_tag = f"Ordine {dt_ord.strftime('%d/%m')}: € {totale_ordine:.2f}"
+        if note:
+            ord_tag += f" ({note})"
+
+        if fs_row:
+            update_id = int(fs_row["id"])
+            prev_tot = float(fs_row.get("totale") or 0.0)
+            prev_note = (fs_row.get("note") or "").strip()
+            if modalita == "sostituisci":
+                new_week_tot = totale_ordine
+                new_note = ord_tag
+                cur.execute(
+                    "DELETE FROM acquisti_settimanali_dettaglio WHERE cliente_id = %s AND (update_id = %s OR (data_inizio = %s AND data_fine = %s))",
+                    (int(cliente_id), update_id, lunedi, domenica),
+                )
+            else:
+                new_week_tot = round(prev_tot + totale_ordine, 2)
+                new_note = f"{prev_note} | {ord_tag}".strip(" |") if ord_tag not in prev_note else prev_note
+            cur.execute("""
+                UPDATE fatturato_settimanale
+                SET data_inizio = %s, data_fine = %s, settimana = %s, mese = %s, anno = %s,
+                    totale = %s, note = %s, data_inserimento = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (lunedi, domenica, settimana, mese, anno, new_week_tot, new_note, update_id))
+        else:
+            new_week_tot = totale_ordine
+            new_note = ord_tag
+            cur.execute("""
+                INSERT INTO fatturato_settimanale (cliente_id, data_inizio, data_fine, settimana, mese, anno, totale, note)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            """, (int(cliente_id), lunedi, domenica, settimana, mese, anno, new_week_tot, new_note))
+            ins_fs = cur.fetchone()
+            update_id = int((ins_fs["id"] if isinstance(ins_fs, dict) else ins_fs[0]) if ins_fs else cur.lastrowid)
+
+        if pdf_filename:
+            try:
+                cur.execute("""
+                    INSERT INTO acquisti_settimanali_pdf (cliente_id, settimana, anno, data_inizio, data_fine, nome_file)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (int(cliente_id), settimana, anno, lunedi, domenica, pdf_filename))
+            except Exception:
+                pass
+
+        # 2. Registra righe prodotto e aggiorna clienti_prodotti (lavorato = TRUE)
+        ordered_pids = set()
+        for it in items:
+            cod = str(it.get("codice") or "").strip()
+            nom = str(it.get("nome") or "").strip()
+            if not nom and not cod:
+                continue
+            if not nom:
+                nom = f"Articolo {cod}"
+            um = "KG" if str(it.get("um") or "PZ").upper() == "KG" else "PZ"
+            qty = float(it.get("quantita") or 1.0)
+            if qty <= 0:
+                qty = 1.0
+            prz = float(it.get("prezzo") or 0.0)
+
+            db_prod = None
+            if cod:
+                db_prod = by_code.get(cod.upper()) or by_code.get(cod.upper().lstrip("0"))
+            if not db_prod and nom:
+                db_prod = by_name.get(nom.upper())
+
+            if db_prod:
+                pid = int(db_prod["id"])
+                if not cod and db_prod.get("codice"):
+                    cod = str(db_prod["codice"])
+                if prz <= 0 and db_prod.get("prezzo"):
+                    prz = float(db_prod["prezzo"] or 0.0)
+                cur.execute("UPDATE prodotti SET eliminato = FALSE WHERE id = %s", (pid,))
+            else:
+                if not cod:
+                    initials = "".join(w[0].upper() for w in re.findall(r'[A-Za-z]+', nom)[:3]) or "ORD"
+                    cod = f"{initials}{abs(hash(nom)) % 9000 + 1000}"
+                cat_id = _resolve_canonical_cat_id(cat_map, "", nom)
+                cur.execute("""
+                    INSERT INTO prodotti (codice, nome, categoria_id, prezzo, eliminato)
+                    VALUES (%s, %s, %s, %s, FALSE) RETURNING id
+                """, (cod, nom, cat_id, prz if prz > 0 else None))
+                r_np = cur.fetchone()
+                pid = int((r_np["id"] if isinstance(r_np, dict) else r_np[0]) if r_np else cur.lastrowid)
+                new_d = {"id": pid, "codice": cod, "nome": nom, "prezzo": prz, "categoria_id": cat_id}
+                by_code[cod.upper()] = new_d
+                by_name[nom.upper()] = new_d
+
+            ordered_pids.add(pid)
+            tot_riga = round(qty * prz, 2)
+
+            cur.execute("""
+                INSERT INTO acquisti_settimanali_dettaglio
+                (cliente_id, settimana, anno, update_id, data_inizio, data_fine, prodotto_id, codice_pdf, nome_pdf, um_pdf, prezzo_pdf, quantita)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (int(cliente_id), settimana, anno, update_id, lunedi, domenica, pid, cod, nom, um, prz, qty))
+
+            was_worked = bool(cp_existing.get(pid, {}).get("lavorato"))
+            if pid in cp_existing:
+                cur.execute("""
+                    UPDATE clienti_prodotti
+                    SET lavorato = TRUE,
+                        volte_mancante = 0,
+                        prezzo_attuale = CASE WHEN %s > 0 THEN %s ELSE prezzo_attuale END,
+                        data_operazione = CURRENT_TIMESTAMP
+                    WHERE cliente_id = %s AND prodotto_id = %s
+                """, (prz, prz, int(cliente_id), pid))
+            else:
+                cur.execute("""
+                    INSERT INTO clienti_prodotti (cliente_id, prodotto_id, lavorato, volte_mancante, prezzo_attuale, data_operazione, data_inizio_lavorazione)
+                    VALUES (%s, %s, TRUE, 0, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, (int(cliente_id), pid, prz if prz > 0 else None))
+
+            if not was_worked:
+                nuovi_prodotti_lavorati.append({"id": pid, "codice": cod, "nome": nom, "prezzo": prz, "um": um})
+
+            prodotti_registrati.append({
+                "id": pid,
+                "codice": cod,
+                "nome": nom,
+                "um": um,
+                "quantita": qty,
+                "prezzo": prz,
+                "totale_riga": tot_riga,
+                "nuovo_lavorato": not was_worked,
+            })
+
+        # Se abbiamo inserito righe ma totale_ordine era 0, ricalcola dal DB della settimana
+        if new_week_tot <= 0 and prodotti_registrati:
+            cur.execute("""
+                SELECT COALESCE(SUM(COALESCE(prezzo_pdf, 0) * COALESCE(quantita, 1)), 0) AS s
+                FROM acquisti_settimanali_dettaglio
+                WHERE cliente_id = %s AND update_id = %s
+            """, (int(cliente_id), update_id))
+            new_week_tot = round(float((cur.fetchone() or {}).get("s") or 0.0), 2)
+            cur.execute("UPDATE fatturato_settimanale SET totale = %s WHERE id = %s", (new_week_tot, update_id))
+
+        # 3. Sincronizza fatturato mensile e totale cliente
+        cur.execute("""
+            SELECT COALESCE(SUM(totale), 0) AS tot
+            FROM fatturato_settimanale
+            WHERE cliente_id = %s AND mese = %s AND anno = %s
+        """, (int(cliente_id), mese, anno))
+        tot_mese = round(float((cur.fetchone() or {}).get("tot") or 0.0), 2)
+
+        cur.execute("SELECT id FROM fatturato WHERE cliente_id = %s AND mese = %s AND anno = %s LIMIT 1", (int(cliente_id), mese, anno))
+        f_row = cur.fetchone()
+        if f_row:
+            cur.execute("UPDATE fatturato SET totale = %s WHERE id = %s", (tot_mese, f_row["id"]))
+        else:
+            cur.execute("INSERT INTO fatturato (cliente_id, mese, anno, totale, quantita) VALUES (%s, %s, %s, %s, 1)", (int(cliente_id), mese, anno, tot_mese))
+
+        cur.execute("""
+            UPDATE clienti SET fatturato_totale = (
+                SELECT COALESCE(SUM(totale), 0) FROM fatturato WHERE cliente_id = %s
+            ) WHERE id = %s
+        """, (int(cliente_id), int(cliente_id)))
+
+        # 4. Calcola i prodotti abituali che il cliente NON ha ordinato in questa settimana (Opportunità Upsell!)
+        cur.execute("""
+            SELECT DISTINCT prodotto_id FROM acquisti_settimanali_dettaglio
+            WHERE cliente_id = %s AND update_id = %s AND prodotto_id IS NOT NULL
+        """, (int(cliente_id), update_id))
+        week_pids = {int(r["prodotto_id"]) for r in cur.fetchall()} | ordered_pids
+
+        prodotti_abituali_mancanti = []
+        for pid_h, cp_h in cp_existing.items():
+            if cp_h.get("lavorato") and pid_h not in week_pids:
+                prz_h = float(cp_h.get("prezzo_offerta") or cp_h.get("prezzo_attuale") or 0.0)
+                prodotti_abituali_mancanti.append({
+                    "id": pid_h,
+                    "codice": cp_h.get("codice") or "",
+                    "nome": cp_h.get("nome") or "",
+                    "prezzo_abituale": round(prz_h, 2),
+                })
+
+        conn.commit()
+
+    phone_clean = _clean_wa_phone(cliente_info.get("telefono"))
+    upsell_wa_text = ""
+    upsell_wa_url = ""
+    if prodotti_abituali_mancanti:
+        top_missing = prodotti_abituali_mancanti[:6]
+        lines_m = [
+            f"• {m['nome']}" + (f" (€ {m['prezzo_abituale']:.2f})" if m["prezzo_abituale"] > 0 else "")
+            for m in top_missing
+        ]
+        upsell_wa_text = (
+            f"Ciao {cliente_info['nome']} 👋! Ho registrato il tuo ordine del {dt_ord.strftime('%d/%m/%Y')}.\n"
+            f"Ho visto che rispetto ai prodotti che lavori abitualmente mancano:\n"
+            + "\n".join(lines_m)
+            + "\nVuoi che te li aggiunga allo scarico?"
+        )
+        upsell_wa_url = _build_wa_link(phone_clean, upsell_wa_text)
+
+    return {
+        "ok": True,
+        "cliente_id": int(cliente_id),
+        "cliente_nome": cliente_info["nome"],
+        "cliente_zona": cliente_info.get("zona") or "",
+        "cliente_telefono": cliente_info.get("telefono") or "",
+        "whatsapp_clean": phone_clean,
+        "data_ordine": str(dt_ord),
+        "settimana": settimana,
+        "totale_ordine": totale_ordine,
+        "totale_settimana": new_week_tot,
+        "totale_mese": tot_mese,
+        "num_prodotti_ordinati": len(prodotti_registrati),
+        "prodotti_registrati": prodotti_registrati,
+        "nuovi_prodotti_lavorati": nuovi_prodotti_lavorati,
+        "prodotti_abituali_mancanti": prodotti_abituali_mancanti[:15],
+        "upsell_wa_text": upsell_wa_text,
+        "upsell_wa_url": upsell_wa_url,
+        "scheda_url": f"/clienti/{cliente_id}#sezione-settimanale",
+        "message": (
+            f"✅ Ordine del **{dt_ord.strftime('%d/%m/%Y')}** registrato per **{cliente_info['nome']}** "
+            f"(**€ {totale_ordine:.2f}** · {len(prodotti_registrati)} prodotti lavorati aggiornati, "
+            f"totale settimana **€ {new_week_tot:.2f}**)."
+        ),
+    }
+
+
+def _extract_fish_species_tags(text: str) -> list:
+    low = (text or "").lower()
+    tags = []
+    for trigger, label, stems in _FISH_SPECIES_STEMS:
+        if trigger in low:
+            tags.append((trigger, label, stems))
+    return tags
+
+
+def match_daily_fish_list(raw_text: str = "", items: list = None) -> dict:
+    """
+    Riceve la lista del pesce locale / offerta giornaliera ittico (testo o lista prodotti),
+    individua automaticamente tutti i clienti che lavorano quei prodotti (o specie ittiche corrispondenti),
+    e prepara per ciascun cliente il messaggio WhatsApp personalizzato preimpostato.
+    """
+    offer_items = []
+    if isinstance(items, list) and items:
+        for it in items:
+            nom = str(it.get("nome") or it.get("name") or "").strip()
+            if not nom:
+                continue
+            offer_items.append({
+                "codice": str(it.get("codice") or it.get("code") or "").strip(),
+                "nome": nom,
+                "prezzo": parse_price_value(it.get("prezzo") or it.get("price") or 0),
+                "um": str(it.get("um") or "KG").upper(),
+                "note": str(it.get("note") or "").strip(),
+            })
+
+    if not offer_items and raw_text:
+        for raw_ln in raw_text.splitlines():
+            ln = " ".join(raw_ln.strip().split())
+            if len(ln) < 3:
+                continue
+            low_ln = ln.lower()
+            if low_ln.startswith(("pesce locale", "offerta ittico", "offerta pesce", "lista pesce", "oggi disponibile", "buongiorno", "ciao")):
+                if not re.search(r'\d+[\.,]\d{2}', ln) and len(ln.split()) <= 5:
+                    continue
+            ln_clean = re.sub(r'^[-•\*👉🐟🦑🦐🐙]+\s*', '', ln).strip()
+            m_prz = re.search(r'(?:€\s*)?(\d+[\.,]\d{1,2})\s*(?:€|euro)?(?:\s*\/\s*(kg|pz|cass|ct))?', ln_clean, re.IGNORECASE)
+            prz = parse_price_value(m_prz.group(1)) if m_prz else 0.0
+            um = (m_prz.group(2) or "KG").upper() if m_prz else "KG"
+            if m_prz:
+                nom_part = (ln_clean[:m_prz.start()] + " " + ln_clean[m_prz.end():]).strip(" -–:•€/")
+            else:
+                nom_part = ln_clean.strip(" -–:•")
+            nom_part = re.sub(r'\b(?:al\s+kg|€\/kg|euro\/kg)\b', '', nom_part, flags=re.IGNORECASE).strip(" -–:•")
+            if len(nom_part) >= 2:
+                offer_items.append({
+                    "codice": "",
+                    "nome": nom_part,
+                    "prezzo": round(prz, 2),
+                    "um": um,
+                    "note": "",
+                })
+
+    if not offer_items:
+        return {"ok": False, "error": "Inserisci almeno un prodotto ittico o la lista del pesce locale di oggi."}
+
+    for off in offer_items:
+        off["species_tags"] = _extract_fish_species_tags(off["nome"])
+        words = [
+            w.lower() for w in re.findall(r'[A-Za-zÀ-ÿ]{4,}', off["nome"])
+            if w.lower() not in {"fresco", "fresca", "freschi", "locale", "locali", "pesce", "offerta", "oggi", "filetto", "filetti", "intero", "pulito", "pulita", "vivo", "viva", "mare", "pescato"}
+        ]
+        off["keywords"] = words
+
+    with _GET_DB() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT c.id, c.nome, c.zona, c.telefono, COALESCE(c.fatturato_totale, 0) AS fatturato_totale,
+                   COALESCE(wp.ricevi_pesce, FALSE) AS ricevi_pesce,
+                   COALESCE(wp.opt_out, FALSE) AS opt_out
+            FROM clienti c
+            LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+            ORDER BY c.nome
+        """)
+        all_clients = {int(r["id"]): dict(r) for r in cur.fetchall()}
+
+        cur.execute("""
+            SELECT cp.cliente_id, cp.prodotto_id, cp.lavorato, cp.potenziale,
+                   cp.prezzo_attuale, cp.prezzo_offerta,
+                   p.codice, p.nome AS prodotto_nome, p.prezzo AS prezzo_catalogo,
+                   cat.nome AS categoria_nome
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON p.id = cp.prodotto_id
+            LEFT JOIN categorie cat ON cat.id = p.categoria_id
+            WHERE (cp.lavorato = TRUE OR cp.potenziale = TRUE)
+              AND COALESCE(p.eliminato, FALSE) = FALSE
+        """)
+        cp_rows = [dict(r) for r in cur.fetchall()]
+
+        # Integra anche con storico acquisti settimanali dettaglio
+        cur.execute("""
+            SELECT DISTINCT d.cliente_id, d.prodotto_id, d.codice_pdf AS codice, d.nome_pdf AS prodotto_nome,
+                            d.prezzo_pdf AS prezzo_attuale, cat.nome AS categoria_nome
+            FROM acquisti_settimanali_dettaglio d
+            LEFT JOIN prodotti p ON p.id = d.prodotto_id
+            LEFT JOIN categorie cat ON cat.id = p.categoria_id
+            WHERE d.nome_pdf IS NOT NULL AND d.nome_pdf != ''
+        """)
+        hist_rows = [dict(r) for r in cur.fetchall()]
+
+    client_products = {}
+    for r in cp_rows:
+        cid = int(r["cliente_id"])
+        client_products.setdefault(cid, []).append({
+            "prodotto_id": r.get("prodotto_id"),
+            "codice": str(r.get("codice") or "").strip(),
+            "nome": str(r.get("prodotto_nome") or "").strip(),
+            "categoria": str(r.get("categoria_nome") or ""),
+            "prezzo": float(r.get("prezzo_offerta") or r.get("prezzo_attuale") or r.get("prezzo_catalogo") or 0.0),
+            "lavorato": bool(r.get("lavorato")),
+        })
+
+    for hr in hist_rows:
+        cid = int(hr["cliente_id"])
+        existing_names = {x["nome"].upper() for x in client_products.get(cid, [])}
+        h_name = str(hr.get("prodotto_nome") or "").strip()
+        if h_name and h_name.upper() not in existing_names:
+            client_products.setdefault(cid, []).append({
+                "prodotto_id": hr.get("prodotto_id"),
+                "codice": str(hr.get("codice") or "").strip(),
+                "nome": h_name,
+                "categoria": str(hr.get("categoria_nome") or ""),
+                "prezzo": float(hr.get("prezzo_attuale") or 0.0),
+                "lavorato": True,
+            })
+
+    matched_clients = []
+    for cid, cli in all_clients.items():
+        if cli.get("opt_out"):
+            continue
+        c_prods = client_products.get(cid, [])
+        direct_matches = []
+        works_any_ittico = bool(cli.get("ricevi_pesce"))
+
+        for cp in c_prods:
+            if "ITTICO" in (cp.get("categoria") or "").upper():
+                works_any_ittico = True
+
+        for off in offer_items:
+            off_code = (off.get("codice") or "").upper()
+            off_tags = off.get("species_tags") or []
+            off_kws = off.get("keywords") or []
+
+            best_cp = None
+            match_kind = None
+            for cp in c_prods:
+                cp_name_low = cp["nome"].lower()
+                cp_code_up = cp["codice"].upper()
+                if off_code and cp_code_up and off_code == cp_code_up:
+                    best_cp = cp
+                    match_kind = "Codice esatto lavorato"
+                    break
+                if off_tags:
+                    for _, species_lbl, stems in off_tags:
+                        if any(st in cp_name_low for st in stems):
+                            best_cp = cp
+                            match_kind = f"Lavora {species_lbl} ({cp['nome'][:36]})"
+                            break
+                    if best_cp:
+                        break
+                if off_kws and any(re.search(r'\b' + re.escape(kw[:5]), cp_name_low) for kw in off_kws):
+                    best_cp = cp
+                    match_kind = f"Lavora {cp['nome'][:36]}"
+                    break
+
+            if best_cp:
+                direct_matches.append({
+                    "offerta_nome": off["nome"],
+                    "offerta_prezzo": off["prezzo"],
+                    "offerta_um": off["um"],
+                    "prodotto_lavorato": best_cp["nome"],
+                    "prezzo_abituale": round(best_cp["prezzo"], 2),
+                    "motivo": match_kind,
+                })
+
+        if not direct_matches and not works_any_ittico:
+            continue
+
+        phone_clean = _clean_wa_phone(cli.get("telefono"))
+        if direct_matches:
+            match_type = "diretto"
+            lines_offer = []
+            for dm in direct_matches:
+                p_str = f" a *€ {dm['offerta_prezzo']:.2f}/{dm['offerta_um'].lower()}*" if dm["offerta_prezzo"] > 0 else ""
+                lines_offer.append(f"🐟 *{dm['offerta_nome']}*{p_str}")
+            # Aggiungi anche gli altri arrivi del giorno come extra se ce ne sono
+            matched_names = {d["offerta_nome"] for d in direct_matches}
+            extra_items = [o for o in offer_items if o["nome"] not in matched_names]
+            extra_txt = ""
+            if extra_items:
+                extra_lines = [
+                    f"• {o['nome']}" + (f" (€ {o['prezzo']:.2f}/{o['um'].lower()})" if o["prezzo"] > 0 else "")
+                    for o in extra_items[:6]
+                ]
+                extra_txt = "\n\nInoltre oggi disponibile fresco:\n" + "\n".join(extra_lines)
+
+            msg_wa = (
+                f"Ciao {cli['nome']} 👋🌊!\n"
+                f"Oggi in arrivo dal mercato ittico locale i prodotti che lavori:\n"
+                + "\n".join(lines_offer)
+                + extra_txt
+                + "\n\nFammi sapere cosa ti metto da parte per lo scarico! 🚚"
+            )
+        else:
+            match_type = "affine_ittico"
+            all_lines = [
+                f"🐟 *{o['nome']}*" + (f" a *€ {o['prezzo']:.2f}/{o['um'].lower()}*" if o["prezzo"] > 0 else "")
+                for o in offer_items[:10]
+            ]
+            msg_wa = (
+                f"Ciao {cli['nome']} 👋🌊!\n"
+                f"Ti giro la disponibilità di *Pesce Locale & Offerta Ittica* di oggi:\n"
+                + "\n".join(all_lines)
+                + "\n\nFammi sapere se ti serve qualcosa per lo scarico! 🚚"
+            )
+
+        matched_clients.append({
+            "cliente_id": cid,
+            "cliente_nome": cli["nome"],
+            "zona": cli.get("zona") or "",
+            "telefono": cli.get("telefono") or "",
+            "whatsapp_clean": phone_clean,
+            "match_type": match_type,
+            "num_match_diretti": len(direct_matches),
+            "prodotti_abbinati": direct_matches,
+            "messaggio_whatsapp": msg_wa,
+            "wa_url": _build_wa_link(phone_clean, msg_wa),
+            "fatturato_totale": round(float(cli.get("fatturato_totale") or 0.0), 2),
+        })
+
+    matched_clients.sort(key=lambda x: (-x["num_match_diretti"], 0 if x["match_type"] == "diretto" else 1, -x["fatturato_totale"], x["cliente_nome"]))
+    diretti_cnt = sum(1 for c in matched_clients if c["match_type"] == "diretto")
+
+    return {
+        "ok": True,
+        "offer_items": [
+            {"codice": o["codice"], "nome": o["nome"], "prezzo": o["prezzo"], "um": o["um"]}
+            for o in offer_items
+        ],
+        "totale_prodotti_offerta": len(offer_items),
+        "totale_clienti_diretti": diretti_cnt,
+        "totale_clienti_affini": len(matched_clients) - diretti_cnt,
+        "clienti_target": matched_clients,
+    }
+
+
+def match_scadenze_list(raw_text: str = "", items: list = None, use_saved_db: bool = False) -> dict:
+    """
+    Legge una lista scadenze (da PDF, testo incollato o tabella DB `promo_scadenze_prodotti`),
+    estrae per ogni prodotto: codice, nome, quantità in scadenza, data scadenza e prezzo promo,
+    individua i clienti che lavorano quei prodotti (o prodotti affini) e genera per ciascuno:
+      - Il messaggio WhatsApp personalizzato con quantità in scadenza e data scadenza
+      - I dati pronti per generare in 1 clic il Volantino Veloce Scadenze personalizzato per quel cliente.
+    """
+    scad_items = []
+
+    if isinstance(items, list) and items:
+        for it in items:
+            nom = str(it.get("nome") or it.get("name") or "").strip()
+            cod = str(it.get("codice") or it.get("code") or "").strip()
+            if not nom and not cod:
+                continue
+            scad_items.append({
+                "codice": cod,
+                "nome": nom or f"Articolo {cod}",
+                "prezzo": parse_price_value(it.get("prezzo") or it.get("price") or 0),
+                "um": str(it.get("um") or "PZ").upper(),
+                "scadenza": str(it.get("scadenza") or "").strip(),
+                "quantita": str(it.get("quantita") or it.get("qty") or "").strip(),
+                "immagine": str(it.get("immagine") or "").strip(),
+            })
+
+    if not scad_items and raw_text:
+        date_re = re.compile(r'\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\b')
+        qty_re = re.compile(r'(?:disp(?:onibil[ei])?|q\.?t[aà]|pz|cart|ct|cf|colli|rimast[ei]|scorta)\s*[:\.]?\s*(\d+(?:[\.,]\d+)?(?:\s*(?:pz|kg|ct|cf|colli))?)|\b(\d+)\s*(?:pz|colli|ct|cf|kg)\s*(?:disp|in\s+scad)?\b', re.IGNORECASE)
+        for raw_ln in raw_text.splitlines():
+            ln = " ".join(raw_ln.strip().split())
+            if len(ln) < 4:
+                continue
+            low_ln = ln.lower()
+            if any(h in low_ln for h in ("codice descrizione", "lista scadenze", "prodotti in scadenza")) and not re.search(r'\d{2}[\/\-\.]\d{2}', ln):
+                continue
+
+            m_dt = date_re.search(ln)
+            scad_str = m_dt.group(1).replace("-", "/").replace(".", "/") if m_dt else ""
+            work_ln = (ln[:m_dt.start()] + " " + ln[m_dt.end():]).strip() if m_dt else ln
+
+            m_code = re.match(r'^([0-9A-Z\.\-\_]{4,12})\s+(.+)$', work_ln, re.IGNORECASE)
+            cod = ""
+            if m_code and any(ch.isdigit() for ch in m_code.group(1)):
+                cod = m_code.group(1).strip()
+                work_ln = m_code.group(2).strip()
+
+            m_prices = list(re.finditer(r'(?:€\s*)?(\d+[\.,]\d{2})\s*(?:€|euro)?', work_ln, re.IGNORECASE))
+            prz = parse_price_value(m_prices[-1].group(1)) if m_prices else 0.0
+            if m_prices:
+                work_ln = (work_ln[:m_prices[-1].start()] + " " + work_ln[m_prices[-1].end():]).strip()
+
+            qty_str = ""
+            m_q = qty_re.search(work_ln)
+            if m_q:
+                qty_str = (m_q.group(1) or m_q.group(2) or "").strip()
+                work_ln = (work_ln[:m_q.start()] + " " + work_ln[m_q.end():]).strip()
+
+            um = "KG" if re.search(r'\bKG\b', work_ln, re.IGNORECASE) else "PZ"
+            nom_clean = re.sub(r'\b(scad(?:enza)?|disp(?:onibil[ei])?|promo|offerta)\b[:\.]?', '', work_ln, flags=re.IGNORECASE).strip(" -–:•|/;")
+            if len(nom_clean) >= 2:
+                scad_items.append({
+                    "codice": cod,
+                    "nome": nom_clean,
+                    "prezzo": round(prz, 2),
+                    "um": um,
+                    "scadenza": scad_str,
+                    "quantita": qty_str or "Disp.",
+                    "immagine": "",
+                })
+
+    with _GET_DB() as conn:
+        cat_map = sync_canonical_categories(conn)
+        cur = conn.cursor()
+
+        if not scad_items and use_saved_db:
+            cur.execute("""
+                SELECT s.codice, s.nome, s.prezzo, s.um, s.scadenza, s.quantita, s.prodotto_id, p.immagine
+                FROM promo_scadenze_prodotti s
+                LEFT JOIN prodotti p ON p.id = s.prodotto_id
+                ORDER BY s.id ASC
+            """)
+            for r in cur.fetchall():
+                d = dict(r)
+                scad_items.append({
+                    "codice": str(d.get("codice") or "").strip(),
+                    "nome": str(d.get("nome") or "").strip(),
+                    "prezzo": round(float(d.get("prezzo") or 0.0), 2),
+                    "um": str(d.get("um") or "PZ").upper(),
+                    "scadenza": str(d.get("scadenza") or "").strip(),
+                    "quantita": str(d.get("quantita") or "").strip() or "Disp.",
+                    "prodotto_id": d.get("prodotto_id"),
+                    "immagine": str(d.get("immagine") or "").strip(),
+                })
+
+        if not scad_items:
+            return {"ok": False, "error": "Nessun prodotto in scadenza trovato. Carica il PDF Scadenze o incolla la lista con quantità e data scadenza."}
+
+        # Carica catalogo per agganciare prodotto_id e immagine
+        cur.execute("SELECT id, codice, nome, prezzo, immagine, categoria_id FROM prodotti")
+        by_code = {}
+        by_name = {}
+        for r in cur.fetchall():
+            d = dict(r)
+            if d.get("codice"):
+                cs = str(d["codice"]).strip().upper()
+                by_code[cs] = d
+                by_code[cs.lstrip("0")] = d
+            if d.get("nome"):
+                by_name[str(d["nome"]).strip().upper()] = d
+
+        # Se la lista è nuova (non letta da DB), aggiorna anche promo_scadenze_prodotti
+        if not use_saved_db:
+            cur.execute("DELETE FROM promo_scadenze_prodotti")
+
+        for it in scad_items:
+            c_up = (it.get("codice") or "").strip().upper()
+            n_up = (it.get("nome") or "").strip().upper()
+            db_p = by_code.get(c_up) or (by_code.get(c_up.lstrip("0")) if c_up else None) or by_name.get(n_up)
+            if db_p:
+                it["prodotto_id"] = int(db_p["id"])
+                if not it.get("codice") and db_p.get("codice"):
+                    it["codice"] = str(db_p["codice"])
+                if not it.get("immagine") and db_p.get("immagine"):
+                    img_v = str(db_p["immagine"]).strip()
+                    it["immagine"] = img_v if img_v.startswith(("http", "/", "data:")) else f"/static/uploads/volantino_prodotti/{img_v}"
+                if it["prezzo"] <= 0 and db_p.get("prezzo"):
+                    it["prezzo"] = round(float(db_p["prezzo"] or 0.0), 2)
+            else:
+                it["prodotto_id"] = None
+
+            it["categoria"] = classify_canonical_category("", it["nome"])
+            if not use_saved_db:
+                cur.execute("""
+                    INSERT INTO promo_scadenze_prodotti (codice, nome, prezzo, um, scadenza, quantita, prodotto_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (it["codice"], it["nome"], it["prezzo"], it["um"], it["scadenza"], it["quantita"], it["prodotto_id"]))
+
+        if not use_saved_db:
+            conn.commit()
+
+        # Carica clienti e prodotti lavorati
+        cur.execute("""
+            SELECT c.id, c.nome, c.zona, c.telefono, COALESCE(c.fatturato_totale, 0) AS fatturato_totale,
+                   COALESCE(wp.ricevi_scadenza, FALSE) AS ricevi_scadenza,
+                   COALESCE(wp.opt_out, FALSE) AS opt_out
+            FROM clienti c
+            LEFT JOIN whatsapp_preferenze wp ON wp.cliente_id = c.id
+            ORDER BY c.nome
+        """)
+        all_clients = {int(r["id"]): dict(r) for r in cur.fetchall()}
+
+        cur.execute("""
+            SELECT cp.cliente_id, cp.prodotto_id, cp.lavorato, cp.potenziale,
+                   cp.prezzo_attuale, cp.prezzo_offerta,
+                   p.codice, p.nome AS prodotto_nome, p.prezzo AS prezzo_catalogo
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON p.id = cp.prodotto_id
+            WHERE (cp.lavorato = TRUE OR cp.potenziale = TRUE)
+              AND COALESCE(p.eliminato, FALSE) = FALSE
+        """)
+        cp_rows = [dict(r) for r in cur.fetchall()]
+
+        cur.execute("""
+            SELECT DISTINCT d.cliente_id, d.prodotto_id, d.codice_pdf AS codice, d.nome_pdf AS prodotto_nome, d.prezzo_pdf AS prezzo_attuale
+            FROM acquisti_settimanali_dettaglio d
+            WHERE d.nome_pdf IS NOT NULL AND d.nome_pdf != ''
+        """)
+        hist_rows = [dict(r) for r in cur.fetchall()]
+
+    client_prods = {}
+    for r in cp_rows:
+        cid = int(r["cliente_id"])
+        client_prods.setdefault(cid, []).append({
+            "prodotto_id": int(r["prodotto_id"]) if r.get("prodotto_id") else None,
+            "codice": str(r.get("codice") or "").strip().upper(),
+            "nome": str(r.get("prodotto_nome") or "").strip(),
+            "prezzo": float(r.get("prezzo_offerta") or r.get("prezzo_attuale") or r.get("prezzo_catalogo") or 0.0),
+        })
+    for hr in hist_rows:
+        cid = int(hr["cliente_id"])
+        existing_n = {x["nome"].upper() for x in client_prods.get(cid, [])}
+        hn = str(hr.get("prodotto_nome") or "").strip()
+        if hn and hn.upper() not in existing_n:
+            client_prods.setdefault(cid, []).append({
+                "prodotto_id": int(hr["prodotto_id"]) if hr.get("prodotto_id") else None,
+                "codice": str(hr.get("codice") or "").strip().upper(),
+                "nome": hn,
+                "prezzo": float(hr.get("prezzo_attuale") or 0.0),
+            })
+
+    stop_words_scad = {"kg", "pz", "gr", "lt", "ml", "ct", "cf", "vasc", "latta", "pet", "s/v", "iqf", "pregis", "fresco", "gelo"}
+    for it in scad_items:
+        it["keywords"] = [
+            w.lower() for w in re.findall(r'[A-Za-zÀ-ÿ]{4,}', it["nome"])
+            if w.lower() not in stop_words_scad
+        ][:4]
+
+    matched_clients = []
+    for cid, cli in all_clients.items():
+        if cli.get("opt_out"):
+            continue
+        c_list = client_prods.get(cid, [])
+        if not c_list and not cli.get("ricevi_scadenza"):
+            continue
+
+        client_matches = []
+        exact_cnt = 0
+        for sc in scad_items:
+            sc_pid = sc.get("prodotto_id")
+            sc_code = (sc.get("codice") or "").strip().upper()
+            sc_kws = sc.get("keywords") or []
+
+            matched_cp = None
+            reason = ""
+            for cp in c_list:
+                if sc_pid and cp.get("prodotto_id") == sc_pid:
+                    matched_cp = cp
+                    reason = "Lavora esattamente questo articolo"
+                    exact_cnt += 1
+                    break
+                if sc_code and cp.get("codice") and (sc_code == cp["codice"] or sc_code.lstrip("0") == cp["codice"].lstrip("0")):
+                    matched_cp = cp
+                    reason = f"Lavora cod. {sc_code}"
+                    exact_cnt += 1
+                    break
+
+            if not matched_cp and sc_kws:
+                for cp in c_list:
+                    cp_low = cp["nome"].lower()
+                    # Match sulla prima parola chiave principale (es. mozzarella, salmone, prosciutto, panna)
+                    main_kw = sc_kws[0]
+                    if re.search(r'\b' + re.escape(main_kw[:5]), cp_low):
+                        if len(sc_kws) == 1 or any(re.search(r'\b' + re.escape(k[:4]), cp_low) for k in sc_kws[1:]):
+                            matched_cp = cp
+                            reason = f"Lavora affine: {cp['nome'][:34]}"
+                            break
+
+            if matched_cp:
+                client_matches.append({
+                    "prodotto_id": sc.get("prodotto_id"),
+                    "codice": sc["codice"],
+                    "nome": sc["nome"],
+                    "prezzo": sc["prezzo"],
+                    "um": sc["um"],
+                    "scadenza": sc["scadenza"] or "Breve termine",
+                    "quantita": sc["quantita"] or "Disp.",
+                    "immagine": sc.get("immagine") or "",
+                    "categoria": sc.get("categoria") or "ALIMENTARI",
+                    "prodotto_cliente": matched_cp["nome"],
+                    "prezzo_abituale": round(matched_cp["prezzo"], 2),
+                    "motivo": reason,
+                })
+
+        if not client_matches:
+            continue
+
+        phone_clean = _clean_wa_phone(cli.get("telefono"))
+        msg_lines = []
+        for cm in client_matches:
+            prz_txt = f" a *€ {cm['prezzo']:.2f}/{cm['um'].lower()}*" if cm["prezzo"] > 0 else ""
+            scad_txt = f" · 📅 Scad. *{cm['scadenza']}*" if cm.get("scadenza") else ""
+            qty_txt = f" · 📦 Disp. *{cm['quantita']}*" if cm.get("quantita") else ""
+            msg_lines.append(f"⏳ *{cm['nome']}*{prz_txt}{scad_txt}{qty_txt}")
+
+        msg_wa = (
+            f"Ciao {cli['nome']} 👋!\n"
+            f"Ti segnalo in *Offerta Lampo Scadenza* questi prodotti che lavori:\n"
+            + "\n".join(msg_lines)
+            + "\n\nQuantità limitate fino a esaurimento: dimmi quanti pezzi/kg ti blocco! 🚚"
+        )
+
+        matched_clients.append({
+            "cliente_id": cid,
+            "cliente_nome": cli["nome"],
+            "zona": cli.get("zona") or "",
+            "telefono": cli.get("telefono") or "",
+            "whatsapp_clean": phone_clean,
+            "num_prodotti": len(client_matches),
+            "num_esatti": exact_cnt,
+            "prodotti_abbinati": client_matches,
+            "messaggio_whatsapp": msg_wa,
+            "wa_url": _build_wa_link(phone_clean, msg_wa),
+            "fatturato_totale": round(float(cli.get("fatturato_totale") or 0.0), 2),
+        })
+
+    matched_clients.sort(key=lambda x: (-x["num_esatti"], -x["num_prodotti"], -x["fatturato_totale"], x["cliente_nome"]))
+
+    return {
+        "ok": True,
+        "scadenze_items": scad_items,
+        "totale_prodotti_scadenza": len(scad_items),
+        "totale_clienti_abbinati": len(matched_clients),
+        "clienti_target": matched_clients,
+    }
+
+
+def get_revenue_growth_opportunities(snapshot: dict = None) -> dict:
+    """
+    Analizza il portafoglio clienti per trovare opportunità immediate di aumento fatturato:
+      1. Clienti con scarico previsto questa settimana ma ordine non ancora registrato
+      2. Clienti con prodotti abituali non ordinati nell'ultimo scarico
+    """
+    if not snapshot:
+        snapshot = get_db_snapshot()
+
+    ordered_cids = {int(o["cliente_id"]) for o in snapshot.get("ordini_settimana", []) if float(o.get("totale") or 0) > 0}
+    opportunities = []
+
+    with _GET_DB() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT cp.cliente_id, p.nome, COALESCE(cp.prezzo_offerta, cp.prezzo_attuale, p.prezzo, 0) AS prz
+            FROM clienti_prodotti cp
+            JOIN prodotti p ON p.id = cp.prodotto_id
+            WHERE cp.lavorato = TRUE AND COALESCE(p.eliminato, FALSE) = FALSE
+            ORDER BY cp.cliente_id, p.nome
+        """)
+        worked_by_client = {}
+        for r in cur.fetchall():
+            worked_by_client.setdefault(int(r["cliente_id"]), []).append(dict(r))
+
+    for c in snapshot.get("clienti", []):
+        cid = int(c["id"])
+        worked = worked_by_client.get(cid, [])
+        fat_tot = float(c.get("fatturato_totale") or 0.0)
+        if cid in ordered_cids or (not worked and fat_tot <= 0):
+            continue
+        phone_clean = _clean_wa_phone(c.get("telefono"))
+        top_w = [w["nome"] for w in worked[:4]]
+        prod_hint = f" (es. {', '.join(top_w)})" if top_w else ""
+        msg_wa = (
+            f"Ciao {c['nome']} 👋! Ti scrivo per lo scarico della settimana"
+            + (f" sui tuoi prodotti abituali{prod_hint}" if prod_hint else "")
+            + ". Mi mandi la lista così ti blocco tutto?"
+        )
+        opportunities.append({
+            "cliente_id": cid,
+            "cliente_nome": c["nome"],
+            "zona": c.get("zona") or "",
+            "telefono": c.get("telefono") or "",
+            "whatsapp_clean": phone_clean,
+            "num_prodotti_lavorati": len(worked),
+            "top_prodotti": top_w,
+            "fatturato_storico": round(fat_tot, 2),
+            "messaggio_whatsapp": msg_wa,
+            "wa_url": _build_wa_link(phone_clean, msg_wa),
+        })
+
+    opportunities.sort(key=lambda x: (-x["fatturato_storico"], -x["num_prodotti_lavorati"], x["cliente_nome"]))
+    return {
+        "ok": True,
+        "totale_opportunita": len(opportunities),
+        "opportunita": opportunities[:25],
+    }
+
+
+# ==============================================================================
 # ESECUTORE UNIVERSALE DI OPERAZIONI SUL GESTIONALE (CLIENTI, VISITE, ORDINI, COMPARATORE, CATALOGO)
 # ==============================================================================
 def resolve_natural_date(date_str: str) -> str:
@@ -1609,6 +2790,60 @@ OPENAI_TOOLS = [
                 }
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "process_daily_order",
+            "description": "Carica e registra un ordine giornaliero di un cliente (da PDF allegato o testo), segna i prodotti come lavorati dal cliente, aggiorna il fatturato e segnala i prodotti abituali dimenticati con messaggio WhatsApp.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cliente_nome": {"type": "string", "description": "Nome del cliente (se non specificato viene rilevato dal PDF/testo)."},
+                    "data_ordine": {"type": "string", "description": "Data ordine (es. 'oggi' o YYYY-MM-DD)."},
+                    "testo_ordine": {"type": "string", "description": "Righe dell'ordine se incollate nel messaggio."},
+                    "importo_totale": {"type": "number", "description": "Importo totale se indicato esplicitamente."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "match_daily_fish",
+            "description": "Analizza la lista del pesce locale / offerta giornaliera ittico, trova tutti i clienti che lavorano quei prodotti o specie ittiche e prepara il messaggio WhatsApp preimpostato per ciascun cliente.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lista_pesce": {"type": "string", "description": "Testo con i prodotti ittici del giorno e relativi prezzi."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "match_scadenze",
+            "description": "Analizza la lista scadenze (con quantità disponibile e data di scadenza), trova i clienti che lavorano quei prodotti e prepara per ciascuno il messaggio WhatsApp personalizzato e il volantino veloce scadenze.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lista_scadenze": {"type": "string", "description": "Testo della lista scadenze se incollato dall'utente."},
+                    "usa_scadenze_salvate": {"type": "boolean", "description": "True se l'utente chiede di usare la lista scadenze già caricata a sistema."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "revenue_opportunities",
+            "description": "Individua subito le opportunità per aumentare il fatturato sui clienti (chi non ha ancora ordinato in settimana, prodotti abituali da proporre) con messaggi WhatsApp pronti.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
     }
 ]
 
@@ -2205,19 +3440,142 @@ def build_action_from_intent(intent_name: str, args: dict, snapshot: dict, page_
             "search_results": search_res
         }
 
+    elif intent_name == "process_daily_order":
+        raw_txt = (args.get("testo_ordine") or args.get("raw_text") or "").strip()
+        parsed_ord = parse_daily_order_pdf_or_text(pdf_path=None, raw_text=raw_txt, snapshot=snapshot)
+        items_ord = parsed_ord.get("items") or uploaded_products or []
+        cli_query = (args.get("cliente_nome") or "").strip() or parsed_ord.get("detected_cliente_nome") or ""
+        target_client = find_best_client(cli_query, snapshot["clienti"], page_client_id)
+        if not target_client:
+            return {"reply": "⚠️ Non sono riuscito a identificare il cliente dell'ordine. Specifica il nome del cliente o apri la sua scheda.", "pending_action": None}
+        dt_str = args.get("data_ordine") or parsed_ord.get("detected_date") or str(date.today())
+        exp_tot = args.get("importo_totale") or parsed_ord.get("totale_ordine")
+        ord_res = register_daily_order_in_db(
+            cliente_id=target_client["id"],
+            data_ordine_str=dt_str,
+            items=items_ord,
+            note="Caricato via Assistente AI",
+            explicit_totale=exp_tot,
+        )
+        if not ord_res.get("ok"):
+            return {"reply": f"⚠️ {ord_res.get('error', 'Errore durante la registrazione ordine.')}", "pending_action": None}
+        n_miss = len(ord_res.get("prodotti_abituali_mancanti") or [])
+        extra_upsell = f"\n💡 **{n_miss} prodotti abituali non ordinati** pronti da proporre su WhatsApp per aumentare il fatturato!" if n_miss > 0 else ""
+        return {
+            "reply": ord_res["message"] + extra_upsell,
+            "pending_action": None,
+            "daily_order_result": ord_res,
+        }
+
+    elif intent_name == "match_daily_fish":
+        raw_txt = (args.get("lista_pesce") or args.get("raw_text") or "").strip()
+        fish_res = match_daily_fish_list(raw_text=raw_txt, items=uploaded_products if not raw_txt else None)
+        if not fish_res.get("ok"):
+            return {"reply": f"⚠️ {fish_res.get('error')}", "pending_action": None}
+        return {
+            "reply": (
+                f"🐟 **Matching Offerta Pesce Locale Completato!**\n"
+                f"- **{fish_res['totale_prodotti_offerta']} prodotti ittici** analizzati\n"
+                f"- **{fish_res['totale_clienti_diretti']} clienti** lavorano esattamente queste specie ittiche\n"
+                f"- **{fish_res['totale_clienti_affini']} altri clienti** lavorano prodotti ittici affini\n"
+                f"Qui sotto trovi i messaggi WhatsApp personalizzati già pronti da inviare in 1 clic:"
+            ),
+            "pending_action": None,
+            "fish_matches": fish_res,
+        }
+
+    elif intent_name == "match_scadenze":
+        raw_txt = (args.get("lista_scadenze") or args.get("raw_text") or "").strip()
+        use_saved = bool(args.get("usa_scadenze_salvate")) or (not raw_txt and not uploaded_products)
+        scad_res = match_scadenze_list(
+            raw_text=raw_txt,
+            items=uploaded_products if uploaded_products else None,
+            use_saved_db=use_saved,
+        )
+        if not scad_res.get("ok"):
+            return {"reply": f"⚠️ {scad_res.get('error')}", "pending_action": None}
+        return {
+            "reply": (
+                f"⏳ **Matching Lista Scadenze Completato!**\n"
+                f"- **{scad_res['totale_prodotti_scadenza']} prodotti in scadenza** con quantità e data scadenza\n"
+                f"- **{scad_res['totale_clienti_abbinati']} clienti** lavorano questi prodotti\n"
+                f"Per ogni cliente qui sotto puoi **inviare il messaggio WhatsApp preimpostato** oppure generare il **Volantino Veloce Scadenze personalizzato**:"
+            ),
+            "pending_action": None,
+            "scadenze_matches": scad_res,
+        }
+
+    elif intent_name == "revenue_opportunities":
+        opp_res = get_revenue_growth_opportunities(snapshot)
+        return {
+            "reply": (
+                f"🚀 **Opportunità Immediate per Aumentare il Fatturato ({opp_res['totale_opportunita']} clienti da contattare)**:\n"
+                f"Ecco i clienti ad alto potenziale che non hanno ancora ordinato questa settimana, con i loro prodotti abituali e il messaggio WhatsApp pronto:"
+            ),
+            "pending_action": None,
+            "revenue_opportunities": opp_res,
+        }
+
     return None
 
 
-def local_smart_router(user_message: str, page_context: dict, snapshot: dict, uploaded_products: list, auto_execute: bool = False):
+def local_smart_router(user_message: str, page_context: dict, snapshot: dict, uploaded_products: list, auto_execute: bool = False, uploaded_raw_text: str = ""):
     """Router locale intelligente: capisce qualsiasi richiesta operativa o informativa anche senza API key."""
     msg = (user_message or "").strip()
     msg_low = msg.lower()
+    combined_text = (msg + "\n" + (uploaded_raw_text or "")).strip()
+    combined_low = combined_text.lower()
 
     matched_client = None
     for cli in snapshot["clienti"]:
         if cli["nome"].lower() in msg_low:
             matched_client = cli["nome"]
             break
+
+    # 0a. Offerta Giornaliera Pesce Locale / Ittico -> matching automatico clienti + messaggio WhatsApp
+    if any(k in combined_low for k in [
+        "pesce locale", "offerta ittico", "offerta pesce", "lista pesce",
+        "pesce del giorno", "arrivi pesce", "ittico fresco oggi", "pescato di oggi",
+        "offerta giornaliera ittico", "pesce di oggi"
+    ]):
+        return build_action_from_intent(
+            "match_daily_fish",
+            {"lista_pesce": combined_text},
+            snapshot, page_context, uploaded_products, auto_execute
+        )
+
+    # 0b. Lista Scadenze -> matching clienti che lavorano quei prodotti + messaggio + volantino veloce scadenze
+    if any(k in combined_low for k in [
+        "lista scadenz", "prodotti in scadenz", "offerta scadenz", "promo scadenz",
+        "scadenze di oggi", "chi lavora queste scadenz", "volantino scadenz", "merce in scadenz"
+    ]) or (uploaded_raw_text and "scadenz" in combined_low):
+        return build_action_from_intent(
+            "match_scadenze",
+            {"lista_scadenze": combined_text, "usa_scadenze_salvate": not bool(uploaded_products or re.search(r'\d{2}[\/\-\.]\d{2}', combined_text))},
+            snapshot, page_context, uploaded_products, auto_execute
+        )
+
+    # 0c. Caricamento Ordine Giornaliero da PDF o testo (aggiorna prodotti lavorati + fatturato + upsell)
+    if any(k in msg_low for k in [
+        "ordine giornaliero", "carica ordine", "ordine pdf", "ordine di oggi",
+        "ha ordinato", "ordine cliente", "bolla ordine", "conferma d'ordine"
+    ]) or (uploaded_raw_text and any(k in combined_low for k in ["ordine del", "conferma d'ordine", "art. descrizione"])):
+        return build_action_from_intent(
+            "process_daily_order",
+            {"cliente_nome": matched_client or "", "testo_ordine": combined_text},
+            snapshot, page_context, uploaded_products, auto_execute
+        )
+
+    # 0d. Opportunità aumento fatturato / chi contattare oggi
+    if any(k in msg_low for k in [
+        "aumentare il fatturato", "aumenta fatturato", "opportunità di vendita",
+        "chi devo chiamare", "chi non ha ordinato", "clienti da sollecitare", "consigli vendita"
+    ]):
+        return build_action_from_intent(
+            "revenue_opportunities",
+            {},
+            snapshot, page_context, uploaded_products, auto_execute
+        )
 
     # 0. Ricerca quali clienti lavorano un singolo prodotto o prodotti simili
     if any(k in msg_low for k in [
@@ -2469,6 +3827,8 @@ def api_ai_agent_chat():
                     fn_args = json.loads(tc.get("arguments") or "{}")
                 except Exception:
                     fn_args = {}
+                if "raw_text" not in fn_args and uploaded_raw_text:
+                    fn_args["raw_text"] = uploaded_raw_text
                 result = build_action_from_intent(fn_name, fn_args, snapshot, page_context, uploaded_products, auto_execute)
                 if result:
                     return jsonify({"ok": True, **result})
@@ -2476,7 +3836,7 @@ def api_ai_agent_chat():
             if content:
                 return jsonify({"ok": True, "reply": content, "pending_action": None})
 
-    result = local_smart_router(user_message, page_context, snapshot, uploaded_products, auto_execute)
+    result = local_smart_router(user_message, page_context, snapshot, uploaded_products, auto_execute, uploaded_raw_text=uploaded_raw_text)
     return jsonify({"ok": True, **result})
 
 
