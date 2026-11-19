@@ -1187,6 +1187,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const inputNote = document.getElementById("inputNote");
   const tbodyProdotti = document.getElementById("tbodyProdotti");
   const badgeConteggioProdotti = document.getElementById("badgeConteggioProdotti");
+  const filtroListinoAttivo = document.getElementById("filtroListinoAttivo");
+  const btnClearFiltroListino = document.getElementById("btnClearFiltroListino");
+  const badgeFiltratiListino = document.getElementById("badgeFiltratiListino");
+  const listinoSearchBarWrap = document.getElementById("listinoSearchBarWrap");
   
   // KPI Elements
   const kpiVolumeMese = document.getElementById("kpiVolumeMese");
@@ -2277,7 +2281,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // GESTIONE CARICAMENTO ED ESTRAZIONE PDF PRODOTTI
   // ========================================================
   const modalCaricaPdfEl = document.getElementById("modalCaricaPdf");
-  const modalCaricaPdf = modalCaricaPdfEl ? new bootstrap.Modal(modalCaricaPdfEl) : null;
+  function getModalCaricaPdf() {
+    return (modalCaricaPdfEl && window.bootstrap && bootstrap.Modal)
+      ? bootstrap.Modal.getOrCreateInstance(modalCaricaPdfEl)
+      : null;
+  }
   const dropZonePdf = document.getElementById("dropZonePdf");
   const inputPdfProdotti = document.getElementById("inputPdfProdotti");
   const selectedPdfName = document.getElementById("selectedPdfName");
@@ -2304,7 +2312,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const tab = new bootstrap.Tab(firstTabBtn);
       tab.show();
     }
-    if (modalCaricaPdf) modalCaricaPdf.show();
+    const mPdf = getModalCaricaPdf();
+    if (mPdf) mPdf.show();
   }
 
   const btnCaricaPdf = document.getElementById("btnCaricaPdf");
@@ -2422,7 +2431,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           renderTable();
           segnaModificato(true);
-          if (modalCaricaPdf) modalCaricaPdf.hide();
+          getModalCaricaPdf()?.hide();
           const msgSalvato = puoAutoSalvare() ? " Listino aggiornato e salvato." : " Seleziona un cliente o premi Salva per memorizzarlo.";
           showToastNotification(`Caricati ${data.count} prodotti! Il loro prezzo è stato impostato in "Nostro Prezzo".${msgSalvato}`);
         } else {
@@ -2462,11 +2471,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // ========================================================
   // BARRA DI RICERCA LIVE NEL LISTINO ATTIVO
   // ========================================================
-  const filtroListinoAttivo = document.getElementById("filtroListinoAttivo");
-  const btnClearFiltroListino = document.getElementById("btnClearFiltroListino");
-  const badgeFiltratiListino = document.getElementById("badgeFiltratiListino");
-  const listinoSearchBarWrap = document.getElementById("listinoSearchBarWrap");
-
   function applyListinoSearchFilter() {
     if (!filtroListinoAttivo) return;
     const q = (filtroListinoAttivo.value || "").trim().toLowerCase();
@@ -2525,7 +2529,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // CALCOLATORE CONFRONTO CONFEZIONE & NOTA AL CLIENTE
   // ========================================================
   const modalConfrontoEl = document.getElementById("modalConfrontoConfezione");
-  const modalConfrontoInst = modalConfrontoEl ? new bootstrap.Modal(modalConfrontoEl) : null;
+  function getModalConfrontoInst() {
+    return (modalConfrontoEl && window.bootstrap && bootstrap.Modal)
+      ? bootstrap.Modal.getOrCreateInstance(modalConfrontoEl)
+      : null;
+  }
   const cfUnita = document.getElementById("cfUnita");
   const cfFormatoCliente = document.getElementById("cfFormatoCliente");
   const cfPrezzoCliente = document.getElementById("cfPrezzoCliente");
@@ -2593,7 +2601,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function apriModalConfrontoConfezione(idx) {
     const item = prodottiState[idx];
-    if (!item || !modalConfrontoInst) return;
+    const mCf = getModalConfrontoInst();
+    if (!item || !mCf) return;
     activeCfIdx = idx;
     cfNotaEditedManually = false;
 
@@ -2616,7 +2625,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       updateConfrontoConfezionePreview(true);
     }
-    modalConfrontoInst.show();
+    mCf.show();
   }
 
   [cfUnita, cfFormatoCliente, cfPrezzoCliente, cfFormatoNostro, cfPrezzoNostro].forEach((el) => {
@@ -2649,7 +2658,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     renderTable();
     segnaModificato(true);
-    modalConfrontoInst?.hide();
+    getModalConfrontoInst()?.hide();
     showToastNotification("Prezzo paragonato alla confezione e nota salvati sotto al prodotto!");
   });
 
