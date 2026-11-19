@@ -1970,8 +1970,32 @@ def get_revenue_growth_opportunities(snapshot: dict = None) -> dict:
         for r in cur.fetchall():
             worked_by_client.setdefault(int(r["cliente_id"]), []).append(dict(r))
 
+        # Determina i clienti NON inattivi (con fatturato nei 3 mesi recenti o ordini negli ultimi 90 gg)
+        oggi = date.today()
+        m_corr, a_corr = oggi.month, oggi.year
+        m_prec = 12 if m_corr == 1 else m_corr - 1
+        a_prec = a_corr - 1 if m_corr == 1 else a_corr
+        m_due = 12 if m_corr <= 2 else m_corr - 2
+        a_due = a_corr - 1 if m_corr <= 2 else a_corr
+
+        cur.execute("""
+            SELECT DISTINCT cliente_id FROM fatturato
+            WHERE totale > 0 AND (
+                (mese = %s AND anno = %s) OR
+                (mese = %s AND anno = %s) OR
+                (mese = %s AND anno = %s)
+            )
+            UNION
+            SELECT DISTINCT cliente_id FROM fatturato_settimanale
+            WHERE totale > 0 AND data_inizio >= (CURRENT_DATE - INTERVAL '90 days')
+        """, (m_corr, a_corr, m_prec, a_prec, m_due, a_due))
+        non_inactive_ids = {int(r["cliente_id"]) for r in cur.fetchall()}
+
     for c in snapshot.get("clienti", []):
         cid = int(c["id"])
+        st_db = (c.get("stato") or "").strip().lower()
+        if st_db == "inattivo" or cid not in non_inactive_ids:
+            continue
         worked = worked_by_client.get(cid, [])
         fat_tot = float(c.get("fatturato_totale") or 0.0)
         if cid in ordered_cids or (not worked and fat_tot <= 0):

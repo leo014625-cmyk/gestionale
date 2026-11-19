@@ -571,6 +571,58 @@ def aggiorna_fatturato_totale(id, cur=None):
                 cur_db.execute(query_fb, (id, id))
                 db.commit()
 
+def _get_client_dynamic_statuses(cur):
+    """Restituisce {cliente_id: 'attivo'|'bloccato'|'inattivo'} coerente in tutto il gestionale."""
+    oggi = datetime.today()
+    mese_corrente = oggi.month
+    anno_corrente = oggi.year
+    mese_prec = 12 if mese_corrente == 1 else mese_corrente - 1
+    anno_prec = anno_corrente - 1 if mese_corrente == 1 else anno_corrente
+    mese_due_fa = 12 if mese_corrente <= 2 else mese_corrente - 2
+    anno_due_fa = anno_corrente - 1 if mese_corrente <= 2 else anno_corrente
+
+    cur.execute('''
+        SELECT
+            c.id,
+            COALESCE(c.stato, '') AS stato_db,
+            COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS tot_corr,
+            COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS tot_prec,
+            COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS tot_due
+        FROM clienti c
+        LEFT JOIN fatturato f ON c.id = f.cliente_id
+        GROUP BY c.id, c.stato
+    ''', (mese_corrente, anno_corrente, mese_prec, anno_prec, mese_due_fa, anno_due_fa))
+
+    status_map = {}
+    for r in cur.fetchall():
+        st_db = (r['stato_db'] or '').strip().lower()
+        if st_db == 'inattivo':
+            status_map[r['id']] = 'inattivo'
+        elif float(r['tot_corr'] or 0) > 0 or float(r['tot_prec'] or 0) > 0:
+            status_map[r['id']] = 'attivo'
+        elif float(r['tot_due'] or 0) > 0:
+            status_map[r['id']] = 'bloccato'
+        else:
+            status_map[r['id']] = 'inattivo'
+
+    # Considera attivi i clienti che hanno ordini settimanali negli ultimi 60 giorni
+    # (solo se non marcati esplicitamente inattivi nel DB)
+    try:
+        cur.execute('''
+            SELECT DISTINCT fs.cliente_id
+            FROM fatturato_settimanale fs
+            JOIN clienti c ON c.id = fs.cliente_id
+            WHERE COALESCE(LOWER(c.stato), '') != 'inattivo'
+              AND fs.totale > 0
+              AND fs.data_inizio >= (CURRENT_DATE - INTERVAL '60 days')
+        ''')
+        for r in cur.fetchall():
+            status_map[r['cliente_id']] = 'attivo'
+    except Exception:
+        pass
+
+    return status_map
+
 try:
     init_db()
 except Exception as _e:
@@ -636,12 +688,13 @@ def index():
             SELECT 
                 c.id, 
                 c.nome,
+                COALESCE(c.stato, '') AS stato_db,
                 COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS totale_corrente,
                 COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS totale_prec,
                 COALESCE(SUM(CASE WHEN f.mese = %s AND f.anno = %s THEN f.totale ELSE 0 END), 0) AS totale_due_mesi_fa
             FROM clienti c
             LEFT JOIN fatturato f ON c.id = f.cliente_id
-            GROUP BY c.id, c.nome
+            GROUP BY c.id, c.nome, c.stato
         ''', (
             mese_corrente, anno_corrente,
             mese_prec, anno_prec,
@@ -651,19 +704,25 @@ def index():
 
         clienti_bloccati_dettaglio = []
         clienti_bloccati_inattivi_dettaglio = []
+        has_active_or_blocked_clients = False
 
         for row in clienti_status_rows:
+            st_db = (row['stato_db'] or '').strip().lower()
             totale_corrente = row['totale_corrente']
             totale_prec = row['totale_prec']
             totale_due_mesi_fa = row['totale_due_mesi_fa']
 
-            if totale_corrente > 0 or totale_prec > 0:
+            if st_db == 'inattivo':
+                stato = 'inattivo'
+            elif totale_corrente > 0 or totale_prec > 0:
                 stato = 'attivo'
             elif totale_due_mesi_fa > 0:
                 stato = 'bloccato'
             else:
                 stato = 'inattivo'
 
+            if stato in ('attivo', 'bloccato'):
+                has_active_or_blocked_clients = True
             if stato == 'bloccato':
                 clienti_bloccati_dettaglio.append({'id': row['id'], 'nome': row['nome']})
             if stato in ('bloccato', 'inattivo'):
@@ -732,13 +791,13 @@ def index():
         ''', (oggi_data,))
         visite_oggi = cur.fetchall()
 
-        # Notifiche (simulated or simplified)
+        # Notifiche (solo se ci sono clienti attivi/bloccati, ignorando gli inattivi)
         notifiche = []
-        if fatturato_corrente == 0:
+        if fatturato_corrente == 0 and has_active_or_blocked_clients:
             notifiche.append({
                 "id": "fatturato_mancante",
                 "titolo": "Fatturato Mancante",
-                "descrizione": "Fatturato del mese corrente non ancora inserito.",
+                "descrizione": "Fatturato del mese corrente non ancora inserito per i clienti attivi.",
                 "data": datetime.now(),
                 "tipo": "danger",
                 "letto": False
@@ -788,6 +847,7 @@ def clienti():
                 c.nome, 
                 c.zona,
                 c.telefono,
+                COALESCE(c.stato, '') AS stato_db,
                 c.giorno_visita_standard,
                 c.giorni_consegna_standard,
                 c.ora_visita_standard,
@@ -817,7 +877,7 @@ def clienti():
         if condizioni:
             query += ' WHERE ' + ' AND '.join(condizioni)
             
-        query += ' GROUP BY c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard, c.giorni_consegna_standard, c.ora_visita_standard, c.frequenza_visita, c.fatturato_stimato_mensile'
+        query += ' GROUP BY c.id, c.nome, c.zona, c.telefono, c.stato, c.giorno_visita_standard, c.giorni_consegna_standard, c.ora_visita_standard, c.frequenza_visita, c.fatturato_stimato_mensile'
         
         cur.execute(query, params)
         clienti_rows = cur.fetchall()
@@ -860,7 +920,9 @@ def clienti():
             totale_mese_prec = float(row['totale_mese_prec'] or 0.0)
             totale_due_mesi_fa = float(row['totale_due_mesi_fa'] or 0.0)
 
-            stato = ('attivo' if (totale_mese_corrente > 0 or totale_mese_prec > 0)
+            st_db = (row.get('stato_db') or '').strip().lower()
+            stato = ('inattivo' if st_db == 'inattivo'
+                     else 'attivo' if (totale_mese_corrente > 0 or totale_mese_prec > 0)
                      else 'bloccato' if totale_due_mesi_fa > 0
                      else 'inattivo')
             stati_clienti[c_id] = stato
@@ -1183,14 +1245,17 @@ def modifica_cliente(id):
                 ora_visita_standard = None
                 
             telefono = request.form.get('telefono', '').strip()
+            stato_form = (request.form.get('stato') or cliente.get('stato') or 'automatico').strip().lower()
+            if stato_form not in ('automatico', 'attivo', 'bloccato', 'inattivo'):
+                stato_form = 'automatico'
             
             phone_col = _detect_phone_column(cur) or "telefono"
             
             cur.execute(f'''
                 UPDATE clienti 
-                SET nome=%s, zona=%s, {phone_col}=%s, giorni_consegna_standard=%s, giorno_visita_standard=%s, frequenza_visita=%s, ora_visita_standard=%s 
+                SET nome=%s, zona=%s, {phone_col}=%s, stato=%s, giorni_consegna_standard=%s, giorno_visita_standard=%s, frequenza_visita=%s, ora_visita_standard=%s 
                 WHERE id=%s
-            ''', (nome, zona, telefono, giorni_consegna_standard, giorno_visita_standard, frequenza_visita, ora_visita_standard, id))
+            ''', (nome, zona, telefono, stato_form, giorni_consegna_standard, giorno_visita_standard, frequenza_visita, ora_visita_standard, id))
 
             # Aggiorna prodotti (Ottimizzato con pre-caricamento fornitori e dirty-checking)
             prodotti_modificati = request.form.get('prodotti_modificati') == '1'
@@ -1779,7 +1844,9 @@ def cliente_scheda(id):
         totale_due_mesi_fa = cur.fetchone()['coalesce']
 
         variazione_fatturato_cliente = ((totale_prec - totale_due_mesi_fa) / totale_due_mesi_fa * 100) if totale_due_mesi_fa else None
-        stato_cliente = ('attivo' if (totale_corrente > 0 or totale_prec > 0)
+        st_db_cli = (cliente.get('stato') or '').strip().lower()
+        stato_cliente = ('inattivo' if st_db_cli == 'inattivo'
+                         else 'attivo' if (totale_corrente > 0 or totale_prec > 0)
                          else 'bloccato' if totale_due_mesi_fa > 0
                          else 'inattivo')
 
@@ -4274,6 +4341,7 @@ def api_clienti_fatturati_mese():
     except (ValueError, TypeError):
         mese = datetime.now().month
         anno = datetime.now().year
+    include_inactive = str(request.args.get('include_inactive', '0')).strip() == '1'
 
     # Calcola mese precedente
     if mese == 1:
@@ -4286,13 +4354,24 @@ def api_clienti_fatturati_mese():
     with get_db() as db:
         cur = db.cursor()
         try:
+            status_map = _get_client_dynamic_statuses(cur)
             cur.execute('''
-                SELECT id, nome, zona, COALESCE(fatturato_totale, 0) as fatturato_totale, COALESCE(stato, 'attivo') as stato
+                SELECT id, nome, zona, COALESCE(fatturato_totale, 0) as fatturato_totale, COALESCE(stato, 'automatico') as stato
                 FROM clienti
-                WHERE stato != 'inattivo' OR stato IS NULL
                 ORDER BY nome ASC
             ''')
-            clienti_raw = cur.fetchall()
+            all_clienti_raw = cur.fetchall()
+            excluded_inactive_count = 0
+            clienti_raw = []
+            for c in all_clienti_raw:
+                dyn_stato = status_map.get(c['id'], 'inattivo')
+                if dyn_stato == 'inattivo':
+                    excluded_inactive_count += 1
+                    if not include_inactive:
+                        continue
+                c_copy = dict(c)
+                c_copy['stato'] = dyn_stato
+                clienti_raw.append(c_copy)
 
             c_ids = [c['id'] for c in clienti_raw]
             fatt_corrente = {}
@@ -4367,6 +4446,8 @@ def api_clienti_fatturati_mese():
                 'totale_mese': round(totale_mese, 2),
                 'clienti_con_fatturato': clienti_con_fatturato,
                 'totale_clienti': len(result_list),
+                'excluded_inactive_count': excluded_inactive_count,
+                'include_inactive': include_inactive,
                 'clienti': result_list
             })
         except Exception as e:
@@ -5885,19 +5966,21 @@ def visite_clienti():
         """)
         visite_in_ritardo = cur.fetchall()
 
-        # Clienti attivi non visitati negli ultimi 30 giorni (Promemoria "se manca qualcosa")
+        # Clienti attivi non visitati negli ultimi 30 giorni (escludi inattivi dinamici/DB)
         try:
+            vis_status_map = _get_client_dynamic_statuses(cur)
             cur.execute("""
                 SELECT c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard, MAX(v.data_visita) as ultima_visita
                 FROM clienti c
                 LEFT JOIN visite v ON v.cliente_id = c.id AND v.completata IS TRUE
-                WHERE c.stato = 'attivo' OR c.stato IS NULL OR c.stato = 'automatico'
                 GROUP BY c.id, c.nome, c.zona, c.telefono, c.giorno_visita_standard
                 HAVING MAX(v.data_visita) IS NULL OR MAX(v.data_visita) < CURRENT_DATE - INTERVAL '30 days'
                 ORDER BY MAX(v.data_visita) ASC NULLS FIRST
-                LIMIT 25
             """)
-            clienti_da_visitare = cur.fetchall()
+            clienti_da_visitare = [
+                r for r in cur.fetchall()
+                if vis_status_map.get(r['id'], 'inattivo') != 'inattivo'
+            ][:25]
         except Exception as _e_vis:
             db_conn.rollback()
             cur.execute("SELECT id, nome, zona, telefono, giorno_visita_standard FROM clienti LIMIT 15")
@@ -5964,14 +6047,14 @@ def ordini_settimanali():
 
     with get_db() as db_conn:
         cur = db_conn.cursor(cursor_factory=RealDictCursor)
+        ord_status_map = _get_client_dynamic_statuses(cur)
 
         cur.execute("""
             SELECT id, nome, zona, telefono, giorni_consegna_standard, COALESCE(fatturato_totale, 0) as fatturato_totale, stato
             FROM clienti
-            WHERE (stato = 'attivo' OR stato IS NULL OR stato = 'automatico')
             ORDER BY nome ASC
         """)
-        tutti_clienti = cur.fetchall()
+        tutti_clienti_raw = cur.fetchall()
 
         # Recupera fatturato_settimanale registrato per questa settimana o periodo
         cur.execute("""
@@ -5981,6 +6064,12 @@ def ordini_settimanali():
                OR (settimana = %s AND anno = %s)
         """, (lunedi_target, domenica_target, settimana_num, anno_target))
         ordini_settimana = {r['cliente_id']: r for r in cur.fetchall()}
+
+        # Escludi clienti inattivi dalle richieste/promemoria ordini (salvo abbiano un ordine in questa settimana)
+        tutti_clienti = [
+            c for c in tutti_clienti_raw
+            if ord_status_map.get(c['id'], 'inattivo') != 'inattivo' or c['id'] in ordini_settimana
+        ]
 
         giorni_nomi = {
             '1': 'Lunedì',
@@ -7599,6 +7688,7 @@ def gestione_fatturato():
     
     mese = request.args.get('mese', default=mese_def, type=int)
     anno = request.args.get('anno', default=anno_def, type=int)
+    include_inactive = str(request.args.get('include_inactive', '0')).strip() == '1'
     
     # Calcola mese e anno precedenti per confronto e copia rapida
     selected_date = datetime(anno, mese, 1)
@@ -7608,13 +7698,21 @@ def gestione_fatturato():
 
     with get_db() as db:
         cur = db.cursor()
+        status_map = _get_client_dynamic_statuses(cur)
         cur.execute('''
             SELECT id, nome, zona
             FROM clienti
-            WHERE stato = 'attivo' OR stato IS NULL OR stato = 'automatico'
             ORDER BY nome
         ''')
-        clienti_attivi = cur.fetchall()
+        all_clienti_rows = cur.fetchall()
+        excluded_inactive_count = 0
+        clienti_attivi = []
+        for c in all_clienti_rows:
+            if status_map.get(c['id'], 'inattivo') == 'inattivo':
+                excluded_inactive_count += 1
+                if not include_inactive:
+                    continue
+            clienti_attivi.append(c)
         if clienti_attivi:
             c_ids = [c['id'] for c in clienti_attivi]
             placeholders = ','.join(['%s'] * len(c_ids))
@@ -7645,7 +7743,9 @@ def gestione_fatturato():
         anno=anno, 
         prev_mese=prev_mese, 
         prev_anno=prev_anno, 
-        clienti=clienti_attivi
+        clienti=clienti_attivi,
+        excluded_inactive_count=excluded_inactive_count,
+        include_inactive=include_inactive
     )
 
 # ============================

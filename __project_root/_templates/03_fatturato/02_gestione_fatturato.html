@@ -105,6 +105,16 @@
         <div>
           <span class="text-uppercase">Clienti visualizzati: </span>
           <span id="counter-clienti" class="text-dark">{{ clienti|length }}</span> / {{ clienti|length }}
+          {% if excluded_inactive_count is defined and excluded_inactive_count > 0 %}
+            <span class="ms-2 badge bg-secondary-subtle text-secondary border rounded-pill">
+              {{ excluded_inactive_count }} inattivi nascosti
+            </span>
+            {% if not include_inactive %}
+              <a href="{{ url_for('gestione_fatturato', mese=mese, anno=anno, include_inactive=1) }}" class="ms-1 small text-decoration-none">Mostra comunque</a>
+            {% else %}
+              <a href="{{ url_for('gestione_fatturato', mese=mese, anno=anno) }}" class="ms-1 small text-decoration-none">Nascondi inattivi</a>
+            {% endif %}
+          {% endif %}
         </div>
       </div>
 

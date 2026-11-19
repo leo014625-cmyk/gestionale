@@ -241,6 +241,15 @@
           </div>
         </div>
 
+        <div class="col-md-6">
+          <label class="form-label">Stato Operativo Cliente</label>
+          <select class="form-select" name="stato">
+            <option value="automatico" {% if (cliente.stato or 'automatico') == 'automatico' %}selected{% endif %}>Automatico (in base agli ordini/fatturato)</option>
+            <option value="inattivo" {% if cliente.stato == 'inattivo' %}selected{% endif %}>Inattivo (non chiedere più aggiornamento fatturato)</option>
+          </select>
+          <div class="form-text">I clienti inattivi non compaiono più nelle richieste e nelle liste di aggiornamento fatturato.</div>
+        </div>
+
       </div>
 
     </div>
