@@ -5,28 +5,73 @@
 {% block styles %}
 {{ super() }}
 <style>
-  /* Premium Dashboard Styling */
+  /* Bento & Executive Dashboard Styling */
   .dashboard-welcome-card {
-    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 48%, #312e81 100%);
     color: #ffffff;
-    border-radius: var(--radius);
-    padding: 2.5rem 2.25rem;
-    margin-bottom: 2.5rem;
-    box-shadow: 0 12px 30px -8px rgba(30, 27, 75, 0.45);
+    border-radius: var(--radius-lg);
+    padding: 2.25rem 2.35rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 18px 42px -12px rgba(30, 27, 75, 0.45);
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
-  .dashboard-welcome-card::after {
+  .dashboard-welcome-card::before {
     content: '';
     position: absolute;
-    top: -50px;
-    right: -50px;
-    width: 350px;
-    height: 350px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+    inset: 0;
+    background: radial-gradient(650px circle at 92% 10%, rgba(56, 189, 248, 0.24), transparent 55%),
+                radial-gradient(500px circle at 10% 100%, rgba(167, 139, 250, 0.2), transparent 60%);
     pointer-events: none;
+  }
+  .dashboard-welcome-card > * { position: relative; z-index: 1; }
+  .dashboard-welcome-card h1 { color: #ffffff !important; }
+
+  /* Bento Sales Accelerator Cards */
+  .bento-accel-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    text-decoration: none;
+    color: var(--text-color);
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s ease, border-color 0.24s ease;
+  }
+  .bento-accel-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    opacity: 0.9;
+  }
+  .bento-accel-primary::before { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+  .bento-accel-info::before { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+  .bento-accel-warning::before { background: linear-gradient(90deg, #d97706, #fbbf24); }
+  .bento-accel-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-border);
+  }
+  .bento-accel-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
   }
 
   /* Metric Cards */
@@ -34,9 +79,9 @@
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    padding: 1.5rem;
+    padding: 1.4rem;
     height: 100%;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -53,16 +98,14 @@
     width: 4px;
     height: 100%;
     background: transparent;
-    transition: background-color 0.3s;
+    transition: background-color 0.25s;
   }
   .metric-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
-    border-color: rgba(99, 102, 241, 0.25);
+    border-color: var(--primary-border);
   }
-  .metric-card:hover::before {
-    background: var(--primary);
-  }
+  .metric-card:hover::before { background: var(--primary); }
   .metric-card-header {
     display: flex;
     align-items: center;
@@ -70,66 +113,77 @@
     margin-bottom: 1rem;
   }
   .metric-icon-wrapper {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.25rem;
-    transition: transform 0.3s;
+    transition: transform 0.25s;
   }
-  .metric-card:hover .metric-icon-wrapper {
-    transform: scale(1.1);
-  }
-  
-  /* Colorized Wrappers for Metrics */
+  .metric-card:hover .metric-icon-wrapper { transform: scale(1.08); }
+
   .bg-soft-primary { background-color: var(--primary-light); color: var(--primary); }
-  .bg-soft-success { background-color: rgba(16, 185, 129, 0.1); color: var(--success); }
-  .bg-soft-danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); }
-  .bg-soft-warning { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
+  .bg-soft-success { background-color: var(--success-light); color: var(--success); }
+  .bg-soft-danger { background-color: var(--danger-light); color: var(--danger); }
+  .bg-soft-warning { background-color: var(--warning-light); color: var(--warning); }
   .bg-soft-info { background-color: var(--accent-light); color: var(--accent); }
+  .bg-soft-secondary { background-color: rgba(148, 163, 184, 0.14); color: var(--text-muted); }
 
   .metric-value {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.85rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.25rem;
+    font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+    font-size: 1.95rem;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-bottom: 0.35rem;
   }
   .metric-title {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
   }
 
-  /* Quick Actions Grid */
+  /* Quick Actions Bento Grid */
   .quick-action-btn {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
+    border-radius: 16px;
     color: var(--text-color);
-    padding: 1.25rem;
+    padding: 1.05rem 1rem;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
     font-weight: 600;
+    font-size: 0.88rem;
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: var(--shadow-sm);
   }
   .quick-action-btn:hover {
     background-color: var(--primary-light);
     color: var(--primary);
-    border-color: var(--primary);
-    transform: translateY(-2px);
+    border-color: var(--primary-border);
+    transform: translateY(-3px);
     box-shadow: var(--shadow-md);
   }
   .quick-action-btn i {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
   }
+  .quick-action-btn:hover i { transform: scale(1.08); }
 
   /* Charts and Panels */
   .panel-card {
@@ -141,15 +195,14 @@
     height: 100%;
   }
   .panel-title {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.35rem;
     display: flex;
     align-items: center;
     gap: 10px;
   }
 
-  /* List group items overrides for modals & lists */
   .custom-list-group .list-group-item {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -159,73 +212,55 @@
     color: var(--text-color);
     transition: background-color 0.2s;
   }
-  .custom-list-group .list-group-item:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-  }
-  body.dark-mode .custom-list-group .list-group-item:hover {
-    background-color: rgba(255, 255, 255, 0.02);
-  }
+  .custom-list-group .list-group-item:hover { background-color: var(--primary-light); }
 
-  /* Custom styling for Modals to match Light/Dark */
-  .modal-content {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-  }
-  .modal-header {
-    border-bottom: 1px solid var(--border-color);
-  }
-  .modal-footer {
-    border-top: 1px solid var(--border-color);
-  }
-
-  /* Visite Card */
   .visit-item {
-    padding: 0.85rem;
+    padding: 0.85rem 0.95rem;
     border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
     border-left: 4px solid var(--primary);
-    background-color: rgba(0, 0, 0, 0.01);
-    margin-bottom: 0.75rem;
+    background-color: var(--surface-subtle);
+    margin-bottom: 0.7rem;
     transition: all 0.2s;
-  }
-  body.dark-mode .visit-item {
-    background-color: rgba(255, 255, 255, 0.02);
   }
   .visit-item:hover {
     transform: translateX(4px);
     background-color: var(--primary-light);
+    border-color: var(--primary-border);
   }
-  .visit-time {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--primary);
-  }
+  .visit-time { font-size: 0.8rem; font-weight: 700; color: var(--primary); }
 
-  /* Notification Drawer Styles */
   .notification-item {
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
     background-color: var(--card-bg);
     transition: all 0.2s;
   }
-  .notification-item:hover {
-    box-shadow: var(--shadow-sm);
-  }
+  .notification-item:hover { box-shadow: var(--shadow-sm); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid px-0">
 
-  <!-- Header Card -->
+  <!-- Hero Banner -->
   <div class="dashboard-welcome-card d-flex flex-wrap justify-content-between align-items-center gap-4">
     <div>
-      <h1 class="display-6 fw-bold mb-2">Bentornato, Leonardo 👋</h1>
-      <p class="lead mb-0 text-white-50">Gestionale Horeca • Quadro generale e metriche chiave del business.</p>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge rounded-pill px-3 py-1 fw-semibold" style="background: rgba(255,255,255,0.14); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.18); font-size: 0.72rem; letter-spacing: 0.06em;">
+          <i class="bi bi-stars text-warning me-1"></i>HORECA SALES COCKPIT
+        </span>
+      </div>
+      <h1 class="display-6 fw-bold mb-1">Bentornato, Leonardo 👋</h1>
+      <p class="mb-0" style="color: rgba(226, 232, 240, 0.82); font-size: 0.98rem;">Quadro generale del portafoglio clienti, ordini giornalieri e opportunità commerciali.</p>
     </div>
-    <div>
-      <button type="button" class="btn btn-light btn-lg rounded-4 shadow-sm fw-semibold d-flex align-items-center gap-2"
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <a href="/ordini#centro-operativo" class="btn rounded-4 px-3.5 py-2.5 fw-semibold d-flex align-items-center gap-2"
+         style="background: rgba(255,255,255,0.12); color: #ffffff; border: 1px solid rgba(255,255,255,0.22); backdrop-filter: blur(8px);">
+        <i class="bi bi-lightning-charge-fill text-warning"></i>
+        <span>Centro Operativo</span>
+      </a>
+      <button type="button" class="btn btn-light rounded-4 px-3.5 py-2.5 shadow-sm fw-bold d-flex align-items-center gap-2"
               data-bs-toggle="offcanvas" data-bs-target="#offcanvasNotifiche">
         <i class="bi bi-bell-fill text-primary"></i>
         <span>Avvisi</span>
@@ -238,53 +273,49 @@
   </div>
 
   <!-- Acceleratore Vendite Giornaliero (Ordini PDF • Pesce Locale • Scadenze) -->
-  <h5 class="mb-3 fw-bold text-uppercase tracking-wider text-muted small">
-    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Operatività Giornaliera &amp; Aumento Fatturato
-  </h5>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="mb-0 fw-bold text-uppercase text-muted small" style="letter-spacing: 0.08em;">
+      <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Operatività Giornaliera &amp; Aumento Fatturato
+    </h5>
+  </div>
   <div class="row g-3 mb-4">
     <div class="col-12 col-md-4">
-      <a href="/ordini?tab=ordine#centro-operativo" class="card p-3.5 rounded-4 text-decoration-none h-100 shadow-sm border-primary-subtle"
-         style="background: linear-gradient(135deg, rgba(67, 56, 202, 0.08) 0%, rgba(99, 102, 241, 0.03) 100%);">
-        <div class="d-flex align-items-center gap-3">
-          <div class="rounded-4 d-flex align-items-center justify-content-center bg-primary text-white shadow-sm flex-shrink-0" style="width: 50px; height: 50px; font-size: 1.4rem;">
-            <i class="bi bi-file-earmark-arrow-up-fill"></i>
-          </div>
-          <div>
-            <span class="badge bg-primary-subtle text-primary mb-1" style="font-size: 0.68rem;">DA CELLULARE / PDF / CHAT</span>
-            <h6 class="fw-bold mb-0.5">1. Carica Ordini Giornalieri</h6>
-            <div class="small text-muted">Aggiorna i prodotti lavorati, il fatturato e proponi i prodotti abituali dimenticati.</div>
-          </div>
+      <a href="/ordini?tab=ordine#centro-operativo" class="bento-accel-card bento-accel-primary">
+        <div class="bento-accel-icon bg-primary text-white">
+          <i class="bi bi-file-earmark-arrow-up-fill"></i>
         </div>
+        <div class="flex-grow-1">
+          <span class="badge bg-primary-subtle text-primary mb-1" style="font-size: 0.67rem;">DA CELLULARE / PDF / CHAT</span>
+          <h6 class="fw-bold mb-1">1. Carica Ordini Giornalieri</h6>
+          <div class="small text-muted">Aggiorna prodotti lavorati, fatturato e proponi articoli abituali mancanti.</div>
+        </div>
+        <i class="bi bi-arrow-up-right text-muted"></i>
       </a>
     </div>
     <div class="col-12 col-md-4">
-      <a href="/ordini?tab=pesce#centro-operativo" class="card p-3.5 rounded-4 text-decoration-none h-100 shadow-sm border-info-subtle"
-         style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.09) 0%, rgba(56, 189, 248, 0.03) 100%);">
-        <div class="d-flex align-items-center gap-3">
-          <div class="rounded-4 d-flex align-items-center justify-content-center bg-info text-dark shadow-sm flex-shrink-0" style="width: 50px; height: 50px; font-size: 1.4rem;">
-            <i class="bi bi-water"></i>
-          </div>
-          <div>
-            <span class="badge bg-info-subtle text-info-emphasis mb-1" style="font-size: 0.68rem;">MATCHING AUTOMATICO</span>
-            <h6 class="fw-bold mb-0.5">2. Lista Pesce Locale &amp; Ittico</h6>
-            <div class="small text-muted">Incolla il pesce di oggi: scopri chi lo lavora e invia il messaggio WhatsApp già pronto.</div>
-          </div>
+      <a href="/ordini?tab=pesce#centro-operativo" class="bento-accel-card bento-accel-info">
+        <div class="bento-accel-icon bg-info text-dark">
+          <i class="bi bi-water"></i>
         </div>
+        <div class="flex-grow-1">
+          <span class="badge bg-info-subtle text-info-emphasis mb-1" style="font-size: 0.67rem;">MATCHING AUTOMATICO</span>
+          <h6 class="fw-bold mb-1">2. Lista Pesce Locale &amp; Ittico</h6>
+          <div class="small text-muted">Incolla il pesce di oggi: scopri chi lo lavora e invia WhatsApp pronto.</div>
+        </div>
+        <i class="bi bi-arrow-up-right text-muted"></i>
       </a>
     </div>
     <div class="col-12 col-md-4">
-      <a href="/ordini?tab=scadenze#centro-operativo" class="card p-3.5 rounded-4 text-decoration-none h-100 shadow-sm border-warning-subtle"
-         style="background: linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.03) 100%);">
-        <div class="d-flex align-items-center gap-3">
-          <div class="rounded-4 d-flex align-items-center justify-content-center bg-warning text-dark shadow-sm flex-shrink-0" style="width: 50px; height: 50px; font-size: 1.4rem;">
-            <i class="bi bi-hourglass-split"></i>
-          </div>
-          <div>
-            <span class="badge bg-warning-subtle text-warning-emphasis mb-1" style="font-size: 0.68rem;">MESSAGGIO + VOLANTINO VELOCE</span>
-            <h6 class="fw-bold mb-0.5">3. Lista Scadenze per Cliente</h6>
-            <div class="small text-muted">Abbina i clienti che lavorano i lotti in scadenza e crea messaggio o volantino su misura.</div>
-          </div>
+      <a href="/ordini?tab=scadenze#centro-operativo" class="bento-accel-card bento-accel-warning">
+        <div class="bento-accel-icon bg-warning text-dark">
+          <i class="bi bi-hourglass-split"></i>
         </div>
+        <div class="flex-grow-1">
+          <span class="badge bg-warning-subtle text-warning-emphasis mb-1" style="font-size: 0.67rem;">MESSAGGIO + VOLANTINO VELOCE</span>
+          <h6 class="fw-bold mb-1">3. Lista Scadenze per Cliente</h6>
+          <div class="small text-muted">Abbina i lotti in scadenza ai clienti e crea messaggio o volantino su misura.</div>
+        </div>
+        <i class="bi bi-arrow-up-right text-muted"></i>
       </a>
     </div>
   </div>

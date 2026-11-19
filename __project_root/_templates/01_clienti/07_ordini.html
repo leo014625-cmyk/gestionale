@@ -138,37 +138,38 @@
 <div class="container-fluid px-0">
 
   <!-- Executive Header Section -->
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div class="executive-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
-      <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge bg-primary-light text-primary rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">LOGISTICA & CONSEGNE</span>
-        <span class="text-muted small">• Settimana {{ settimana_num }} / {{ anno_target }}</span>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge rounded-pill px-3 py-1 font-monospace fw-semibold" style="background: rgba(255,255,255,0.14); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); font-size: 0.72rem;">LOGISTICA &amp; VENDITE GIORNALIERE</span>
+        <span class="small" style="color: rgba(226,232,240,0.8);">• Settimana {{ settimana_num }} / {{ anno_target }}</span>
       </div>
-      <h1 class="display-6 fw-bold mb-1">Ordini e Scarichi Settimanali</h1>
-      <p class="text-muted mb-0">Controlla lo stato delle forniture programmate, sollecita gli ordini mancanti e tieni monitorati i volumi.</p>
+      <h1 class="display-6 fw-bold mb-1">Ordini &amp; Centro Operativo</h1>
+      <p class="mb-0" style="color: rgba(226,232,240,0.8);">Carica gli ordini giornalieri, abbina il pesce locale e gestisci le scadenze con WhatsApp e volantini veloci.</p>
     </div>
 
     <!-- Actions & Week Switcher -->
     <div class="d-flex flex-wrap align-items-center gap-2">
-      <!-- Week Switcher -->
       <div class="btn-group rounded-4 shadow-sm" role="group">
-        <a href="{{ url_for('ordini_settimanali', offset=offset_settimane - 1) }}" class="btn btn-outline-secondary rounded-start-4 px-3 py-2 fw-semibold" title="Settimana precedente">
+        <a href="{{ url_for('ordini_settimanali', offset=offset_settimane - 1) }}" class="btn btn-light rounded-start-4 px-3 py-2 fw-semibold" title="Settimana precedente">
           <i class="bi bi-chevron-left"></i>
         </a>
-        <a href="{{ url_for('ordini_settimanali', offset=0) }}" class="btn {% if offset_settimane == 0 %}btn-primary{% else %}btn-outline-secondary{% endif %} px-3 py-2 fw-semibold">
+        <a href="{{ url_for('ordini_settimanali', offset=0) }}" class="btn {% if offset_settimane == 0 %}btn-warning text-dark{% else %}btn-light{% endif %} px-3 py-2 fw-bold">
           Settimana Attuale
         </a>
-        <a href="{{ url_for('ordini_settimanali', offset=offset_settimane + 1) }}" class="btn btn-outline-secondary rounded-end-4 px-3 py-2 fw-semibold" title="Settimana successiva">
+        <a href="{{ url_for('ordini_settimanali', offset=offset_settimane + 1) }}" class="btn btn-light rounded-end-4 px-3 py-2 fw-semibold" title="Settimana successiva">
           <i class="bi bi-chevron-right"></i>
         </a>
       </div>
 
-      <a href="{{ url_for('download_ordini_pdf') }}" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-file-earmark-pdf"></i> Scarica Programma PDF
+      <a href="{{ url_for('download_ordini_pdf') }}" class="btn rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2"
+         style="background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.22);">
+        <i class="bi bi-file-earmark-pdf"></i> Programma PDF
       </a>
-      
-      <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-people"></i> Anagrafica Clienti
+
+      <a href="{{ url_for('clienti') }}" class="btn rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2"
+         style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.18);">
+        <i class="bi bi-people"></i> Clienti
       </a>
     </div>
   </div>

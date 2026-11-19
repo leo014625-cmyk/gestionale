@@ -238,46 +238,61 @@
 
 <div class="container-fluid px-0">
 
-  <!-- Header Card -->
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <!-- Client Profile Executive Hero Header -->
+  <div class="executive-hero d-flex flex-wrap align-items-center justify-content-between gap-4">
     <div class="d-flex align-items-center gap-3 flex-wrap">
-      <h1 class="h2 mb-0 fw-bold">{{ cliente.nome }}</h1>
-      {% if tier_cliente %}
-        <span class="badge-tier badge-tier-{{ tier_cliente.code }}">
-          {{ tier_cliente.badge }}
-        </span>
-      {% endif %}
-      {% if stato == 'attivo' %}
-        <span class="status-pill status-attivo">
-          <span class="status-pulse-dot pulse-green"></span>Attivo
-        </span>
-      {% elif stato == 'bloccato' %}
-        <span class="status-pill status-bloccato">
-          <i class="bi bi-x-circle-fill"></i>Bloccato / Churn Risk
-        </span>
-      {% else %}
-        <span class="status-pill status-inattivo">
-          <i class="bi bi-clock-history"></i>Inattivo
-        </span>
-      {% endif %}
+      <div class="rounded-4 d-flex align-items-center justify-content-center fw-bold shadow-sm flex-shrink-0"
+           style="width: 58px; height: 58px; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(56,189,248,0.28)); border: 1px solid rgba(255,255,255,0.25); font-size: 1.45rem; color: #fff;">
+        {{ (cliente.nome or 'C')[:2]|upper }}
+      </div>
+      <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+          {% if tier_cliente %}
+            <span class="badge-tier badge-tier-{{ tier_cliente.code }}" style="background: rgba(255,255,255,0.16); color: #fff; border-color: rgba(255,255,255,0.25);">
+              {{ tier_cliente.badge }}
+            </span>
+          {% endif %}
+          {% if stato == 'attivo' %}
+            <span class="status-pill" style="background: rgba(16,185,129,0.22); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.4);">
+              <span class="status-pulse-dot pulse-green"></span>Attivo
+            </span>
+          {% elif stato == 'bloccato' %}
+            <span class="status-pill" style="background: rgba(239,68,68,0.24); color: #fca5a5; border: 1px solid rgba(239,68,68,0.45);">
+              <i class="bi bi-x-circle-fill"></i>Bloccato / Churn Risk
+            </span>
+          {% else %}
+            <span class="status-pill" style="background: rgba(148,163,184,0.22); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.35);">
+              <i class="bi bi-clock-history"></i>Inattivo
+            </span>
+          {% endif %}
+          {% if cliente.zona %}
+            <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(255,255,255,0.12); color: #cbd5e1;">
+              <i class="bi bi-geo-alt-fill text-info me-1"></i>{{ cliente.zona }}
+            </span>
+          {% endif %}
+        </div>
+        <h1 class="h2 mb-0 fw-bold">{{ cliente.nome }}</h1>
+      </div>
     </div>
 
     <div class="d-flex flex-wrap gap-2">
-      <button type="button" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm"
+      <button type="button" class="btn btn-light rounded-4 px-3.5 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm"
               data-bs-toggle="modal" data-bs-target="#modalAggiornamentoSettimanale">
-        <i class="bi bi-calendar-plus-fill"></i> Aggiornamento Settimanale (Fatturato & PDF)
+        <i class="bi bi-calendar-plus-fill text-primary"></i> Aggiornamento Settimanale
       </button>
-      <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn btn-outline-primary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-calculator-fill text-warning"></i> Comparatore & Risparmio
+      <a href="{{ url_for('comparatore_listino', cliente_id=cliente.id) }}" class="btn rounded-4 px-3 py-2.5 fw-semibold d-flex align-items-center gap-2"
+         style="background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.22);">
+        <i class="bi bi-calculator-fill text-warning"></i> Comparatore
         {% if cliente.fatturato_stimato_mensile and cliente.fatturato_stimato_mensile > 0 %}
-          <span class="badge bg-success-subtle text-success border border-success ms-1 px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">€ {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}/m</span>
+          <span class="badge bg-success text-white ms-1 px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">€ {{ "%.2f"|format(cliente.fatturato_stimato_mensile) }}/m</span>
         {% endif %}
       </a>
-      <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-pencil-square"></i> Modifica Anagrafica
+      <a href="{{ url_for('modifica_cliente', id=cliente.id) }}" class="btn btn-warning rounded-4 px-3.5 py-2.5 fw-bold d-flex align-items-center gap-2">
+        <i class="bi bi-pencil-square"></i> Modifica
       </a>
-      <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-arrow-left"></i> Torna alla Lista
+      <a href="{{ url_for('clienti') }}" class="btn rounded-4 px-3 py-2.5 fw-semibold d-flex align-items-center gap-2"
+         style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.18);">
+        <i class="bi bi-arrow-left"></i> Lista
       </a>
     </div>
   </div>

@@ -5,23 +5,23 @@
 {% block styles %}
 {{ super() }}
 <style>
-  /* Premium Products Styling */
+  /* Modern Catalog Bento & Editorial Styling */
   .catalog-actions-card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    padding: 1.5rem;
+    padding: 1.15rem 1.35rem;
     box-shadow: var(--shadow-sm);
-    margin-bottom: 2rem;
+    margin-bottom: 1.75rem;
   }
-  
+
   .catalog-actions-card .form-control {
-    background-color: var(--bg-color);
+    background-color: var(--surface-subtle);
     color: var(--text-color);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.65rem 1rem 0.65rem 2.5rem;
-    font-size: 0.95rem;
+    border-radius: 12px;
+    padding: 0.68rem 2.5rem 0.68rem 2.65rem;
+    font-size: 0.94rem;
     transition: all 0.2s;
   }
   .catalog-actions-card .form-control:focus {
@@ -30,67 +30,99 @@
     outline: none;
   }
 
-  /* Category Grid Cards */
+  /* Editorial Category Grid Cards */
   .category-grid-card {
-    border-radius: var(--radius);
-    height: 280px;
+    border-radius: 22px;
+    height: 295px;
     position: relative;
     overflow: hidden;
     color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: var(--shadow-md);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.32s ease;
+    cursor: pointer;
+    background: #0f172a;
+  }
+  .category-grid-bg {
+    position: absolute;
+    inset: 0;
     background-size: cover;
     background-position: center;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
-    cursor: pointer;
+    transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 0;
   }
   .category-grid-card:hover {
     transform: translateY(-6px);
     box-shadow: var(--shadow-lg);
   }
-  
+  .category-grid-card:hover .category-grid-bg {
+    transform: scale(1.07);
+  }
+
   .category-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.18) 0%, rgba(15, 23, 42, 0.42) 45%, rgba(2, 6, 23, 0.92) 100%);
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    padding: 1.75rem;
+    justify-content: space-between;
+    padding: 1.45rem 1.55rem;
     z-index: 2;
     transition: background 0.3s;
   }
   .category-grid-card:hover .category-overlay {
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.15) 0%, rgba(15, 23, 42, 0.75) 100%);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.12) 0%, rgba(15, 23, 42, 0.35) 45%, rgba(15, 23, 42, 0.88) 100%);
   }
 
   .category-badge-chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 0.3rem 0.75rem;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(8px);
-    font-size: 0.75rem;
-    font-weight: 600;
+    padding: 0.32rem 0.78rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     width: fit-content;
-    margin-bottom: 0.75rem;
     color: #ffffff;
+  }
+  .category-arrow-pill {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.22s ease, background-color 0.22s ease;
+  }
+  .category-grid-card:hover .category-arrow-pill {
+    transform: translate(2px, -2px);
+    background: #ffffff;
+    color: #0f172a;
   }
 
   .category-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.35rem;
+    color: #ffffff !important;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
   }
 
   /* Modals overrides */
   .modal-header-bg {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #312e81 55%, #4f46e5 100%);
     color: #ffffff;
   }
   .modal-filter-sticky {
@@ -102,10 +134,10 @@
     padding: 1rem 1.5rem;
   }
   .modal-filter-sticky .form-control {
-    background-color: var(--bg-color);
+    background-color: var(--surface-subtle);
     color: var(--text-color);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 0.6rem 1rem 0.6rem 2.5rem;
     font-size: 0.9rem;
     transition: all 0.2s;
@@ -120,30 +152,31 @@
   .prodotto-modal-row {
     border: 1px solid var(--border-color);
     background-color: var(--card-bg);
-    border-radius: var(--radius-sm);
-    padding: 1rem 1.25rem;
-    margin-bottom: 0.75rem;
-    transition: all 0.2s;
+    border-radius: 14px;
+    padding: 0.95rem 1.2rem;
+    margin-bottom: 0.7rem;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     color: var(--text-color);
   }
   .prodotto-modal-row:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-border);
     background-color: var(--primary-light);
   }
 
   .prodotto-icon-box {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background-color: var(--primary-light);
     color: var(--primary);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
-  
+
   .prodotto-upc-badge {
     font-family: ui-monospace, monospace;
     font-size: 0.72rem;
@@ -151,7 +184,7 @@
   }
 
   .max-height-520 {
-    max-height: 520px;
+    max-height: 540px;
     overflow-y: auto;
     padding: 1rem 1.5rem;
   }
@@ -161,30 +194,38 @@
 {% block content %}
 <div class="container-fluid px-0">
 
-  <!-- Header Section -->
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <!-- Modern Catalog Hero Header -->
+  <div class="executive-hero d-flex flex-wrap align-items-center justify-content-between gap-4">
     <div>
-      <h1 class="h2 mb-1">Catalogo Prodotti</h1>
-      <p class="text-muted mb-0">Gestisci le categorie, visualizza i codici UPC e configura le anagrafiche dei prodotti.</p>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <span class="badge rounded-pill px-3 py-1 fw-semibold" style="background: rgba(255,255,255,0.14); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.18); font-size: 0.72rem; letter-spacing: 0.06em;">
+          <i class="bi bi-box-seam-fill text-info me-1"></i>CATALOGO HORECA
+        </span>
+        <span class="badge rounded-pill px-2.5 py-1 fw-semibold" style="background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); font-size: 0.72rem;">
+          {{ categorie|length if categorie else 0 }} Categorie Ufficiali
+        </span>
+      </div>
+      <h1 class="display-6 fw-bold mb-1">Catalogo Prodotti</h1>
+      <p class="mb-0" style="color: rgba(226, 232, 240, 0.8);">Gestisci le 6 categorie standard, visualizza foto, codici Pregis e listini.</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2">
       <button type="button"
               id="btnOpenScannerSafari"
-              class="btn btn-dark rounded-4 px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm"
-              style="background: linear-gradient(135deg, #0f172a, #1d4ed8); border: none;"
+              class="btn rounded-4 px-3.5 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm"
+              style="background: linear-gradient(135deg, #2563eb, #0284c7); color: #ffffff; border: 1px solid rgba(255,255,255,0.2);"
               data-bs-toggle="modal"
               data-bs-target="#scannerSafariModal">
-        <i class="bi bi-compass-fill text-warning"></i> Importa Catalogo Pregis (Safari / Web)
+        <i class="bi bi-compass-fill text-warning"></i> Importa Pregis
       </button>
 
-      <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-primary rounded-4 px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-plus-circle-fill"></i> Nuovo Prodotto
+      <a href="{{ url_for('aggiungi_prodotto') }}" class="btn btn-light rounded-4 px-3.5 py-2.5 fw-bold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-plus-circle-fill text-primary"></i> Nuovo Prodotto
       </a>
 
-      <!-- Prodotti Senza Categoria Button -->
       <button type="button"
-              class="btn btn-outline-warning rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2"
+              class="btn rounded-4 px-3 py-2.5 fw-semibold d-flex align-items-center gap-2"
+              style="background: rgba(245, 158, 11, 0.18); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.35);"
               data-bs-toggle="modal"
               data-bs-target="#categoriaModal"
               data-categoria="__SENZA__">
@@ -192,16 +233,17 @@
         <span class="badge bg-warning text-dark ms-1 px-2 rounded-pill">{{ (prodotti_senza_categoria|length) if prodotti_senza_categoria else 0 }}</span>
       </button>
 
-      <a href="{{ url_for('gestisci_categorie') }}" class="btn btn-outline-secondary rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2">
-        <i class="bi bi-folder-fill"></i> Gestisci Categorie
+      <a href="{{ url_for('gestisci_categorie') }}" class="btn rounded-4 px-3 py-2.5 fw-semibold d-flex align-items-center gap-2"
+         style="background: rgba(255,255,255,0.12); color: #ffffff; border: 1px solid rgba(255,255,255,0.2);">
+        <i class="bi bi-folder-fill"></i> Categorie
       </a>
 
-      <!-- Tool Gestione Prodotti Button -->
       <button type="button"
-              class="btn btn-outline-danger rounded-4 px-3 py-2 fw-semibold d-flex align-items-center gap-2"
+              class="btn rounded-4 px-3 py-2.5 fw-semibold d-flex align-items-center gap-2"
+              style="background: rgba(239, 68, 68, 0.18); color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.35);"
               data-bs-toggle="modal"
               data-bs-target="#gestioneProdottiModal">
-        <i class="bi bi-sliders"></i> Gestione Massiva Prodotti
+        <i class="bi bi-sliders"></i> Gestione Massiva
       </button>
     </div>
   </div>
@@ -209,7 +251,6 @@
   <!-- Global Filters Panel -->
   <div class="catalog-actions-card">
     <div class="row g-3 align-items-center">
-      <!-- Search Input -->
       <div class="col-12 col-lg-7">
         <div class="position-relative">
           <input type="text" id="searchGlobale" class="form-control"
@@ -221,16 +262,15 @@
         </div>
       </div>
 
-      <!-- Quick Clicks Categories -->
       <div class="col-12 col-lg-5">
         <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
-          <button type="button" class="btn btn-outline-primary rounded-4 fw-semibold px-3" id="btnMostraTutte">
+          <button type="button" class="btn btn-outline-primary rounded-pill fw-semibold px-3.5" id="btnMostraTutte">
             <i class="bi bi-grid-3x3-gap-fill me-1"></i> Tutte
           </button>
-          <button type="button" class="btn btn-outline-success rounded-4 fw-semibold px-3" id="btnSoloPiene" title="Categorie con prodotti">
+          <button type="button" class="btn btn-outline-success rounded-pill fw-semibold px-3.5" id="btnSoloPiene" title="Categorie con prodotti">
             <i class="bi bi-check-circle-fill me-1"></i> Con Prodotti
           </button>
-          <button type="button" class="btn btn-outline-secondary rounded-4 fw-semibold px-3" id="btnSoloVuote" title="Categorie senza prodotti">
+          <button type="button" class="btn btn-outline-secondary rounded-pill fw-semibold px-3.5" id="btnSoloVuote" title="Categorie senza prodotti">
             <i class="bi bi-dash-circle-dotted me-1"></i> Vuote
           </button>
         </div>
@@ -247,36 +287,42 @@
              data-categoria="{{ categoria.nome }}"
              data-count="{{ n_prod }}">
           <div class="category-grid-card"
-               {% if categoria.immagine %}
-                 style="background-image: url('{{ categoria.immagine }}');"
-               {% else %}
-                 style="background: linear-gradient(135deg, #4f46e5, #0ea5e9);"
-               {% endif %}
                data-bs-toggle="modal"
                data-bs-target="#categoriaModal"
                data-categoria="{{ categoria.nome }}">
 
+            <div class="category-grid-bg"
+                 {% if categoria.immagine %}
+                   style="background-image: url('{{ categoria.immagine }}');"
+                 {% else %}
+                   style="background: linear-gradient(135deg, #4f46e5, #0ea5e9);"
+                 {% endif %}></div>
+
             <div class="category-overlay">
-              <div class="category-badge-chip">
-                <i class="bi bi-tags-fill"></i> Categoria
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="category-badge-chip">
+                  <i class="bi bi-tags-fill"></i> Reparto
+                </div>
+                <div class="category-arrow-pill">
+                  <i class="bi bi-arrow-up-right"></i>
+                </div>
               </div>
 
-              <h5 class="category-title text-white">{{ categoria.nome }}</h5>
+              <div>
+                <h5 class="category-title text-white">{{ categoria.nome }}</h5>
 
-              <div class="d-flex align-items-center gap-2 mt-1">
-                {% if n_prod > 0 %}
-                  <span class="badge bg-white text-dark rounded-pill px-2.5 py-1">
-                    <i class="bi bi-box-seam-fill me-1"></i> {{ n_prod }} prodotti
-                  </span>
-                {% else %}
-                  <span class="badge bg-warning text-dark rounded-pill px-2.5 py-1">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Nessun prodotto
-                  </span>
-                {% endif %}
-              </div>
-
-              <div class="small text-white-50 mt-3 d-flex align-items-center gap-1">
-                <i class="bi bi-hand-index-thumb"></i> Clicca per visualizzare
+                <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+                  {% if n_prod > 0 %}
+                    <span class="badge bg-white text-dark rounded-pill px-3 py-1.5 fw-bold shadow-sm">
+                      <i class="bi bi-box-seam-fill text-primary me-1"></i> {{ n_prod }} prodotti
+                    </span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark rounded-pill px-3 py-1.5 fw-bold shadow-sm">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i> Nessun prodotto
+                    </span>
+                  {% endif %}
+                  <span class="small text-white-50 fw-semibold">Apri listino →</span>
+                </div>
               </div>
             </div>
 

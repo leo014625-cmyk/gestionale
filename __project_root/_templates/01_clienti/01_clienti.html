@@ -7,27 +7,26 @@
 <style>
   /* Executive Commercial Cockpit Styling */
   .crm-header-card {
-    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 48%, #312e81 100%);
     color: #ffffff;
-    border-radius: var(--radius);
-    padding: 2.25rem 2rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 12px 30px -8px rgba(30, 27, 75, 0.45);
+    border-radius: var(--radius-lg);
+    padding: 2.15rem 2.25rem;
+    margin-bottom: 1.85rem;
+    box-shadow: 0 18px 42px -12px rgba(30, 27, 75, 0.45);
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
   .crm-header-card::after {
     content: '';
     position: absolute;
-    top: -60px;
-    right: -60px;
-    width: 320px;
-    height: 320px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+    inset: 0;
+    background: radial-gradient(620px circle at 92% 10%, rgba(56, 189, 248, 0.24), transparent 55%),
+                radial-gradient(480px circle at 10% 100%, rgba(167, 139, 250, 0.18), transparent 60%);
     pointer-events: none;
   }
+  .crm-header-card > * { position: relative; z-index: 1; }
+  .crm-header-card h1 { color: #ffffff !important; }
 
   /* KPI Metrics Cards */
   .kpi-card {
