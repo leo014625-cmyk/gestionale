@@ -4302,6 +4302,9 @@ document.addEventListener("DOMContentLoaded", () => {
   autoFitZoom();
   aggiornaListaPagineNav();
 
+  // Cache in memoria per evitare fetch ripetuti tra celle e pagine durante l'export
+  const _pdfImgB64Cache = new Map();
+
   // Helper per convertire qualsiasi immagine in Data URL Base64 (evita blocchi CORS e caching di html2canvas)
   async function urlABase64(url, fallbackImg) {
     if (!url) return "";
@@ -4310,6 +4313,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let cleanUrl = url;
     if (!cleanUrl.startsWith("http") && !cleanUrl.startsWith("/") && !cleanUrl.startsWith("blob:")) {
       cleanUrl = "/static/uploads/volantino_prodotti/" + cleanUrl;
+    }
+
+    if (_pdfImgB64Cache.has(cleanUrl)) {
+      return _pdfImgB64Cache.get(cleanUrl);
     }
 
     const fetchAsDataUrl = async (targetUrl) => {
@@ -4327,14 +4334,20 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Prova fetch diretto (locale o CORS-enabled)
     try {
       const b64 = await fetchAsDataUrl(cleanUrl);
-      if (b64 && b64.startsWith("data:")) return b64;
+      if (b64 && b64.startsWith("data:")) {
+        _pdfImgB64Cache.set(cleanUrl, b64);
+        return b64;
+      }
     } catch (e) {
       // 2. Se URL esterno bloccato da CORS, passa dal proxy server same-origin
       if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
         try {
           const proxied = "/api/proxy_image?url=" + encodeURIComponent(cleanUrl);
           const b64Proxy = await fetchAsDataUrl(proxied);
-          if (b64Proxy && b64Proxy.startsWith("data:")) return b64Proxy;
+          if (b64Proxy && b64Proxy.startsWith("data:")) {
+            _pdfImgB64Cache.set(cleanUrl, b64Proxy);
+            return b64Proxy;
+          }
         } catch (e2) {
           console.warn("proxy_image fallback non riuscito per:", cleanUrl, e2);
         }
@@ -4350,7 +4363,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const ctx = c.getContext("2d");
         ctx.drawImage(fallbackImg, 0, 0);
         const b64 = c.toDataURL("image/png");
-        if (b64 && b64.startsWith("data:")) return b64;
+        if (b64 && b64.startsWith("data:")) {
+          _pdfImgB64Cache.set(cleanUrl, b64);
+          return b64;
+        }
       } catch (e) {
         console.warn("canvas toDataURL fallback non riuscito:", e);
       }
@@ -4425,32 +4441,28 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(wrapper);
     await new Promise(r => requestAnimationFrame(r));
 
-    // 1. Sfondo foglio: converti in base64
+    // 1 & 2 & 3. Conversione parallela immagini (sfondo + header + tutte le celle insieme)
     const bgImgUrl = origPage.dataset.bgImg || "";
-    if (bgImgUrl) {
-      const bgData = await urlABase64(bgImgUrl);
-      if (bgData) {
-        clone.style.backgroundImage = `url("${bgData}")`;
-      }
-    }
-
-    // 2. Header / Logo: converti in base64
     const origHeaderImg = origPage.querySelector(".page-header img");
     const cloneHeaderImg = clone.querySelector(".page-header img");
-    if (origHeaderImg && cloneHeaderImg) {
-      const headerData = await urlABase64(origHeaderImg.getAttribute("src") || origHeaderImg.src, origHeaderImg);
-      if (headerData) {
-        cloneHeaderImg.src = headerData;
-        await waitImgReady(cloneHeaderImg, 1500);
-      }
-    }
 
-    // 3. Immagini dei prodotti nelle celle
+    const bgTask = bgImgUrl
+      ? urlABase64(bgImgUrl).then(bgData => { if (bgData) clone.style.backgroundImage = `url("${bgData}")`; })
+      : Promise.resolve();
+
+    const headerTask = (origHeaderImg && cloneHeaderImg)
+      ? urlABase64(origHeaderImg.getAttribute("src") || origHeaderImg.src, origHeaderImg).then(async headerData => {
+          if (headerData) {
+            cloneHeaderImg.src = headerData;
+            await waitImgReady(cloneHeaderImg, 1200);
+          }
+        })
+      : Promise.resolve();
+
     const origCells = Array.from(origPage.querySelectorAll(".cella-prodotto"));
     const cloneCells = Array.from(clone.querySelectorAll(".cella-prodotto"));
 
-    for (let cIdx = 0; cIdx < cloneCells.length; cIdx++) {
-      const cell = cloneCells[cIdx];
+    const cellTasks = cloneCells.map(async (cell, cIdx) => {
       const origCell = origCells[cIdx];
       const titolo = cell.querySelector(".titolo")?.innerText || "";
       const codice = cell.dataset.codice || "";
@@ -4465,7 +4477,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const isVuota = !codice && (titolo === "PRODOTTO" || titolo === "Nessun prodotto" || !titolo) && !haImg;
       if (isVuota) {
         cell.style.visibility = "hidden";
-        continue;
+        return;
       }
 
       const imgBox = cell.querySelector(".img-box");
@@ -4479,7 +4491,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const base64Data = await urlABase64(rawAttrSrc, origImg);
         targetImg.src = base64Data || rawAttrSrc;
-        await waitImgReady(targetImg, 2000);
+        await waitImgReady(targetImg, 1500);
 
         const cellRect = cell.getBoundingClientRect();
         const origBoxRect = origImgBox ? origImgBox.getBoundingClientRect() : null;
@@ -4534,16 +4546,15 @@ document.addEventListener("DOMContentLoaded", () => {
         targetImg.style.objectFit = "fill";
         targetImg.style.objectPosition = "0 0";
       }
-    }
+    });
 
-    // Attendi la decodifica finale delle immagini prima dello scatto html2canvas
-    const allCloneImgs = Array.from(clone.querySelectorAll("img"));
-    await Promise.all(allCloneImgs.map(img => waitImgReady(img, 1500)));
+    await Promise.all([bgTask, headerTask, ...cellTasks]);
 
+    const captureScale = w >= 1100 ? 1.25 : 1.5;
     let canvas = null;
     try {
       canvas = await html2canvas(clone, {
-        scale: 2,
+        scale: captureScale,
         backgroundColor: "#ffffff",
         useCORS: true,
         allowTaint: false,
@@ -4551,7 +4562,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     } catch (err) {
       console.warn("Primo tentativo html2canvas fallito, riprovo con impostazioni standard:", err);
-      canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false });
+      canvas = await html2canvas(clone, { scale: 1.0, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false });
     } finally {
       if (wrapper.parentNode) {
         document.body.removeChild(wrapper);
@@ -4578,8 +4589,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      showToast("Avvio generazione del PDF in corso...");
+      showToast("Avvio generazione del PDF leggero in corso...");
       clearSelection();
+      const origBtnHtml = btnExportPdf.innerHTML;
+      btnExportPdf.disabled = true;
+      btnExportPdf.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>PDF...`;
 
       const originalPage = paginaCorrente;
       const w = parseInt(pagine[0].dataset.larghezza || "800", 10);
@@ -4589,44 +4603,49 @@ document.addEventListener("DOMContentLoaded", () => {
         const pdf = new jsPDFClass({
           orientation: w > h ? "landscape" : "portrait",
           unit: "px",
-          format: [w, h]
+          format: [w, h],
+          compress: true
         });
 
         for (let i = 0; i < pagine.length; i++) {
-          showToast(`Generazione PDF: elaborazione foglio ${i + 1} di ${pagine.length}...`);
+          showToast(`Generazione PDF: foglio ${i + 1} di ${pagine.length}...`);
           if (i > 0) pdf.addPage([w, h]);
 
           const canvas = await catturaFoglioCanvas(i);
           if (!canvas) continue;
 
           let imgDataUrl = null;
+          let imgFormat = "JPEG";
           try {
-            imgDataUrl = canvas.toDataURL("image/png");
-          } catch (taintErr) {
-            console.warn("Canvas fallback a jpeg:", taintErr);
+            imgDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          } catch (jpegErr) {
+            console.warn("Canvas fallback a png:", jpegErr);
             try {
-              imgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+              imgDataUrl = canvas.toDataURL("image/png");
+              imgFormat = "PNG";
             } catch (e2) {
               console.error("toDataURL fallito:", e2);
             }
           }
 
           if (imgDataUrl) {
-            const printW = w * 0.8;
-            const printH = h * 0.8;
+            const printW = w * 0.92;
+            const printH = h * 0.92;
             const offX = (w - printW) / 2;
             const offY = (h - printH) / 2;
-            pdf.addImage(imgDataUrl, "PNG", offX, offY, printW, printH);
+            pdf.addImage(imgDataUrl, imgFormat, offX, offY, printW, printH, undefined, "FAST");
           }
         }
 
         const nomeFile = ((inputNome && inputNome.value.trim()) || "volantino_pro") + ".pdf";
         pdf.save(nomeFile);
-        showToast("PDF scaricato con successo!");
+        showToast("PDF leggero scaricato con successo!");
       } catch (err) {
         console.error("Errore generazione PDF:", err);
         alert("Si è verificato un errore durante la generazione del PDF: " + (err.message || err));
       } finally {
+        btnExportPdf.disabled = false;
+        btnExportPdf.innerHTML = origBtnHtml;
         paginaCorrente = originalPage;
         visualizzaPaginaCorrente();
         aggiornaListaPagineNav();
