@@ -2021,8 +2021,7 @@
         });
       };
 
-      window.createAiFastScadenzeFlyer = async function(btn, clienteNome, encodedItems) {
-        const items = JSON.parse(decodeURIComponent(encodedItems));
+      window.createAiFastScadenzeFlyerPayload = async function(btn, clienteNome, items) {
         const orig = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Creazione 4×4...`;
@@ -2045,6 +2044,20 @@
           btn.disabled = false;
           btn.innerHTML = orig;
         }
+      };
+
+      window.createAiFastScadenzeFlyerByKey = function(btn, key) {
+        const entry = (window._aiScadFlyerStore || {})[key];
+        if (!entry) {
+          alert("Dati volantino non trovati.");
+          return;
+        }
+        window.createAiFastScadenzeFlyerPayload(btn, entry.cliente_nome, entry.prodotti);
+      };
+
+      window.createAiFastScadenzeFlyer = function(btn, clienteNome, encodedItems) {
+        const items = JSON.parse(decodeURIComponent(encodedItems));
+        window.createAiFastScadenzeFlyerPayload(btn, clienteNome, items);
       };
 
       function renderDailyOrderResultCard(ord) {
@@ -2137,8 +2150,10 @@
         const card = document.createElement("div");
         card.className = "ai-preview-card";
         const clients = sm.clienti_target || [];
-        const allItemsEnc = encodeURIComponent(JSON.stringify(sm.scadenze_items || []));
-        const rowsHtml = clients.slice(0, 25).map(c => {
+        window._aiScadFlyerStore = window._aiScadFlyerStore || {};
+        const batchId = "b" + Date.now();
+        window._aiScadFlyerStore[`${batchId}_all`] = { cliente_nome: "Tutti i Clienti", prodotti: sm.scadenze_items || [] };
+        const rowsHtml = clients.slice(0, 25).map((c, idx) => {
           const prodsMsg = c.prodotti_messaggio || (c.prodotti_abbinati || []).filter(p => !p.escluso_da_messaggio);
           const prodsAvviso = c.prodotti_avviso_prezzo || (c.prodotti_abbinati || []).filter(p => p.escluso_da_messaggio);
           const prodsHtml = prodsMsg.map(p =>
@@ -2150,7 +2165,8 @@
               ${prodsAvviso.map(p => `<div>• <strong>${p.nome}</strong>: listino € ${Number(p.prezzo_listino_cliente || 0).toFixed(2)} vs scad. € ${Number(p.prezzo || 0).toFixed(2)}</div>`).join("")}
             </div>
           ` : "";
-          const encItems = encodeURIComponent(JSON.stringify(c.prodotti_abbinati || []));
+          const cKey = `${batchId}_c${idx}`;
+          window._aiScadFlyerStore[cKey] = { cliente_nome: c.cliente_nome || "Cliente", prodotti: c.prodotti_abbinati || [] };
           const hasMsg = !!(c.messaggio_whatsapp && c.messaggio_whatsapp.trim());
           return `
             <div class="p-2 border-bottom">
@@ -2165,10 +2181,10 @@
                   <i class="bi bi-whatsapp me-1"></i>${hasMsg ? 'Invia WhatsApp' : 'Contatta per Buon Prezzo'}
                 </a>
                 ${hasMsg ? `
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size:0.74rem;" onclick="copyAiMsgText(this, '${encodeURIComponent(c.messaggio_whatsapp)}')">
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size:0.74rem;" onclick="copyAiMsgText(this, '${encodeURIComponent(c.messaggio_whatsapp).replace(/'/g, "%27")}')">
                   <i class="bi bi-clipboard me-1"></i>Copia
                 </button>` : ""}
-                <button type="button" class="btn btn-primary btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;" onclick="createAiFastScadenzeFlyer(this, '${c.cliente_nome.replace(/'/g, "\\'")}', '${encItems}')">
+                <button type="button" class="btn btn-primary btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;" onclick="createAiFastScadenzeFlyerByKey(this, '${cKey}')">
                   <i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4
                 </button>
               </div>
@@ -2180,7 +2196,7 @@
           <div class="ai-preview-header">
             <span><i class="bi bi-hourglass-split text-warning me-1"></i>Clienti per Lista Scadenze (${clients.length})</span>
             <div class="d-flex gap-1 align-items-center">
-              ${(sm.scadenze_items || []).length > 0 ? `<button type="button" class="btn btn-primary btn-sm py-0 px-2" style="font-size:0.7rem;" onclick="createAiFastScadenzeFlyer(this, 'Tutti i Clienti', '${allItemsEnc}')"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4</button>` : ""}
+              ${(sm.scadenze_items || []).length > 0 ? `<button type="button" class="btn btn-primary btn-sm py-0 px-2" style="font-size:0.7rem;" onclick="createAiFastScadenzeFlyerByKey(this, '${batchId}_all')"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4</button>` : ""}
               <a href="/ordini?tab=scadenze#centro-operativo" class="badge bg-secondary text-white text-decoration-none">Pannello</a>
             </div>
           </div>

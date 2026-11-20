@@ -1025,7 +1025,15 @@
 
       const clients = data.clienti_target || [];
       const allScadItems = data.scadenze_items || [];
-      const allEnc = encodeURIComponent(JSON.stringify(allScadItems));
+      window._scadFlyerStore = {
+        all: { cliente_nome: "Tutti i Clienti", prodotti: allScadItems }
+      };
+      clients.forEach((c, idx) => {
+        window._scadFlyerStore[`c_${idx}`] = {
+          cliente_nome: c.cliente_nome || "Cliente",
+          prodotti: c.prodotti_abbinati || []
+        };
+      });
 
       box.innerHTML = `
         <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-3 gap-2">
@@ -1035,11 +1043,11 @@
           </div>
           <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold"
-                    onclick="createNormalScadenzeFlyerDirect(this, 'Tutti i Clienti', '${allEnc}')">
+                    onclick="createNormalScadenzeFlyerByKey(this, 'all')">
               <i class="bi bi-grid-3x3-gap-fill me-1"></i>Crea Volantino 4×4 (Editor Normale)
             </button>
             <button type="button" class="btn btn-outline-dark btn-sm rounded-pill fw-bold"
-                    onclick="openFastScadenzeFlyerModal('Tutti i Clienti', '${allEnc}')">
+                    onclick="openFastScadenzeFlyerByKey('all')">
               <i class="bi bi-file-earmark-image me-1"></i>Anteprima Rapida PNG
             </button>
           </div>
@@ -1049,8 +1057,7 @@
             const taId = `scadWaTa_${c.cliente_id}_${idx}`;
             const prodsMsg = c.prodotti_messaggio || (c.prodotti_abbinati || []).filter(p => !p.escluso_da_messaggio);
             const prodsAvviso = c.prodotti_avviso_prezzo || (c.prodotti_abbinati || []).filter(p => p.escluso_da_messaggio);
-            const encProds = encodeURIComponent(JSON.stringify(c.prodotti_abbinati || []));
-            const safeCliName = (c.cliente_nome || "").replace(/'/g, "\\'");
+            const storeKey = `c_${idx}`;
 
             const itemsBadges = prodsMsg.map(p => `
               <div class="p-1.5 px-2 rounded-2 bg-white border d-flex flex-wrap justify-content-between align-items-center gap-2 small mb-1" style="color:#0f172a;">
@@ -1099,11 +1106,11 @@
                   <i class="bi bi-clipboard me-1"></i>Copia Testo
                 </button>
                 <button type="button" class="btn btn-primary btn-sm fw-bold"
-                        onclick="createNormalScadenzeFlyerDirect(this, '${safeCliName}', '${encProds}')">
+                        onclick="createNormalScadenzeFlyerByKey(this, '${storeKey}')">
                   <i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4 Cliente
                 </button>
                 <button type="button" class="btn btn-warning text-dark btn-sm fw-bold"
-                        onclick="openFastScadenzeFlyerModal('${safeCliName}', '${encProds}')">
+                        onclick="openFastScadenzeFlyerByKey('${storeKey}')">
                   <i class="bi bi-file-earmark-image me-1"></i>Anteprima PNG
                 </button>
               </div>
@@ -1116,7 +1123,7 @@
                   <i class="bi bi-whatsapp me-1"></i>Contatta su WhatsApp per Buon Prezzo
                 </a>
                 <button type="button" class="btn btn-primary btn-sm fw-bold"
-                        onclick="createNormalScadenzeFlyerDirect(this, '${safeCliName}', '${encProds}')">
+                        onclick="createNormalScadenzeFlyerByKey(this, '${storeKey}')">
                   <i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4 Cliente
                 </button>
               </div>
@@ -1153,8 +1160,11 @@
   document.getElementById("btnRunScadenzeMatcher")?.addEventListener("click", () => runScadenzeMatching(false));
   document.getElementById("btnLoadSavedScadenze")?.addEventListener("click", () => runScadenzeMatching(true));
 
-  window.createNormalScadenzeFlyerDirect = async function(btn, clienteNome, encodedItems) {
-    const items = JSON.parse(decodeURIComponent(encodedItems));
+  async function createNormalScadenzeFlyerPayload(btn, clienteNome, items) {
+    if (!items || items.length === 0) {
+      alert("Nessun prodotto in scadenza da inserire nel volantino 4×4.");
+      return;
+    }
     const orig = btn ? btn.innerHTML : "";
     if (btn) {
       btn.disabled = true;
@@ -1184,10 +1194,23 @@
         btn.innerHTML = orig;
       }
     }
+  }
+
+  window.createNormalScadenzeFlyerByKey = function(btn, key) {
+    const entry = (window._scadFlyerStore || {})[key];
+    if (!entry) {
+      alert("Dati volantino non trovati. Ricarica l'analisi scadenze e riprova.");
+      return;
+    }
+    createNormalScadenzeFlyerPayload(btn, entry.cliente_nome, entry.prodotti);
   };
 
-  window.openFastScadenzeFlyerModal = function(clienteNome, encodedItems) {
+  window.createNormalScadenzeFlyerDirect = function(btn, clienteNome, encodedItems) {
     const items = JSON.parse(decodeURIComponent(encodedItems));
+    createNormalScadenzeFlyerPayload(btn, clienteNome, items);
+  };
+
+  function openFastScadenzeFlyerWithData(clienteNome, items) {
     currentScadenzeFlyerPayload = { cliente_nome: clienteNome, prodotti: items, editor_mode: "normale" };
 
     document.getElementById("fastFlyerModalTitle").textContent = `⚡ Volantino Veloce Scadenze · ${clienteNome}`;
@@ -1222,6 +1245,20 @@
     }).join("");
 
     new bootstrap.Modal(document.getElementById("modalFastScadenzeFlyer")).show();
+  }
+
+  window.openFastScadenzeFlyerByKey = function(key) {
+    const entry = (window._scadFlyerStore || {})[key];
+    if (!entry) {
+      alert("Dati anteprima non trovati. Ricarica l'analisi scadenze e riprova.");
+      return;
+    }
+    openFastScadenzeFlyerWithData(entry.cliente_nome, entry.prodotti);
+  };
+
+  window.openFastScadenzeFlyerModal = function(clienteNome, encodedItems) {
+    const items = JSON.parse(decodeURIComponent(encodedItems));
+    openFastScadenzeFlyerWithData(clienteNome, items);
   };
 
   document.getElementById("btnOpenInVolantini3")?.addEventListener("click", async () => {
