@@ -6436,14 +6436,15 @@ def build_scadenze_beta_layout_pages(items: list, preset_data: dict = None) -> l
     # Eventuale recupero immagini mancanti da tabella prodotti
     img_by_id = {}
     img_by_code = {}
+    img_by_name = {}
     need_lookup = any(not (it.get("immagine") or it.get("img")) for it in (items or []))
     if need_lookup:
         try:
             with get_db() as conn_img:
                 cur_img = conn_img.cursor()
-                cur_img.execute("SELECT id, codice, immagine FROM prodotti WHERE immagine IS NOT NULL AND immagine != ''")
+                cur_img.execute("SELECT id, codice, nome, immagine FROM prodotti WHERE immagine IS NOT NULL AND immagine != ''")
                 for rr in cur_img.fetchall():
-                    rd = dict(rr) if isinstance(rr, dict) else {"id": rr[0], "codice": rr[1], "immagine": rr[2]}
+                    rd = dict(rr) if isinstance(rr, dict) else {"id": rr[0], "codice": rr[1], "nome": rr[2], "immagine": rr[3]}
                     im = str(rd.get("immagine") or "").strip()
                     if not im:
                         continue
@@ -6453,6 +6454,8 @@ def build_scadenze_beta_layout_pages(items: list, preset_data: dict = None) -> l
                         c_k = str(rd["codice"]).strip().upper()
                         img_by_code[c_k] = im
                         img_by_code[c_k.lstrip("0")] = im
+                    if rd.get("nome"):
+                        img_by_name[str(rd["nome"]).strip().upper()] = im
         except Exception:
             pass
 
@@ -6482,6 +6485,8 @@ def build_scadenze_beta_layout_pages(items: list, preset_data: dict = None) -> l
             if not raw_img and codice:
                 c_up = codice.upper()
                 raw_img = img_by_code.get(c_up) or img_by_code.get(c_up.lstrip("0")) or ""
+            if not raw_img and nome:
+                raw_img = img_by_name.get(nome.upper(), "")
 
         if raw_img:
             if raw_img.startswith(("http://", "https://", "/", "data:")):
@@ -8901,27 +8906,167 @@ def api_cerca_immagine():
         return jsonify([])
 
 import werkzeug.utils
+
+def _remove_bg_pillow_floodfill(file_path):
+    """
+    Rimuove lo sfondo esterno con flood-fill BFS dai bordi usando Pillow (funziona anche senza rembg),
+    preservando l'interno bianco dei prodotti e salvando in PNG trasparente (*_nobg.png).
+    """
+    from collections import deque
+    from PIL import Image
+
+    img = Image.open(file_path).convert("RGBA")
+    w, h = img.size
+    if w <= 2 or h <= 2:
+        return file_path
+
+    # Ridimensiona solo per il calcolo se enorme (mantiene alta qualità fino a 1200px)
+    max_dim = 1200
+    if max(w, h) > max_dim:
+        img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+        w, h = img.size
+
+    px = img.load()
+
+    # Se l'immagine ha già trasparenza sui bordi, non serve scontornarla di nuovo
+    border_samples = []
+    transparent_border = 0
+    total_border = 0
+    step_x = max(1, w // 40)
+    step_y = max(1, h // 40)
+    for x in range(0, w, step_x):
+        for y in (0, h - 1):
+            r, g, b, a = px[x, y]
+            total_border += 1
+            if a < 40:
+                transparent_border += 1
+            else:
+                border_samples.append((r, g, b))
+    for y in range(0, h, step_y):
+        for x in (0, w - 1):
+            r, g, b, a = px[x, y]
+            total_border += 1
+            if a < 40:
+                transparent_border += 1
+            else:
+                border_samples.append((r, g, b))
+
+    if total_border > 0 and transparent_border > total_border * 0.6:
+        base, _ = os.path.splitext(file_path)
+        new_path = base if base.endswith("_nobg") else base + "_nobg"
+        new_path += ".png"
+        if new_path != file_path:
+            img.save(new_path, "PNG")
+        return new_path
+
+    if not border_samples:
+        return file_path
+
+    # Colore sfondo mediano campionato dai bordi
+    rs = sorted(c[0] for c in border_samples)
+    gs = sorted(c[1] for c in border_samples)
+    bs = sorted(c[2] for c in border_samples)
+    mid = len(border_samples) // 2
+    bg_r, bg_g, bg_b = rs[mid], gs[mid], bs[mid]
+
+    # Verifica che lo sfondo sia relativamente chiaro o uniforme (tipico foto prodotto/catalogo)
+    # Tolleranza adattiva: più ampia per sfondi chiari/bianchi, moderata per sfondi uniformi colorati
+    is_light_bg = (bg_r > 195 and bg_g > 195 and bg_b > 195)
+    tol_sq = (46 ** 2) * 3 if is_light_bg else (32 ** 2) * 3
+    feather_sq = (62 ** 2) * 3 if is_light_bg else (44 ** 2) * 3
+
+    visited = bytearray(w * h)
+    q = deque()
+
+    def try_push(x, y):
+        idx = y * w + x
+        if visited[idx]:
+            return
+        r, g, b, a = px[x, y]
+        if a < 20:
+            visited[idx] = 1
+            q.append((x, y))
+            return
+        dr = r - bg_r
+        dg = g - bg_g
+        db = b - bg_b
+        dist_sq = dr * dr + dg * dg + db * db
+        if dist_sq <= tol_sq:
+            visited[idx] = 1
+            q.append((x, y))
+
+    for x in range(w):
+        try_push(x, 0)
+        try_push(x, h - 1)
+    for y in range(1, h - 1):
+        try_push(0, y)
+        try_push(w - 1, y)
+
+    while q:
+        cx, cy = q.popleft()
+        px[cx, cy] = (bg_r, bg_g, bg_b, 0)
+        if cx > 0:
+            try_push(cx - 1, cy)
+        if cx + 1 < w:
+            try_push(cx + 1, cy)
+        if cy > 0:
+            try_push(cx, cy - 1)
+        if cy + 1 < h:
+            try_push(cx, cy + 1)
+
+    # Anti-aliasing morbido sui pixel immediatamente adiacenti allo sfondo rimosso
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            idx = y * w + x
+            if visited[idx]:
+                continue
+            if visited[idx - 1] or visited[idx + 1] or visited[idx - w] or visited[idx + w]:
+                r, g, b, a = px[x, y]
+                dr = r - bg_r
+                dg = g - bg_g
+                db = b - bg_b
+                dist_sq = dr * dr + dg * dg + db * db
+                if dist_sq < feather_sq:
+                    ratio = max(0.0, min(1.0, (dist_sq - tol_sq) / max(1, (feather_sq - tol_sq))))
+                    px[x, y] = (r, g, b, int(a * ratio * 0.75))
+
+    base, _ = os.path.splitext(file_path)
+    if base.endswith("_nobg"):
+        new_path = base + ".png"
+    else:
+        new_path = base + "_nobg.png"
+    img.save(new_path, "PNG")
+    if file_path != new_path:
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+    return new_path
+
+
 def remove_bg_if_possible(file_path):
     try:
-        print(f"Rimuovendo sfondo da {file_path} con rembg...")
         from rembg import remove
         from PIL import Image
-        import os
-        
+        print(f"Rimuovendo sfondo da {file_path} con rembg...")
         input_image = Image.open(file_path)
         output_image = remove(input_image)
-        
         base, _ = os.path.splitext(file_path)
-        new_path = base + "_nobg.png"
-        
+        new_path = base + ".png" if base.endswith("_nobg") else base + "_nobg.png"
         output_image.save(new_path, "PNG")
         if file_path != new_path:
-            try: os.remove(file_path)
-            except: pass
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
         return new_path
-    except Exception as e:
-        print("Errore durante rembg:", e)
-        return file_path
+    except Exception:
+        # Fallback automatico con Pillow flood-fill dai bordi (zero dipendenze extra)
+        try:
+            return _remove_bg_pillow_floodfill(file_path)
+        except Exception as e2:
+            print("Errore durante rimozione sfondo Pillow:", e2)
+            return file_path
 
 # ============================
 # ROUTE: api_upload_image
@@ -9075,7 +9220,11 @@ def api_salva_immagine_volantino_prodotto():
             
         # 2. Se l'immagine è già un URL locale
         elif '/static/uploads/volantino_prodotti/' in image_src:
-            unique_name = image_src.split('/static/uploads/volantino_prodotti/')[-1]
+            unique_name = image_src.split('/static/uploads/volantino_prodotti/')[-1].split('?')[0].split('#')[0]
+            local_fp = os.path.join(uploads_dir, unique_name)
+            if os.path.exists(local_fp) and not unique_name.lower().endswith('_nobg.png'):
+                local_fp = remove_bg_if_possible(local_fp)
+                unique_name = os.path.basename(local_fp)
             
         # 3. Se l'immagine è un URL remoto (es: bing, google, unsplash, ecc.)
         elif image_src.startswith('http://') or image_src.startswith('https://'):
@@ -9101,31 +9250,89 @@ def api_salva_immagine_volantino_prodotto():
             unique_name = os.path.basename(file_path)
             
         if unique_name:
-            # Aggiorniamo il database prodotti
+            # Aggiorniamo (o creiamo) il prodotto nel database associandolo al codice prodotto
             with get_db() as db:
                 cur = db.cursor()
-                
-                # Cerchiamo prima per codice (se fornito)
                 updated = False
+                saved_prod_id = None
+
                 if codice:
-                    cur.execute("UPDATE prodotti SET immagine=%s WHERE codice=%s", (unique_name, codice))
-                    if cur.rowcount > 0:
+                    cod_norm = codice.strip().upper()
+                    cod_no_zero = cod_norm.lstrip("0")
+                    cur.execute(
+                        "UPDATE prodotti SET immagine=%s WHERE UPPER(TRIM(COALESCE(codice, ''))) = %s RETURNING id",
+                        (unique_name, cod_norm)
+                    )
+                    row_u = cur.fetchone()
+                    if not row_u and cod_no_zero:
+                        cur.execute(
+                            "UPDATE prodotti SET immagine=%s WHERE LTRIM(UPPER(TRIM(COALESCE(codice, ''))), '0') = %s RETURNING id",
+                            (unique_name, cod_no_zero)
+                        )
+                        row_u = cur.fetchone()
+                    if row_u:
                         updated = True
-                
-                # Se non è stato aggiornato per codice (o il codice non c'era), proviamo per titolo/nome
+                        saved_prod_id = row_u["id"] if isinstance(row_u, dict) else row_u[0]
+
                 if not updated and titolo:
-                    cur.execute("UPDATE prodotti SET immagine=%s WHERE LOWER(nome)=LOWER(%s)", (unique_name, titolo))
-                    
+                    cur.execute(
+                        "UPDATE prodotti SET immagine=%s WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) RETURNING id",
+                        (unique_name, titolo)
+                    )
+                    row_u = cur.fetchone()
+                    if row_u:
+                        updated = True
+                        saved_prod_id = row_u["id"] if isinstance(row_u, dict) else row_u[0]
+
+                # Se il prodotto non esisteva ancora in `prodotti` (es. da lista scadenze PDF), crealo ora!
+                if not updated and (codice or titolo):
+                    nome_new = titolo or f"Prodotto {codice}"
+                    cat_id_new, _ = _resolve_canonical_cat_id_app(db, "", nome_new)
+                    cur.execute(
+                        "INSERT INTO prodotti (codice, nome, immagine, categoria_id) VALUES (%s, %s, %s, %s) RETURNING id",
+                        (codice.strip() or None, nome_new, unique_name, cat_id_new)
+                    )
+                    row_ins = cur.fetchone()
+                    if row_ins:
+                        saved_prod_id = row_ins["id"] if isinstance(row_ins, dict) else row_ins[0]
+
+                # Aggiorna anche eventuali righe di promo_scadenze_prodotti con quel codice senza prodotto_id
+                if saved_prod_id and codice:
+                    cur.execute(
+                        "UPDATE promo_scadenze_prodotti SET prodotto_id=%s WHERE UPPER(TRIM(COALESCE(codice, ''))) = %s AND prodotto_id IS NULL",
+                        (saved_prod_id, codice.strip().upper())
+                    )
+
                 db.commit()
                 
             file_url = url_for('static', filename=f'uploads/volantino_prodotti/{unique_name}')
-            return jsonify({"status": "ok", "url": file_url, "filename": unique_name})
+            return jsonify({"status": "ok", "url": file_url, "filename": unique_name, "prodotto_id": saved_prod_id})
         else:
             return jsonify({"status": "error", "message": "Tipo di sorgente immagine non supportato"}), 400
             
     except Exception as e:
         print("Errore nel salvataggio dell'immagine sul DB:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/proxy_image')
+@login_required
+def api_proxy_image():
+    """Proxy same-origin per scaricare immagini esterne in Base64 senza errori CORS in export PDF."""
+    img_url = (request.args.get('url') or '').strip()
+    if not img_url.startswith(('http://', 'https://')):
+        return jsonify({"error": "URL non valido"}), 400
+    try:
+        import requests
+        r = requests.get(img_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        r.raise_for_status()
+        ctype = r.headers.get('Content-Type', 'image/png')
+        if not ctype.startswith('image/'):
+            ctype = 'image/png'
+        from flask import Response
+        return Response(r.content, mimetype=ctype, headers={"Cache-Control": "public, max-age=86400"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 def extract_products_from_pdf_robust(pdf_path: str) -> list:
     """Estrae prodotti da PDF promozionali, fatture, ordini e volantini con fallback multi-livello."""

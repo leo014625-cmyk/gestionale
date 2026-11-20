@@ -3034,40 +3034,142 @@ document.addEventListener("DOMContentLoaded", () => {
       callback("");
       return;
     }
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
-        
-        // Remove white backgrounds (RGB values above 238)
-        const threshold = 238; 
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i+1];
-          const b = data[i+2];
-          if (r > threshold && g > threshold && b > threshold) {
-            data[i+3] = 0; // Alpha transparent
+
+    const processOnCanvas = (srcUrl, allowProxyFallback) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+
+          const w = canvas.width;
+          const h = canvas.height;
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const data = imgData.data;
+
+          // Campiona il colore di sfondo sui bordi esterni
+          const borderSamples = [];
+          let transparentBorder = 0;
+          let totalBorder = 0;
+          const stepX = Math.max(1, Math.floor(w / 40));
+          const stepY = Math.max(1, Math.floor(h / 40));
+          for (let x = 0; x < w; x += stepX) {
+            for (const y of [0, h - 1]) {
+              const idx = (y * w + x) * 4;
+              totalBorder++;
+              if (data[idx + 3] < 40) transparentBorder++;
+              else borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+            }
+          }
+          for (let y = 0; y < h; y += stepY) {
+            for (const x of [0, w - 1]) {
+              const idx = (y * w + x) * 4;
+              totalBorder++;
+              if (data[idx + 3] < 40) transparentBorder++;
+              else borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+            }
+          }
+
+          if (totalBorder > 0 && transparentBorder > totalBorder * 0.6) {
+            callback(canvas.toDataURL("image/png"));
+            return;
+          }
+          if (borderSamples.length === 0) {
+            callback(imgSrc);
+            return;
+          }
+
+          const rs = borderSamples.map(c => c[0]).sort((a, b) => a - b);
+          const gs = borderSamples.map(c => c[1]).sort((a, b) => a - b);
+          const bs = borderSamples.map(c => c[2]).sort((a, b) => a - b);
+          const mid = Math.floor(borderSamples.length / 2);
+          const bgR = rs[mid], bgG = gs[mid], bgB = bs[mid];
+          const isLight = bgR > 195 && bgG > 195 && bgB > 195;
+          const tolSq = isLight ? (46 * 46 * 3) : (32 * 32 * 3);
+          const featherSq = isLight ? (62 * 62 * 3) : (44 * 44 * 3);
+
+          // Flood-fill BFS dai bordi esterni per preservare le parti bianche interne del prodotto
+          const visited = new Uint8Array(w * h);
+          const queue = new Int32Array(w * h);
+          let head = 0, tail = 0;
+
+          const tryPush = (x, y) => {
+            const p = y * w + x;
+            if (visited[p]) return;
+            const i4 = p * 4;
+            if (data[i4 + 3] < 20) {
+              visited[p] = 1;
+              queue[tail++] = p;
+              return;
+            }
+            const dr = data[i4] - bgR;
+            const dg = data[i4 + 1] - bgG;
+            const db = data[i4 + 2] - bgB;
+            if (dr * dr + dg * dg + db * db <= tolSq) {
+              visited[p] = 1;
+              queue[tail++] = p;
+            }
+          };
+
+          for (let x = 0; x < w; x++) { tryPush(x, 0); tryPush(x, h - 1); }
+          for (let y = 1; y < h - 1; y++) { tryPush(0, y); tryPush(w - 1, y); }
+
+          while (head < tail) {
+            const p = queue[head++];
+            data[p * 4 + 3] = 0;
+            const cx = p % w;
+            const cy = (p - cx) / w;
+            if (cx > 0) tryPush(cx - 1, cy);
+            if (cx + 1 < w) tryPush(cx + 1, cy);
+            if (cy > 0) tryPush(cx, cy - 1);
+            if (cy + 1 < h) tryPush(cx, cy + 1);
+          }
+
+          // Anti-aliasing morbido sui contorni
+          for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+              const p = y * w + x;
+              if (visited[p]) continue;
+              if (visited[p - 1] || visited[p + 1] || visited[p - w] || visited[p + w]) {
+                const i4 = p * 4;
+                const dr = data[i4] - bgR;
+                const dg = data[i4 + 1] - bgG;
+                const db = data[i4 + 2] - bgB;
+                const d2 = dr * dr + dg * dg + db * db;
+                if (d2 < featherSq) {
+                  const ratio = Math.max(0, Math.min(1, (d2 - tolSq) / Math.max(1, featherSq - tolSq)));
+                  data[i4 + 3] = Math.round(data[i4 + 3] * ratio * 0.75);
+                }
+              }
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          callback(canvas.toDataURL("image/png"));
+        } catch (err) {
+          if (allowProxyFallback && srcUrl.startsWith("http")) {
+            processOnCanvas("/api/proxy_image?url=" + encodeURIComponent(srcUrl), false);
+          } else {
+            console.warn("Canvas cross-origin error, falling back to original image", err);
+            callback(imgSrc);
           }
         }
-        ctx.putImageData(imgData, 0, 0);
-        callback(canvas.toDataURL());
-      } catch (err) {
-        console.warn("Canvas cross-origin error, falling back to original image", err);
-        callback(imgSrc);
-      }
+      };
+      img.onerror = () => {
+        if (allowProxyFallback && srcUrl.startsWith("http")) {
+          processOnCanvas("/api/proxy_image?url=" + encodeURIComponent(srcUrl), false);
+        } else {
+          callback(imgSrc);
+        }
+      };
+      img.src = srcUrl;
     };
-    img.onerror = () => {
-      callback(imgSrc);
-    };
-    img.src = imgSrc;
+
+    processOnCanvas(imgSrc, true);
   }
 
   function handleNewProductImage(src) {
@@ -3148,11 +3250,21 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Sincronizza la cache client dbProdotti in tempo reale
             const prodIndex = dbProdotti.findIndex(p => 
-              (codiceProd && p.codice === codiceProd) || 
-              (titoloProd && p.nome.toLowerCase() === titoloProd.toLowerCase())
+              (codiceProd && p.codice && p.codice.trim().toUpperCase() === codiceProd.trim().toUpperCase()) || 
+              (titoloProd && p.nome && p.nome.toLowerCase() === titoloProd.toLowerCase())
             );
             if (prodIndex > -1) {
               dbProdotti[prodIndex].immagine = data.url;
+            } else if (codiceProd || titoloProd) {
+              dbProdotti.push({
+                id: data.prodotto_id || null,
+                codice: codiceProd,
+                nome: titoloProd || codiceProd,
+                immagine: data.url
+              });
+            }
+            if (typeof showToast === "function") {
+              showToast(`Immagine scontornata e salvata per ${codiceProd || titoloProd}!`);
             }
           }
         })
@@ -3164,23 +3276,51 @@ document.addEventListener("DOMContentLoaded", () => {
   if (inspectorImgNoBg) {
     inspectorImgNoBg.addEventListener("change", () => {
       if (!cellaSelezionata) return;
-      cellaSelezionata.dataset.useNoBg = inspectorImgNoBg.checked ? "1" : "0";
+      const targetCell = cellaSelezionata;
+      targetCell.dataset.useNoBg = inspectorImgNoBg.checked ? "1" : "0";
       
-      const originalSrc = cellaSelezionata.dataset.imgOriginal || "";
-      const noBgSrc = cellaSelezionata.dataset.imgNoBg || "";
-      const activeSrc = (inspectorImgNoBg.checked && noBgSrc) ? noBgSrc : originalSrc;
-      
-      localSelectedImageSrc = activeSrc;
-      setInspectorImage(activeSrc);
-      
-      const imgBox = cellaSelezionata.querySelector(".img-box");
-      if (activeSrc) {
-        imgBox.innerHTML = `<img src="${activeSrc}">`;
+      const originalSrc = targetCell.dataset.imgOriginal || "";
+      const noBgSrc = targetCell.dataset.imgNoBg || "";
+      const needsRemoval = inspectorImgNoBg.checked && originalSrc && (!noBgSrc || (noBgSrc === originalSrc && !noBgSrc.includes("_nobg.png") && !noBgSrc.startsWith("data:image/png")));
+
+      const applyFinalSrc = (activeSrc) => {
+        if (cellaSelezionata === targetCell) {
+          localSelectedImageSrc = activeSrc;
+          setInspectorImage(activeSrc);
+        }
+        const imgBox = targetCell.querySelector(".img-box");
+        if (activeSrc) {
+          imgBox.innerHTML = `<img src="${activeSrc}">`;
+        } else {
+          imgBox.innerHTML = `<span class="text-muted small text-center" style="font-size: 8px;">Nessun prodotto</span>`;
+        }
+        applicaCellaRendering(targetCell);
+      };
+
+      if (needsRemoval) {
+        removeWhiteBackground(originalSrc, (cleanSrc) => {
+          targetCell.dataset.imgNoBg = cleanSrc || originalSrc;
+          applyFinalSrc(cleanSrc || originalSrc);
+          const cod = targetCell.dataset.codice || "";
+          const tit = targetCell.querySelector(".titolo")?.innerText || "";
+          if (cleanSrc && cleanSrc !== originalSrc && (cod || tit)) {
+            fetch("/api/salva_immagine_volantino_prodotto", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ codice: cod, titolo: tit, image_src: cleanSrc })
+            }).then(r => r.json()).then(d => {
+              if (d.status === "ok" && d.url) {
+                targetCell.dataset.imgOriginal = d.url;
+                targetCell.dataset.imgNoBg = d.url;
+                applyFinalSrc(d.url);
+              }
+            }).catch(() => {});
+          }
+        });
       } else {
-        imgBox.innerHTML = `<span class="text-muted small text-center" style="font-size: 8px;">Nessun prodotto</span>`;
+        const activeSrc = (inspectorImgNoBg.checked && noBgSrc) ? noBgSrc : originalSrc;
+        applyFinalSrc(activeSrc);
       }
-      
-      applicaCellaRendering(cellaSelezionata);
     });
   }
 
@@ -3538,6 +3678,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   inspectorTitolo.addEventListener("change", salvaImmagineSuDbSePresente);
+  inspectorCodice.addEventListener("change", salvaImmagineSuDbSePresente);
   inspectorCodice.addEventListener("change", salvaImmagineSuDbSePresente);
 
   btnEliminaCella.addEventListener("click", () => {
@@ -4145,24 +4286,41 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!url) return "";
     if (url.startsWith("data:")) return url;
 
-    // 1. Prova fetch dell'immagine come blob (funziona per tutte le immagini locali e CORS-enabled)
-    try {
-      const res = await fetch(url, { cache: "force-cache" });
-      if (res.ok) {
-        const blob = await res.blob();
-        const b64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = () => resolve(url);
-          reader.readAsDataURL(blob);
-        });
-        if (b64 && b64.startsWith("data:")) return b64;
-      }
-    } catch (e) {
-      console.warn("fetch blob non riuscito per:", url, e);
+    let cleanUrl = url;
+    if (!cleanUrl.startsWith("http") && !cleanUrl.startsWith("/") && !cleanUrl.startsWith("blob:")) {
+      cleanUrl = "/static/uploads/volantino_prodotti/" + cleanUrl;
     }
 
-    // 2. Fallback: disegna l'immagine già renderizzata a video su un canvas in memoria
+    const fetchAsDataUrl = async (targetUrl) => {
+      const res = await fetch(targetUrl, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const blob = await res.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("FileReader error"));
+        reader.readAsDataURL(blob);
+      });
+    };
+
+    // 1. Prova fetch diretto (locale o CORS-enabled)
+    try {
+      const b64 = await fetchAsDataUrl(cleanUrl);
+      if (b64 && b64.startsWith("data:")) return b64;
+    } catch (e) {
+      // 2. Se URL esterno bloccato da CORS, passa dal proxy server same-origin
+      if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+        try {
+          const proxied = "/api/proxy_image?url=" + encodeURIComponent(cleanUrl);
+          const b64Proxy = await fetchAsDataUrl(proxied);
+          if (b64Proxy && b64Proxy.startsWith("data:")) return b64Proxy;
+        } catch (e2) {
+          console.warn("proxy_image fallback non riuscito per:", cleanUrl, e2);
+        }
+      }
+    }
+
+    // 3. Fallback: disegna l'immagine già renderizzata a video su un canvas in memoria
     if (fallbackImg && fallbackImg.naturalWidth && fallbackImg.naturalHeight) {
       try {
         const c = document.createElement("canvas");
@@ -4177,7 +4335,26 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    return url;
+    return cleanUrl;
+  }
+
+  function waitImgReady(imgEl, timeoutMs = 2500) {
+    if (!imgEl) return Promise.resolve();
+    if (imgEl.complete && imgEl.naturalWidth > 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+      imgEl.addEventListener("load", finish, { once: true });
+      imgEl.addEventListener("error", finish, { once: true });
+      if (imgEl.decode) {
+        imgEl.decode().then(finish).catch(() => {});
+      }
+      setTimeout(finish, timeoutMs);
+    });
   }
 
   // Cattura un foglio del volantino su Canvas assicurando che TUTTE le immagini siano caricate e posizionate
@@ -4186,7 +4363,13 @@ document.addEventListener("DOMContentLoaded", () => {
     visualizzaPaginaCorrente();
     aggiornaListaPagineNav();
 
+    // Attendi un frame affinché il browser calcoli il layout del foglio appena reso visibile
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     const origPage = pagine[pageIndex];
+    const origImgsAll = Array.from(origPage.querySelectorAll("img"));
+    await Promise.all(origImgsAll.map(im => waitImgReady(im, 2000)));
+
     const w = parseInt(origPage.dataset.larghezza || "800", 10);
     const h = parseInt(origPage.dataset.altezza || "1100", 10);
 
@@ -4219,6 +4402,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
+    await new Promise(r => requestAnimationFrame(r));
 
     // 1. Sfondo foglio: converti in base64
     const bgImgUrl = origPage.dataset.bgImg || "";
@@ -4233,9 +4417,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const origHeaderImg = origPage.querySelector(".page-header img");
     const cloneHeaderImg = clone.querySelector(".page-header img");
     if (origHeaderImg && cloneHeaderImg) {
-      const headerData = await urlABase64(origHeaderImg.src, origHeaderImg);
+      const headerData = await urlABase64(origHeaderImg.getAttribute("src") || origHeaderImg.src, origHeaderImg);
       if (headerData) {
         cloneHeaderImg.src = headerData;
+        await waitImgReady(cloneHeaderImg, 1500);
       }
     }
 
@@ -4248,11 +4433,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const origCell = origCells[cIdx];
       const titolo = cell.querySelector(".titolo")?.innerText || "";
       const codice = cell.dataset.codice || "";
-      const origImg = origCell ? origCell.querySelector(".img-box img") : null;
+      const origImgBox = origCell ? origCell.querySelector(".img-box") : null;
+      const origImg = origImgBox ? origImgBox.querySelector("img") : null;
       let cloneImg = cell.querySelector(".img-box img");
 
-      const haImg = (cloneImg !== null && cloneImg.src && !cloneImg.src.includes("data:image/svg") && !cloneImg.src.includes("placeholder")) || (origImg !== null);
+      const dataImgCandidate = (cell.dataset.useNoBg === "1" ? (cell.dataset.imgNoBg || cell.dataset.imgOriginal) : (cell.dataset.imgOriginal || cell.dataset.imgNoBg)) || "";
+      const rawAttrSrc = (origImg && (origImg.getAttribute("src") || origImg.src)) || (cloneImg && (cloneImg.getAttribute("src") || cloneImg.src)) || dataImgCandidate;
 
+      const haImg = Boolean(rawAttrSrc && !rawAttrSrc.includes("data:image/svg") && !rawAttrSrc.includes("placeholder"));
       const isVuota = !codice && (titolo === "PRODOTTO" || titolo === "Nessun prodotto" || !titolo) && !haImg;
       if (isVuota) {
         cell.style.visibility = "hidden";
@@ -4260,7 +4448,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const imgBox = cell.querySelector(".img-box");
-      if (imgBox) {
+      if (imgBox && haImg) {
         let targetImg = cloneImg;
         if (!targetImg) {
           targetImg = document.createElement("img");
@@ -4268,20 +4456,20 @@ document.addEventListener("DOMContentLoaded", () => {
           imgBox.appendChild(targetImg);
         }
 
-        const srcToUse = (origImg && origImg.src) || (targetImg && targetImg.src) || cell.dataset.imgNoBg || cell.dataset.imgOriginal || "";
-        if (srcToUse) {
-          const base64Data = await urlABase64(srcToUse, origImg);
-          targetImg.src = base64Data || srcToUse;
-        }
+        const base64Data = await urlABase64(rawAttrSrc, origImg);
+        targetImg.src = base64Data || rawAttrSrc;
+        await waitImgReady(targetImg, 2000);
 
-        const boxW = imgBox.clientWidth || imgBox.offsetWidth || 150;
-        const boxH = imgBox.clientHeight || imgBox.offsetHeight || 150;
+        const origBoxRect = origImgBox ? origImgBox.getBoundingClientRect() : null;
+        const cloneBoxRect = imgBox.getBoundingClientRect();
+        const boxW = Math.round(cloneBoxRect.width || imgBox.clientWidth || imgBox.offsetWidth || (origBoxRect && origBoxRect.width) || 120);
+        const boxH = Math.round(cloneBoxRect.height || imgBox.clientHeight || imgBox.offsetHeight || (origBoxRect && origBoxRect.height) || 120);
 
-        const imgW = (origImg && origImg.naturalWidth) || targetImg.naturalWidth || 300;
-        const imgH = (origImg && origImg.naturalHeight) || targetImg.naturalHeight || 300;
+        const imgW = targetImg.naturalWidth || (origImg && origImg.naturalWidth) || 300;
+        const imgH = targetImg.naturalHeight || (origImg && origImg.naturalHeight) || 300;
 
-        const boxAspect = boxW / boxH;
-        const imgAspect = imgW / imgH;
+        const boxAspect = boxW / Math.max(1, boxH);
+        const imgAspect = imgW / Math.max(1, imgH);
 
         let wFit, hFit;
         if (imgAspect > boxAspect) {
@@ -4316,17 +4504,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Attendi la decodifica delle immagini prima dello scatto html2canvas
+    // Attendi la decodifica finale delle immagini prima dello scatto html2canvas
     const allCloneImgs = Array.from(clone.querySelectorAll("img"));
-    await Promise.all(allCloneImgs.map(img => {
-      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-      if (img.decode) return img.decode().catch(() => {});
-      return new Promise(resolve => {
-        img.onload = resolve;
-        img.onerror = resolve;
-        setTimeout(resolve, 500);
-      });
-    }));
+    await Promise.all(allCloneImgs.map(img => waitImgReady(img, 1500)));
 
     let canvas = null;
     try {
@@ -4334,12 +4514,12 @@ document.addEventListener("DOMContentLoaded", () => {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         logging: false
       });
     } catch (err) {
       console.warn("Primo tentativo html2canvas fallito, riprovo con impostazioni standard:", err);
-      canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff", logging: false });
+      canvas = await html2canvas(clone, { scale: 1.5, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false });
     } finally {
       if (wrapper.parentNode) {
         document.body.removeChild(wrapper);
