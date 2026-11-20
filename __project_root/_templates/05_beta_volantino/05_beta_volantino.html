@@ -4394,41 +4394,94 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Cache di oggetti Image già decodificati e pronti per drawImage (zero lag tra pagine)
+  // Cache di oggetti Image già decodificati e pronti per drawImage (zero lag tra pagine, zero problemi CORS/cookie)
   const _pdfImgObjCache = new Map();
 
-  function loadSafeImageObj(rawUrl) {
-    if (!rawUrl) return Promise.resolve(null);
-    let url = String(rawUrl).trim();
-    if (!url || url.includes("data:image/svg") || url.includes("placeholder")) return Promise.resolve(null);
-    if (!url.startsWith("data:") && !url.startsWith("http") && !url.startsWith("/") && !url.startsWith("blob:")) {
-      url = "/static/uploads/volantino_prodotti/" + url;
-    }
-    if (_pdfImgObjCache.has(url)) return Promise.resolve(_pdfImgObjCache.get(url));
-
-    const fetchUrl = (url.startsWith("http://") || url.startsWith("https://")) && !url.startsWith(window.location.origin)
-      ? "/api/proxy_image?url=" + encodeURIComponent(url)
-      : url;
-
+  function _imgFromBlobOrUrl(srcUrl, useCrossOrigin) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      if (useCrossOrigin) img.crossOrigin = "anonymous";
       let settled = false;
       const done = (ok) => {
         if (settled) return;
         settled = true;
-        if (ok && img.naturalWidth > 0) {
-          _pdfImgObjCache.set(url, img);
-          resolve(img);
-        } else {
-          resolve(null);
-        }
+        resolve(ok && img.naturalWidth > 0 ? img : null);
       };
       img.onload = () => done(true);
       img.onerror = () => done(false);
-      setTimeout(() => done(false), 3000);
-      img.src = fetchUrl;
+      setTimeout(() => done(false), 3500);
+      img.src = srcUrl;
     });
+  }
+
+  async function loadSafeImageObj(rawUrl, domImgEl) {
+    if (!rawUrl && !(domImgEl && domImgEl.src)) return null;
+    let url = String(rawUrl || (domImgEl && (domImgEl.getAttribute("src") || domImgEl.src)) || "").trim();
+    if (!url || url.includes("data:image/svg") || url.includes("placeholder")) return null;
+    if (!url.startsWith("data:") && !url.startsWith("http") && !url.startsWith("/") && !url.startsWith("blob:")) {
+      url = "/static/uploads/volantino_prodotti/" + url;
+    }
+
+    if (_pdfImgObjCache.has(url)) return _pdfImgObjCache.get(url);
+
+    const isDataOrBlob = url.startsWith("data:") || url.startsWith("blob:");
+    const isSameOrigin = isDataOrBlob || url.startsWith("/") || url.startsWith(window.location.origin);
+
+    // 1. Se l'immagine è già caricata nel DOM ed è same-origin o data:, usala subito (0ms!)
+    if (isSameOrigin && domImgEl && domImgEl.complete && domImgEl.naturalWidth > 0) {
+      _pdfImgObjCache.set(url, domImgEl);
+      return domImgEl;
+    }
+
+    // 2. Se è data: o blob:, carica direttamente senza crossOrigin
+    if (isDataOrBlob) {
+      const im = await _imgFromBlobOrUrl(url, false);
+      if (im) _pdfImgObjCache.set(url, im);
+      return im;
+    }
+
+    // 3. Usa fetch con credentials:"same-origin" -> Blob -> ObjectURL (manda i cookie di login e NON tainta mai il canvas!)
+    const tryFetchToImage = async (targetUrl) => {
+      try {
+        const res = await fetch(targetUrl, { credentials: "same-origin" });
+        if (!res.ok) return null;
+        const ctype = (res.headers.get("content-type") || "").toLowerCase();
+        if (ctype.includes("text/html")) return null;
+        const blob = await res.blob();
+        if (!blob || blob.size === 0) return null;
+        const objUrl = URL.createObjectURL(blob);
+        const im = await _imgFromBlobOrUrl(objUrl, false);
+        if (!im) {
+          try { URL.revokeObjectURL(objUrl); } catch (e) {}
+        }
+        return im;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    let loaded = null;
+    if (isSameOrigin) {
+      loaded = await tryFetchToImage(url);
+      if (!loaded) {
+        loaded = await _imgFromBlobOrUrl(url, false);
+      }
+    } else {
+      // URL esterno: passa dal proxy same-origin con cookie di sessione
+      const proxied = "/api/proxy_image?url=" + encodeURIComponent(url);
+      loaded = await tryFetchToImage(proxied);
+      if (!loaded) {
+        loaded = await tryFetchToImage(url);
+      }
+      if (!loaded) {
+        loaded = await _imgFromBlobOrUrl(url, true);
+      }
+    }
+
+    if (loaded) {
+      _pdfImgObjCache.set(url, loaded);
+    }
+    return loaded;
   }
 
   function drawRoundedRectPath(ctx, x, y, w, h, r) {
@@ -4510,16 +4563,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const headerImgUrl = headerImgEl ? (headerImgEl.getAttribute("src") || headerImgEl.src || "") : "";
     const cells = Array.from(origPage.querySelectorAll(".cella-prodotto"));
 
-    const cellImgUrls = cells.map(cell => {
+    const cellImgMeta = cells.map(cell => {
       const imEl = cell.querySelector(".img-box img");
       const dataCand = (cell.dataset.useNoBg === "1" ? (cell.dataset.imgNoBg || cell.dataset.imgOriginal) : (cell.dataset.imgOriginal || cell.dataset.imgNoBg)) || "";
-      return (imEl && (imEl.getAttribute("src") || imEl.src)) || dataCand;
+      const url = (imEl && (imEl.getAttribute("src") || imEl.src)) || dataCand;
+      return { url, imEl };
     });
 
     const [bgImgObj, headerImgObj, ...cellImgObjs] = await Promise.all([
-      loadSafeImageObj(bgImgUrl),
-      loadSafeImageObj(headerImgUrl),
-      ...cellImgUrls.map(u => loadSafeImageObj(u))
+      loadSafeImageObj(bgImgUrl, null),
+      loadSafeImageObj(headerImgUrl, headerImgEl),
+      ...cellImgMeta.map(m => loadSafeImageObj(m.url, m.imEl))
     ]);
 
     const captureScale = w >= 1100 ? 1.25 : 1.5;
@@ -4649,8 +4703,18 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.clip();
 
       // 4a. Immagine prodotto
-      if (imgBox && imgObj) {
-        const ir = toPageRect(imgBox);
+      if (imgObj) {
+        let ir = imgBox ? toPageRect(imgBox) : { x: 0, y: 0, w: 0, h: 0 };
+        if (ir.w < 10 || ir.h < 10) {
+          const lay = cell.dataset.layout || "modern-split";
+          if (lay === "modern-split") {
+            ir = { x: cr.x + cr.w * 0.44, y: cr.y + 6, w: cr.w * 0.31, h: cr.h - 12 };
+          } else if (lay === "image-left") {
+            ir = { x: cr.x + 6, y: cr.y + 6, w: cr.w * 0.38, h: cr.h - 12 };
+          } else {
+            ir = { x: cr.x + 6, y: cr.y + 6, w: cr.w - 12, h: cr.h * 0.52 };
+          }
+        }
         if (ir.w > 4 && ir.h > 4) {
           const pad = parseFloat(cell.dataset.imagePadding || "0") || 0;
           const ix = ir.x + pad;

@@ -9324,13 +9324,27 @@ def api_proxy_image():
         return jsonify({"error": "URL non valido"}), 400
     try:
         import requests
-        r = requests.get(img_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        r = requests.get(
+            img_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            },
+            timeout=10,
+        )
         r.raise_for_status()
-        ctype = r.headers.get('Content-Type', 'image/png')
+        ctype = r.headers.get('Content-Type', 'image/png').split(';')[0].strip()
         if not ctype.startswith('image/'):
             ctype = 'image/png'
         from flask import Response
-        return Response(r.content, mimetype=ctype, headers={"Cache-Control": "public, max-age=86400"})
+        return Response(
+            r.content,
+            mimetype=ctype,
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
