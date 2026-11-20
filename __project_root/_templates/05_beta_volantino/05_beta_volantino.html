@@ -2779,11 +2779,14 @@ document.addEventListener("DOMContentLoaded", () => {
       textBox.style.order = "1";
       
       // Center Column (Image box)
-      imgBox.style.aspectRatio = (imgAspect !== "auto") ? imgAspect : "";
+      const isRatioAspect = imgAspect && imgAspect.includes("/");
+      imgBox.style.aspectRatio = isRatioAspect ? imgAspect : "";
       
-      if (imgAspect === "auto") {
+      if (!isRatioAspect) {
         imgBox.style.flex = "0 0 30%";
+        imgBox.style.width = "30%";
         imgBox.style.height = "100%";
+        imgBox.style.maxWidth = "30%";
       } else {
         imgBox.style.flex = "none";
         imgBox.style.width = "auto";
@@ -4238,7 +4241,25 @@ document.addEventListener("DOMContentLoaded", () => {
             useNoBg: item.useNoBg || "0",
             showDesc: item.showDesc || "1"
           });
-          const imgToUse = item.img || (item.useNoBg === "1" ? item.imgNoBg : item.imgOriginal) || item.imgOriginal || "";
+          let imgToUse = item.img || (item.useNoBg === "1" ? item.imgNoBg : item.imgOriginal) || item.imgOriginal || "";
+          if (imgToUse && !imgToUse.startsWith("http") && !imgToUse.startsWith("/") && !imgToUse.startsWith("data:")) {
+            imgToUse = "/static/uploads/volantino_prodotti/" + imgToUse;
+          }
+          if (!imgToUse && typeof dbProdotti !== "undefined" && Array.isArray(dbProdotti)) {
+            const cNorm = String(item.codice || "").trim().toUpperCase().replace(/^0+/, "");
+            const nNorm = String(item.titolo || item.nome || "").trim().toLowerCase();
+            const foundDb = dbProdotti.find(dp =>
+              (cNorm && dp.codice && String(dp.codice).trim().toUpperCase().replace(/^0+/, "") === cNorm) ||
+              (nNorm && dp.nome && String(dp.nome).trim().toLowerCase() === nNorm)
+            );
+            if (foundDb && foundDb.immagine) {
+              imgToUse = foundDb.immagine.startsWith("http") || foundDb.immagine.startsWith("/") || foundDb.immagine.startsWith("data:")
+                ? foundDb.immagine
+                : "/static/uploads/volantino_prodotti/" + foundDb.immagine;
+              cell.dataset.imgOriginal = imgToUse;
+              cell.dataset.imgNoBg = imgToUse;
+            }
+          }
           const imgBox = cell.querySelector(".img-box");
           if (imgToUse) {
             imgBox.innerHTML = `<img src="${imgToUse}">`;
@@ -4460,10 +4481,13 @@ document.addEventListener("DOMContentLoaded", () => {
         targetImg.src = base64Data || rawAttrSrc;
         await waitImgReady(targetImg, 2000);
 
+        const cellRect = cell.getBoundingClientRect();
         const origBoxRect = origImgBox ? origImgBox.getBoundingClientRect() : null;
         const cloneBoxRect = imgBox.getBoundingClientRect();
-        const boxW = Math.round(cloneBoxRect.width || imgBox.clientWidth || imgBox.offsetWidth || (origBoxRect && origBoxRect.width) || 120);
-        const boxH = Math.round(cloneBoxRect.height || imgBox.clientHeight || imgBox.offsetHeight || (origBoxRect && origBoxRect.height) || 120);
+        let boxW = Math.round(cloneBoxRect.width || imgBox.clientWidth || imgBox.offsetWidth || (origBoxRect && origBoxRect.width) || 0);
+        let boxH = Math.round(cloneBoxRect.height || imgBox.clientHeight || imgBox.offsetHeight || (origBoxRect && origBoxRect.height) || 0);
+        if (boxW < 20) boxW = Math.max(80, Math.round((cellRect.width || 260) * 0.30));
+        if (boxH < 20) boxH = Math.max(80, Math.round((cellRect.height || 260) * 0.55));
 
         const imgW = targetImg.naturalWidth || (origImg && origImg.naturalWidth) || 300;
         const imgH = targetImg.naturalHeight || (origImg && origImg.naturalHeight) || 300;
@@ -4490,12 +4514,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const left = (boxW - wZoomed) * (px / 100);
         const top = (boxH - hZoomed) * (py / 100);
 
+        // Blocca le dimensioni reali di imgBox prima di rendere targetImg absolute (evita collasso a 0px in flex)
+        imgBox.style.flex = `0 0 ${boxW}px`;
+        imgBox.style.width = boxW + "px";
+        imgBox.style.minWidth = boxW + "px";
+        imgBox.style.height = boxH + "px";
+        imgBox.style.minHeight = boxH + "px";
         imgBox.style.position = "relative";
         imgBox.style.overflow = "hidden";
 
         targetImg.style.position = "absolute";
         targetImg.style.width = wZoomed + "px";
         targetImg.style.height = hZoomed + "px";
+        targetImg.style.maxWidth = "none";
+        targetImg.style.maxHeight = "none";
         targetImg.style.left = left + "px";
         targetImg.style.top = top + "px";
         targetImg.style.transform = "none";
