@@ -6402,23 +6402,253 @@ def api_offerte_match_scadenze():
     return jsonify(res), (200 if res.get("ok") else 400)
 
 
+def _format_scadenza_quantita_label(quantita_raw) -> str:
+    q = str(quantita_raw or "").strip()
+    if not q:
+        return ""
+    q_low = q.lower().strip(". ")
+    if q_low in ("disp", "disponibile", "lim", "limitata", "su richiesta"):
+        return "Pz disponibili: su richiesta"
+    if re.match(r'^\d+(?:[\.,]\d+)?$', q):
+        return f"Pz disponibili: {q}"
+    if any(tok in q_low for tok in ("pz", "pezz")):
+        return f"Pz disponibili: {q}"
+    if q_low.startswith(("disp", "pz")):
+        return q
+    return f"Disponibili: {q}"
+
+
+def build_scadenze_beta_layout_pages(items: list, preset_data: dict = None) -> list:
+    """
+    Costruisce le pagine JSON per l'Editor Normale (05_beta_volantino.html) in griglia 4x4 (16 prodotti/pagina),
+    mostrando sempre: codice prodotto, nome prodotto, prezzo, data scadenza e pz disponibili.
+    """
+    if preset_data is None:
+        preset_data = {}
+        preset_path = os.path.join(app.root_path, 'preset_default.json')
+        if os.path.exists(preset_path):
+            try:
+                with open(preset_path, 'r', encoding='utf-8') as pf:
+                    preset_data = json.load(pf)
+            except Exception as pex:
+                print("Errore lettura preset default in build_scadenze_beta_layout_pages:", pex)
+
+    # Eventuale recupero immagini mancanti da tabella prodotti
+    img_by_id = {}
+    img_by_code = {}
+    need_lookup = any(not (it.get("immagine") or it.get("img")) for it in (items or []))
+    if need_lookup:
+        try:
+            with get_db() as conn_img:
+                cur_img = conn_img.cursor()
+                cur_img.execute("SELECT id, codice, immagine FROM prodotti WHERE immagine IS NOT NULL AND immagine != ''")
+                for rr in cur_img.fetchall():
+                    rd = dict(rr) if isinstance(rr, dict) else {"id": rr[0], "codice": rr[1], "immagine": rr[2]}
+                    im = str(rd.get("immagine") or "").strip()
+                    if not im:
+                        continue
+                    if rd.get("id") is not None:
+                        img_by_id[int(rd["id"])] = im
+                    if rd.get("codice"):
+                        c_k = str(rd["codice"]).strip().upper()
+                        img_by_code[c_k] = im
+                        img_by_code[c_k.lstrip("0")] = im
+        except Exception:
+            pass
+
+    pagine_prodotti = []
+    temp_page = []
+    for p in (items or []):
+        prod_id = p.get("prodotto_id") or p.get("id")
+        codice = str(p.get("codice") or p.get("code") or "").strip()
+        nome = str(p.get("nome") or p.get("name") or "Prodotto").strip()
+        um = str(p.get("um") or "PZ").strip().upper() or "PZ"
+        scadenza = str(p.get("scadenza") or "").strip()
+        qty_label = _format_scadenza_quantita_label(p.get("quantita") or p.get("qty") or "")
+
+        try:
+            prezzo_val = float(str(p.get("prezzo") or p.get("price") or 0).replace(",", "."))
+        except Exception:
+            prezzo_val = 0.0
+        prezzo_str = f"€ {prezzo_val:.2f} / {um}" if prezzo_val > 0 else "–"
+
+        raw_img = str(p.get("immagine") or p.get("img") or "").strip()
+        if not raw_img:
+            if prod_id is not None:
+                try:
+                    raw_img = img_by_id.get(int(prod_id), "")
+                except Exception:
+                    pass
+            if not raw_img and codice:
+                c_up = codice.upper()
+                raw_img = img_by_code.get(c_up) or img_by_code.get(c_up.lstrip("0")) or ""
+
+        if raw_img:
+            if raw_img.startswith(("http://", "https://", "/", "data:")):
+                img_url = raw_img
+            else:
+                img_url = f"/static/uploads/volantino_prodotti/{raw_img}"
+        else:
+            img_url = ""
+
+        cell_data = {
+            "codice": codice,
+            "titolo": nome,
+            "descrizione": qty_label,
+            "scadenza": scadenza,
+            "scadenzaSize": "11",
+            "scadenzaY": "-2",
+            "prezzo": prezzo_str,
+            "img": img_url,
+            "imgOriginal": img_url,
+            "imgNoBg": img_url,
+            "useNoBg": "1",
+            "showDesc": "1",
+            "priceSize": "20",
+            "priceColor": "#e11d48",
+            "priceBg": "#ffffff",
+            "priceCurrency": "€",
+            "priceWeight": "800",
+            "priceStyle": "base",
+            "layout": "modern-split",
+            "titleSize": "13",
+            "titleWeight": "700",
+            "titleSpacing": "0",
+            "titleHeight": "1.18",
+            "codeSize": "9",
+            "descSize": "10",
+            "descItalic": "0",
+            "textUpper": "1",
+            "fontColor": "#0f172a",
+            "borderStyle": "solid",
+            "borderColor": "#cbd5e1",
+            "radius": "8",
+            "bgColor": "#ffffff",
+            "bgTransparent": "0",
+            "shadow": "1",
+            "imageZoom": "1.0",
+            "imagePosX": "50",
+            "imagePosY": "50",
+            "imageRadius": "6",
+            "imagePadding": "4",
+            "imageAspect": "contain",
+            "productId": prod_id,
+        }
+
+        if isinstance(preset_data.get('cellStyles'), dict):
+            protected_keys = {
+                'codice', 'titolo', 'descrizione', 'scadenza', 'prezzo',
+                'img', 'imgOriginal', 'imgNoBg', 'productId', 'showDesc',
+                'titleSize', 'priceSize', 'codeSize', 'descSize', 'scadenzaSize'
+            }
+            for k, v in preset_data['cellStyles'].items():
+                if k not in protected_keys:
+                    cell_data[k] = v
+
+        temp_page.append(cell_data)
+        if len(temp_page) == 16:
+            pagine_prodotti.append(temp_page)
+            temp_page = []
+
+    if temp_page:
+        pagine_prodotti.append(temp_page)
+    if not pagine_prodotti:
+        pagine_prodotti = [[]]
+
+    default_logo = "https://us-east-1.tixte.net/uploads/leonardogiorgini.tixte.co/logo-pregis-bordo.png"
+    g_headerImg = preset_data.get('headerImg') if preset_data.get('headerImg') else default_logo
+    g_larghezza = preset_data.get('larghezza', '1250')
+    g_altezza = preset_data.get('altezza', '1750')
+
+    layout_pages = []
+    for p_idx, cells in enumerate(pagine_prodotti):
+        layout_pages.append({
+            "cols": 4,
+            "rows": 4,
+            "gap": 8,
+            "larghezza": g_larghezza,
+            "altezza": g_altezza,
+            "padTop": preset_data.get('padTop', '20'),
+            "padBottom": preset_data.get('padBottom', '20'),
+            "padSides": preset_data.get('padSides', '20'),
+            "headerH": preset_data.get('headerH', '120') if p_idx == 0 else "50",
+            "footerH": preset_data.get('footerH', '60'),
+            "headerImg": g_headerImg if p_idx == 0 else None,
+            "footerImg": None,
+            "cells": cells,
+            "bgImg": preset_data.get('bgImg', ''),
+            "bgWidth": preset_data.get('bgWidth', '100'),
+            "bgHeight": preset_data.get('bgHeight', '100'),
+            "bgPosX": preset_data.get('bgPosX', '50'),
+            "bgPosY": preset_data.get('bgPosY', '50'),
+            "cellWidth": "285",
+            "cellHeight": "360",
+        })
+
+    return layout_pages
+
+
 @app.route('/api/offerte/crea_volantino_scadenze_veloce', methods=['POST'])
 @login_required
 def api_crea_volantino_scadenze_veloce():
     """
-    Crea in 1 clic un Volantino 3.0 AI personalizzato per un cliente (o globale)
-    con i prodotti in scadenza che quel cliente lavora, includendo quantità in scadenza e data di scadenza.
+    Crea in 1 clic un Volantino Scadenze (di default nell'Editor Normale in griglia 4x4
+    con codice prodotto, nome prodotto, prezzo, data scadenza e pz disponibili;
+    opzionalmente anche in Volantini 3.0 AI se editor_mode='ai3').
     """
-    from volantini_3_ai import build_flyer_3_payload, _ensure_volantini3_table
-
     data = request.get_json(silent=True) or {}
     cliente_nome = (data.get("cliente_nome") or "").strip()
     prodotti_in = data.get("prodotti") or []
+    editor_mode = (data.get("editor_mode") or "normale").strip().lower()
     if not prodotti_in:
         return jsonify({"ok": False, "error": "Nessun prodotto selezionato per il volantino scadenze."}), 400
 
     oggi_str = datetime.now().strftime("%d/%m/%Y")
-    nome_vol = f"Promo Scadenze {cliente_nome} - {oggi_str}" if cliente_nome else f"Promo Lampo Scadenze - {oggi_str}"
+    nome_vol = f"Promo Scadenze {cliente_nome} - {oggi_str}" if cliente_nome and cliente_nome != "Tutti i Clienti" else f"Volantino Scadenze 4x4 - {oggi_str}"
+
+    if editor_mode != "ai3":
+        layout_pages = build_scadenze_beta_layout_pages(prodotti_in)
+        layout_str = json.dumps(layout_pages, ensure_ascii=False)
+        saved_id = None
+        try:
+            nuovo_vol = VolantinoBeta(
+                nome=nome_vol,
+                layout_json=layout_str,
+                tipo='promo_scadenza'
+            )
+            db.session.add(nuovo_vol)
+            db.session.commit()
+            saved_id = nuovo_vol.id
+        except Exception as orm_err:
+            db.session.rollback()
+            print(f"Fallback SQL salvataggio volantino scadenze 4x4: {orm_err}")
+            with get_db() as conn:
+                cur = conn.cursor()
+                try:
+                    cur.execute(
+                        "INSERT INTO volantino_beta (nome, layout_json, tipo) VALUES (%s, %s, %s) RETURNING id",
+                        (nome_vol, layout_str, "promo_scadenza")
+                    )
+                except Exception:
+                    conn.rollback()
+                    cur.execute(
+                        "INSERT INTO volantini_beta (nome, layout_json, tipo) VALUES (%s, %s, %s) RETURNING id",
+                        (nome_vol, layout_str, "promo_scadenza")
+                    )
+                row_r = cur.fetchone()
+                saved_id = (row_r["id"] if isinstance(row_r, dict) else row_r[0]) if row_r else getattr(cur, "lastrowid", None)
+                conn.commit()
+
+        return jsonify({
+            "ok": True,
+            "volantino_id": saved_id,
+            "nome_volantino": nome_vol,
+            "editor_mode": "normale",
+            "pages_count": len(layout_pages),
+            "editor_url": f"/beta-volantino/{saved_id}",
+        })
+
+    from volantini_3_ai import build_flyer_3_payload, _ensure_volantini3_table
     titolo = f"OFFERTA LAMPO SCADENZE" + (f" · {cliente_nome.upper()}" if cliente_nome else "")
     sottotitolo = f"Lotti a scadenza ravvicinata e disponibilità limitata · {oggi_str}"
 
@@ -6457,7 +6687,6 @@ def api_crea_volantino_scadenze_veloce():
     )
     flyer["nome_volantino"] = nome_vol
 
-    # Forza nel sottotitolo di ogni card la data scadenza e la quantità disponibile
     for idx_c, card in enumerate(flyer.get("prodotti") or []):
         if idx_c < len(raw_flyer_items):
             src = raw_flyer_items[idx_c]
@@ -6481,6 +6710,7 @@ def api_crea_volantino_scadenze_veloce():
         "ok": True,
         "volantino_id": saved_id,
         "nome_volantino": nome_vol,
+        "editor_mode": "ai3",
         "flyer": flyer,
         "editor_url": f"/volantini-3?id={saved_id}",
     })
@@ -8490,169 +8720,38 @@ def beta_volantino():
         print(f"Errore recupero template precedente: {ex}")
     # -----------------------------------
     
-    # Caricamento automatico dei prodotti da promo scadenze se richiesto
+    # Caricamento automatico dei prodotti da promo scadenze se richiesto (Editor Normale in griglia 4x4)
     import_scadenze = request.args.get('scadenze')
     if import_scadenze == '1':
-        preset_data = {}
-        preset_path = os.path.join(app.root_path, 'preset_default.json')
-        if os.path.exists(preset_path):
-            try:
-                with open(preset_path, 'r', encoding='utf-8') as pf:
-                    preset_data = json.load(pf)
-            except Exception as pex:
-                print("Errore lettura preset default in beta_volantino:", pex)
-
         try:
-            with get_db() as db:
-                cur = db.cursor()
-                # Seleziona prodotti della promo scadenze ordinati come da PDF (per ID)
+            with get_db() as db_conn:
+                cur = db_conn.cursor()
+                # Seleziona prodotti della promo scadenze ordinati come da PDF (includendo quantita/pz disponibili)
                 cur.execute('''
-                    SELECT psp.codice, psp.nome, psp.prezzo, psp.um, psp.prodotto_id, prod.immagine, psp.scadenza
+                    SELECT psp.codice, psp.nome, psp.prezzo, psp.um, psp.prodotto_id, prod.immagine, psp.scadenza, psp.quantita
                     FROM promo_scadenze_prodotti psp
                     LEFT JOIN prodotti prod ON psp.prodotto_id = prod.id
                     ORDER BY psp.id
                 ''')
                 psp_rows = cur.fetchall()
-                
-                # Raggruppiamo i prodotti in pagine di 9 elementi (3x3)
-                pagine_prodotti = []
-                temp_page = []
+
+                psp_items = []
                 for r in psp_rows:
                     row_dict = dict(r) if isinstance(r, dict) else {
-                        "codice": r[0], "nome": r[1], "prezzo": r[2], "um": r[3], "prodotto_id": r[4], "immagine": r[5], "scadenza": r[6]
+                        "codice": r[0], "nome": r[1], "prezzo": r[2], "um": r[3],
+                        "prodotto_id": r[4], "immagine": r[5], "scadenza": r[6], "quantita": r[7]
                     }
-                    
-                    prod_id = row_dict["prodotto_id"]
-                    codice = row_dict["codice"] or ""
-                    nome = row_dict["nome"] or ""
-                    prezzo = row_dict["prezzo"]
-                    um = row_dict["um"] or "PZ"
-                    immagine = row_dict["immagine"]
-                    scadenza = row_dict["scadenza"] or ""
-                    
-                    img_url = ""
-                    if immagine:
-                        img_url = url_for('static', filename=f'uploads/volantino_prodotti/{immagine}')
-                        
-                    prezzo_str = f"€ {prezzo:.2f} / {um}" if prezzo else "–"
-                    
-                    cell_data = {
-                        "codice": codice,
-                        "titolo": nome,
-                        "descrizione": "",
-                        "scadenza": scadenza,
-                        "scadenzaSize": "12",
-                        "scadenzaY": "-4",
-                        "prezzo": prezzo_str,
-                        "img": img_url,
-                        "imgOriginal": img_url,
-                        "imgNoBg": img_url,
-                        "useNoBg": "1",
-                        "showDesc": "0",
-                        "priceSize": "26",
-                        "priceColor": "#e11d48",
-                        "priceBg": "#ffffff",
-                        "priceCurrency": "€",
-                        "priceWeight": "800",
-                        "priceStyle": "base",
-                        "layout": "modern-split",
-                        "titleSize": "17",
-                        "titleWeight": "700",
-                        "titleSpacing": "0",
-                        "titleHeight": "1.2",
-                        "codeSize": "10",
-                        "descSize": "11",
-                        "descItalic": "0",
-                        "textUpper": "1",
-                        "fontColor": "#0f172a",
-                        "borderStyle": "solid",
-                        "borderColor": "#cbd5e1",
-                        "radius": "8",
-                        "bgColor": "#ffffff",
-                        "bgTransparent": "0",
-                        "shadow": "1",
-                        "imageZoom": "1.0",
-                        "imagePosX": "50",
-                        "imagePosY": "50",
-                        "imageRadius": "6",
-                        "imagePadding": "5",
-                        "imageAspect": "contain",
-                        "productId": prod_id
-                    }
-                    
-                    if 'cellStyles' in preset_data:
-                        for k, v in preset_data['cellStyles'].items():
-                            if k not in ['codice', 'titolo', 'descrizione', 'scadenza', 'prezzo', 'img', 'imgOriginal', 'imgNoBg', 'productId']:
-                                cell_data[k] = v
-                                
-                    temp_page.append(cell_data)
-                    if len(temp_page) == 9:
-                        pagine_prodotti.append(temp_page)
-                        temp_page = []
-                if temp_page:
-                    pagine_prodotti.append(temp_page)
-                
-                # Se non c'è nessun prodotto, assicuriamoci di avere almeno una griglia vuota
-                if not pagine_prodotti:
-                    pagine_prodotti = [[]]
-                
-                # Costruiamo il layout JSON compatibile (array di pagine)
-                layout_pages = []
-                
-                g_cols = int(preset_data.get('cols', 3)) if preset_data.get('cols') else 3
-                g_rows = int(preset_data.get('rows', 3)) if preset_data.get('rows') else 3
-                g_gap = int(preset_data.get('gap', 10)) if preset_data.get('gap') else 10
-                
-                g_larghezza = preset_data.get('larghezza', '1250')
-                g_altezza = preset_data.get('altezza', '1750')
-                g_padTop = preset_data.get('padTop', '20')
-                g_padBottom = preset_data.get('padBottom', '20')
-                g_padSides = preset_data.get('padSides', '20')
-                g_headerH = preset_data.get('headerH', '120')
-                g_footerH = preset_data.get('footerH', '80')
-                
-                default_logo = "https://us-east-1.tixte.net/uploads/leonardogiorgini.tixte.co/logo-pregis-bordo.png"
-                g_headerImg = preset_data.get('headerImg') if preset_data.get('headerImg') else default_logo
-                
-                g_bgImg = preset_data.get('bgImg', '')
-                g_bgWidth = preset_data.get('bgWidth', '100')
-                g_bgHeight = preset_data.get('bgHeight', '100')
-                g_bgPosX = preset_data.get('bgPosX', '50')
-                g_bgPosY = preset_data.get('bgPosY', '50')
-                g_cellWidth = preset_data.get('cellWidth', '380')
-                g_cellHeight = preset_data.get('cellHeight', '500')
-                
-                for p_idx, cells in enumerate(pagine_prodotti):
-                    layout_pages.append({
-                        "cols": g_cols,
-                        "rows": g_rows,
-                        "gap": g_gap,
-                        "larghezza": g_larghezza,
-                        "altezza": g_altezza,
-                        "padTop": g_padTop,
-                        "padBottom": g_padBottom,
-                        "padSides": g_padSides,
-                        "headerH": g_headerH if p_idx == 0 else "50",
-                        "footerH": g_footerH,
-                        "headerImg": g_headerImg if p_idx == 0 else None,
-                        "footerImg": None,
-                        "cells": cells,
-                        "bgImg": g_bgImg,
-                        "bgWidth": g_bgWidth,
-                        "bgHeight": g_bgHeight,
-                        "bgPosX": g_bgPosX,
-                        "bgPosY": g_bgPosY,
-                        "cellWidth": g_cellWidth,
-                        "cellHeight": g_cellHeight
-                    })
-                    
+                    psp_items.append(row_dict)
+
+                layout_pages = build_scadenze_beta_layout_pages(psp_items)
+
                 return render_template(
                     '05_beta_volantino/05_beta_volantino.html',
                     volantino_id=None,
-                    nome_volantino="Volantino Scadenze",
-                    layout_json=json.dumps(layout_pages),
+                    nome_volantino=f"Volantino Scadenze 4x4 - {datetime.now().strftime('%d/%m/%Y')}",
+                    layout_json=json.dumps(layout_pages, ensure_ascii=False),
                     thumbnail="",
-                    tipo_volantino=tipo
+                    tipo_volantino="promo_scadenza"
                 )
         except Exception as ex:
             print(f"Errore caricamento prodotti scadenze nel volantino: {ex}")

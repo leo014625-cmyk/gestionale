@@ -2025,16 +2025,16 @@
         const items = JSON.parse(decodeURIComponent(encodedItems));
         const orig = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Creazione...`;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Creazione 4×4...`;
         try {
           const res = await fetch("/api/offerte/crea_volantino_scadenze_veloce", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cliente_nome: clienteNome, prodotti: items })
+            body: JSON.stringify({ cliente_nome: clienteNome, prodotti: items, editor_mode: "normale" })
           });
           const d = await res.json();
           if (d.ok) {
-            window.location.href = `/volantini-3?id=${d.volantino_id}`;
+            window.location.href = d.editor_url || `/beta-volantino/${d.volantino_id}`;
           } else {
             alert(d.error || "Errore creazione volantino");
             btn.disabled = false;
@@ -2137,27 +2137,39 @@
         const card = document.createElement("div");
         card.className = "ai-preview-card";
         const clients = sm.clienti_target || [];
+        const allItemsEnc = encodeURIComponent(JSON.stringify(sm.scadenze_items || []));
         const rowsHtml = clients.slice(0, 25).map(c => {
-          const prodsHtml = (c.prodotti_abbinati || []).map(p =>
-            `<div class="text-muted" style="font-size:0.72rem;">• <strong>${p.nome}</strong> (€ ${Number(p.prezzo || 0).toFixed(2)}) · 📅 Scad: <strong>${p.scadenza}</strong> · 📦 Disp: <strong>${p.quantita}</strong></div>`
+          const prodsMsg = c.prodotti_messaggio || (c.prodotti_abbinati || []).filter(p => !p.escluso_da_messaggio);
+          const prodsAvviso = c.prodotti_avviso_prezzo || (c.prodotti_abbinati || []).filter(p => p.escluso_da_messaggio);
+          const prodsHtml = prodsMsg.map(p =>
+            `<div class="text-muted" style="font-size:0.72rem;">• ${p.codice ? `<code>${p.codice}</code> ` : ""}<strong>${p.nome}</strong> (€ ${Number(p.prezzo || 0).toFixed(2)}) · 📅 Scad: <strong>${p.scadenza}</strong> · 📦 Disp: <strong>${p.quantita}</strong></div>`
           ).join("");
+          const avvisoHtml = prodsAvviso.length > 0 ? `
+            <div class="mt-1 p-1.5 rounded-2 bg-warning-subtle border border-warning text-dark" style="font-size:0.71rem;">
+              <div class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Non nel messaggio (paga meno in listino — puoi fargli un buon prezzo):</div>
+              ${prodsAvviso.map(p => `<div>• <strong>${p.nome}</strong>: listino € ${Number(p.prezzo_listino_cliente || 0).toFixed(2)} vs scad. € ${Number(p.prezzo || 0).toFixed(2)}</div>`).join("")}
+            </div>
+          ` : "";
           const encItems = encodeURIComponent(JSON.stringify(c.prodotti_abbinati || []));
+          const hasMsg = !!(c.messaggio_whatsapp && c.messaggio_whatsapp.trim());
           return `
             <div class="p-2 border-bottom">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none">${c.cliente_nome} <span class="text-muted small">(${c.zona || "N/D"})</span></a>
-                <span class="badge bg-warning text-dark">${c.num_prodotti} in scadenza</span>
+                <span class="badge bg-warning text-dark">${hasMsg ? `${prodsMsg.length} nel msg` : `Solo avviso (${prodsAvviso.length})`}</span>
               </div>
               ${prodsHtml}
+              ${avvisoHtml}
               <div class="d-flex gap-1.5 mt-2 flex-wrap">
-                <a href="${c.wa_url}" target="_blank" class="btn btn-success btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;">
-                  <i class="bi bi-whatsapp me-1"></i>Invia WhatsApp
+                <a href="${c.wa_url}" target="_blank" class="btn ${hasMsg ? 'btn-success' : 'btn-outline-success'} btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;">
+                  <i class="bi bi-whatsapp me-1"></i>${hasMsg ? 'Invia WhatsApp' : 'Contatta per Buon Prezzo'}
                 </a>
+                ${hasMsg ? `
                 <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size:0.74rem;" onclick="copyAiMsgText(this, '${encodeURIComponent(c.messaggio_whatsapp)}')">
                   <i class="bi bi-clipboard me-1"></i>Copia
-                </button>
-                <button type="button" class="btn btn-warning btn-sm py-0.5 px-2 fw-bold text-dark" style="font-size:0.74rem;" onclick="createAiFastScadenzeFlyer(this, '${c.cliente_nome.replace(/'/g, "\\'")}', '${encItems}')">
-                  <i class="bi bi-magic me-1"></i>Volantino Veloce Cliente
+                </button>` : ""}
+                <button type="button" class="btn btn-primary btn-sm py-0.5 px-2 fw-bold" style="font-size:0.74rem;" onclick="createAiFastScadenzeFlyer(this, '${c.cliente_nome.replace(/'/g, "\\'")}', '${encItems}')">
+                  <i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4
                 </button>
               </div>
             </div>
@@ -2167,7 +2179,10 @@
         card.innerHTML = `
           <div class="ai-preview-header">
             <span><i class="bi bi-hourglass-split text-warning me-1"></i>Clienti per Lista Scadenze (${clients.length})</span>
-            <a href="/ordini?tab=scadenze#centro-operativo" class="badge bg-primary text-white text-decoration-none">Apri Pannello</a>
+            <div class="d-flex gap-1 align-items-center">
+              ${(sm.scadenze_items || []).length > 0 ? `<button type="button" class="btn btn-primary btn-sm py-0 px-2" style="font-size:0.7rem;" onclick="createAiFastScadenzeFlyer(this, 'Tutti i Clienti', '${allItemsEnc}')"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4</button>` : ""}
+              <a href="/ordini?tab=scadenze#centro-operativo" class="badge bg-secondary text-white text-decoration-none">Pannello</a>
+            </div>
           </div>
           <div style="max-height: 360px; overflow-y: auto;">${rowsHtml || '<div class="p-3 text-muted small">Nessun cliente abbinato.</div>'}</div>
         `;

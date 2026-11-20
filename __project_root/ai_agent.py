@@ -1821,22 +1821,41 @@ def match_scadenze_list(raw_text: str = "", items: list = None, use_saved_db: bo
     client_prods = {}
     for r in cp_rows:
         cid = int(r["cliente_id"])
+        p_off = float(r.get("prezzo_offerta") or 0.0)
+        p_att = float(r.get("prezzo_attuale") or 0.0)
+        p_cat = float(r.get("prezzo_catalogo") or 0.0)
+        pos_listino = [v for v in (p_off, p_att) if v > 0]
+        p_listino = min(pos_listino) if pos_listino else 0.0
         client_prods.setdefault(cid, []).append({
             "prodotto_id": int(r["prodotto_id"]) if r.get("prodotto_id") else None,
             "codice": str(r.get("codice") or "").strip().upper(),
             "nome": str(r.get("prodotto_nome") or "").strip(),
-            "prezzo": float(r.get("prezzo_offerta") or r.get("prezzo_attuale") or r.get("prezzo_catalogo") or 0.0),
+            "prezzo": p_listino if p_listino > 0 else p_cat,
+            "prezzo_listino": p_listino,
         })
     for hr in hist_rows:
         cid = int(hr["cliente_id"])
-        existing_n = {x["nome"].upper() for x in client_prods.get(cid, [])}
         hn = str(hr.get("prodotto_nome") or "").strip()
-        if hn and hn.upper() not in existing_n:
-            client_prods.setdefault(cid, []).append({
-                "prodotto_id": int(hr["prodotto_id"]) if hr.get("prodotto_id") else None,
-                "codice": str(hr.get("codice") or "").strip().upper(),
+        h_price = float(hr.get("prezzo_attuale") or 0.0)
+        h_pid = int(hr["prodotto_id"]) if hr.get("prodotto_id") else None
+        h_code = str(hr.get("codice") or "").strip().upper()
+        existing_list = client_prods.setdefault(cid, [])
+        found_existing = None
+        for ex in existing_list:
+            if (h_pid and ex.get("prodotto_id") == h_pid) or (h_code and ex.get("codice") == h_code) or (hn and ex["nome"].upper() == hn.upper()):
+                found_existing = ex
+                break
+        if found_existing:
+            if h_price > 0 and (found_existing.get("prezzo_listino", 0.0) <= 0 or h_price < found_existing["prezzo_listino"]):
+                found_existing["prezzo_listino"] = h_price
+                found_existing["prezzo"] = h_price
+        elif hn:
+            existing_list.append({
+                "prodotto_id": h_pid,
+                "codice": h_code,
                 "nome": hn,
-                "prezzo": float(hr.get("prezzo_attuale") or 0.0),
+                "prezzo": h_price,
+                "prezzo_listino": h_price,
             })
 
     stop_words_scad = {"kg", "pz", "gr", "lt", "ml", "ct", "cf", "vasc", "latta", "pet", "s/v", "iqf", "pregis", "fresco", "gelo"}
@@ -1887,11 +1906,19 @@ def match_scadenze_list(raw_text: str = "", items: list = None, use_saved_db: bo
                             break
 
             if matched_cp:
+                prezzo_scad = round(float(sc["prezzo"] or 0.0), 2)
+                prezzo_cli_listino = round(float(matched_cp.get("prezzo_listino") or 0.0), 2)
+                paga_meno_listino = (prezzo_scad > 0 and prezzo_cli_listino > 0 and prezzo_cli_listino < prezzo_scad)
+                avviso_prezzo = (
+                    f"Il cliente lavora già questo prodotto a € {prezzo_cli_listino:.2f}/{sc['um'].lower()} "
+                    f"(meno del prezzo scadenza € {prezzo_scad:.2f}): non inserito nel messaggio, puoi fargli un buon prezzo!"
+                ) if paga_meno_listino else ""
+
                 client_matches.append({
                     "prodotto_id": sc.get("prodotto_id"),
                     "codice": sc["codice"],
                     "nome": sc["nome"],
-                    "prezzo": sc["prezzo"],
+                    "prezzo": prezzo_scad,
                     "um": sc["um"],
                     "scadenza": sc["scadenza"] or "Breve termine",
                     "quantita": sc["quantita"] or "Disp.",
@@ -1899,26 +1926,37 @@ def match_scadenze_list(raw_text: str = "", items: list = None, use_saved_db: bo
                     "categoria": sc.get("categoria") or "ALIMENTARI",
                     "prodotto_cliente": matched_cp["nome"],
                     "prezzo_abituale": round(matched_cp["prezzo"], 2),
+                    "prezzo_listino_cliente": prezzo_cli_listino,
+                    "escluso_da_messaggio": paga_meno_listino,
+                    "avviso_prezzo": avviso_prezzo,
                     "motivo": reason,
                 })
 
         if not client_matches:
             continue
 
+        prodotti_messaggio = [cm for cm in client_matches if not cm.get("escluso_da_messaggio")]
+        prodotti_avviso_prezzo = [cm for cm in client_matches if cm.get("escluso_da_messaggio")]
+
         phone_clean = _clean_wa_phone(cli.get("telefono"))
         msg_lines = []
-        for cm in client_matches:
+        for cm in prodotti_messaggio:
             prz_txt = f" a *€ {cm['prezzo']:.2f}/{cm['um'].lower()}*" if cm["prezzo"] > 0 else ""
             scad_txt = f" · 📅 Scad. *{cm['scadenza']}*" if cm.get("scadenza") else ""
             qty_txt = f" · 📦 Disp. *{cm['quantita']}*" if cm.get("quantita") else ""
             msg_lines.append(f"⏳ *{cm['nome']}*{prz_txt}{scad_txt}{qty_txt}")
 
-        msg_wa = (
-            f"Ciao {cli['nome']} 👋!\n"
-            f"Ti segnalo in *Offerta Lampo Scadenza* questi prodotti che lavori:\n"
-            + "\n".join(msg_lines)
-            + "\n\nQuantità limitate fino a esaurimento: dimmi quanti pezzi/kg ti blocco! 🚚"
-        )
+        if msg_lines:
+            msg_wa = (
+                f"Ciao {cli['nome']} 👋!\n"
+                f"Ti segnalo in *Offerta Lampo Scadenza* questi prodotti che lavori:\n"
+                + "\n".join(msg_lines)
+                + "\n\nQuantità limitate fino a esaurimento: dimmi quanti pezzi/kg ti blocco! 🚚"
+            )
+            solo_avviso_prezzo = False
+        else:
+            msg_wa = ""
+            solo_avviso_prezzo = True
 
         matched_clients.append({
             "cliente_id": cid,
@@ -1927,8 +1965,13 @@ def match_scadenze_list(raw_text: str = "", items: list = None, use_saved_db: bo
             "telefono": cli.get("telefono") or "",
             "whatsapp_clean": phone_clean,
             "num_prodotti": len(client_matches),
+            "num_prodotti_messaggio": len(prodotti_messaggio),
+            "num_avvisi_prezzo": len(prodotti_avviso_prezzo),
+            "solo_avviso_prezzo": solo_avviso_prezzo,
             "num_esatti": exact_cnt,
             "prodotti_abbinati": client_matches,
+            "prodotti_messaggio": prodotti_messaggio,
+            "prodotti_avviso_prezzo": prodotti_avviso_prezzo,
             "messaggio_whatsapp": msg_wa,
             "wa_url": _build_wa_link(phone_clean, msg_wa),
             "fatturato_totale": round(float(cli.get("fatturato_totale") or 0.0), 2),

@@ -665,7 +665,7 @@
             <i class="bi bi-download me-1"></i>Scarica Immagine PNG per WhatsApp
           </button>
           <button type="button" id="btnOpenInVolantini3" class="btn btn-primary rounded-pill px-3 fw-bold">
-            <i class="bi bi-magic me-1"></i>Apri &amp; Modifica in Volantini 3.0 AI
+            <i class="bi bi-grid-3x3-gap-fill me-1"></i>Apri in Editor Normale (Griglia 4×4)
           </button>
         </div>
       </div>
@@ -1033,19 +1033,29 @@
             <span class="badge bg-warning text-dark me-1">${data.totale_prodotti_scadenza} prodotti in scadenza</span>
             <span class="badge bg-success">${data.totale_clienti_abbinati} Clienti che li lavorano</span>
           </div>
-          <button type="button" class="btn btn-dark btn-sm rounded-pill fw-bold"
-                  onclick="openFastScadenzeFlyerModal('Tutti i Clienti', '${allEnc}')">
-            <i class="bi bi-magic text-warning me-1"></i>Volantino Veloce Tutte le Scadenze
-          </button>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold"
+                    onclick="createNormalScadenzeFlyerDirect(this, 'Tutti i Clienti', '${allEnc}')">
+              <i class="bi bi-grid-3x3-gap-fill me-1"></i>Crea Volantino 4×4 (Editor Normale)
+            </button>
+            <button type="button" class="btn btn-outline-dark btn-sm rounded-pill fw-bold"
+                    onclick="openFastScadenzeFlyerModal('Tutti i Clienti', '${allEnc}')">
+              <i class="bi bi-file-earmark-image me-1"></i>Anteprima Rapida PNG
+            </button>
+          </div>
         </div>
         <div class="d-flex flex-column gap-3">
           ${clients.map((c, idx) => {
             const taId = `scadWaTa_${c.cliente_id}_${idx}`;
+            const prodsMsg = c.prodotti_messaggio || (c.prodotti_abbinati || []).filter(p => !p.escluso_da_messaggio);
+            const prodsAvviso = c.prodotti_avviso_prezzo || (c.prodotti_abbinati || []).filter(p => p.escluso_da_messaggio);
             const encProds = encodeURIComponent(JSON.stringify(c.prodotti_abbinati || []));
             const safeCliName = (c.cliente_nome || "").replace(/'/g, "\\'");
-            const itemsBadges = (c.prodotti_abbinati || []).map(p => `
+
+            const itemsBadges = prodsMsg.map(p => `
               <div class="p-1.5 px-2 rounded-2 bg-white border d-flex flex-wrap justify-content-between align-items-center gap-2 small mb-1" style="color:#0f172a;">
                 <div>
+                  ${p.codice ? `<span class="badge bg-light text-secondary border me-1 font-monospace">${escH(p.codice)}</span>` : ""}
                   <strong>${escH(p.nome)}</strong>
                   <span class="text-muted ms-1" style="font-size:0.72rem;">(${escH(p.motivo)})</span>
                 </div>
@@ -1057,6 +1067,65 @@
               </div>
             `).join("");
 
+            const avvisoHtml = prodsAvviso.length > 0 ? `
+              <div class="alert alert-warning py-2 px-3 mb-2 border-warning" style="font-size:0.8rem;">
+                <div class="fw-bold mb-1">
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i>Avviso listino cliente (esclusi dal messaggio preimpostato — puoi fargli un buon prezzo):
+                </div>
+                ${prodsAvviso.map(p => `
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-1 border-top border-warning-subtle">
+                    <div>
+                      ${p.codice ? `<span class="badge bg-white text-dark border me-1 font-monospace">${escH(p.codice)}</span>` : ""}
+                      <strong>${escH(p.nome)}</strong>
+                      <span class="text-dark opacity-75 ms-1">· lo lavora già a <strong>€ ${Number(p.prezzo_listino_cliente || 0).toFixed(2)}/${escH(p.um)}</strong> (meno della scadenza € ${Number(p.prezzo || 0).toFixed(2)})</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                      <span class="badge bg-danger-subtle text-danger border">📅 ${escH(p.scadenza)}</span>
+                      <span class="badge bg-white text-dark border">📦 ${escH(p.quantita)}</span>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            ` : "";
+
+            const hasMsg = !!(c.messaggio_whatsapp && c.messaggio_whatsapp.trim());
+            const msgSectionHtml = hasMsg ? `
+              <textarea id="${taId}" rows="4" class="form-control form-control-sm mb-2" style="font-size:0.78rem;">${escH(c.messaggio_whatsapp)}</textarea>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-success btn-sm fw-bold" onclick="openWaWithTextarea('${escH(c.whatsapp_clean)}', '${taId}')">
+                  <i class="bi bi-whatsapp me-1"></i>Invia Messaggio WhatsApp
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyFromTextarea(this, '${taId}')">
+                  <i class="bi bi-clipboard me-1"></i>Copia Testo
+                </button>
+                <button type="button" class="btn btn-primary btn-sm fw-bold"
+                        onclick="createNormalScadenzeFlyerDirect(this, '${safeCliName}', '${encProds}')">
+                  <i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4 Cliente
+                </button>
+                <button type="button" class="btn btn-warning text-dark btn-sm fw-bold"
+                        onclick="openFastScadenzeFlyerModal('${safeCliName}', '${encProds}')">
+                  <i class="bi bi-file-earmark-image me-1"></i>Anteprima PNG
+                </button>
+              </div>
+            ` : `
+              <div class="small text-muted fst-italic mb-2">
+                Nessun prodotto inserito nel messaggio preimpostato perché il cliente li paga già meno nel suo listino: contattalo direttamente per fargli un buon prezzo.
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <a href="${escH(c.wa_url || ('https://wa.me/' + (c.whatsapp_clean || '')))}" target="_blank" class="btn btn-outline-success btn-sm fw-bold">
+                  <i class="bi bi-whatsapp me-1"></i>Contatta su WhatsApp per Buon Prezzo
+                </a>
+                <button type="button" class="btn btn-primary btn-sm fw-bold"
+                        onclick="createNormalScadenzeFlyerDirect(this, '${safeCliName}', '${encProds}')">
+                  <i class="bi bi-grid-3x3-gap-fill me-1"></i>Volantino 4×4 Cliente
+                </button>
+              </div>
+            `;
+
+            const headerBadge = prodsAvviso.length > 0 && !hasMsg
+              ? `<span class="badge bg-warning text-dark"><i class="bi bi-bell-fill me-1"></i>Solo avviso listino (${prodsAvviso.length})</span>`
+              : `<span class="badge bg-warning text-dark">${prodsMsg.length} nel messaggio${prodsAvviso.length > 0 ? ` · ${prodsAvviso.length} avvisi prezzo` : ""}</span>`;
+
             return `
               <div class="p-3 rounded-3 border bg-body-tertiary">
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1064,22 +1133,11 @@
                     <a href="/clienti/${c.cliente_id}" class="fw-bold text-decoration-none fs-6">${escH(c.cliente_nome)}</a>
                     <span class="small text-muted ms-1">(${escH(c.zona || "Zona N/D")})</span>
                   </div>
-                  <span class="badge bg-warning text-dark">${c.num_prodotti} prodotti che lavora in scadenza</span>
+                  ${headerBadge}
                 </div>
-                <div class="mb-2">${itemsBadges}</div>
-                <textarea id="${taId}" rows="4" class="form-control form-control-sm mb-2" style="font-size:0.78rem;">${escH(c.messaggio_whatsapp)}</textarea>
-                <div class="d-flex flex-wrap gap-2">
-                  <button type="button" class="btn btn-success btn-sm fw-bold" onclick="openWaWithTextarea('${escH(c.whatsapp_clean)}', '${taId}')">
-                    <i class="bi bi-whatsapp me-1"></i>Invia Messaggio WhatsApp
-                  </button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyFromTextarea(this, '${taId}')">
-                    <i class="bi bi-clipboard me-1"></i>Copia Testo
-                  </button>
-                  <button type="button" class="btn btn-warning text-dark btn-sm fw-bold"
-                          onclick="openFastScadenzeFlyerModal('${safeCliName}', '${encProds}')">
-                    <i class="bi bi-file-earmark-image me-1"></i>Volantino Veloce per ${escH(c.cliente_nome)}
-                  </button>
-                </div>
+                ${itemsBadges ? `<div class="mb-2">${itemsBadges}</div>` : ""}
+                ${avvisoHtml}
+                ${msgSectionHtml}
               </div>
             `;
           }).join("") || '<div class="text-muted small text-center py-4">Nessun cliente abbinato a questi prodotti.</div>'}
@@ -1095,18 +1153,51 @@
   document.getElementById("btnRunScadenzeMatcher")?.addEventListener("click", () => runScadenzeMatching(false));
   document.getElementById("btnLoadSavedScadenze")?.addEventListener("click", () => runScadenzeMatching(true));
 
+  window.createNormalScadenzeFlyerDirect = async function(btn, clienteNome, encodedItems) {
+    const items = JSON.parse(decodeURIComponent(encodedItems));
+    const orig = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Creazione 4×4...`;
+    }
+    try {
+      const res = await fetch("/api/offerte/crea_volantino_scadenze_veloce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente_nome: clienteNome,
+          prodotti: items,
+          editor_mode: "normale"
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.location.href = data.editor_url || `/beta-volantino/${data.volantino_id}`;
+      } else {
+        alert(data.error || "Errore durante la creazione del volantino 4×4.");
+      }
+    } catch (e) {
+      alert("Errore: " + e.message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    }
+  };
+
   window.openFastScadenzeFlyerModal = function(clienteNome, encodedItems) {
     const items = JSON.parse(decodeURIComponent(encodedItems));
-    currentScadenzeFlyerPayload = { cliente_nome: clienteNome, prodotti: items };
+    currentScadenzeFlyerPayload = { cliente_nome: clienteNome, prodotti: items, editor_mode: "normale" };
 
     document.getElementById("fastFlyerModalTitle").textContent = `⚡ Volantino Veloce Scadenze · ${clienteNome}`;
     document.getElementById("fastFlyerClientHeader").textContent = clienteNome && clienteNome !== "Tutti i Clienti"
       ? `Offerta Scadenze per ${clienteNome}`
       : "Offerta Lampo Prodotti in Scadenza";
-    document.getElementById("fastFlyerSubHeader").textContent = `${items.length} referenze selezionate con quantità e data di scadenza`;
+    document.getElementById("fastFlyerSubHeader").textContent = `${items.length} referenze selezionate (griglia 4×4 nell'editor normale)`;
 
     const grid = document.getElementById("fastFlyerItemsGrid");
-    grid.innerHTML = items.slice(0, 12).map(p => {
+    grid.innerHTML = items.slice(0, 16).map(p => {
       const imgHtml = p.immagine
         ? `<img src="${escH(p.immagine)}" style="width:68px;height:68px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid #e2e8f0;padding:3px;">`
         : `<div class="d-flex align-items-center justify-content-center rounded-3 bg-warning-subtle text-warning-emphasis fw-bold" style="width:68px;height:68px;font-size:1.4rem;">⏳</div>`;
@@ -1115,10 +1206,11 @@
           <div class="p-2.5 rounded-3 bg-white border shadow-xs d-flex align-items-center gap-2.5 h-100" style="border-color:#fcd34d !important;">
             ${imgHtml}
             <div class="flex-grow-1">
+              ${p.codice ? `<div class="text-muted font-monospace" style="font-size:0.68rem;">Cod: ${escH(p.codice)}</div>` : ""}
               <div class="fw-bold small" style="color:#0f172a;line-height:1.25;">${escH(p.nome)}</div>
               <div class="d-flex flex-wrap gap-1 mt-1">
                 <span class="badge bg-danger text-white" style="font-size:0.68rem;">📅 Scad: ${escH(p.scadenza || "Breve")}</span>
-                <span class="badge bg-warning text-dark" style="font-size:0.68rem;">📦 Disp: ${escH(p.quantita || "Lim.")}</span>
+                <span class="badge bg-warning text-dark" style="font-size:0.68rem;">📦 Pz disp: ${escH(p.quantita || "Lim.")}</span>
               </div>
               <div class="mt-1 fw-bold text-danger" style="font-size:1.05rem;">
                 ${p.prezzo > 0 ? `€ ${Number(p.prezzo).toFixed(2)} <span class="small text-muted fw-normal">/${escH(p.um || "PZ")}</span>` : "Prezzo Speciale"}
@@ -1136,16 +1228,16 @@
     const btn = document.getElementById("btnOpenInVolantini3");
     const orig = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Apertura Volantini 3.0...`;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Apertura Editor Normale 4×4...`;
     try {
       const res = await fetch("/api/offerte/crea_volantino_scadenze_veloce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentScadenzeFlyerPayload)
+        body: JSON.stringify({ ...currentScadenzeFlyerPayload, editor_mode: "normale" })
       });
       const data = await res.json();
       if (data.ok) {
-        window.location.href = data.editor_url || `/volantini-3?id=${data.volantino_id}`;
+        window.location.href = data.editor_url || `/beta-volantino/${data.volantino_id}`;
       } else {
         alert(data.error || "Errore durante la creazione del volantino.");
       }
